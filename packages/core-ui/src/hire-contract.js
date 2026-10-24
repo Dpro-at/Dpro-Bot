@@ -280,7 +280,7 @@ function batchesResult(status, body) {
   return known(status, body, status === 409 ? ['batch_conflict'] : status === 400 ? ['invalid_plan'] : []);
 }
 
-const runCodes = ['create_failed', 'name_unavailable'];
+const runCodes = ['create_failed', 'name_unavailable', 'personality_changed'];
 function batchResult(batch, status, body) {
   if (status === 200 && !batch.run) {
     if (!record(body)) fail();

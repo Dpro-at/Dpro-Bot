@@ -50,12 +50,12 @@ export class PersonalityLibrary {
  async list(){return sql().tx(function*(){const rows=yield* all<Row>('SELECT * FROM personality_library ORDER BY id');const links=yield* all<{personality_id:string;n:number}>('SELECT personality_id,COUNT(*) n FROM agent_personality_links GROUP BY personality_id');return rows.map(r=>({id:r.id,revision:r.revision,profile:validateProfile(JSON.parse(r.profile_json)),archived:!!r.archived,usedBy:Number(links.find(l=>l.personality_id===r.id)?.n??0)}));});}
  async read(id:string){return sql().read(readStep(id));}
  async versions(id:string){return sql().read((function*(){yield* readStep(id,true);return yield* all<{revision:number;profile_json:string;created_at:string}>('SELECT revision,profile_json,created_at FROM personality_library_versions WHERE personality_id=? ORDER BY revision DESC',id);})());}
- async preview(id:string,raw:unknown){const input=check(raw);only(input,['revision','profile']);const p=validateProfile(input.profile);return sql().tx(function*(){yield* lockName('personality-library');const e=yield* readStep(id);if(e.revision!==input.revision)throw new LibraryError('version_conflict',409);return impact(e,p,yield* snapshot(id));},{immediate:true});}
+ async preview(id:string,raw:unknown){const input=check(raw);only(input,['revision','profile']);const p=validateProfile(input.profile);return sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();const e=yield* readStep(id);if(e.revision!==input.revision)throw new LibraryError('version_conflict',409);return impact(e,p,yield* snapshot(id));},{immediate:true});}
  async save(actor:string,id:string,raw:unknown){
   const input=check(raw);only(input,['revision','profile','confirmation']);const p=validateProfile(input.profile);
   if(!idOk(id)||['team','blend','assigned'].includes(id)||!Number.isSafeInteger(input.revision)||input.revision<0)throw new LibraryError('invalid_input');
   return sql().tx(function*(){
-   yield* lockName('personality-library');
+   yield* lockName('personality-library');yield* seedLibraryStep();
    const exists=yield* one<Row>('SELECT * FROM personality_library WHERE id=?',id);
    if(!exists){if(input.revision!==0)throw new LibraryError('version_conflict',409);yield* run('INSERT INTO personality_library(id,revision,profile_json) VALUES(?,1,?)',id,JSON.stringify(p));}
    else{
@@ -85,7 +85,7 @@ export class PersonalityLibrary {
  async assign(actor:string,agentId:string,raw:unknown){
   const input=check(raw);only(input,['id','revision','expectedVersion','linked']);
   if(!idOk(agentId)||!idOk(input.id)||!Number.isSafeInteger(input.expectedVersion)||typeof input.linked!=='boolean')throw new LibraryError('invalid_input');
-  return sql().tx(function*(){yield* lockName('personality-library');const e=yield* readStep(input.id);if(e.revision!==input.revision)throw new LibraryError('version_conflict',409);
+  return sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();const e=yield* readStep(input.id);if(e.revision!==input.revision)throw new LibraryError('version_conflict',409);
    const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current)throw new LibraryError('not_found',404);
    if(current.locked)throw new LibraryError('personality_locked',409);if(current.version!==input.expectedVersion)throw new LibraryError('version_conflict',409);
    const traits={...e.profile.traits};for(const k of current.lockedTraits)traits[k]=current.traits[k];
@@ -93,23 +93,23 @@ export class PersonalityLibrary {
    yield* writeLink(agentId,e,v.version,input.linked);return {version:v.version};
   },{immediate:true});
  }
- async mode(agentId:string,raw:unknown){const input=check(raw);only(input,['linked','expectedVersion']);if(!idOk(agentId)||typeof input.linked!=='boolean'||!Number.isSafeInteger(input.expectedVersion))throw new LibraryError('invalid_input');return sql().tx(function*(){yield* lockName('personality-library');const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current)throw new LibraryError('not_found',404);if(current.locked)throw new LibraryError('personality_locked',409);if(current.version!==input.expectedVersion)throw new LibraryError('version_conflict',409);const changed=yield* run('UPDATE agent_personality_links SET linked=? WHERE agent_id=?',input.linked?1:0,agentId);if(!changed.changes)throw new LibraryError('not_found',404);return {version:current.version};},{immediate:true});}
+ async mode(agentId:string,raw:unknown){const input=check(raw);only(input,['linked','expectedVersion']);if(!idOk(agentId)||typeof input.linked!=='boolean'||!Number.isSafeInteger(input.expectedVersion))throw new LibraryError('invalid_input');return sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current)throw new LibraryError('not_found',404);if(current.locked)throw new LibraryError('personality_locked',409);if(current.version!==input.expectedVersion)throw new LibraryError('version_conflict',409);const changed=yield* run('UPDATE agent_personality_links SET linked=? WHERE agent_id=?',input.linked?1:0,agentId);if(!changed.changes)throw new LibraryError('not_found',404);return {version:current.version};},{immediate:true});}
  async tune(actor:string,agentId:string,raw:unknown){
   const input=check(raw);only(input,['profile','expectedVersion']);const profile=validateProfile(input.profile);
   if(!idOk(agentId)||!Number.isSafeInteger(input.expectedVersion))throw new LibraryError('invalid_input');
-  return sql().tx(function*(){yield* lockName('personality-library');const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current)throw new LibraryError('not_found',404);if(current.locked)throw new LibraryError('personality_locked',409);if(current.version!==input.expectedVersion)throw new LibraryError('version_conflict',409);
+  return sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current)throw new LibraryError('not_found',404);if(current.locked)throw new LibraryError('personality_locked',409);if(current.version!==input.expectedVersion)throw new LibraryError('version_conflict',409);
    const traits={...profile.traits};for(const k of current.lockedTraits)traits[k]=current.traits[k];
    const v=yield* appendVersion(agentId,actor,{...current,traits,dialect:profile.dialect,preset:null,source:'owner',basedOnVersion:current.version||null,note:'Individual personality preferences'});
    yield* run('UPDATE agent_personality_profile_versions SET profile_json=? WHERE agent_id=? AND version=?',JSON.stringify({...profile,traits}),agentId,v.version);return {version:v.version};
   },{immediate:true});
  }
- async archive(id:string,raw:unknown){const input=check(raw);only(input,['revision','archived']);if(typeof input.archived!=='boolean')throw new LibraryError('invalid_input');return sql().tx(function*(){yield* lockName('personality-library');const e=yield* readStep(id,true);if(input.revision!==e.revision)throw new LibraryError('version_conflict',409);yield* run('UPDATE personality_library SET archived=? WHERE id=?',input.archived?1:0,id);return {archived:input.archived};},{immediate:true});}
+ async archive(id:string,raw:unknown){const input=check(raw);only(input,['revision','archived']);if(typeof input.archived!=='boolean')throw new LibraryError('invalid_input');return sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();const e=yield* readStep(id,true);if(input.revision!==e.revision)throw new LibraryError('version_conflict',409);yield* run('UPDATE personality_library SET archived=? WHERE id=?',input.archived?1:0,id);return {archived:input.archived};},{immediate:true});}
  async team(){return sql().tx(function*(){const agents=yield* all<{id:string;name:string;department:string|null}>('SELECT id,name,department FROM agents_config ORDER BY name');const out=[];for(const agent of agents){const p=yield* currentPersonalityStep(agent.id);if(p)out.push({...agent,traits:p.traits,locked:p.locked});}return {agents:out,gaps:[!out.some(a=>a.traits.thoroughness>=75&&a.traits.caution>=65)?'No careful reviewer':null,!out.some(a=>a.traits.creativity>=75)?'No strong creative explorer':null,!out.some(a=>a.traits.warmth>=75)?'No especially warm communicator':null].filter(Boolean)};});}
 }
 function* writeLink(agentId:string,e:LibraryEntry,version:number,linked:boolean):Step<void>{yield* run('UPDATE agent_personality_profile_versions SET profile_json=? WHERE agent_id=? AND version=?',JSON.stringify(e.profile),agentId,version);yield* run('INSERT INTO agent_personality_links(agent_id,personality_id,revision,profile_json,applied_version,linked) VALUES(?,?,?,?,?,?) ON CONFLICT(agent_id) DO UPDATE SET personality_id=excluded.personality_id,revision=excluded.revision,profile_json=excluded.profile_json,applied_version=excluded.applied_version,linked=excluded.linked',agentId,e.id,e.revision,JSON.stringify(e.profile),version,linked?1:0);}
 /** Called in the hire transaction: selection and first version commit together. */
 export function* seedLibraryPersonality(agentId:string,actor:string,raw:unknown):Step<void>{
- const input=check(raw);only(input,['id','revision']);yield* lockName('personality-library');const e=yield* readStep(input.id);if(input.revision!==e.revision)throw new LibraryError('version_conflict',409);
+ const input=check(raw);only(input,['id','revision']);yield* lockName('personality-library');yield* seedLibraryStep();const e=yield* readStep(input.id);if(input.revision!==e.revision)throw new LibraryError('version_conflict',409);
  const current=yield* currentPersonalityStep(agentId,{lock:true});if(!current||current.version!==0)throw new LibraryError('version_conflict',409);
  const v=yield* appendVersion(agentId,actor,{traits:e.profile.traits,dialect:e.profile.dialect,preset:null,locked:false,lockedTraits:[],source:'seed',basedOnVersion:null,note:`Library: ${e.profile.name}`});yield* writeLink(agentId,e,v.version,true);
 }

@@ -27,6 +27,8 @@ import { nowText } from '../db/pg/dialect.js';
 import { insertAgentConfigStep, newAgentId } from '../repositories/agents-config.js';
 import { AgentNameTakenError, isNameLanguage, resolveNamingLanguage, suggestAgentNames, type NameLanguage } from './agent-names.js';
 import { isPresetId, type AgentRole } from './personality.js';
+import { seedLibraryStep } from './personality-library.js';
+import { LibraryError } from './personality-library-profile.js';
 import {
   CompanyPlanInputError, MAX_TOTAL_HEADCOUNT, TEAM_ROLES, departmentShare, parseDepartments, type TeamRole,
 } from './company-plan.js';
@@ -186,6 +188,7 @@ export async function createBatch(ownerId: string, input: { id?: unknown; langua
     }
     if(items.some(it=>it.library_personality)){
       yield* lockName('personality-library');
+      yield* seedLibraryStep();
       for(const value of new Set(items.flatMap(it=>it.library_personality?[it.library_personality]:[]))){const selected=JSON.parse(value);const stored=yield* one<{revision:number;archived:number}>('SELECT revision,archived FROM personality_library WHERE id=?',selected.id);if(!stored||stored.archived||stored.revision!==selected.revision)throw new CompanyPlanInputError('Selected personality changed. Review the library and choose it again.');}
     }
     yield* run(`INSERT INTO team_hire_batches (id, owner_id, fingerprint, language, total, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ${nowText(d)}, ${nowText(d)})`,
@@ -266,9 +269,11 @@ async function createItem(ownerId: string, batchId: string, it: PlannedItem, lan
     } catch (err) {
       if (err instanceof AlreadyTaken) return null;
       if (err instanceof AgentNameTakenError) continue; // a name was taken meanwhile: pick another
-      console.error('[TeamBatch] create failed', { batchId, seq: it.seq, error: (err as Error)?.message });
-      await markFailed(batchId, it.seq, 'create_failed');
-      return { seq: it.seq, status: 'failed', code: 'create_failed' };
+      // The chosen library personality was edited or archived after planning: say so, a retry cannot fix it.
+      const code = err instanceof LibraryError ? 'personality_changed' : 'create_failed';
+      console.error('[TeamBatch] create failed', { batchId, seq: it.seq, code, error: (err as Error)?.message });
+      await markFailed(batchId, it.seq, code);
+      return { seq: it.seq, status: 'failed', code };
     }
   }
   await markFailed(batchId, it.seq, 'name_unavailable');

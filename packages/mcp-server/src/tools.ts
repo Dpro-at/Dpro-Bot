@@ -30,7 +30,7 @@ const RUN_ID = /^[0-9a-f-]{36}$/i;
 export const TOOL_DEFINITIONS = [
   {
     name:'personality_library', title:'Personality library',
-    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. Never confirm a linked change unless the owner reviewed the returned affected agents and profile. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body; confirmed save also requires the exact preview confirmation.',
+    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
   },
 
@@ -407,6 +407,9 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  const route=routes[operation];if(!Object.hasOwn(routes,operation)||!route)throw new InputError('Unknown operation');
  if(route.id&&(typeof args.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/).test(args.id)))throw new InputError('Valid id required');
  if(route.method==='GET'&&args.body!==undefined)throw new InputError('Read operations do not accept a body');
+ // Owner review stays in the app: an MCP caller may preview a linked change but never confirm it, approve drift or lift a lock.
+ if(operation==='approve'||operation==='unlock')throw new InputError('Approving drift and unlocking are done by the owner in the app');
+ if(args.body&&typeof args.body==='object'&&Object.hasOwn(args.body,'confirmation'))throw new InputError('Linked changes are confirmed by the owner in the app; use preview to show the impact');
  const agentOperation=['agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject'].includes(operation);
  const proposalOperation=['proposal','approve','reject'].includes(operation);
  if(proposalOperation&&(typeof args.proposalId!=='string'||!(/^[a-f0-9-]{36}$/).test(args.proposalId)))throw new InputError('A valid proposalId is required');

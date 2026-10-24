@@ -11,7 +11,7 @@ export async function personalityLibraryRoutes(app:FastifyInstance){
  const store=new PersonalityLibrary();
  const previews=new Set<string>();
  const owner=(r:any)=>{const a=requireOwner(actorOf(r));if(a.kind!=='user'||!a.userId)throw new ScopeError(403,'Forbidden');return a.userId;};
- const opts={config:{access:'owner' as const},bodyLimit:32000};
+ const opts={config:{access:'owner' as const},bodyLimit:48000}; // a blend body carries two full profiles
  const fail=(reply:any,e:unknown)=>reply.code(e instanceof ScopeError?e.status:e instanceof LibraryError?e.status:503).send({code:e instanceof ScopeError?'forbidden':e instanceof LibraryError?e.code:'library_unavailable'});
  const route=(method:'GET'|'POST'|'PUT',url:string,action:(r:any,actor:string)=>Promise<unknown>)=>app.route({method,url,...opts,handler:async(r,reply)=>{try{const actor=owner(r);const result=await action(r,actor);if(method!=='GET')logAudit({event_type:'data.update',event_category:'data_modification',severity:'info',user_id:actor,resource_type:'personality',resource_id:(r.params as {id?:string;agentId?:string}).id??(r.params as {agentId?:string}).agentId??'library',action:url,success:true});return result;}catch(e){return fail(reply,e);}}});
  route('GET','/api/personality-library',async()=>{await store.initialize();return {personalities:await store.list()};});
