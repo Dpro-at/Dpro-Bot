@@ -29,6 +29,12 @@ const RUN_ID = /^[0-9a-f-]{36}$/i;
 
 export const TOOL_DEFINITIONS = [
   {
+    name:'personality_library', title:'Personality library',
+    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. Never confirm a linked change unless the owner reviewed the returned affected agents and profile. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body; confirmed save also requires the exact preview confirmation.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
+  },
+
+  {
     name: 'spawn_small_agent',
     title: 'Delegate a light task to the small local agent',
     description: [
@@ -236,6 +242,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
   try {
     const args = obj(rawArgs);
     switch (name) {
+      case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
       case 'list_runs': return await list(args, deps);
@@ -389,4 +396,21 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
   for (const k of ['done', 'left', 'next', 'questions'] as const) if (body[k] === undefined && Array.isArray(current?.[k])) body[k] = current[k];
   const res = await backend.request('PUT', handoffPath(t), body);
   return ok(`Saved as version ${res?.handoff?.version ?? '?'}. The agent's next session starts from it.\n\n${renderHandoff(res?.handoff)}`, { handoff: res?.handoff ?? null });
+}
+
+async function personalityLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','id','proposalId','body']);
+ const operation=args.operation;
+ if(typeof operation!=='string')throw new InputError('operation is required');
+ const base='/api/personality-library';
+ const routes:Record<string,{method:'GET'|'POST'|'PUT';suffix:string;id?:boolean}>={list:{method:'GET',suffix:''},team:{method:'GET',suffix:'/team'},read:{method:'GET',suffix:'',id:true},versions:{method:'GET',suffix:'/versions',id:true},exams:{method:'GET',suffix:'/exams',id:true},save:{method:'PUT',suffix:'',id:true},preview:{method:'POST',suffix:'/preview',id:true},archive:{method:'POST',suffix:'/archive',id:true},blend:{method:'POST',suffix:'/blend'},assess:{method:'POST',suffix:'/exams',id:true},assignment:{method:'GET',suffix:'',id:true},mode:{method:'POST',suffix:'/mode',id:true},tune:{method:'POST',suffix:'/tune',id:true},agentCurrent:{method:'GET',suffix:'/personality/current',id:true},agentVersions:{method:'GET',suffix:'/personality/versions',id:true},lock:{method:'POST',suffix:'/personality/lock',id:true},unlock:{method:'POST',suffix:'/personality/unlock',id:true},proposals:{method:'GET',suffix:'/personality/proposals',id:true},proposal:{method:'GET',suffix:'/personality/proposals',id:true},approve:{method:'POST',suffix:'/personality/proposals',id:true},reject:{method:'POST',suffix:'/personality/proposals',id:true},restore:{method:'POST',suffix:'/personality/rollback',id:true},assign:{method:'POST',suffix:'',id:true},try:{method:'POST',suffix:'/try',id:true}};
+ const route=routes[operation];if(!Object.hasOwn(routes,operation)||!route)throw new InputError('Unknown operation');
+ if(route.id&&(typeof args.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/).test(args.id)))throw new InputError('Valid id required');
+ if(route.method==='GET'&&args.body!==undefined)throw new InputError('Read operations do not accept a body');
+ const agentOperation=['agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject'].includes(operation);
+ const proposalOperation=['proposal','approve','reject'].includes(operation);
+ if(proposalOperation&&(typeof args.proposalId!=='string'||!(/^[a-f0-9-]{36}$/).test(args.proposalId)))throw new InputError('A valid proposalId is required');
+ const url=(agentOperation?'/api/agents':base)+(['assign','assignment','tune','mode'].includes(operation)?'/assigned/':'/')+(route.id?args.id:'')+route.suffix+(proposalOperation?'/'+args.proposalId+(operation==='proposal'?'':'/'+operation):'');
+ const data=await backend.request(route.method,route.id?url:base+route.suffix,route.method==='GET'||['lock','unlock'].includes(operation)?undefined:obj(args.body));
+ return ok('Personality library result. Preferences never grant access.',data);
 }

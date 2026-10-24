@@ -1,3 +1,4 @@
+import {seedLibraryPersonality} from '../services/personality-library.js';
 /**
  * Agent configurations (B1.6, part of the agents repository): CRUD for the
  * named agent profiles in `agents_config` and their names (CORE-02).
@@ -87,6 +88,7 @@ export type AgentConfigInput = Partial<Omit<AgentConfigRow, 'capabilities' | 'ro
   department?: unknown;
   /** Creation only, owner only: explicit { preset?, traits?, dialect?, lockedTraits?, note? } (wins over the role default). */
   personality?: unknown;
+  libraryPersonality?: unknown;
 };
 
 /** Invalid input (400), optionally with a machine code (e.g. `invalid_version`). */
@@ -158,7 +160,8 @@ export function* insertAgentConfigStep(input: {
     role,
     department,
   );
-  if (role || explicit) yield* seedPersonalityForNewAgent(id, { role, department, explicit }, userId ?? 'system');
+  if(body.libraryPersonality!==undefined) yield* seedLibraryPersonality(id,userId??'system',body.libraryPersonality);
+  else if (role || explicit) yield* seedPersonalityForNewAgent(id, { role, department, explicit }, userId ?? 'system');
   // CORE-PERMS-01: a new agent starts with every tool category on "ask" (D-AGENT-PERMS safe default).
   yield* seedNewAgentPermissionsStep(id, userId);
 }
@@ -223,7 +226,8 @@ export const agentConfigs: AgentConfigsRepository = {
       if (err instanceof PersonalityInputError) throw new AgentConfigInputError(err.message, 'invalid_personality');
       throw err;
     }
-    if (explicit && !isSystem(a) && !isOwner(a)) {
+    if(body.libraryPersonality!==undefined && body.personality!==undefined) throw new AgentConfigInputError('Choose one personality source','invalid_personality');
+    if ((explicit || body.libraryPersonality!==undefined) && !isSystem(a) && !isOwner(a)) {
       throw new ScopeError(403, 'Only the owner can set a personality; leave it out to use the role default');
     }
     const id = newAgentId();

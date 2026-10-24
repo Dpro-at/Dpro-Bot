@@ -127,7 +127,7 @@ function* lockAgent(agentId: string): Step<boolean> {
   return !!(yield* one(`SELECT id FROM agents_config WHERE id = ?${forUpdate(d)}`, agentId));
 }
 
-function* currentPersonalityStep(agentId: string, opts: { lock?: boolean } = {}): Step<PersonalityVersion | null> {
+export function* currentPersonalityStep(agentId: string, opts: { lock?: boolean } = {}): Step<PersonalityVersion | null> {
   if (!(opts.lock ? yield* lockAgent(agentId) : yield* agentExistsStep(agentId))) return null;
   const row = yield* one<Row>('SELECT * FROM agent_personality_versions WHERE agent_id = ? ORDER BY version DESC LIMIT 1', agentId);
   return row ? fromRow(row) : defaults(agentId);
@@ -162,7 +162,7 @@ interface NewVersion {
  * row is locked first on PostgreSQL, so the next number is computed by one
  * writer at a time).
  */
-function* appendVersion(agentId: string, createdBy: string, v: NewVersion): Step<PersonalityVersion> {
+export function* appendVersion(agentId: string, createdBy: string, v: NewVersion): Step<PersonalityVersion> {
   if (!(yield* lockAgent(agentId))) throw new PersonalityNotFoundError('Agent not found');
   const max = (yield* one<{ v: number | null }>('SELECT MAX(version) AS v FROM agent_personality_versions WHERE agent_id = ?', agentId))?.v ?? 0;
   const version = max + 1;
@@ -172,6 +172,8 @@ function* appendVersion(agentId: string, createdBy: string, v: NewVersion): Step
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, agentId, version, JSON.stringify(v.traits), v.preset, v.dialect, v.locked ? 1 : 0,
     JSON.stringify(v.lockedTraits), v.source, v.basedOnVersion, v.note, createdBy);
+  const style = yield* one<{profile_json:string|null}>('SELECT profile_json FROM agent_personality_profile_versions WHERE agent_id=? AND version=?',agentId,v.source==='rollback'?v.basedOnVersion:max);
+  yield* run('INSERT INTO agent_personality_profile_versions(agent_id,version,profile_json) VALUES(?,?,?)',agentId,version,style?.profile_json??null);
   const row = yield* one<Row>('SELECT * FROM agent_personality_versions WHERE agent_id = ? AND version = ?', agentId, version);
   return fromRow(row as Row);
 }

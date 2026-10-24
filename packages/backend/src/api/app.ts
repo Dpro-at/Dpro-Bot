@@ -37,6 +37,7 @@ import { settingsRoutes } from './routes/settings.js';
 import { agentsStatusRoutes } from './routes/agents-status.js';
 import { pluginsRoutes } from './routes/plugins.js';
 import { channelsRoutes } from './routes/channels.js';
+import {personalityLibraryRoutes} from './routes/personality-library.js';
 import { specialtyTemplateRoutes } from './routes/specialty-templates.js';
 import { skillLibraryRoutes } from './routes/skill-library.js';
 import { skillsRoutes } from './routes/skills.js';
@@ -394,6 +395,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(agentPermissionsRoutes); // CORE-PERMS-01: memory scope + off/ask/allow per agent
   await fastify.register(taskBoardRoutes); // BOARD-01: company task board
   await fastify.register(terminalRoutes); // TERM-01: owner-only, loopback-only shell (off unless AGENT_TERMINAL=true)
+  await fastify.register(personalityLibraryRoutes);
   await fastify.register(agentPersonalityRoutes); // CORE-01: owner-only versioned personality
   await fastify.register(storageRoutes);       // 📦 Local Storage (Cache + CDN)
   await fastify.register(uploadsRoutes);       // 🔒 Runtime uploads in .data/uploads (CL-05)

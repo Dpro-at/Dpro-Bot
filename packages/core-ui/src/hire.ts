@@ -7,7 +7,7 @@ export type Role = 'main' | 'manager' | 'specialist' | 'evaluator';
 export type Preset = 'balanced-assistant' | 'careful-auditor' | 'bold-creative' | 'precise-developer' | 'strict-evaluator';
 export type Dialect = typeof dialects[number];
 export type TraitName = 'doubt' | 'caution' | 'creativity' | 'thoroughness' | 'independence' | 'verbosity' | 'warmth' | 'curiosity' | 'persistence';
-export type CreateBody = { name?: string; role: Role; department?: string; description?: string; personality?: { preset: Preset; dialect?: Dialect; traits?: Partial<Record<TraitName, number>> } };
+export type CreateBody = { name?: string; role: Role; department?: string; description?: string; libraryPersonality?: {id:string;revision:number}; personality?: { preset: Preset; dialect?: Dialect; traits?: Partial<Record<TraitName, number>> } };
 export type HireRequest =
   | { method: 'POST'; path: '/api/agents'; body: CreateBody }
   | { method: 'GET'; path: string }
@@ -35,7 +35,7 @@ export const modeLabel: Record<PermissionMode, string> = { off: 'Off', ask: 'Ask
 export const isRisky = (c: PermissionCategory) => (riskyCategories as readonly string[]).includes(c);
 
 export type Tool = Readonly<{ name: string; description: string; requiresApproval: boolean; allowedByServer: boolean; execClass: boolean }>;
-export type Draft = Readonly<{ name: string; role: Role; department: string; description: string; preset: Preset; presetChosen: boolean; dialect: Dialect | ''; traits: Readonly<Partial<Record<TraitName, number>>> }>;
+export type Draft = Readonly<{ name: string; role: Role; department: string; description: string; preset: Preset; presetChosen: boolean; libraryPersonality?:{id:string;revision:number}; dialect: Dialect | ''; traits: Readonly<Partial<Record<TraitName, number>>> }>;
 export type Step = 'role' | 'persona' | 'memory' | 'permissions' | 'done';
 export type HireState = Readonly<{
   step: Step; draft: Draft; owner: boolean;
@@ -100,7 +100,7 @@ export function createBody(d: Draft): CreateBody | null {
   const traits = Object.fromEntries(Object.entries(d.traits).filter(([, v]) => v !== undefined));
   const body: CreateBody = {
     ...(name ? { name } : {}), role: d.role, ...(department ? { department } : {}), ...(description ? { description } : {}),
-    personality: { preset: d.preset, ...(d.dialect ? { dialect: d.dialect } : {}), ...(Object.keys(traits).length ? { traits } : {}) },
+    ...(d.libraryPersonality?{libraryPersonality:d.libraryPersonality}:{personality: { preset: d.preset, ...(d.dialect ? { dialect: d.dialect } : {}), ...(Object.keys(traits).length ? { traits } : {}) }}),
   };
   return validCreateBody(body) ? body : null;
 }
@@ -145,7 +145,9 @@ export class HireController {
   edit(patch: Partial<Omit<Draft, 'traits' | 'presetChosen'>>) {
     if (!this.#state.owner || this.#state.agent || this.#busy()) return;
     const draft = { ...this.#state.draft, ...patch };
+    if(patch.libraryPersonality)draft.presetChosen=true;
     if (patch.preset) draft.presetChosen = true;
+    if((patch.role||patch.department!==undefined)&&!patch.libraryPersonality)draft.libraryPersonality=undefined;
     if (!draft.presetChosen && (patch.role || patch.department !== undefined)) draft.preset = suggestedPreset(draft.role, draft.department);
     this.#publish({ draft: Object.freeze(draft), phase: 'editing', notice: undefined });
   }

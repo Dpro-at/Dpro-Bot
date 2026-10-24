@@ -12,9 +12,9 @@ export type Specialty = Readonly<{name:string;count:number;description:string}>;
 export type SpecialtyChoice = Readonly<{department:string;name:string;description:string}>;
 export type Catalogue = Readonly<{ sizes: readonly Readonly<{ id: CompanySize; label: string }>[]; departments: readonly CatalogueDepartment[]; maxTotal?: number; specialties?: readonly SpecialtyChoice[] }>;
 /** ONBOARD-TEAM-02: one department of a total headcount, as the owner edits it. */
-export type Share = Readonly<{ specialties?: readonly Specialty[]; department: string; departmentLabel: string; count: number; presets: Readonly<Record<TeamRole, Preset>>; titles: Readonly<Record<TeamRole, string>> }>;
+export type Share = Readonly<{ specialties?: readonly Specialty[]; personalities?:Partial<Record<TeamRole,{id:string;revision:number}>>; department: string; departmentLabel: string; count: number; presets: Readonly<Record<TeamRole, Preset>>; titles: Readonly<Record<TeamRole, string>> }>;
 export type BatchProgress = Readonly<{ id: string; total: number; created: number; failed: number; pending: number; done: boolean; departments: readonly Readonly<{ department: string; total: number; created: number; failed: number }>[] }>;
-type BatchBody = { id: string; departments: { department: string; count: number; presets: Record<TeamRole, Preset>; specialties?: Specialty[] }[] };
+type BatchBody = { id: string; departments: { department: string; count: number; presets: Record<TeamRole, Preset>; personalities?:Partial<Record<TeamRole,{id:string;revision:number}>>; specialties?: Specialty[] }[] };
 export type HireStatus = 'planned' | 'creating' | 'created' | 'failed' | 'unknown';
 export type PlannedHire = Readonly<{
   key: string; department: string; departmentLabel: string; role: Role; title: string; description: string; preset: Preset;
@@ -235,12 +235,13 @@ export class CompanyController {
   }
 
   /** Edit one department of the split: its headcount or the persona for one role. */
-  editShare(department: string, patch: { count?: number; role?: TeamRole; preset?: Preset }) {
+  editShare(department: string, patch: { count?: number; role?: TeamRole; preset?: Preset;personality?:{id:string;revision:number} }) {
     const s = this.#state; if (!s.owner || this.#busy() || s.step !== 'review' || !s.shares.length) return;
     const max = s.catalogue?.maxTotal ?? MAX_TOTAL;
     if (patch.count !== undefined && (!Number.isSafeInteger(patch.count) || patch.count < 1 || patch.count > max)) return this.#publish({ notice: `Each department needs 1 to ${max} agents.` });
     this.#publish({ notice: undefined, shares: Object.freeze(s.shares.map(x => x.department !== department ? x : Object.freeze({
       ...x,
+      ...(patch.role&&patch.personality?{personalities:{...x.personalities,[patch.role]:patch.personality}}:{}),
       ...(patch.count !== undefined ? { count: patch.count } : {}),
       ...(patch.role && patch.preset ? { presets: Object.freeze({ ...x.presets, [patch.role]: patch.preset }) } : {}),
     }))) });
@@ -259,7 +260,7 @@ export class CompanyController {
     const max = s.catalogue?.maxTotal ?? MAX_TOTAL;
     if (total > max) return this.#publish({ notice: `At most ${max} agents in total; you have ${total}.` });
     if(s.shares.some(x=>!validSpecialties(x.specialties,x.count)))return this.#publish({notice:'Check specialty names and descriptions. Specialty counts must equal each department total.'});
-    this.#batchBody = { id: newBatchId(), departments: s.shares.map(x => ({ department: x.department, count: x.count, presets: { ...x.presets }, specialties:shareSpecialties(x).map(row=>({...row})) })) };
+    this.#batchBody = { id: newBatchId(), departments: s.shares.map(x => ({ department: x.department, count: x.count, presets: { ...x.presets }, ...(x.personalities?{personalities:x.personalities}:{}), specialties:shareSpecialties(x).map(row=>({...row})) })) };
     this.#batchStored = false;
     await this.#store();
   }

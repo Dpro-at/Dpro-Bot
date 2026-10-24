@@ -47,11 +47,12 @@ export function validPersonality(p) {
 
 /** POST /api/agents body: a role is required; persona is preset-based. */
 export function validCreateBody(b) {
-  if (!record(b) || !onlyKeys(b, ['name', 'role', 'department', 'description', 'personality'])) return false;
+  if (!record(b) || !onlyKeys(b, ['name', 'role', 'department', 'description', 'personality', 'libraryPersonality'])) return false;
   if (!roles.includes(b.role)) return false;
   if (b.name !== undefined && !displayName(b.name)) return false;
   if (b.department !== undefined && !department(b.department)) return false;
   if (b.description !== undefined && !description(b.description)) return false;
+  if(b.libraryPersonality!==undefined)return b.personality===undefined&&onlyKeys(b.libraryPersonality,['id','revision'])&&typeof b.libraryPersonality.id==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/.test(b.libraryPersonality.id)&&version(b.libraryPersonality.revision);
   return b.personality === undefined || validPersonality(b.personality);
 }
 
@@ -127,7 +128,8 @@ export function validBatchBody(b) {
   if (!record(b) || !onlyKeys(b, ['id', 'language', 'departments']) || !batchIdOk(b.id) || (b.language !== undefined && !nameLanguages.includes(b.language))) return false;
   const d = b.departments;
   if (!Array.isArray(d) || d.length < 1 || d.length > 72) return false;
-  const ok = d.every(x => record(x) && onlyKeys(x, ['department', 'count', 'presets', 'specialties']) && department(x.department) && headcount(x.count)
+  const ok = d.every(x => record(x) && onlyKeys(x, ['department', 'count', 'presets', 'specialties', 'personalities']) && department(x.department) && headcount(x.count)
+    && (x.personalities===undefined||record(x.personalities)&&Object.entries(x.personalities).every(([r,p])=>teamRoles.includes(r)&&onlyKeys(p,['id','revision'])&&typeof p.id==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/.test(p.id)&&version(p.revision)))
     && validSpecialties(x.specialties,x.count)
     && (x.presets === undefined || (record(x.presets) && Object.entries(x.presets).every(([r, p]) => teamRoles.includes(r) && presets.includes(p)))));
   return ok && new Set(d.map(x => x.department)).size === d.length && d.reduce((a, x) => a + x.count, 0) <= MAX_TOTAL;

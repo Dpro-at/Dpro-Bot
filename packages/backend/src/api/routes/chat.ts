@@ -1,3 +1,4 @@
+import {libraryBehavior} from '../../services/personality-library.js';
 import {frameUntrustedMemory} from '../../services/untrusted-memory-context.js';
 import {narrowProjectMemory} from '../../tools/memory/project-access.js';
 import { FakeRaw } from '../../services/chat-runs.js';
@@ -29,8 +30,7 @@ import { getJsonRenderPrompt, uiSpecPrompt } from './json-render-prompt.js';
 import { safeErrorFields } from '../../services/safe-error-log.js';
 import { resolveProviderApiKey } from '../../credentials/authority.js';
 import { readPersonality, readMemory } from '../../services/agent-files.js';
-import { getCurrentPersonality } from '../../services/personality-store.js';
-import { stripPersonalityExport, traitsToBehavior, type Behavior } from '../../services/personality.js';
+import { stripPersonalityExport, type Behavior } from '../../services/personality.js';
 import { outsiderAgentMemoryEnabled } from '../../services/outsider-memory.js';
 import { DrawerInputError, chatTurnDrawers, drawerId, sameDrawer, type DrawerRef } from '../../memory/drawers.js';
 import { pinnedFactsForReply, scopeFactAccess, type ReplyPinnedFacts } from '../../memory/scopes/pinned.js';
@@ -98,8 +98,7 @@ async function getPrimaryAgent(): Promise<AgentConfig | null> {
 /** Behaviour parameters from the agent's current personality version (CORE-01). */
 async function personalityBehavior(agentId: string): Promise<Behavior | null> {
   try {
-    const current = await getCurrentPersonality(agentId);
-    return current ? traitsToBehavior(current.traits, current.dialect) : null;
+    return await libraryBehavior(agentId);
   } catch (err) {
     console.warn('[Chat] Personality unavailable, using agent defaults');
     return null;

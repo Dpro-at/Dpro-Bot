@@ -1,3 +1,4 @@
+import {PersonalityPicker} from './PersonalityLibrary';
 import {TeamResourceReview} from './TeamResourceReview';
 import { useEffect,useRef,useState, useSyncExternalStore } from 'react';
 import { allPresets, allRoles, presetLabel, roleLabel } from './hire';
@@ -150,11 +151,7 @@ function ShareReview({ shares, busy, controller }: { shares: readonly Share[]; b
           <small>{rolesSummary(roles)}</small>
         </div>
         <div className="company-share-personas">{teamRoleOrder.filter(r => roles[r] > 0).map(r =>
-          <label key={r}>{teamRoleLabel[r]}
-            <select aria-label={`Persona for ${teamRoleLabel[r].toLowerCase()} in ${x.departmentLabel}`} value={x.presets[r]} disabled={busy} onChange={e => controller.editShare(x.department, { role: r, preset: e.target.value as Preset })}>
-              {allPresets.map(p => <option key={p} value={p}>{presetLabel[p]}</option>)}
-            </select>
-          </label>)}
+          <div key={r}><strong>{teamRoleLabel[r]}</strong><PersonalityPicker client={controller.client} value={x.personalities?.[r]} defaultId={x.presets[r]} disabled={busy} onPick={entry=>controller.editShare(x.department,{role:r,personality:{id:entry.id,revision:entry.revision}})}/></div>)}
         </div>
         <SpecialtyEditor share={x} busy={busy} controller={controller}/>
         <details className="company-people"><summary>Show the {x.count} {x.count === 1 ? 'agent' : 'agents'}</summary>

@@ -1,3 +1,4 @@
+import {PersonalityLibrary} from './PersonalityLibrary';
 import {TradingWorkspace} from './TradingWorkspace';
 import {AppsWorkspace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
@@ -30,9 +31,9 @@ import { CommandPalette } from './CommandPalette';
 import { ChatSearchController } from './chat-search';
 import type { Command } from './CommandPalette';
 
-type Page = 'trading' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties';
+type Page = 'trading' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
 /** Sections that own the sidebar with their own places (the chat list shows only in Chat). */
-const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'skills', 'mcp', 'terminal','specialties','board','approvals','apps','trading'];
+const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'skills', 'mcp', 'terminal','specialties','personalities','board','approvals','apps','trading'];
 const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' }> = [
   { key: 'chat', label: 'Chat', icon: 'message-circle' },
   { key: 'agents', label: 'Agents', icon: 'user' },
@@ -83,7 +84,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const ownSidebar=OWN_SIDEBAR.includes(page);
   const [settingsVisit,setSettingsVisit]=useState(0);
   const [terminalRequest,setTerminalRequest]=useState(0);
-  const openSettings=(tab:SettingsTab)=>{if(tab==='specialties'||tab==='skills'||tab==='mcp'){setPage(tab);return;}setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
+  const openSettings=(tab:SettingsTab)=>{if(tab==='personalities'||tab==='specialties'||tab==='skills'||tab==='mcp'){setPage(tab);return;}setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const openTerminal=()=>{if(user.role!=='owner')return;setTerminalRequest(n=>n+1);setPage('chat');};
   const openMemorySettings=(target:SettingsTarget)=>{setMemoryPane(target);setSettingsTab('memory');setSettingsVisit(n=>n+1);setPage('settings');};
   const tools=[
@@ -91,6 +92,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     ...(user.role==='owner'?[
       {id:'terminal',label:'Terminal',icon:<UiIcon name="terminal" size={14}/>,run:()=>setPage('terminal')},
       {id:'skills',label:'Skills',icon:<UiIcon name="file" size={14}/>,run:()=>setPage('skills')},
+      {id:'personalities',label:'Personalities',icon:<UiIcon name="contact" size={14}/>,run:()=>setPage('personalities')},
       {id:'specialties',label:'Specialties',icon:<Icon name="user"/>,run:()=>setPage('specialties')},
       {id:'mcp',label:'MCP connections',icon:<UiIcon name="tool" size={14}/>,run:()=>setPage('mcp')},
     ]:[]),
@@ -118,7 +120,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     { id: 'rail', group: 'Actions', icon:<UiIcon name="sidebar" size={14}/>, label: rail ? 'Hide the sidebar' : 'Show the sidebar', run: () => setRail(v => !v) },
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
-  const pageTitle = page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
+  const pageTitle = page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
   const openCards = boardState?.boards.reduce((a, b) => a + b.cards, 0);
 
   const sidebarShown = rail && (page === 'chat' || ownSidebar);
@@ -165,6 +167,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {user.role!=='guest'&&<section className="page page-approvals" hidden={page!=='approvals'}><ApprovalsWorkspace client={client} active={page==='approvals'} slot={slot} onDecision={pendingApprovals.reload} onAccount={()=>setPage('account')}/></section>}
       <section className="page page-ui mem-desk" hidden={page !== 'memory'}><MemoryWindow client={client} active={page === 'memory'} focus={memoryFocus} sidebarSlot={slot} onOpenChat={id => { void chat?.open(id); setPage('chat'); }} onOpenSettings={openMemorySettings}/></section>
       {user.role === 'owner' && <>
+        <section className="page page-personalities" hidden={page !== 'personalities'}>{page==='personalities'&&<PersonalityLibrary client={client} active sidebarSlot={slot}/>}</section>
         <section className="page page-specialties" hidden={page !== 'specialties'}><SpecialtyLibrary client={client} active={page==='specialties'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenConnections={()=>setPage('mcp')}/></section>
         <section className="page page-skills mem-desk" hidden={page !== 'skills'}><SkillsSection client={client} active={page === 'skills'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
         <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>

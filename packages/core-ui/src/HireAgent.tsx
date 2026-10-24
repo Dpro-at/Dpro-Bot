@@ -1,9 +1,11 @@
+import {PersonalityPicker} from './PersonalityLibrary';
+import {defaultLibraryId} from './personality-library';
 import { AgentWorksOn } from './AgentWorksOn';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
 import { useState, useSyncExternalStore } from 'react';
 import {
-  allCategories, allDialects, allDrawerKinds, allPresets, allRoles, allTraits, categoryLabel, dialectLabel, drawerKindLabel, isRisky, memoryTool, modeLabel,
-  presetHelp, presetLabel, roleHelp, roleLabel, traitLabel,
+  allCategories, allDrawerKinds, allRoles, categoryLabel, drawerKindLabel, isRisky, memoryTool, modeLabel,
+  roleHelp, roleLabel,
 } from './hire';
 import type { HireController, Permissions, Tool } from './hire';
 
@@ -55,29 +57,11 @@ export function HireAgent({ controller, onClose }: { controller: HireController;
     </form>}
 
     {s.step === 'persona' && <form className="hire-form" onSubmit={e => { e.preventDefault(); void controller.create(); }}>
-      <fieldset className="hire-choices" disabled={locked}><legend>Persona</legend>
-        {allPresets.map(p => <label key={p} className="hire-choice">
-          <input type="radio" name="hire-preset" aria-label={presetLabel[p]} checked={d.preset === p} onChange={() => controller.edit({ preset: p })}/>
-          <span><strong>{presetLabel[p]}</strong><small>{presetHelp[p]}</small></span>
-        </label>)}
-      </fieldset>
-      <label>Speaks<select value={d.dialect} disabled={locked} onChange={e => controller.edit({ dialect: e.target.value as typeof d.dialect })}>
-        <option value="">Same as the company</option>{allDialects.map(x => <option key={x} value={x}>{dialectLabel[x]}</option>)}
-      </select></label>
-      <details><summary>Fine-tune traits</summary>
-        <p className="fine-print">Untouched traits come from the persona. Changes are saved as the first persona version.</p>
-        <div className="hire-traits">{allTraits.map(t => {
-          const v = d.traits[t];
-          return <div key={t} className="hire-trait">
-            <label>{traitLabel[t]}<input type="range" min={0} max={100} step={5} value={v ?? 50} disabled={locked} aria-valuetext={v === undefined ? 'From persona' : String(v)} onChange={e => controller.setTrait(t, Number(e.target.value))}/></label>
-            <span className="hire-trait-v">{v === undefined ? 'persona' : v}</span>
-            {v !== undefined && <button type="button" disabled={locked} onClick={() => controller.setTrait(t, undefined)}>Reset</button>}
-          </div>;
-        })}</div>
-      </details>
+      <PersonalityPicker client={controller.client} value={d.libraryPersonality} disabled={locked} defaultId={defaultLibraryId(d.role,d.department)} onPick={entry=>controller.edit({libraryPersonality:{id:entry.id,revision:entry.revision}})}/>
+      <p className="fine-print">Edit personality settings in Personalities. Tools and permissions stay separate.</p>
       <div className="hire-actions">
         <button type="button" disabled={locked} onClick={() => controller.go('role')}>Back</button>
-        <button type="submit" className="primary" disabled={locked || s.phase === 'unknown'}>Hire agent</button>
+        <button type="submit" className="primary" disabled={locked || !d.libraryPersonality || s.phase === 'unknown'}>Hire agent</button>
       </div>
     </form>}
 

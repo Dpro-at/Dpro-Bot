@@ -22,7 +22,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { all, dialect, one, run, sql, type Step } from '../repositories/sql-steps.js';
+import { all, dialect, one, run, sql, lockName, type Step } from '../repositories/sql-steps.js';
 import { nowText } from '../db/pg/dialect.js';
 import { insertAgentConfigStep, newAgentId } from '../repositories/agents-config.js';
 import { AgentNameTakenError, isNameLanguage, resolveNamingLanguage, suggestAgentNames, type NameLanguage } from './agent-names.js';
@@ -43,6 +43,7 @@ export interface BatchDepartmentInput {
   count: number;
   /** Optional persona per role; the department default otherwise. */
   presets?: Partial<Record<TeamRole, string>>;
+  personalities?: Partial<Record<TeamRole,{id:string;revision:number}>>;
   specialties?: { name: string; count: number; description: string }[];
 }
 
@@ -65,7 +66,7 @@ export interface RunResultItem {
   code?: string;
 }
 
-interface PlannedItem { seq: number; department: string; role: TeamRole; title: string; preset: string; specialty?: string | null; description?: string | null }
+interface PlannedItem { seq: number; department: string; role: TeamRole; title: string; preset: string; library_personality?: string|null; specialty?: string | null; description?: string | null }
 
 /** Validated plan items, numbered from 1 in department order (leads first). */
 export function expandBatch(raw: unknown): PlannedItem[] {
@@ -75,7 +76,7 @@ export function expandBatch(raw: unknown): PlannedItem[] {
   const items: PlannedItem[] = [];
   raw.forEach((entry, i) => {
     const d = entry as BatchDepartmentInput;
-    for (const k of Object.keys(d)) if (!['department', 'count', 'presets', 'specialties'].includes(k)) throw new CompanyPlanInputError(`Unknown field "${k.slice(0, 40)}"`);
+    for (const k of Object.keys(d)) if (!['department', 'count', 'presets', 'specialties', 'personalities'].includes(k)) throw new CompanyPlanInputError(`Unknown field "${k.slice(0, 40)}"`);
     if (typeof d.count !== 'number' || !Number.isInteger(d.count) || d.count < 1 || d.count > MAX_TOTAL_HEADCOUNT) {
       throw new CompanyPlanInputError(`Each department count must be a whole number from 1 to ${MAX_TOTAL_HEADCOUNT}`);
     }
@@ -89,6 +90,7 @@ export function expandBatch(raw: unknown): PlannedItem[] {
         presets[role as TeamRole] = preset;
       }
     }
+    if(d.personalities!==undefined){if(!d.personalities||typeof d.personalities!=='object'||Array.isArray(d.personalities))throw new CompanyPlanInputError('Invalid personalities');for(const [role,p]of Object.entries(d.personalities)){if(!(TEAM_ROLES as readonly string[]).includes(role)||!p||Object.keys(p).some(k=>!['id','revision'].includes(k))||typeof p.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/).test(p.id)||!Number.isSafeInteger(p.revision)||p.revision<1)throw new CompanyPlanInputError('Invalid personality selection');}}
     let assigned: {name:string;description:string}[] | undefined;
     if(d.specialties!==undefined){
       if(!Array.isArray(d.specialties)||d.specialties.length<1||d.specialties.length>50)throw new CompanyPlanInputError('Choose up to 50 specialties per department');
@@ -105,7 +107,7 @@ export function expandBatch(raw: unknown): PlannedItem[] {
     for (const role of TEAM_ROLES) {
       for (let n = 0; n < share.roles[role]; n++) {
         const selected=assigned?.[specialtyIndex++];
-        items.push({ seq: items.length + 1, department: share.department, role, title: selected?.name??share.titles[role], preset: presets[role], ...(selected?{specialty:selected.name,description:selected.description}:{}) });
+        items.push({ seq: items.length + 1, department: share.department, role, title: selected?.name??share.titles[role], preset: presets[role], ...(d.personalities?.[role]?{library_personality:JSON.stringify(d.personalities[role])}:{}), ...(selected?{specialty:selected.name,description:selected.description}:{}) });
       }
     }
   });
@@ -117,6 +119,7 @@ function fingerprint(language: string, items: readonly PlannedItem[]): string {
   const h = createHash('sha256').update(language);
   for (const it of items) h.update(`\n${it.seq}|${it.department}|${it.role}|${it.preset}`);
   if(items.some(it=>it.specialty))h.update('\nspecialties:'+JSON.stringify(items.map(it=>[it.specialty??null,it.description??null])));
+  if(items.some(it=>it.library_personality))h.update('\nlibrary:'+JSON.stringify(items.map(it=>it.library_personality??null)));
   return h.digest('hex');
 }
 
@@ -181,11 +184,15 @@ export async function createBatch(ownerId: string, input: { id?: unknown; langua
       }
       return false;
     }
+    if(items.some(it=>it.library_personality)){
+      yield* lockName('personality-library');
+      for(const value of new Set(items.flatMap(it=>it.library_personality?[it.library_personality]:[]))){const selected=JSON.parse(value);const stored=yield* one<{revision:number;archived:number}>('SELECT revision,archived FROM personality_library WHERE id=?',selected.id);if(!stored||stored.archived||stored.revision!==selected.revision)throw new CompanyPlanInputError('Selected personality changed. Review the library and choose it again.');}
+    }
     yield* run(`INSERT INTO team_hire_batches (id, owner_id, fingerprint, language, total, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ${nowText(d)}, ${nowText(d)})`,
       id, ownerId, print, language, items.length);
     for (const it of items) {
-      yield* run('INSERT INTO team_hire_batch_items (batch_id, seq, department, role, title, preset, specialty, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        id, it.seq, it.department, it.role, it.title, it.preset, it.specialty??null, it.description??null);
+      yield* run('INSERT INTO team_hire_batch_items (batch_id, seq, department, role, title, preset, specialty, description, library_personality) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        id, it.seq, it.department, it.role, it.title, it.preset, it.specialty??null, it.description??null, it.library_personality??null);
     }
     return true;
   }, { immediate: true });
@@ -218,7 +225,7 @@ export async function runBatch(ownerId: string, id: string, opts: { max?: unknow
     }
     const language = batch.language as NameLanguage;
     const pending = await sql().read(all<PlannedItem>(
-      `SELECT seq, department, role, title, preset, specialty, description FROM team_hire_batch_items WHERE batch_id = ? AND status = 'pending' ORDER BY seq LIMIT ${max}`, id));
+      `SELECT seq, department, role, title, preset, specialty, description, library_personality FROM team_hire_batch_items WHERE batch_id = ? AND status = 'pending' ORDER BY seq LIMIT ${max}`, id));
     const results: RunResultItem[] = [];
     for (const it of pending) {
       const r = await createItem(ownerId, id, { ...it, seq: Number(it.seq) }, language);
@@ -247,7 +254,7 @@ async function createItem(ownerId: string, batchId: string, it: PlannedItem, lan
           id: agentId,
           name: suggestion.name,
           language,
-          body: { description: it.specialty ? `${it.specialty}: ${it.description??''}` : `${it.title} in ${labelOf(it.department)}.`, ...(it.specialty?{system_prompt:`Your specialty is ${it.specialty}.\n${it.description??''}\nWork within your assigned permissions. This job description grants no tools, credentials or external access.`}:{}) },
+          body: { ...(it.library_personality?{libraryPersonality:JSON.parse(it.library_personality)}:{}), description: it.specialty ? `${it.specialty}: ${it.description??''}` : `${it.title} in ${labelOf(it.department)}.`, ...(it.specialty?{system_prompt:`Your specialty is ${it.specialty}.\n${it.description??''}\nWork within your assigned permissions. This job description grants no tools, credentials or external access.`}:{}) },
           role: it.role as AgentRole,
           department: it.department,
           explicit: { preset: it.preset },

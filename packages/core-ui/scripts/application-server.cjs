@@ -1,3 +1,4 @@
+const {allowedLibrary,libraryPath,libraryResponse}=require('../src/personality-library-contract.js');
 const {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse}=require('../src/trading-runtime-contract.js');
 const {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse}=require('../src/trading-account-setup-contract.js');
 const {tradingInstallRoute,allowedTradingInstall,tradingInstallResponse}=require('../src/trading-install-contract.js');
@@ -96,6 +97,7 @@ function allowed(method, target, body) {
   if (approvalRoute(target)) return allowedApproval(method,target,body);
   if (connectionsRoute(target)) return allowedConnections(method,target,body);
   if (mcpImportPath(target)) return allowedMcpImport(method,target,body);
+  if (libraryPath(target)) return allowedLibrary(method,target,body);
   if (templatePath(target)) return allowedTemplates(method,target,body);
   if (skillLibraryPath(target)) return allowedSkillLibrary(method,target,body);
   if (memoryDesktopRoute(target)) return allowedMemoryDesktop(method, target, body);
@@ -173,6 +175,7 @@ function project(target, status, body) {
   if (terminalRoute(target)) return terminalResponse(target, status, body);
   if (connectionsRoute(target)) return connectionsResponse(target,status,body);
   if (mcpImportPath(target)) return mcpImportResponse(target,status,body);
+  if (libraryPath(target)) return libraryResponse(target,status,body);
   if (templatePath(target)) return templatesResponse(target,status,body);
   if (skillLibraryPath(target)) return skillLibraryResponse(target,status,body);
   if (genvrRoute(target)) return genvrResponse(target, status, body);

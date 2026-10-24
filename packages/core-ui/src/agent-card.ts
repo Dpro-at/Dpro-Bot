@@ -67,7 +67,7 @@ export class AgentCardController {
       if (a.status !== 200 || !record(a.body)) { this.publish({ phase: 'error', notice: a.status === 404 ? 'This agent no longer exists.' : 'The agent could not be loaded.' }); return; }
       const agent = a.body.agent as PublicAgent;
       const persona = p.status === 200 ? (p.body as PersonaCurrent) : undefined;
-      this.publish({ phase: 'ready', agent, profile: profileOf(agent), persona, personaDraft: persona && { traits: { ...persona.traits }, preset: persona.preset, dialect: persona.dialect } });
+      this.publish({ phase: 'ready', agent, profile: profileOf(agent), persona, versions:undefined, personaDraft: persona && { traits: { ...persona.traits }, preset: persona.preset, dialect: persona.dialect } });
       void this.loadModels();
       await this.openTab(this.#state.tab);
     } catch { this.publish({ phase: 'error', notice: 'The agent could not be loaded.' }); }

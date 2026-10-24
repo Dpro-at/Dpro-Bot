@@ -1,3 +1,4 @@
+import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {createPortal} from 'react-dom';
 import {Avatar} from './desktop-ui';
 import {DocumentEditor} from './DocumentEditor';
@@ -25,7 +26,7 @@ const TABS: { key: CardTab; label: string }[] = [
 const VIEWS: { label: string; tabs: CardTab[] }[] = [{ label: 'Profile', tabs: ['profile', 'persona'] }, { label: 'Memory', tabs: ['memory'] }, { label: 'Skills and tools', tabs: ['skills', 'mcp', 'permissions'] }];
 const ROLE_LABEL: Record<string, string> = { '': 'No role', main: 'Main agent', manager: 'Manager', specialist: 'Specialist', evaluator: 'Evaluator' };
 const TRAIT: Record<TraitName, [string, string, string]> = {
-  doubt: ['Doubt', 'Trusts quickly', 'Checks everything'], caution: ['Caution', 'Bold', 'Careful'], creativity: ['Creativity', 'Conventional', 'Inventive'],
+  doubt: ['Confidence', 'Checks everything', 'Trusts quickly'], caution: ['Caution', 'Bold', 'Careful'], creativity: ['Creativity', 'Conventional', 'Inventive'],
   thoroughness: ['Thoroughness', 'Quick', 'Thorough'], independence: ['Independence', 'Asks often', 'Decides alone'], verbosity: ['Length', 'Short', 'Detailed'],
   warmth: ['Warmth', 'Neutral', 'Warm'], curiosity: ['Curiosity', 'Focused', 'Explores'], persistence: ['Persistence', 'Gives up early', 'Keeps trying'],
 };
@@ -109,18 +110,16 @@ function PersonaTab({ card, personality, busy }: { card: AgentCardController; pe
   if (!p || !d) return <p className="fine-print">The persona could not be loaded.</p>;
   const locked = p.locked;
   return <div className="card-section">
-    <div className="persona-presets" role="group" aria-label="Start from a preset">
-      {p.presets.map(x => <button key={x.id} type="button" className="chip-button" aria-pressed={d.preset === x.id} disabled={busy || locked} onClick={() => card.applyPreset(x.id)}>{x.label}</button>)}
-      {d.preset === null && <span className="chip">Custom</span>}
-    </div>
+    <AgentPersonalityLibrary client={card.client} agentId={s.agentId} version={p.version} locked={locked||busy} onChanged={()=>void card.load()}/>
+    <p className="fine-print">Fine-tune this agent below. The library personality stays unchanged.</p>
     <div className="traits">{p.traitNames.map(t => {
       const [label, low, high] = TRAIT[t];
       return <label key={t} className="trait">
         <span className="trait-name">{label}</span>
         <span className="trait-scale"><small>{low}</small>
-          <input type="range" min={0} max={100} step={5} value={d.traits[t]} disabled={busy || locked} onChange={e => card.setTrait(t, Number(e.target.value))} aria-valuetext={`${d.traits[t]} of 100`}/>
+          <input type="range" min={0} max={100} step={5} value={t==='doubt'?100-d.traits[t]:d.traits[t]} disabled={busy || locked} onChange={e => card.setTrait(t, t==='doubt'?100-Number(e.target.value):Number(e.target.value))} aria-valuetext={`${t==='doubt'?100-d.traits[t]:d.traits[t]} of 100`}/>
           <small>{high}</small></span>
-        <span className="trait-value" data-changed={d.traits[t] !== p.traits[t] || undefined}>{d.traits[t]}</span>
+        <span className="trait-value" data-changed={d.traits[t] !== p.traits[t] || undefined}>{t==='doubt'?100-d.traits[t]:d.traits[t]}</span>
       </label>;
     })}</div>
     <div className="field-grid">

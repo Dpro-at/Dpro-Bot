@@ -1,3 +1,4 @@
+import {LibraryError} from '../../services/personality-library.js';
 /**
  * Agent Configurations API
  * CRUD for named agent profiles (name, system prompt, model, capabilities)
@@ -35,6 +36,7 @@ const agents = () => repositories.agents;
 
 /** Map scope, naming and agent errors to the usual replies; anything else is rethrown. */
 function errorReply(err: unknown, reply: FastifyReply): FastifyReply | null {
+  if(err instanceof LibraryError)return reply.status(err.status).send({code:err.status===409?'version_conflict':'invalid_personality',error:'Personality selection changed or is unavailable'});
   if (err instanceof ScopeError) {
     return reply.status(err.status).send(err.code === 'reserved_agent' ? { error: err.message, code: err.code } : { error: err.message });
   }
