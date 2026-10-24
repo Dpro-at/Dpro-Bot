@@ -117,9 +117,9 @@ function PersonaTab({ card, personality, busy }: { card: AgentCardController; pe
       return <label key={t} className="trait">
         <span className="trait-name">{label}</span>
         <span className="trait-scale"><small>{low}</small>
-          <input type="range" min={0} max={100} step={5} value={t==='doubt'?100-d.traits[t]:d.traits[t]} disabled={busy || locked} onChange={e => card.setTrait(t, t==='doubt'?100-Number(e.target.value):Number(e.target.value))} aria-valuetext={`${t==='doubt'?100-d.traits[t]:d.traits[t]} of 100`}/>
+          <input type="range" min={0} max={100} step={5} value={t==='doubt'?100-d.traits[t]:d.traits[t]} disabled={busy || locked} onChange={e => card.setTrait(t, t==='doubt'?100-Number(e.target.value):Number(e.target.value))} aria-valuetext={`${t==='doubt'?100-d.traits[t]:d.traits[t]}%`}/>
           <small>{high}</small></span>
-        <span className="trait-value" data-changed={d.traits[t] !== p.traits[t] || undefined}>{t==='doubt'?100-d.traits[t]:d.traits[t]}</span>
+        <span className="trait-value" data-changed={d.traits[t] !== p.traits[t] || undefined}>{t==='doubt'?100-d.traits[t]:d.traits[t]}%</span>
       </label>;
     })}</div>
     <div className="field-grid">
