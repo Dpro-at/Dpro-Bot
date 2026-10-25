@@ -11,7 +11,7 @@ const {allowedVerification,verificationRoute,verificationResponse}=require('../s
 const {allowedReviewer,reviewerRoute,reviewerResponse}=require('../src/reviewers-contract.js');
 const {coverageRoute,allowedCoverage,coverageResponse}=require('../src/security-coverage-contract.js');
 const {schedulerRoute,allowedScheduler,schedulerResponse}=require('../src/scheduler-contract.js');
-const {sourceCatalogueRoute,allowedSourceCatalogue,sourceCatalogueResponse,appsCatalogueRoute,allowedAppsCatalogue,appsCatalogueResponse}=require('../src/apps-contract.js');
+const {workspaceAppsRoute,allowedWorkspaceApps,workspaceAppsResponse,sourceCatalogueRoute,allowedSourceCatalogue,sourceCatalogueResponse,appsCatalogueRoute,allowedAppsCatalogue,appsCatalogueResponse}=require('../src/apps-contract.js');
 const {chatAddonsRoute,allowedChatAddons,chatAddonsResponse}=require('../src/chat-addons-contract.js');
 const {approvalRoute,allowedApproval,approvalResponse}=require('../src/approvals-contract.js');
 const { allowedConnections, connectionsRoute, connectionsResponse } = require('../src/connections-contract.js');
@@ -92,6 +92,7 @@ function allowed(method, target, body) {
   if(tradingPaperRoute(target))return allowedTradingPaper(method,target,body);
   if(schedulerRoute(target))return allowedScheduler(method,target,body);
   if(coverageRoute(target))return allowedCoverage(method,target,body);
+  if(workspaceAppsRoute(target))return allowedWorkspaceApps(method,target,body);
   if(appsCatalogueRoute(target))return allowedAppsCatalogue(method,target,body);
   if(chatAddonsRoute(target))return allowedChatAddons(method,target,body);
   if (approvalRoute(target)) return allowedApproval(method,target,body);
@@ -157,6 +158,7 @@ function project(target, status, body) {
   if(tradingPaperRoute(target))return tradingPaperResponse(target,status,body);
   if(schedulerRoute(target))return schedulerResponse(target,status,body);
   if(coverageRoute(target))return coverageResponse(status,body);
+  if(workspaceAppsRoute(target))return workspaceAppsResponse(status,body);
   if(appsCatalogueRoute(target))return appsCatalogueResponse(status,body);
   if(chatAddonsRoute(target))return chatAddonsResponse(status,body);
   if (target === '/api/setup/status') return setupStatus(status, body);

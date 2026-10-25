@@ -117,11 +117,11 @@ test('initialize and tools/list over stdio', async () => {
     assert.match(init.result.instructions, /spawn_small_agent/);
     const list = await srv.request('tools/list', {});
     const tools = list.result.tools;
-    assert.deepEqual(tools.map((t) => t.name), ['spawn_small_agent', 'get_result', 'list_runs', 'list_handoffs', 'read_handoff', 'edit_handoff']);
-    const spawnTool = tools[0];
+    assert.deepEqual(tools.map((t) => t.name), ['workspace_apps', 'personality_library', 'spawn_small_agent', 'get_result', 'list_runs', 'list_handoffs', 'read_handoff', 'edit_handoff']);
+    const spawnTool = tools.find(t=>t.name==='spawn_small_agent');
     assert.deepEqual(spawnTool.inputSchema.required, ['task']);
     assert.deepEqual(Object.keys(spawnTool.inputSchema.properties).sort(), ['drawers', 'kind', 'max_steps', 'read_dir', 'task', 'tools']);
-    assert.deepEqual(tools[1].inputSchema.required, ['run_id']);
+    assert.deepEqual(tools.find(t=>t.name==='get_result').inputSchema.required, ['run_id']);
     const unknown = await srv.request('no/such/method', {});
     assert.ok(unknown.error, 'unknown method is a JSON-RPC error');
     assert.equal(allLog(ctx).length, 0, 'listing tools does not call the backend');

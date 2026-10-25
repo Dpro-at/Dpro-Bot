@@ -1,3 +1,4 @@
+import {workspaceAppsRoutes} from './routes/workspace-apps.js';
 import {tradingPaperRuntimeRoutes} from './routes/trading-paper-runtime.js';
 import {tradingPaperAccountSetupRoutes} from './routes/trading-paper-account-setup.js';
 import {tradingPaperInstallRoutes} from './routes/trading-paper-install.js';
@@ -362,6 +363,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(agentConnectRoutes);
   await fastify.register(genvrRoutes);
   await fastify.register(connectionsRoutes);
+  await fastify.register(workspaceAppsRoutes);
   await fastify.register(memoryImportRoutes); // CLI-02: owner-only safe import (preview -> quarantine proposals)
   await fastify.register(discoveryRoutes); // DISCOVER-01: what coding agents left on this computer (owner, this computer only)
   await fastify.register(credentialsRoutes); // 🔐 Credentials System

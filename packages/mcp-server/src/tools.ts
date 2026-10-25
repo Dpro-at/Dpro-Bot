@@ -29,6 +29,12 @@ const RUN_ID = /^[0-9a-f-]{36}$/i;
 
 export const TOOL_DEFINITIONS = [
   {
+    name:'workspace_apps',title:'Workspace applications',
+    description:'Owner-session only. List Apps, add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. Adding does not execute a program or grant tools. Program startup, account linking, secrets and permanent removal are reviewed by the owner in the app.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+  },
+
+  {
     name:'personality_library', title:'Personality library',
     description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
@@ -242,6 +248,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
   try {
     const args = obj(rawArgs);
     switch (name) {
+      case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
@@ -416,4 +423,31 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  const url=(agentOperation?'/api/agents':base)+(['assign','assignment','tune','mode'].includes(operation)?'/assigned/':'/')+(route.id?args.id:'')+route.suffix+(proposalOperation?'/'+args.proposalId+(operation==='proposal'?'':'/'+operation):'');
  const data=await backend.request(route.method,route.id?url:base+route.suffix,route.method==='GET'||['lock','unlock'].includes(operation)?undefined:obj(args.body));
  return ok('Personality library result. Preferences never grant access.',data);
+}
+
+async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','id','connection']);
+ if(args.operation==='list'){
+  only(args,['operation']);
+  return ok('Applications. Reading this list does not connect or grant access.',await backend.request('GET','/api/apps'));
+ }
+ if(args.operation==='disable'){
+  only(args,['operation','id']);
+  if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
+  await backend.request('POST','/api/mcp/servers/'+args.id+'/disable');
+  return ok('Connection turned off.',await backend.request('GET','/api/apps'));
+ }
+ if(args.operation==='add'){
+  only(args,['operation','connection']);
+  const input=obj(args.connection);only(input,['name','description','transport','url','command','args','allowRemote']);
+  if(typeof input.name!=='string'||!(/^[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?$/).test(input.name)||!['http','sse','stdio'].includes(String(input.transport)))throw new InputError('A valid name and transport are required');
+  if(input.description!==undefined&&(typeof input.description!=='string'||input.description.length>500)||input.allowRemote!==undefined&&typeof input.allowRemote!=='boolean')throw new InputError('Invalid connection');
+  if(input.transport==='stdio'){
+   if(typeof input.command!=='string'||!input.command.trim()||input.command.length>500||input.url!==undefined||input.allowRemote!==undefined)throw new InputError('Invalid program connection');
+   if(input.args!==undefined&&(!Array.isArray(input.args)||input.args.length>50||!input.args.every(v=>typeof v==='string'&&v.length<=1000)))throw new InputError('Invalid arguments');
+  }else if(typeof input.url!=='string'||!input.url||input.url.length>2000||input.command!==undefined||input.args!==undefined)throw new InputError('Invalid web connection');
+  const saved=await backend.request('POST','/api/mcp/servers',input);
+  return ok('Connection added disabled. The owner reviews startup and agent access in the app.',{id:saved.id});
+ }
+ throw new InputError('Unknown application operation');
 }
