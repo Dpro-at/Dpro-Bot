@@ -1,6 +1,6 @@
 # Trading Extension
 
-Stock & Crypto trading integration with Alpaca API for Agent Player.
+Stock & Crypto trading integration with Alpaca API for Dpro Bot.
 
 ## Features
 
@@ -363,4 +363,4 @@ Current version: **1.0.0**
 
 ## License
 
-Same as Agent Player project
+Same as Dpro Bot project

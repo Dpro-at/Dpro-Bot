@@ -1,6 +1,6 @@
 # TTS Tools
 
-Text-to-Speech integration scripts for Agent Player.
+Text-to-Speech integration scripts for Dpro Bot.
 
 ## Supported Providers
 

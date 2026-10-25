@@ -30,7 +30,7 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 export class SessionError extends Error {}
 
 export const NOT_SIGNED_IN =
-  'Agent Player is not signed in on this machine. Run "agent-player login" (as the owner) first.';
+  'Dpro Bot is not signed in on this machine. Run "agent-player login" (as the owner) first.';
 
 export function getConfigDir(env: NodeJS.ProcessEnv = process.env): string {
   if (env.AGENT_PLAYER_CONFIG_DIR) return env.AGENT_PLAYER_CONFIG_DIR;
@@ -74,7 +74,7 @@ function readPrivateJson(file: string, permissionError: string): any | null {
 
 function readSessionFile(env: NodeJS.ProcessEnv): StoredSession | null {
   const file = getTokenFilePath(env);
-  const data = readPrivateJson(file, `The Agent Player token file is readable by other users; run "chmod 600 ${file}" or "agent-player login" again.`);
+  const data = readPrivateJson(file, `The Dpro Bot token file is readable by other users; run "chmod 600 ${file}" or "agent-player login" again.`);
   if (data && data.createdBy === MARKER && typeof data.token === 'string' && data.token) return data as StoredSession;
   return null;
 }
@@ -85,13 +85,13 @@ export function checkLoopbackUrl(raw: string): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new SessionError('The Agent Player backend URL is not valid.');
+    throw new SessionError('The Dpro Bot backend URL is not valid.');
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new SessionError('The Agent Player backend URL must use http or https.');
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new SessionError('The Dpro Bot backend URL must use http or https.');
   if (!LOOPBACK_HOSTS.has(url.hostname)) {
-    throw new SessionError('The Agent Player MCP server only talks to a backend on this machine (127.0.0.1, ::1 or localhost).');
+    throw new SessionError('The Dpro Bot MCP server only talks to a backend on this machine (127.0.0.1, ::1 or localhost).');
   }
-  if (url.username || url.password) throw new SessionError('The Agent Player backend URL must not contain credentials.');
+  if (url.username || url.password) throw new SessionError('The Dpro Bot backend URL must not contain credentials.');
   return `${url.protocol}//${url.host}`;
 }
 
@@ -111,14 +111,14 @@ export function loadSession(env: NodeJS.ProcessEnv = process.env): Session {
 }
 
 export const NO_INSTANCE =
-  'The Agent Player backend identity file (instance.json next to the CLI token) is missing. Start the Agent Player backend once (it writes the file), then try again.';
+  'The Dpro Bot backend identity file (instance.json next to the CLI token) is missing. Start the Dpro Bot backend once (it writes the file), then try again.';
 
 export interface InstanceIdentity { id: string; secret: string }
 
 /** The backend identity the backend wrote next to the token file (0600), or throws SessionError. */
 export function loadInstance(env: NodeJS.ProcessEnv = process.env): InstanceIdentity {
   const file = path.join(getConfigDir(env), INSTANCE_FILE_NAME);
-  const data = readPrivateJson(file, `The Agent Player instance file is readable by other users; run "chmod 600 ${file}" or restart the backend.`);
+  const data = readPrivateJson(file, `The Dpro Bot instance file is readable by other users; run "chmod 600 ${file}" or restart the backend.`);
   if (data && data.createdBy === INSTANCE_MARKER && typeof data.id === 'string' && typeof data.secret === 'string' && /^[0-9a-f]{64}$/i.test(data.secret)) {
     return { id: data.id, secret: data.secret };
   }

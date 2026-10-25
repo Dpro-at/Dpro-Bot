@@ -1,5 +1,5 @@
 /**
- * Find the Agent Player install folder without relying on the shell's
+ * Find the Dpro Bot install folder without relying on the shell's
  * current folder (INST-04).
  *
  * Order:
@@ -114,5 +114,5 @@ export function findInstall(options: FindOptions = {}): InstallPaths | null {
 }
 
 export const NOT_FOUND_MESSAGE =
-  'Agent Player install folder not found. Set AGENT_PLAYER_ROOT to the folder that contains packages/backend, '
+  'Dpro Bot install folder not found. Set AGENT_PLAYER_ROOT to the folder that contains packages/backend, '
   + 'or run "agent-player setup" from inside the install once.';

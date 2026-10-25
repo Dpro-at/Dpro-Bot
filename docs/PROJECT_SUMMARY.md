@@ -1,6 +1,6 @@
-# Agent Player v1.3.0 - Rust Installer Project Summary
+# Dpro Bot v1.3.0 - Rust Installer Project Summary
 
-**Project:** Agent Player Rust-based Professional Installer
+**Project:** Dpro Bot Rust-based Professional Installer
 **Version:** v1.3.0
 **Start Date:** 2026-03-10
 **Completion Date:** 2026-03-10
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Successfully transformed Agent Player from a developer-only manual installation to a **professional desktop application** with one-click installers for Windows, Linux, and macOS. The project includes a sophisticated Rust-based installer built with Tauri v2, featuring three deployment modes, system tray integration, auto-updater, and comprehensive documentation.
+Successfully transformed Dpro Bot from a developer-only manual installation to a **professional desktop application** with one-click installers for Windows, Linux, and macOS. The project includes a sophisticated Rust-based installer built with Tauri v2, featuring three deployment modes, system tray integration, auto-updater, and comprehensive documentation.
 
 **Key Achievement:** Reduced installation complexity from ~30 manual steps across 2 terminals to a single executable with an 8-step wizard that completes in 5-10 minutes.
 
@@ -158,7 +158,7 @@ docs/
 - Platform-specific defaults:
   - Windows: `C:\Program Files\AgentPlayer`
   - Linux: `/opt/agent-player`
-  - macOS: `/Applications/Agent Player.app/Contents/Resources`
+  - macOS: `/Applications/Dpro Bot.app/Contents/Resources`
 - Custom path selection with validation
 
 **Step 4: Deployment Mode Selection** ⭐
@@ -707,7 +707,7 @@ anyhow = "1"
 
 ## Team & Credits
 
-**Development:** Agent Player Team
+**Development:** Dpro Bot Team
 **Framework:** Tauri (https://tauri.app)
 **Documentation:** Based on Keep a Changelog + Semantic Versioning
 **Testing:** Comprehensive checklist approach
@@ -721,7 +721,7 @@ anyhow = "1"
 
 ## Conclusion
 
-The Agent Player v1.3.0 Rust Installer project successfully achieved all primary goals and stretch goals, delivering a professional-grade installation experience across Windows, Linux, and macOS platforms. The project includes:
+The Dpro Bot v1.3.0 Rust Installer project successfully achieved all primary goals and stretch goals, delivering a professional-grade installation experience across Windows, Linux, and macOS platforms. The project includes:
 
 ✅ **30 Tauri commands** for complete lifecycle management
 ✅ **~7,710 lines of code** across installer, services, and templates
@@ -733,7 +733,7 @@ The Agent Player v1.3.0 Rust Installer project successfully achieved all primary
 ✅ **Auto-updater** for seamless updates
 ✅ **Professional uninstaller** with backup capability
 
-The installer transforms Agent Player from a developer-only tool requiring manual setup into a professional desktop application accessible to all users, regardless of technical expertise.
+The installer transforms Dpro Bot from a developer-only tool requiring manual setup into a professional desktop application accessible to all users, regardless of technical expertise.
 
 **Project Status:** ✅ **READY FOR RELEASE**
 

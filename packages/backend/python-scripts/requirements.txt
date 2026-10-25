@@ -1,4 +1,4 @@
-# ─── Agent Player — Python Tools ─────────────────────────────────────────────
+# ─── Dpro Bot — Python Tools ─────────────────────────────────────────────
 # Install: pip install -r requirements.txt
 
 # ── TTS (tools/tts.py) ────────────────────────────────────────────────────────

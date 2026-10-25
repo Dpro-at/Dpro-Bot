@@ -1,4 +1,4 @@
-# Agent Player v1.3.0 Release Checklist
+# Dpro Bot v1.3.0 Release Checklist
 
 Complete checklist for preparing and publishing the v1.3.0 release with installers.
 
@@ -382,7 +382,7 @@ See CHANGELOG.md for full details."
 
 2. **Fill Release Form:**
    - **Tag:** v1.3.0
-   - **Title:** `Agent Player v1.3.0 - Professional Installer`
+   - **Title:** `Dpro Bot v1.3.0 - Professional Installer`
    - **Description:** Copy from CHANGELOG.md
 
 3. **Upload Files:**
@@ -414,7 +414,7 @@ gh auth login
 
 # Create release
 gh release create v1.3.0 \
-  --title "Agent Player v1.3.0 - Professional Installer" \
+  --title "Dpro Bot v1.3.0 - Professional Installer" \
   --notes-file CHANGELOG.md \
   agent-player-installer-1.3.0-win-x64.msi \
   agent-player-installer-1.3.0-linux-x86_64.AppImage \
@@ -592,7 +592,7 @@ If critical issues discovered after release:
 **Announcement Template:**
 
 ```
-🎉 Agent Player v1.3.0 is now available!
+🎉 Dpro Bot v1.3.0 is now available!
 
 🚀 What's New:
 - One-click installer for Windows, Linux, and macOS
@@ -701,4 +701,4 @@ cargo tauri build
 
 **Release Complete!** 🎉
 
-Agent Player v1.3.0 is now live with professional installers for all platforms.
+Dpro Bot v1.3.0 is now live with professional installers for all platforms.

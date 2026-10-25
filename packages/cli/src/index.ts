@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Agent Player CLI
+ * Dpro Bot CLI
  *
  * Simple and user-friendly command-line interface
  * 20 essential commands
@@ -33,7 +33,7 @@ const program = new Command();
 
 program
   .name('agent-player')
-  .description('Agent Player - Your personal AI assistant')
+  .description('Dpro Bot - Your personal AI assistant')
   .version('0.1.0');
 
 // Essential Commands
@@ -135,7 +135,7 @@ program
   .description('Update a git checkout install: backup, fast-forward, migrate, health check; rolls back automatically on failure')
   .option('--to <ref>', 'Target ref already present locally (default: the branch upstream)')
   .option('--fetch', 'Download from the remote first (git fetch; uses the network)')
-  .option('--stop', 'Stop a running Agent Player first instead of refusing')
+  .option('--stop', 'Stop a running Dpro Bot first instead of refusing')
   .addHelpText('after', `
 Backups go to packages/backend/.data/backups/update-<time>/ (0700, files 0600) and are never deleted.
 Without --fetch nothing is downloaded.`)
@@ -149,7 +149,7 @@ program
   .option('--dry-run', 'Only list what would be removed (the default)')
   .option('--apply', 'Really remove the listed items')
   .option('--delete-data', 'Also delete data (databases, secrets, memories, uploads, backups); asks you to type DELETE MY DATA')
-  .option('--stop', 'Stop a running Agent Player first (with --apply)')
+  .option('--stop', 'Stop a running Dpro Bot first (with --apply)')
   .action(async (options: { dryRun?: boolean; apply?: boolean; deleteData?: boolean; stop?: boolean }) => {
     process.exitCode = await (await load_uninstallCommand())(options);
   });

@@ -1,12 +1,12 @@
 # =====================================================================
-# Agent Player - Compress for GitHub Release
+# Dpro Bot - Compress for GitHub Release
 # =====================================================================
 # This script creates agent-player-files.zip for stub installer
 # It excludes build artifacts and development files
 # =====================================================================
 
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host " Agent Player - Release Compression Script" -ForegroundColor Cyan
+Write-Host " Dpro Bot - Release Compression Script" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -126,7 +126,7 @@ Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "  1. Go to: https://github.com/9mtm/Agent-Player/releases/new" -ForegroundColor White
 Write-Host "  2. Tag: v1.3.0" -ForegroundColor White
-Write-Host "  3. Title: Agent Player v1.3.0" -ForegroundColor White
+Write-Host "  3. Title: Dpro Bot v1.3.0" -ForegroundColor White
 Write-Host "  4. Upload: $outputFile" -ForegroundColor White
 Write-Host "  5. Publish release" -ForegroundColor White
 Write-Host ""

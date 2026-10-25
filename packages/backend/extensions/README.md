@@ -1,6 +1,6 @@
-# Agent Player Extensions
+# Dpro Bot Extensions
 
-This directory contains extensions that add functionality to Agent Player.
+This directory contains extensions that add functionality to Dpro Bot.
 
 ## Quick Start
 
@@ -170,7 +170,7 @@ Manually update sidebar:
   "description": "Simple example extension",
   "version": "1.0.0",
   "type": "custom",
-  "author": "Agent Player",
+  "author": "Dpro Bot",
   "main": "index.js",
   "permissions": []
 }

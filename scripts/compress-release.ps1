@@ -3,7 +3,7 @@ $output = "$root\agent-player-files.zip"
 
 if (Test-Path $output) { Remove-Item $output -Force }
 
-Write-Host "Compressing Agent Player (excluding node_modules, .next, etc.)..."
+Write-Host "Compressing Dpro Bot (excluding node_modules, .next, etc.)..."
 
 # Use robocopy to copy files (better exclusion support)
 $temp = "$root\temp-release"

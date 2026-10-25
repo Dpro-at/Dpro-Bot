@@ -3,7 +3,7 @@
   "name": "Calendar System",
   "version": "1.0.0",
   "description": "Calendar events with Google Calendar and iCal sync",
-  "author": "Agent Player Team",
+  "author": "Dpro Bot Team",
   "type": "app",
   "main": "src/index.js",
   "routeAccess": "authenticated",

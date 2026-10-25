@@ -1,6 +1,6 @@
-# Agent Player Skills
+# Dpro Bot Skills
 
-Skills extend Agent Player's capabilities with specific functionalities.
+Skills extend Dpro Bot's capabilities with specific functionalities.
 
 The [professional collection](PROFESSIONAL_PACKAGES.md) adds 41 authored workflow packages and a [portable pack for 122 specialty templates](professional-workspace-settings.json). Import is explicit; the collection does not create agents or grant permissions automatically.
 

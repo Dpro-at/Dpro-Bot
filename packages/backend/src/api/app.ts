@@ -1,4 +1,6 @@
 import {workspacePackRoutes} from './routes/workspace-pack.js';
+import {tradingMarketRoutes} from './routes/trading-market.js';
+import {tradingPaperPracticeRoutes} from './routes/trading-paper-practice.js';
 import {workspaceAppsRoutes} from './routes/workspace-apps.js';
 import {tradingPaperRuntimeRoutes} from './routes/trading-paper-runtime.js';
 import {tradingPaperAccountSetupRoutes} from './routes/trading-paper-account-setup.js';
@@ -11,7 +13,7 @@ import {securityCoverageRoutes} from './routes/security-coverage.js';
 import {chatAddonsRoutes} from './routes/chat-addons.js';
 import { mcpImportRoutes } from './routes/mcp-import.js';
 /**
- * Agent Player Fastify app factory.
+ * Dpro Bot Fastify app factory.
  *
  * buildServer() creates the Fastify instance with every global hook and the
  * core route plugins, without initializing background systems and without
@@ -294,7 +296,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
       },
     },
   }, async () => ({
-    name: 'Agent Player Backend',
+    name: 'Dpro Bot Backend',
     version: '0.1.0',
     docs: '/docs'
   }));
@@ -345,6 +347,8 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(skillLibraryRoutes);
   await fastify.register(specialtyTemplateRoutes); // 🛠️ Skills System
   await fastify.register(schedulerDefinitionRoutes);
+  await fastify.register(tradingMarketRoutes);
+  await fastify.register(tradingPaperPracticeRoutes);
   await fastify.register(tradingPaperReadRoutes,{ledger:options.paperLedger??(()=>null)});
   await fastify.register(tradingPaperBotRoutes,{ledger:options.paperLedger??(()=>null)});
   await fastify.register(tradingPaperInstallRoutes,{ledger:options.paperLedger??(()=>null)});

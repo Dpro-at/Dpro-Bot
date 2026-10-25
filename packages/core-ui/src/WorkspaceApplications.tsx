@@ -7,7 +7,7 @@ import {UiIcon} from './ui-icons';
 import {TradingInstallView} from './TradingInstallView';
 import {WORKSPACE_APPS_PATH,type WorkspaceApp} from './apps-contract.js';
 
-export const builtinApps=[{id:'trading',name:'Trading preview',icon:'globe',summary:'Market terminal with clearly labelled sample data.'},{id:'terminal',name:'Terminal',icon:'terminal',summary:'Command sessions on this computer.'},{id:'genvr',name:'GenVR',icon:'layers',summary:'Virtual worlds and connected experiences.'}] as const;
+export const builtinApps=[{id:'trading',name:'Trading preview',icon:'globe',summary:'Local paper practice with fictional money and prices.'},{id:'terminal',name:'Terminal',icon:'terminal',summary:'Command sessions on this computer.'},{id:'genvr',name:'GenVR',icon:'layers',summary:'Virtual worlds and connected experiences.'}] as const;
 export type AppKind='all'|'builtin'|'mcp'|'api';
 const kinds={builtin:'Built-in',mcp:'MCP connection',api:'Account connection'};
 const states:Record<WorkspaceApp['state'],string>={included:'Included',disabled:'Off',connected:'Connected',connecting:'Connecting…',disconnected:'Disconnected',attention:'Needs attention',not_connected:'Account not connected',expired:'Connect again'};

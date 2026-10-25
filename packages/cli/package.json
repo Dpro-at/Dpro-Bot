@@ -1,7 +1,7 @@
 {
   "name": "@agent-player/cli",
   "version": "0.1.0",
-  "description": "Agent Player CLI - Simple command-line interface",
+  "description": "Dpro Bot CLI - Simple command-line interface",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -19,7 +19,7 @@
     "cli",
     "automation"
   ],
-  "author": "Agent Player Team",
+  "author": "Mohamed Alarade",
   "license": "MIT",
   "dependencies": {
     "@clack/prompts": "^0.7.0",

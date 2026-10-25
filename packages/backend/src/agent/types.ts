@@ -1,6 +1,6 @@
 /**
  * Agent System - TypeScript Type Definitions
- * Professional, type-safe architecture for Agent Player
+ * Professional, type-safe architecture for Dpro Bot
  */
 
 // ============================================

@@ -4,7 +4,7 @@
   "description": "Trade stocks and cryptocurrencies with AI-powered strategies. Supports Paper Trading, Live Trading, and automated trading bots.",
   "version": "1.0.0",
   "type": "app",
-  "author": "Agent Player Team",
+  "author": "Dpro Bot Team",
   "main": "index.js",
   "queryTokenRoutes": ["/stream"],
   "permissions": [

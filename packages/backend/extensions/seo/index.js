@@ -1,5 +1,5 @@
 /**
- * SEO Extension for Agent Player
+ * SEO Extension for Dpro Bot
  *
  * Professional SEO suite with keyword tracking, SERP scraping, Google Search Console,
  * competitor analysis, AI-powered insights, and WordPress publishing.

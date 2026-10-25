@@ -2,7 +2,7 @@
  * Browser Navigate Tool
  *
  * Navigate to a URL and optionally extract basic page information
- * Integrated with Agent Player's browser automation system
+ * Integrated with Dpro Bot's browser automation system
  */
 
 import type { Tool, ToolResult } from '../types.js';

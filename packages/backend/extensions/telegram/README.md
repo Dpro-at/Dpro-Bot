@@ -1,6 +1,6 @@
 # Telegram Channel
 
-Telegram text messaging uses the standalone channels package and Agent Player's shared extension host.
+Telegram text messaging uses the standalone channels package and Dpro Bot's shared extension host.
 
 Open `/dashboard/channels/telegram`, enable the extension, and restart the backend if its routes are not loaded. Save the bot token and allowed sender IDs. Empty access lists block incoming messages. Automatic replies are optional and use the configured primary agent under the administrator account that saves settings.
 

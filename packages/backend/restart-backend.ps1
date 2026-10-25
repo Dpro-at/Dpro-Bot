@@ -1,4 +1,4 @@
-# Agent Player — Backend Self-Restart
+# Dpro Bot — Backend Self-Restart
 #
 # Usage (from agent exec tool or terminal):
 #   powershell -File "C:\MAMP\htdocs\agent\agent_player\packages\backend\restart-backend.ps1"

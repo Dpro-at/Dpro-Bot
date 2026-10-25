@@ -30,11 +30,11 @@ export async function registerSwagger(fastify: FastifyInstance): Promise<void> {
     openapi: {
       openapi: '3.1.0',
       info: {
-        title: 'Agent Player API',
+        title: 'Dpro Bot API',
         description: `
 ## Overview
 
-Agent Player Backend API provides a comprehensive set of endpoints for managing AI agents,
+Dpro Bot Backend API provides a comprehensive set of endpoints for managing AI agents,
 browser automation, webhooks, security auditing, and more.
 
 ## Authentication
@@ -64,7 +64,7 @@ Current API version: v1 (implicit in all routes)
         `,
         version: '0.1.0',
         contact: {
-          name: 'Agent Player Support',
+          name: 'Dpro Bot Support',
           email: 'support@agentplayer.dev',
         },
         license: {

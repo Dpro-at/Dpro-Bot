@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Agent Player GitHub Release Creation Script
+# Dpro Bot GitHub Release Creation Script
 # Creates a new GitHub release with all installer files
 #
 # Prerequisites:
@@ -15,7 +15,7 @@ REPO="9mtm/Agent-Player"
 RELEASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/releases"
 
 echo "========================================"
-echo "Agent Player Release Creation Script"
+echo "Dpro Bot Release Creation Script"
 echo "Version: $VERSION"
 echo "Repository: $REPO"
 echo "========================================"
@@ -83,7 +83,7 @@ echo ""
 # Create release notes
 echo "[3/5] Creating release notes..."
 RELEASE_NOTES=$(cat <<'EOF'
-# 🎉 Agent Player v1.3.0 - Professional Desktop Installer
+# 🎉 Dpro Bot v1.3.0 - Professional Desktop Installer
 
 Complete transformation from manual installation to one-click desktop application!
 
@@ -144,7 +144,7 @@ Complete guides included:
 ### macOS
 1. Download `agent-player-installer-1.3.0-macos-universal.dmg`
 2. Open DMG and drag to Applications
-3. Run Agent Player Installer
+3. Run Dpro Bot Installer
 4. Follow 8-step wizard
 
 ## 🔒 Security
@@ -200,7 +200,7 @@ echo "[5/5] Creating GitHub Release..."
 
 gh release create "v${VERSION}" \
     --repo "$REPO" \
-    --title "Agent Player v${VERSION} - Professional Desktop Installer" \
+    --title "Dpro Bot v${VERSION} - Professional Desktop Installer" \
     --notes "$RELEASE_NOTES" \
     "${REQUIRED_FILES[@]}" \
     checksums.txt

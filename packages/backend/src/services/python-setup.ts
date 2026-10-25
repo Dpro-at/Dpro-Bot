@@ -2,7 +2,7 @@ import { safeConsole } from './safe-error-log.js';
 /**
  * Python Environment Setup
  *
- * Downloads and configures a portable Python environment for Agent Player.
+ * Downloads and configures a portable Python environment for Dpro Bot.
  * - Windows: Downloads Python embeddable ZIP from python.org (no install needed)
  * - Linux/Mac: Creates a venv from system python3
  *
@@ -284,7 +284,7 @@ async function setupUnix(): Promise<void> {
 
 export async function setupPythonEnvironment(): Promise<void> {
   console.log('╔══════════════════════════════════════════════════════╗');
-  console.log('║       Agent Player — Python Environment Setup       ║');
+  console.log('║       Dpro Bot — Python Environment Setup       ║');
   console.log('╚══════════════════════════════════════════════════════╝');
   console.log(`  Platform : ${process.platform} (${process.arch})`);
   console.log(`  Target   : ${DATA_DIR}`);

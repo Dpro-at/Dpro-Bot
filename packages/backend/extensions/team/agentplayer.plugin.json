@@ -3,7 +3,7 @@
   "name": "Team Management",
   "version": "1.0.0",
   "description": "Team collaboration with members, roles, and invitations",
-  "author": "Agent Player Team",
+  "author": "Dpro Bot Team",
   "type": "app",
   "main": "src/index.js",
   "routeAccess": "authenticated",

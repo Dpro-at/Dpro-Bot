@@ -34,6 +34,12 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['export','preview','import']},body:{type:'object'}},required:['operation','body'],additionalProperties:false},
   },
   {
+    name:'trading_practice',title:'Local paper trading practice',
+    description:'Owner-session only. Read/start/end an isolated in-memory practice session, place a fictional buy/sell, run one manual practice bot step, or stop that bot. Fixed fictional prices and virtual money only; no provider, saved account or background trading. A write requires the owner’s explicit instruction. Reuse requestId when retrying an uncertain order or step.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','start','order','step','stop','end']},sessionId:{type:'string',maxLength:36},requestId:{type:'string',maxLength:36},symbol:{type:'string',enum:['DEMO-ALPHA','DEMO-BETA','DEMO-GAMMA']},side:{type:'string',enum:['buy','sell']},quantity:{type:'integer',minimum:1,maximum:100}},required:['operation'],additionalProperties:false},
+  },
+
+  {
     name:'workspace_apps',title:'Workspace applications',
     description:'Owner-session only. List Apps, add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. Adding does not execute a program or grant tools. Program startup, account linking, secrets and permanent removal are reviewed by the owner in the app.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
@@ -49,8 +55,8 @@ export const TOOL_DEFINITIONS = [
     name: 'spawn_small_agent',
     title: 'Delegate a light task to the small local agent',
     description: [
-      'Hand ONE light, self-contained task to the Agent Player small local agent (local Qwen model; free, private, slower and less capable than you).',
-      'Good for: lookups in Agent Player memory/storage, summaries of text you pass in, classification/tagging, first drafts.',
+      'Hand ONE light, self-contained task to the Dpro Bot small local agent (local Qwen model; free, private, slower and less capable than you).',
+      'Good for: lookups in Dpro Bot memory/storage, summaries of text you pass in, classification/tagging, first drafts.',
       'Not for: code changes, security decisions, anything that sends, pays, deletes, installs or runs commands (the small agent has no such tools), or tasks needing deep reasoning.',
       'Returns a run id at once; fetch the result card with get_result. Outputs marked needs_review must be checked by you before use.',
       'The small agent only gets read-only tools (memory_search, storage_search, read, memory_graph) and only the memory drawers you name; delegation never adds permissions.',
@@ -71,7 +77,7 @@ export const TOOL_DEFINITIONS = [
         max_steps: { type: 'integer', minimum: 1, maximum: 100, description: 'Step budget (model + tool calls). Default and upper limit 15.' },
         read_dir: {
           type: 'string', maxLength: 1024,
-          description: 'Absolute directory the "read" tool may read (only with tools including "read"; must be inside a folder the owner allowed with SMALL_AGENT_READ_ROOTS on the backend, otherwise refused; never the Agent Player backend, data, config or credential folders; .env, keys, tokens and databases stay blocked). Default: the small agent\'s own workspace.',
+          description: 'Absolute directory the "read" tool may read (only with tools including "read"; must be inside a folder the owner allowed with SMALL_AGENT_READ_ROOTS on the backend, otherwise refused; never the Dpro Bot backend, data, config or credential folders; .env, keys, tokens and databases stay blocked). Default: the small agent\'s own workspace.',
         },
       },
       required: ['task'],
@@ -254,6 +260,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
     const args = obj(rawArgs);
     switch (name) {
       case 'workspace_settings': return await workspaceSettingsTool(args,deps);
+      case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
@@ -272,7 +279,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       }
       return fail(err.message);
     }
-    return fail('Unexpected error in the Agent Player MCP server.');
+    return fail('Unexpected error in the Dpro Bot MCP server.');
   }
 }
 
@@ -472,4 +479,19 @@ async function workspaceSettingsTool(args:Record<string,unknown>,{backend}:Handl
   if(operation==='import'&&(body.confirmed!==true||typeof body.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(body.fingerprint)))throw new InputError('Review the preview and explicitly confirm its fingerprint');
  }
  return ok('Workspace settings result. Import preserves existing settings and does not grant tools.',await backend.request('POST','/api/workspace-pack/'+operation,body));
+}
+
+async function tradingPracticeTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const operation=args.operation,base='/api/trading-paper/practice';
+ if(operation==='read'||operation==='start'){
+  only(args,['operation']);return ok('Local fictional practice.',await backend.request(operation==='read'?'GET':'POST',base,operation==='start'?{}:undefined));
+ }
+ if(!['order','step','stop','end'].includes(String(operation)))throw new InputError('Unknown practice operation');
+ const fields=operation==='order'?['sessionId','requestId','symbol','side','quantity']:operation==='step'?['sessionId','requestId']:['sessionId'];
+ only(args,['operation',...fields]);
+ const uuid=(v:unknown)=>typeof v==='string'&&(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(v);
+ if(!uuid(args.sessionId)||['order','step'].includes(String(operation))&&!uuid(args.requestId))throw new InputError('Valid session and request identifiers are required');
+ if(operation==='order'&&(!['DEMO-ALPHA','DEMO-BETA','DEMO-GAMMA'].includes(String(args.symbol))||!['buy','sell'].includes(String(args.side))||!Number.isSafeInteger(args.quantity)||Number(args.quantity)<1||Number(args.quantity)>100))throw new InputError('Invalid fictional order');
+ const suffix=operation==='order'?'/orders':operation==='step'?'/step':operation==='stop'?'/stop-bot':'/end';
+ return ok('Fictional practice result. Saved paper accounts and live trading are separate.',await backend.request('POST',base+suffix,Object.fromEntries(fields.map(k=>[k,args[k]]))));
 }

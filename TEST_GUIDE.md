@@ -1,4 +1,4 @@
-# 🧪 دليل التجربة - Agent Player Stub Installer
+# 🧪 دليل التجربة - Dpro Bot Stub Installer
 
 ## الخطوات للتجربة المحلية
 
@@ -26,7 +26,7 @@ cargo tauri build
 
 **النتيجة**:
 ```
-installer\target\release\bundle\msi\Agent Player_1.3.0_x64_en-US.msi
+installer\target\release\bundle\msi\Dpro Bot_1.3.0_x64_en-US.msi
 ```
 
 ---
@@ -50,7 +50,7 @@ gh release create v1.3.0-test agent-player-files.zip --title "Test Release" --no
 ```powershell
 # شغّل الـ MSI installer
 cd C:\MAMP\htdocs\agent\agent_player\installer\target\release\bundle\msi
-.\Agent Player_1.3.0_x64_en-US.msi
+.\Dpro Bot_1.3.0_x64_en-US.msi
 ```
 
 **ما راح يصير**:

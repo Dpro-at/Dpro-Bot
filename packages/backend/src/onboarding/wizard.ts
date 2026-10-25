@@ -32,7 +32,7 @@ export class OnboardingWizard implements IOnboardingWizard {
     console.clear();
 
     prompts.intro(
-      chalk.bold.cyan('🚀 Welcome to Agent Player!')
+      chalk.bold.cyan('🚀 Welcome to Dpro Bot!')
     );
 
     this.state.startedAt = new Date();

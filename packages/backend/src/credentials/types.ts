@@ -2,7 +2,7 @@
  * Credentials System Types
  *
  * Secure storage for API keys, tokens, and OAuth credentials
- * Agent Player Credentials System
+ * Dpro Bot Credentials System
  */
 
 export enum CredentialType {

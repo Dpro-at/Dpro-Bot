@@ -4,7 +4,7 @@
   "description": "AI-powered call center with Twilio/Google Voice - Handle inbound/outbound calls with AI agents",
   "version": "1.0.0",
   "type": "channel",
-  "author": "Agent Player",
+  "author": "Dpro Bot",
   "main": "index.js",
   "publicRoutes": ["/webhooks/call-status", "/webhooks/recording-status"],
   "permissions": ["network", "database", "tools", "api", "credentials"],

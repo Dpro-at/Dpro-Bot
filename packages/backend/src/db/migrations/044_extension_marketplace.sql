@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS extension_registry (
   homepage_url TEXT, -- Extension homepage/docs
   repository_url TEXT, -- GitHub/GitLab repo URL
   license TEXT DEFAULT 'MIT', -- License type
-  min_agent_version TEXT, -- Minimum Agent Player version required
+  min_agent_version TEXT, -- Minimum Dpro Bot version required
   permissions TEXT, -- JSON array of required permissions
   dependencies TEXT, -- JSON array of required extension dependencies
   install_count INTEGER DEFAULT 0, -- Total installation count
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS extension_versions (
   version TEXT NOT NULL, -- Version number (semver)
   changelog TEXT, -- Release notes
   download_url TEXT NOT NULL, -- Download URL for this version
-  min_agent_version TEXT, -- Minimum Agent Player version
+  min_agent_version TEXT, -- Minimum Dpro Bot version
   breaking_changes BOOLEAN DEFAULT 0, -- Has breaking changes from previous version
   release_date DATETIME DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

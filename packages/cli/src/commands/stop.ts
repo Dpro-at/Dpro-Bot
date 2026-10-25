@@ -22,16 +22,16 @@ export async function stopCommand(
   const result = await stopRunning(paths, { ops: deps.ops, force: options.force, timeoutMs: deps.timeoutMs, pollMs: deps.pollMs });
   switch (result.state) {
     case 'not-running':
-      log(chalk.gray('Agent Player is not running (no pid file).'));
+      log(chalk.gray('Dpro Bot is not running (no pid file).'));
       return 0;
     case 'stale':
-      log(chalk.gray(`Agent Player is not running (stale pid file for pid ${result.pid}).`));
+      log(chalk.gray(`Dpro Bot is not running (stale pid file for pid ${result.pid}).`));
       return 0;
     case 'stopped':
-      log(chalk.green('Agent Player stopped'));
+      log(chalk.green('Dpro Bot stopped'));
       return 0;
     default:
-      log(chalk.red(`Agent Player (pid ${result.pid}) did not stop in time. Try "agent-player stop --force".`));
+      log(chalk.red(`Dpro Bot (pid ${result.pid}) did not stop in time. Try "agent-player stop --force".`));
       return 1;
   }
 }

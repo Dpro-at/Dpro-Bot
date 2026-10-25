@@ -47,7 +47,7 @@ cd my-extension
 
 ## UI Development with JSON Render
 
-**Agent Player has a built-in UI system with 61 pre-built components**. You DON'T need to write React code!
+**Dpro Bot has a built-in UI system with 61 pre-built components**. You DON'T need to write React code!
 
 ### Why JSON Render?
 

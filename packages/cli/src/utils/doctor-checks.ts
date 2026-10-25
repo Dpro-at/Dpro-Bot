@@ -33,7 +33,7 @@ export const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 export const DEFAULT_MODEL = 'qwen3.5:9b';
 
 /** Passwords published in this repository (same list as backend auth/default-accounts.ts). */
-export const PUBLISHED_DEFAULT_PASSWORDS: readonly string[] = ['admin123', 'user123', 'system-user-not-for-login', 'demo-user-password'];
+export const PUBLISHED_DEFAULT_PASSWORDS: readonly string[] = ['admin123', 'user123', 'system-user-not-for-login', 'demo-user-password', 'mock-only', 'fictional-password', 'new-fictional-password', 'another-fictional-password'];
 
 export interface Listener {
   pid?: number;

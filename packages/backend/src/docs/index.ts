@@ -1,6 +1,6 @@
 /**
  * API Documentation Module
- * OpenAPI/Swagger documentation for Agent Player API
+ * OpenAPI/Swagger documentation for Dpro Bot API
  */
 
 export * from './schemas.js';

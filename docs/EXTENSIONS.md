@@ -312,7 +312,7 @@ Skills are AI prompts that can be installed from Claude Code marketplace.
 Skills are `.md` files with structured prompts that teach the AI new capabilities.
 
 **Skill sources:**
-- `bundled` - Built into Agent Player
+- `bundled` - Built into Dpro Bot
 - `managed` - Downloaded from Claude Code marketplace
 - `workspace` - User-created in `.data/skills/`
 

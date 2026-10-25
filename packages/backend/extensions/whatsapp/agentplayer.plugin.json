@@ -4,7 +4,7 @@
   "description": "WhatsApp Business API integration - send and receive messages via Twilio",
   "version": "2.0.0",
   "type": "channel",
-  "author": "Agent Player Team",
+  "author": "Dpro Bot Team",
   "main": "index.js",
   "publicRoutes": ["/webhook"],
   "permissions": ["network", "database", "tools"],

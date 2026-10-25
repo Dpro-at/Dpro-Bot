@@ -1,4 +1,4 @@
-# Agent Player Deployment Guide
+# Dpro Bot Deployment Guide
 
 Advanced deployment guide for production environments, remote servers, and cloud platforms.
 
@@ -21,7 +21,7 @@ Advanced deployment guide for production environments, remote servers, and cloud
 
 ## Deployment Modes Overview
 
-Agent Player supports 3 deployment modes:
+Dpro Bot supports 3 deployment modes:
 
 | Mode | Best For | Pros | Cons | Complexity |
 |------|----------|------|------|------------|
@@ -61,7 +61,7 @@ sudo usermod -aG docker $USER
 **Windows/macOS:**
 - Download Docker Desktop: https://www.docker.com/products/docker-desktop
 
-#### 2. Run Agent Player Installer
+#### 2. Run Dpro Bot Installer
 
 Select **Docker Mode** during installation. The installer will create:
 
@@ -239,7 +239,7 @@ networks:
 
 ## Server Deployment (SSH)
 
-Deploy Agent Player to a remote server with automatic nginx + SSL configuration.
+Deploy Dpro Bot to a remote server with automatic nginx + SSL configuration.
 
 ### Prerequisites
 
@@ -289,7 +289,7 @@ sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 
-# Allow Agent Player ports (if direct access needed)
+# Allow Dpro Bot ports (if direct access needed)
 sudo ufw allow 41521/tcp
 sudo ufw allow 41522/tcp
 
@@ -319,7 +319,7 @@ dig agent.yourdomain.com +short
 # Should return: your-server-ip
 ```
 
-#### Step 4: Run Agent Player Installer
+#### Step 4: Run Dpro Bot Installer
 
 On your **local machine**, run the installer:
 
@@ -396,7 +396,7 @@ curl http://localhost:41521
    - **Will Direct To:** your-droplet-ip
    - **TTL:** 3600
 
-#### Deploy Agent Player
+#### Deploy Dpro Bot
 
 1. Run installer on local machine
 2. Select **Server Mode**
@@ -445,7 +445,7 @@ curl http://localhost:41521
    - **Type:** A
    - **Value:** your-elastic-ip
 
-#### Deploy Agent Player
+#### Deploy Dpro Bot
 
 1. Get instance public IP:
    ```bash
@@ -485,7 +485,7 @@ curl http://localhost:41521
    - **Hostname:** agent
    - **IP Address:** your-linode-ip
 
-#### Deploy Agent Player
+#### Deploy Dpro Bot
 
 1. Wait for Linode to boot (~30 seconds)
 2. Run installer:
@@ -542,7 +542,7 @@ sudo nano /etc/systemd/system/agent-player.service
 
 ```ini
 [Unit]
-Description=Agent Player Backend
+Description=Dpro Bot Backend
 After=network.target
 
 [Service]
@@ -739,7 +739,7 @@ curl http://localhost:41522/health
 # Prometheus
 sudo apt install prometheus
 # Edit /etc/prometheus/prometheus.yml
-# Add job for Agent Player
+# Add job for Dpro Bot
 
 # Grafana
 sudo apt install grafana
@@ -757,7 +757,7 @@ wget https://github.com/grafana/loki/releases/download/v2.8.0/promtail-linux-amd
 unzip promtail-linux-amd64.zip
 sudo mv promtail-linux-amd64 /usr/local/bin/promtail
 
-# Configure to tail Agent Player logs
+# Configure to tail Dpro Bot logs
 sudo nano /etc/promtail/config.yml
 ```
 
@@ -840,4 +840,4 @@ sudo dpkg-reconfigure --priority=low unattended-upgrades
 
 **Deployment complete! 🚀**
 
-Your Agent Player instance is now running in production.
+Your Dpro Bot instance is now running in production.

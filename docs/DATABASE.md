@@ -1,6 +1,6 @@
 # Database Structure
 
-Agent Player uses SQLite database stored in `packages/backend/.data/database.db`
+Dpro Bot uses SQLite database stored in `packages/backend/.data/database.db`
 
 ---
 

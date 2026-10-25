@@ -36,7 +36,7 @@ export async function doctorCommand(
   const results = await runDoctor(ctx);
   if (options.json) log(JSON.stringify({ root: paths.root, fix: !!options.fix, results }, null, 2));
   else {
-    log(chalk.bold(`Agent Player doctor — ${paths.root}${options.fix ? ' (--fix)' : ''}`));
+    log(chalk.bold(`Dpro Bot doctor — ${paths.root}${options.fix ? ' (--fix)' : ''}`));
     log(formatResults(results, !!options.fix));
   }
   return results.some((r) => r.status === 'fail') ? 1 : 0;

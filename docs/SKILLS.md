@@ -14,7 +14,7 @@ Skills are structured AI prompts (`.md` files) that teach AI new capabilities.
 
 ## Skill Sources
 
-- **bundled** - Built into Agent Player
+- **bundled** - Built into Dpro Bot
 - **managed** - Downloaded from Skill Hub
 - **workspace** - User-created in `.data/skills/`
 

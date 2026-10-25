@@ -1,5 +1,5 @@
 #!/bin/bash
-# Agent Player — Backend Self-Restart (Linux/Mac)
+# Dpro Bot — Backend Self-Restart (Linux/Mac)
 #
 # Usage:
 #   bash packages/backend/restart-backend.sh

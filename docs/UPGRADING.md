@@ -1,4 +1,4 @@
-# Agent Player Upgrade Guide
+# Dpro Bot Upgrade Guide
 
 Guide for upgrading from manual installation (v1.2.x or earlier) to the installer-based system (v1.3.0+).
 
@@ -32,7 +32,7 @@ Guide for upgrading from manual installation (v1.2.x or earlier) to the installe
 - ⚠️ Installation location changed:
   - Windows: `C:\Program Files\AgentPlayer\` (was: custom location)
   - Linux: `/opt/agent-player` (was: `/home/user/agent_player`)
-  - macOS: `/Applications/Agent Player.app/Contents/Resources` (was: custom location)
+  - macOS: `/Applications/Dpro Bot.app/Contents/Resources` (was: custom location)
 
 - ⚠️ Service management changed:
   - Was: Manual `pnpm dev` in two terminals
@@ -62,7 +62,7 @@ Ensure your system meets the requirements:
 
 ### Stop Existing Services
 
-**If you're running Agent Player manually:**
+**If you're running Dpro Bot manually:**
 
 ```bash
 # Stop frontend (Ctrl+C in terminal)
@@ -259,8 +259,8 @@ sudo chmod 600 /opt/agent-player/app/.data/agent-player.db
 
 **macOS:**
 ```bash
-sudo cp ~/agent-player-backup-*/agent-player.db "/Applications/Agent Player.app/Contents/Resources/app/.data/"
-sudo chown root:wheel "/Applications/Agent Player.app/Contents/Resources/app/.data/agent-player.db"
+sudo cp ~/agent-player-backup-*/agent-player.db "/Applications/Dpro Bot.app/Contents/Resources/app/.data/"
+sudo chown root:wheel "/Applications/Dpro Bot.app/Contents/Resources/app/.data/agent-player.db"
 ```
 
 #### 6. Restore User Files
@@ -278,7 +278,7 @@ sudo chown -R agentplayer:agentplayer /opt/agent-player/app/public/storage
 
 **macOS:**
 ```bash
-sudo cp -r ~/agent-player-backup-*/storage/* "/Applications/Agent Player.app/Contents/Resources/app/public/storage/"
+sudo cp -r ~/agent-player-backup-*/storage/* "/Applications/Dpro Bot.app/Contents/Resources/app/public/storage/"
 ```
 
 #### 7. Restore Memory & Agents
@@ -299,8 +299,8 @@ sudo chown -R agentplayer:agentplayer /opt/agent-player/app/.data/agents
 
 **macOS:**
 ```bash
-sudo cp -r ~/agent-player-backup-*/memory "/Applications/Agent Player.app/Contents/Resources/app/.data/"
-sudo cp -r ~/agent-player-backup-*/agents "/Applications/Agent Player.app/Contents/Resources/app/.data/"
+sudo cp -r ~/agent-player-backup-*/memory "/Applications/Dpro Bot.app/Contents/Resources/app/.data/"
+sudo cp -r ~/agent-player-backup-*/agents "/Applications/Dpro Bot.app/Contents/Resources/app/.data/"
 ```
 
 #### 8. Merge Environment Variables
@@ -523,9 +523,9 @@ sudo cp -r ~/agent-player-backup-*/* /opt/agent-player/app/.data/
 If you want to return to manual `pnpm dev` setup:
 
 1. **Uninstall v1.3.0:**
-   - Windows: Control Panel → Programs → Uninstall Agent Player
+   - Windows: Control Panel → Programs → Uninstall Dpro Bot
    - Linux: Run uninstaller from system tray
-   - macOS: Drag "Agent Player.app" to Trash
+   - macOS: Drag "Dpro Bot.app" to Trash
 
 2. **Restore old installation:**
    ```bash
@@ -659,13 +659,13 @@ New URL: Same (unless you changed ports)
 
 ### 2. Reconfigure IDE/Editor
 
-If you have Agent Player open in VS Code or other IDE:
+If you have Dpro Bot open in VS Code or other IDE:
 
 - **Close old workspace**
 - **Open new location:**
   - Windows: `C:\Program Files\AgentPlayer\app`
   - Linux: `/opt/agent-player/app`
-  - macOS: `/Applications/Agent Player.app/Contents/Resources/app`
+  - macOS: `/Applications/Dpro Bot.app/Contents/Resources/app`
 
 ### 3. Update Scripts/Aliases
 
@@ -728,4 +728,4 @@ If you encounter issues during upgrade:
 
 **Upgrade complete! 🎉**
 
-Welcome to Agent Player v1.3.0 with installer, system tray, and auto-updates!
+Welcome to Dpro Bot v1.3.0 with installer, system tray, and auto-updates!
