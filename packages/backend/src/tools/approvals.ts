@@ -212,6 +212,8 @@ function paramsHash(salt: string, params: unknown): string {
  */
 export interface ApprovalRunScope {
   memoryDrawers: DrawerRef[];
+  /** Owner-selected project boundary, bound into the approval hash. */
+  fileReadRoot?: string;
   taskId?: string;
   /** CORE-08: durable task run + step that asked; the run continues once decided. */
   runId?: string;
@@ -221,6 +223,7 @@ export interface ApprovalRunScope {
 export function runScopeOf(context: ToolExecutionContext): ApprovalRunScope {
   const scope: ApprovalRunScope = { memoryDrawers: toolMemoryDrawers(context).map((d) => ({kind:d.kind,...(d.key?{key:d.key}:{}),...(d.readOnly===true?{readOnly:true}:{} )})) };
   if (typeof context.taskId === 'string' && context.taskId) scope.taskId = context.taskId;
+  if (typeof context.fileReadRoot === 'string' && context.fileReadRoot) scope.fileReadRoot = context.fileReadRoot;
   if (context.taskRun && typeof context.taskRun.runId === 'string' && Number.isInteger(context.taskRun.stepIndex)) {
     scope.runId = context.taskRun.runId;
     scope.runStep = context.taskRun.stepIndex;
@@ -244,6 +247,7 @@ function parseRunScope(raw: unknown): ApprovalRunScope | null | 'invalid' {
     if (v.taskId !== undefined && typeof v.taskId !== 'string') return 'invalid';
     if (v.runId !== undefined && typeof v.runId !== 'string') return 'invalid';
     if (v.runStep !== undefined && !Number.isInteger(v.runStep)) return 'invalid';
+    if (v.fileReadRoot !== undefined && (typeof v.fileReadRoot !== 'string' || !v.fileReadRoot || v.fileReadRoot.length > 4096 || v.fileReadRoot.includes('\0'))) return 'invalid';
     return v as ApprovalRunScope;
   } catch {
     return 'invalid';
@@ -540,7 +544,7 @@ export async function approveAndRun(id: string, ownerId: string, expectedHash: u
   // Old rows without a stored scope keep the previous default (owner +
   // experience drawers).
   const scoped = runScope && typeof runScope === 'object'
-    ? { memoryDrawers: approvalRunDrawers(runScope.memoryDrawers, { toolPolicy }), ...(runScope.taskId ? { taskId: runScope.taskId } : {}) }
+    ? { memoryDrawers: approvalRunDrawers(runScope.memoryDrawers, { toolPolicy }), ...(runScope.taskId ? { taskId: runScope.taskId } : {}), ...(runScope.fileReadRoot ? { fileReadRoot: runScope.fileReadRoot } : {}) }
     : {};
   // CORE-08: the call keeps the idempotency key of the run step that asked.
   let taskRun: ToolExecutionContext['taskRun'];

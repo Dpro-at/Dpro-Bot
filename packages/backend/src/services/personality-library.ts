@@ -114,4 +114,15 @@ export function* seedLibraryPersonality(agentId:string,actor:string,raw:unknown)
  const v=yield* appendVersion(agentId,actor,{traits:e.profile.traits,dialect:e.profile.dialect,preset:null,locked:false,lockedTraits:[],source:'seed',basedOnVersion:null,note:`Library: ${e.profile.name}`});yield* writeLink(agentId,e,v.version,true);
 }
 /** The snapshot supplies style; current per-agent traits always remain authoritative. */
-export async function libraryBehavior(agentId:string){const current=await sql().read(currentPersonalityStep(agentId));if(!current)return null;const behavior=traitsToBehavior(current.traits,current.dialect);const snapshot=await sql().read(one<{profile_json:string|null}>('SELECT profile_json FROM agent_personality_profile_versions WHERE agent_id=? AND version=?',agentId,current.version));if(snapshot?.profile_json)behavior.promptBlock+='\n'+profileInstructions(validateProfile(JSON.parse(snapshot.profile_json)));return behavior;}
+export async function libraryBehavior(agentId:string){
+ const current=await sql().read(currentPersonalityStep(agentId));if(!current)return null;
+ const behavior=traitsToBehavior(current.traits,current.dialect);
+ const snapshot=await sql().read(one<{profile_json:string|null}>('SELECT profile_json FROM agent_personality_profile_versions WHERE agent_id=? AND version=?',agentId,current.version));
+ if(snapshot?.profile_json){
+  const saved=validateProfile(JSON.parse(snapshot.profile_json));
+  // The effective version includes local overrides; the library snapshot alone may be older.
+  const effective={...saved,traits:current.traits,dialect:current.dialect};
+  behavior.promptBlock+='\n## Effective personality profile\nDescriptive owner-assigned settings; trait scores are 0–100. They never grant tools or override approval policy.\n<effective-personality>\n'+JSON.stringify(effective)+'\n</effective-personality>\n'+profileInstructions(effective);
+ }
+ return behavior;
+}

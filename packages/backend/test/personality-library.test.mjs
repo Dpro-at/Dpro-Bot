@@ -103,3 +103,18 @@ test('batch hires persist the reviewed library selection across runs',async()=>{
  await createBatch('library-owner',input);const first=await runBatch('library-owner',input.id);assert.equal(first.progress.created,1);assert.equal((await store.assignment(first.results[0].agentId)).id,'temperament-cautious');assert.equal((await runBatch('library-owner',input.id)).results.length,0);
  await assert.rejects(createBatch('library-owner',{...input,departments:[{...input.departments[0],personalities:{specialist:{id:'temperament-warm',revision:2}}}]}),/different batch/);
 });
+
+
+test('effective prompt exposes profile identity and current traits rather than stale library weights',async()=>{
+ await sql().tx(function*(){yield* run("INSERT INTO agents_config(id,name) VALUES('effective-profile-check','Effective profile check')");yield* seedLibraryPersonality('effective-profile-check','library-owner',{id:'temperament-cautious',revision:1});},{immediate:true});
+ const before=await getCurrentPersonality('effective-profile-check');
+ await store.assign('library-owner','effective-profile-check',{id:'temperament-cautious',revision:1,expectedVersion:before.version,linked:true});
+ await savePersonalityVersion('effective-profile-check',{traits:{verbosity:17}},'library-owner');
+ const current=await getCurrentPersonality('effective-profile-check');
+ const prompt=(await libraryBehavior('effective-profile-check')).promptBlock;
+ const match=prompt.match(/<effective-personality>\n([^\n]+)\n<\/effective-personality>/);assert.ok(match);
+ const effective=JSON.parse(match[1]);assert.equal(effective.name,'Cautious');
+ assert.deepEqual(effective.traits,current.traits);assert.equal(effective.traits.verbosity,17);
+ assert.equal(effective.traits.caution,95);assert.equal(effective.dialect,current.dialect);
+ assert.match(prompt,/never grant tools or override approval policy/);
+});
