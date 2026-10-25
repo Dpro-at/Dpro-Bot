@@ -50,7 +50,7 @@ function sanitizePathParam(param: string): string {
 export const validAgentFileId=(id:unknown):id is string=>typeof id==='string'&&(/^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,127}$/).test(id)&&!id.includes('..');
 export function getAgentDir(agentId: string): string {
   if(!validAgentFileId(agentId))throw Error('Invalid agent id');
-  return path.join(AGENTS_DIR, agentId);
+  return path.join(AGENTS_DIR, sanitizePathParam(agentId));
 }
 
 /**
