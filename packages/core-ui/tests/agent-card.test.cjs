@@ -94,9 +94,10 @@ test('agent card: profile, persona versions, lock, rollback and permissions', as
 
   await c.openTab('memory');
   html = renderToStaticMarkup(React.createElement(CardView, { card: c, onBack: () => {} }));
-  // Board M6: drawer access, its own notes, handoffs, skills and tools at a glance.
-  for (const words of [/may remember/, /Share what it learns with the team/, /Save memory access/, /Its own notes/, /Handoffs/, /Skills/, /Tools &amp; MCP/, /Memory \d+ of \d+ on|of \d+ on/])
-    assert.match(html, words);
+  // Agent sections keep memory browsing and its rules together; other settings have their own place.
+  for (const words of [/Saved memories from this agent/, /Memory rules/, /Save memory rules/, /Share what it learns with the team/])assert.match(html,words);
+  for(const words of ['General','Personality','Specialties and skills','Permissions','Activity'])assert.ok(html.includes(words));
+  assert.doesNotMatch(html,/Its own notes|Tools &amp; MCP/);
 });
 
 test('memory page: drawers, add to a project, edit, history and forget', async t => {

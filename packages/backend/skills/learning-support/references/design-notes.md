@@ -1,0 +1,12 @@
+# Design notes and comparison scope
+
+Independently authored English learning-support workflow,domain references and output templates. Original prompts,code,curricula,examples,profile templates and scheduler formulas are not redistributed. Pinned private captures support the bounded source review;not every upstream resource was exhaustively evaluated.
+
+- [Bhala-Srinivash/agent-tutor-skill / root](https://github.com/Bhala-Srinivash/agent-tutor-skill/tree/e273585b542d1d77b72c87eaa605d384ea4479f1) — commit `e273585b542d1d77b72c87eaa605d384ea4479f1`.
+- [sdesh008/math-ai-course / root](https://github.com/sdesh008/math-ai-course/tree/31b188766c3f1eb776fef133a8e89660cfa7986e) — commit `31b188766c3f1eb776fef133a8e89660cfa7986e`.
+- [SimJ/programming-tutor-skill / root](https://github.com/SimJ/programming-tutor-skill/tree/434abd23ce9d01768d81511372a54e51672bca4a) — commit `434abd23ce9d01768d81511372a54e51672bca4a`.
+- [HughYau/AcademicForge / skills/claude-science/learn](https://github.com/HughYau/AcademicForge/tree/01b6d90c5b50ba0aa48b6564e45ee4a0ade9487c/skills/claude-science/learn) — commit `01b6d90c5b50ba0aa48b6564e45ee4a0ade9487c`.
+
+The general learning source provides concept tracking and a scheduling workflow. This package uses authorized minimal records and task-specific evidence without requiring global profiles,fixed quiz formats or a forgetting guarantee. The mathematics source is concise and aimed at an advanced audience;our route supports the supplied level and adds explicit domain/equivalence/proof-versus-numerical checks. The programming source has a broader framework curriculum catalog;our route focuses on existing runtime ownership,meaningful debugging/execution evidence and educational review without copying that catalog. The science learning-mode source provides dialogue/scaffolding guidance;our science route adds model,measurement,units,causal inference and actual-versus-proposed experiment boundaries. It does not claim to be a scientific reference database.
+
+Direct explanations and full solutions remain legitimate when requested. Guided practice preserves learner turns,but the package does not impose a permanent refusal-to-answer or an unsupported judgment that learner time pressure is insincere. No matched model-task superiority or learner-outcome improvement is claimed. Actual behavior and progress require observed scoped trials;native discovery is preliminary compatibility evidence.

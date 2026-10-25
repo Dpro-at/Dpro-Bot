@@ -7,7 +7,7 @@ import type { PublicAgent } from './agents';
 import type { MemoryItem, PersonaCurrent, Persona, Traits, TraitName } from './agent-card-contract.js';
 import { permissionCategories, permissionModes, riskyCategories } from './hire-contract.js';
 
-export type CardTab = 'profile' | 'persona' | 'permissions' | 'memory' | 'skills' | 'mcp';
+export type CardTab = 'profile' | 'persona' | 'permissions' | 'memory' | 'skills' | 'mcp' | 'activity';
 export type Grants = { version: number; granted: readonly string[]; available: readonly { name: string; description: string; requiresApproval: boolean; allowedByServer: boolean; execClass: boolean }[] };
 export type Permissions = { memoryRead: string[]; memoryWrite: string[]; sharedMemory: boolean; modes: Record<string, string>; version: number };
 export type ProfileDraft = { role: string; department: string; description: string; model: string };
@@ -77,7 +77,7 @@ export class AgentCardController {
     this.publish({ tab, saved: undefined, notice: undefined });
     if ((tab === 'permissions' || tab === 'memory' || tab === 'mcp') && !this.#state.permissions) await this.loadPermissions();
     if (tab === 'memory' && !this.#state.memories) await this.loadMemories();
-    if (tab === 'persona' && !this.#state.versions) await this.loadVersions();
+    if ((tab === 'persona' || tab === 'activity') && !this.#state.versions) await this.loadVersions();
   }
 
   private async loadModels() {
@@ -90,6 +90,8 @@ export class AgentCardController {
 
   // ---- profile ----
   editProfile(p: Partial<ProfileDraft>) { this.publish({ profile: { ...this.#state.profile, ...p }, saved: undefined }); }
+  discardProfile() {this.publish({profile:profileOf(this.#state.agent),saved:undefined});}
+  discardPermissions() {const p=this.#state.permissions;this.publish({permissionDraft:p&&structuredClone(p),grantDraft:this.#state.grants&&[...this.#state.grants.granted],saved:undefined});}
   profileChanged() { const a = profileOf(this.#state.agent), d = this.#state.profile; return a.role !== d.role || a.department !== d.department.trim().toLowerCase() || a.description !== d.description || a.model !== d.model; }
   async saveProfile() {
     const a = this.#state.agent; if (!a || !this.profileChanged()) return;

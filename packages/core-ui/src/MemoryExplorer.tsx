@@ -33,10 +33,10 @@ export function Explorer({ c, agents, onMove }: { c: MemoryExplorerController; a
     <div className="mem-explorer-bar">
       <form className="memory-search mem-explorer-search" role="search" onSubmit={e => { e.preventDefault(); void c.searchMeaning(); }}>
         <UiIcon name="search" size={13}/>
-        <input type="search" aria-label="Search memories" placeholder="Search (Enter searches by meaning)" value={s.query} onChange={e => c.setQuery(e.target.value)} onBlur={() => { if (!s.meaning) void c.load(); }} onKeyUp={e => { if (e.key !== 'Enter' && !s.query) void c.load(); }}/>
+        <input type="search" aria-label="Search memories" placeholder={c.fixedScope?'Search this agent’s memories':'Search (Enter searches by meaning)'} value={s.query} onChange={e => c.setQuery(e.target.value)} onBlur={() => { if (!s.meaning) void c.load(); }} onKeyUp={e => { if (e.key !== 'Enter' && !s.query) void c.load(); }}/>
       </form>
       {s.meaning ? <span className="fine-print">by meaning · <button type="button" className="link-button" onClick={() => void c.load()}>show word matches</button></span> : <button type="button" className="link-button" onClick={() => void c.load()}>Find words</button>}
-      <label className="mem-chip-select">Drawer<select value={s.scope.startsWith('agent:') || s.scope.startsWith('department:') ? '' : s.scope} onChange={e => c.setScope(e.target.value || 'company')}>
+      {!c.fixedScope&&<>      <label className="mem-chip-select">Drawer<select value={s.scope.startsWith('agent:') || s.scope.startsWith('department:') ? '' : s.scope} onChange={e => c.setScope(e.target.value || 'company')}>
         <option value="company">All drawers</option>
         {drawerChoices(s.facets.drawer, s.scope.includes(':') && !s.scope.startsWith('agent:') ? [s.scope] : ['owner', 'experience']).map(d => <option key={d} value={d}>{drawerName(d)}{s.facets.drawer[d] !== undefined ? ` · ${s.facets.drawer[d]}` : ''}</option>)}
       </select></label>
@@ -44,6 +44,7 @@ export function Explorer({ c, agents, onMove }: { c: MemoryExplorerController; a
         <option value="">Any agent</option>
         {Object.entries(agents).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={`agent:${id}`}>{name}</option>)}
       </select></label>
+</>}
       <label className="mem-chip-select">Type<select value={s.type} onChange={e => c.setType(e.target.value)}>
         <option value="">Any type</option>
         {[...new Set([...Object.keys(s.facets.type), ...(s.type ? [s.type] : [])])].map(t => <option key={t} value={t}>{t}{s.facets.type[t] !== undefined ? ` · ${s.facets.type[t]}` : ''}</option>)}

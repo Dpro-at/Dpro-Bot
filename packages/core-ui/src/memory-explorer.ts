@@ -33,8 +33,8 @@ const EMPTY_FACETS = { type: {}, layer: {}, drawer: {} };
 
 export class MemoryExplorerController extends Store<ExplorerState> {
   #ticket = 0;
-  constructor(client: Requester) {
-    super({ phase: 'idle', busy: false, scope: 'company', query: '', meaning: false, type: '', topic: '', source: '', agent: '', importance: '', since: '', items: [], total: 0, nextCursor: null, facets: EMPTY_FACETS,
+  constructor(client: Requester,readonly fixedScope?:string) {
+    super({ phase: 'idle', busy: false, scope: fixedScope??'company', query: '', meaning: false, type: '', topic: '', source: '', agent: '', importance: '', since: '', items: [], total: 0, nextCursor: null, facets: EMPTY_FACETS,
       open: null, versions: null, full: null, detail: null, editing: false, draft: '', draftImportance: 5, moving: false, moveTo: '', confirmForget: false,
       checked: [], bulk: null, bulkTo: '', adding: null }, client);
   }
@@ -73,6 +73,7 @@ export class MemoryExplorerController extends Store<ExplorerState> {
   }
   /** Enter: search all memory by meaning (the server's meaning index). */
   async searchMeaning() {
+    if(this.fixedScope){await this.load();return;}
     const q = this.getSnapshot().query.trim();
     if (q.length < 2) return;
     const t = ++this.#ticket;
@@ -86,7 +87,7 @@ export class MemoryExplorerController extends Store<ExplorerState> {
     } catch { this.publish({ busy: false, notice: 'The meaning search did not answer (no connection).' }); }
   }
 
-  setScope(scope: string) { this.publish({ scope, open: null, versions: null, checked: [], bulk: null, result: undefined }); void this.load(); }
+  setScope(scope: string) { if(this.fixedScope&&scope!==this.fixedScope)return; this.publish({ scope, open: null, versions: null, checked: [], bulk: null, result: undefined }); void this.load(); }
   setQuery(query: string) { this.publish({ query }); }
   setType(type: string) { this.publish({ type }); void this.load(); }
   setTopic(topic: '' | 'has' | 'none') { this.publish({ topic }); void this.load(); }
