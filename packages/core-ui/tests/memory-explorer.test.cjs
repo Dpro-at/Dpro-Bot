@@ -94,3 +94,13 @@ test('bulk forget across pages asks once; add saves the topic key', async () => 
   assert.deepEqual(calls.find(r => r.path === '/api/memory' && r.method === 'POST').body, { type: 'fact', content: 'Coffee without sugar.', importance: 6, drawer: { kind: 'owner' }, topicKey: 'owner-drinks' });
   c.dispose();
 });
+
+
+test('embedded agent explorer never widens its scope or uses global meaning search',async()=>{
+ const calls=[],client={request:async r=>{calls.push(r);return {status:200,body:{items:[],total:0,nextCursor:null,facets:{type:{},layer:{},drawer:{}}}}}};
+ const c=new MemoryExplorerController(client,'agent:sample-main');
+ await c.load();c.setScope('company');c.setQuery('specific memory');await c.searchMeaning();
+ assert.equal(c.getSnapshot().scope,'agent:sample-main');assert.ok(calls.length>=2);
+ for(const r of calls){assert.equal(r.method,'GET');assert.equal(new URLSearchParams(r.path.split('?')[1]).get('scope'),'agent:sample-main');}
+ const html=renderToStaticMarkup(React.createElement(Explorer,{c,agents:{'sample-main':'Example'}}));assert.doesNotMatch(html,/Any agent|All drawers/);assert.match(html,/Search this agent/);c.dispose();
+});

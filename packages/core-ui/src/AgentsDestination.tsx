@@ -1,4 +1,5 @@
 import { PersonalityController } from './personality';
+import type {CardTab} from './agent-card';
 import { AgentCard } from './AgentCard';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AgentsController } from './agents';
@@ -19,6 +20,7 @@ export function AgentsDestination({ client, active = false, onOpenMemory, focusC
   const [department,setDepartment]=useState('all');
   const [connections,setConnections]=useState(focusConnectors);
   useEffect(()=>{if(focusConnectors)setConnections(true);},[focusConnectors]);
+  const [initialSection,setInitialSection]=useState<CardTab>('profile');
   const [open, setOpen] = useState<string | null>(null);
   // The effect owns subscription cleanup; construction also supports offline SSR without reads.
   const [controller, setController] = useState<AgentsController>();
@@ -37,23 +39,23 @@ export function AgentsDestination({ client, active = false, onOpenMemory, focusC
     setController(c); setPersonality(p); setHire(h); setCompany(w);
     return () => { unsubscribe(); c.dispose(); p.dispose(); h.dispose(); w.dispose(); };
   }, [client]);
-  useEffect(()=>{if(active&&focusAgent)setOpen(focusAgent.id);},[active,focusAgent?.n]);
+  useEffect(()=>{if(active&&focusAgent){setInitialSection('profile');setOpen(focusAgent.id);}},[active,focusAgent?.n]);
   // Opening the page shows the team at once (one read the first time the page is shown).
   useEffect(() => { if (active && session.phase === 'authenticated' && controller && controller.getSnapshot().phase === 'idle' && !controller.getSnapshot().agents.length) void controller.list(); }, [active, session.phase, controller]);
   // The Agents section owns the sidebar: search, New agent and the team by department (board M28 H4).
-  const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} onOpen={id => setOpen(id)} onTeam={() => setOpen(null)}
+  const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} onOpen={id => {setInitialSection('profile');setOpen(id);}} onTeam={() => setOpen(null)}
     department={department} onDepartment={d=>{setDepartment(d);setConnections(false);setOpen(null);}} connections={connections} onConnections={()=>{setConnections(true);setOpen(null);}}
     onNew={owner && hire ? () => { setOpen(null); hire.restart(); setHiring(true); } : undefined}/>, sidebarSlot) : null;
   if (open && controller && !owner) return <>{sidebar}<MemberAgent controller={controller} agentId={open} onBack={() => setOpen(null)}/></>;
   if (open && controller && personality) return <section aria-label="Agents">
-    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory}/>
+    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory}/>
   </section>;
   const newHire=()=>{if(hire){hire.restart();setHiring(true);}};
   const newCompany=()=>{if(company){company.restart();setBuilding(true);}};
   return <section aria-label="Agents" className="agents-destination">{sidebar}
     {owner && company && building && <CompanyWizard controller={company} onClose={() => { setBuilding(false); void controller?.list(); }}/>}
     {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }}/></HireSheet>}
-    {connections ? <><div className="staff-toolbar"><button title="Back to staff" aria-label="Back to staff" onClick={()=>setConnections(false)}><UiIcon name="arrow-left" size={16}/></button><h2>Agent connections</h2></div><div className="staff-connections">{owner?<ConnectorsSection client={client} active={active} focus={focusConnectors}/>:<p>Only the owner can configure connections.</p>}</div></> : controller ? <StaffDirectory controller={controller} department={department} onDepartment={setDepartment} onOpen={setOpen} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined}/>:<p role="status">Loading your team…</p>}
+    {connections ? <><div className="staff-toolbar"><button title="Back to staff" aria-label="Back to staff" onClick={()=>setConnections(false)}><UiIcon name="arrow-left" size={16}/></button><h2>Agent connections</h2></div><div className="staff-connections">{owner?<ConnectorsSection client={client} active={active} focus={focusConnectors}/>:<p>Only the owner can configure connections.</p>}</div></> : controller ? <StaffDirectory controller={controller} department={department} onDepartment={setDepartment} onOpen={(id,section='profile')=>{setInitialSection(section);setOpen(id);}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined}/>:<p role="status">Loading your team…</p>}
   </section>;
 
 }
