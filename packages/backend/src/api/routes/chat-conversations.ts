@@ -239,9 +239,13 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     }
     // CHAT-PRO-02 A: a project conversation reads the project folder and opens its memory drawer.
     const project = c.projectId ? await findProject(userId, c.projectId) : undefined;
-    if(subscriptionModel(b.model)&&(!subscriptionEnabled()||(request as any).chatUserRole!=='owner'))return reply.code(400).send({code:'no_folder',error:'Coding apps are available only to the owner in the desktop app.'});
+    // Resolve the saved agent source before folder setup and owner gating.
+    const configured = replyAgent ? await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE id=?',replyAgent) : (await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE is_primary=1 ORDER BY id LIMIT 1')??await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config ORDER BY created_at,id LIMIT 1'));
+    const effectiveModel=b.model||configured?.model;
+    const resolvedReplyAgent=subscriptionModel(effectiveModel)?replyAgent??configured?.id:replyAgent;
+    if(subscriptionModel(effectiveModel)&&(!subscriptionEnabled()||(request as any).chatUserRole!=='owner'))return reply.code(400).send({code:'no_folder',error:'Coding apps are available only to the owner in the desktop app.'});
     // CORE-PICKER-03: without a project folder a coding app works in this conversation's own private folder.
-    const codingFolder = subscriptionModel(b.model) ? project?.folder ?? await chatWorkspace(c.id) : undefined;
+    const codingFolder = subscriptionModel(effectiveModel) ? project?.folder ?? await chatWorkspace(c.id) : undefined;
     const prior = await listConversationMessages(c.id);
     if (prior.some((m) => m.runId === b.runId)) return reply.code(409).send({ error: 'runId already used', code: 'run_id_reused' });
     // CHAT-SECRETS-01: secrets go encrypted into the key store; the message keeps references only.
@@ -274,12 +278,12 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
         void refreshSummaries({ sessionId: c.id, userId, turns }).catch(() => 0);
       },
       execute: (runReply) => withChatRun(journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }), () => executeChatTurn(runReply, {
-        agentId: replyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
+        agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
         runId: b.runId, conversation: { turns }, handoff,
         ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
         ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
         systemPromptAppend: [approvedResults, project ? projectNote(project.name, project.folder, project.repoUrl) : '', PLAN_NOTE, HANDOFF_NOTE, [...prior, userMessage].some((m) => new RegExp(SECRET_REF_RE.source).test(m.content)) ? SECRET_NOTE : '', prior.some((m) => m.role === 'assistant' && (m.agentId ?? c.agentId ?? null) !== (replyAgent ?? null)) ? TEAM_NOTE : ''].filter(Boolean).join('\n\n'),
-        ...(b.model ? { model: b.model, provider: modelProvider(b.model) } : {}),
+        ...(effectiveModel ? { model: effectiveModel, provider: modelProvider(effectiveModel) } : {}),
       })),
     });
     console.log('[ChatRuns] Run started', { runId: b.runId, history: messages.length });

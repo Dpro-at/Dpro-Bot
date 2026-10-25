@@ -20,7 +20,7 @@ export async function modelsRoutes(fastify: FastifyInstance) {
       const settings = await settingsManager.getSettings();
 
       const allModels: any[] = [];
-      if(subscriptionEnabled())for(const kind of ['claude','codex'] as const)if(await subscriptionBinary(kind))allModels.push({id:'subscription:'+kind,provider:'subscription',label:kind==='claude'?'Claude Code · existing account':'Codex · existing ChatGPT account',size:'',variants:await subscriptionVariants(kind)});
+      if(subscriptionEnabled())for(const kind of ['claude','codex','gemini'] as const)if(await subscriptionBinary(kind))allModels.push({id:'subscription:'+kind,provider:'subscription',label:kind==='claude'?'Claude Code · existing account':kind==='codex'?'Codex · existing ChatGPT account':'Google Gemini · Antigravity account',size:'',variants:await subscriptionVariants(kind)});
 
       // 1. Add Ollama chat models (if available). Embedding models are left
       // out: they cannot answer a chat (CORE-MODEL-01).
