@@ -26,8 +26,13 @@ test('hire and batch contracts select a library revision without traits',()=>{
  assert.equal(validBatchBody({id:'fictional-batch',departments:[{department:'security',count:1,personalities:{specialist:{id:'guardian',revision:1}}}]}),true);
  const body=createBody({name:'',role:'specialist',department:'security',description:'',preset:'balanced-assistant',presetChosen:true,dialect:'',traits:{},libraryPersonality:{id:'guardian',revision:1}});assert.deepEqual(body.libraryPersonality,{id:'guardian',revision:1});assert.equal(body.personality,undefined);
 });
-test('role defaults match backend precedence',()=>{assert.equal(defaultLibraryId('main','security'),'main-agent');assert.equal(defaultLibraryId('manager','security'),'balanced-assistant');assert.equal(defaultLibraryId('evaluator','marketing'),'strict-evaluator');assert.equal(defaultLibraryId('specialist','dev'),'precise-developer');});
+test('default temperament is independent of role and specialty',()=>{for(const role of ['main','manager','evaluator','specialist'])for(const department of ['security','marketing','dev',''])assert.equal(defaultLibraryId(role,department),'temperament-balanced');});
 test('Big Five editing keeps confidence separate from emotional stability and inverts doubt',()=>{
  const html=renderToStaticMarkup(React.createElement(ProfileEditor,{value:{...profile,traits:{...traits,doubt:85}},onChange(){}}));assert.match(html,/Confidence/);assert.match(html,/Emotional stability/);assert.match(html,/value="15"/);
  const changes=profileChanges(profile,{...profile,traits:{...traits,doubt:85}});assert.deepEqual(changes,[{label:'Confidence',before:'50',after:'15'}]);
 });
+
+test('personality editing separates temperament from professional seniority',()=>{const html=renderToStaticMarkup(React.createElement(ProfileEditor,{value:profile,onChange(){}}));assert.doesNotMatch(html,/Seniority/);assert.match(html,/Emotional stability/);});
+
+test('simple editor shows six primary traits without layer navigation, and keeps all eleven',()=>{const html=renderToStaticMarkup(React.createElement(ProfileEditor,{value:profile,onChange(){}}));assert.doesNotMatch(html,/Personality layers|<nav/);assert.equal((html.split('<details')[0].match(/type="range"/g)||[]).length,6);assert.equal((html.match(/type="range"/g)||[]).length,11);assert.match(html,/<summary>More settings<\/summary>/);});
+test('change review preserves zero as a real trait weight',()=>{const changes=profileChanges(profile,{...profile,traits:{...traits,warmth:0}});assert.deepEqual(changes,[{label:'Friendliness',before:'50',after:'0'}]);});
