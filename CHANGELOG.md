@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Agent Player.
+All notable changes to Dpro Bot.
 
 ---
 

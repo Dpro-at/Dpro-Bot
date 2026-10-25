@@ -9,7 +9,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
-SMTP_FROM_NAME=Agent Player
+SMTP_FROM_NAME=Dpro Bot
 SMTP_FROM_EMAIL=your-email@gmail.com
 FRONTEND_URL=http://localhost:41521
 ```

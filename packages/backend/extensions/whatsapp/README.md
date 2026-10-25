@@ -1,6 +1,6 @@
 # WhatsApp Extension
 
-Connect Agent Player to WhatsApp Business API.
+Connect Dpro Bot to WhatsApp Business API.
 
 ## Setup
 

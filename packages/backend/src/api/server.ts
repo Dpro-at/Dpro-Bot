@@ -9,7 +9,7 @@ if (!process.env.NODE_ENV) {
 }
 
 /**
- * Agent Player Backend Server
+ * Dpro Bot Backend Server
  * Fastify-based REST API
  */
 
@@ -89,7 +89,7 @@ async function start() {
 
     console.log(`
 ╔══════════════════════════════════════════════════════╗
-║            Agent Player Backend v1.3.0               ║
+║            Dpro Bot Backend v1.3.0               ║
 ╠══════════════════════════════════════════════════════╣
 ║  🌐 Frontend:  ${config.frontendUrl.padEnd(32)}║
 ║  ⚙️  Backend:   http://${HOST}:${PORT}${' '.repeat(Math.max(0, 32 - (HOST.length + PORT.toString().length + 10)))}║

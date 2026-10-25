@@ -43,7 +43,7 @@ class EmailService {
         const port = process.env.SMTP_PORT;
         const user = process.env.SMTP_USER;
         const pass = process.env.SMTP_PASS;
-        const fromName = process.env.SMTP_FROM_NAME || 'Agent Player';
+        const fromName = process.env.SMTP_FROM_NAME || 'Dpro Bot';
         const fromEmail = process.env.SMTP_FROM_EMAIL || user;
 
         // If SMTP is not configured, skip initialization (will use fallback)
@@ -227,7 +227,7 @@ class EmailService {
         <div class="content">
             <p>Hi there!</p>
 
-            <p><strong>${params.inviterName}</strong> has invited you to join the team <strong>${params.teamName}</strong> on Agent Player.</p>
+            <p><strong>${params.inviterName}</strong> has invited you to join the team <strong>${params.teamName}</strong> on Dpro Bot.</p>
 
             <p>You've been invited as: <span class="role-badge">${params.role.toUpperCase()}</span></p>
 
@@ -246,7 +246,7 @@ class EmailService {
         <div class="footer">
             <p>This invitation will expire in 7 days.</p>
             <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-            <p>&copy; ${new Date().getFullYear()} Agent Player. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} Dpro Bot. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -256,7 +256,7 @@ class EmailService {
         const text = `
 Team Invitation
 
-${params.inviterName} has invited you to join the team "${params.teamName}" on Agent Player.
+${params.inviterName} has invited you to join the team "${params.teamName}" on Dpro Bot.
 
 You've been invited as: ${params.role.toUpperCase()}
 
@@ -289,7 +289,7 @@ If you didn't expect this invitation, you can safely ignore this email.
 </head>
 <body style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
     <h2>✅ SMTP Configuration Test</h2>
-    <p>This is a test email from Agent Player.</p>
+    <p>This is a test email from Dpro Bot.</p>
     <p>If you received this email, your SMTP configuration is working correctly!</p>
     <p style="color: #666; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
         Sent at: ${new Date().toISOString()}
@@ -300,9 +300,9 @@ If you didn't expect this invitation, you can safely ignore this email.
 
         return this.sendEmail({
             to,
-            subject: 'Agent Player - SMTP Test Email',
+            subject: 'Dpro Bot - SMTP Test Email',
             html,
-            text: 'This is a test email from Agent Player. If you received this, your SMTP configuration is working!',
+            text: 'This is a test email from Dpro Bot. If you received this, your SMTP configuration is working!',
         });
     }
 }

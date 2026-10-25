@@ -1,12 +1,12 @@
-# Agent Player Extensions Registry
+# Dpro Bot Extensions Registry
 
-> المخزن الرسمي لإضافات Agent Player — الرسمية والمجتمعية في مكان واحد.
+> المخزن الرسمي لإضافات Dpro Bot — الرسمية والمجتمعية في مكان واحد.
 
 ---
 
 ## ما هو هذا الـ Repo؟
 
-هذا الـ repo هو المصدر الرسمي لجميع إضافات (extensions) منصة **Agent Player**.
+هذا الـ repo هو المصدر الرسمي لجميع إضافات (extensions) منصة **Dpro Bot**.
 كل إضافة لها مجلد خاص بها، واسم المجلد هو معرّفها الفريد — وبما أن GitHub لا يسمح بمجلدين بنفس الاسم، فالتفرد مضمون تلقائياً.
 
 ```
@@ -96,7 +96,7 @@ frontend/      ← تُحذف من Next.js
 | `type` | string | `app` \| `channel` \| `tool` \| `integration` |
 | `author` | string | اسم المطور أو GitHub username |
 | `main` | string | ملف الـ entry point |
-| `agentplayer` | string | الحد الأدنى من إصدار Agent Player |
+| `agentplayer` | string | الحد الأدنى من إصدار Dpro Bot |
 | `capabilities` | object | ما تحتاجه الإضافة |
 | `frontend.pages` | array | مسارات الصفحات للنسخ |
 
@@ -412,7 +412,7 @@ This ensures the agent is smarter on ALL platforms before adding more platforms.
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by the Agent Player community</sub>
+  <sub>Built with ❤️ by the Dpro Bot community</sub>
   <br>
   <sub>Last Updated: 2026-02-23</sub>
 </div>

@@ -2,11 +2,11 @@
 
 ## Overview
 
-This is the **intelligent agent system** for Agent Player.
+This is the **intelligent agent system** for Dpro Bot.
 
 ### Key Features
 
-| Feature | Agent Player |
+| Feature | Dpro Bot |
 |---------|--------------|
 | **Prompt Size** | **500-800 tokens (efficient)** |
 | **Skill Loading** | **2-5 relevant only (smart selection)** |
@@ -129,7 +129,7 @@ const result = await selector.select(analysis, availableSkills);
 **Layers**:
 
 1. **Core Layer** (200 tokens, always included)
-   - Identity: "You are Agent Player"
+   - Identity: "You are Dpro Bot"
    - Core capabilities
    - Behavior guidelines
 
@@ -167,7 +167,7 @@ const prompt = await builder.build({
 
 // Result:
 {
-  core: "# Agent Player - AI Assistant ...",
+  core: "# Dpro Bot - AI Assistant ...",
   full: "... (complete prompt) ...",
   metadata: {
     tokenCount: 650,
@@ -417,4 +417,4 @@ When adding new features:
 
 ## License
 
-MIT License - Agent Player Team
+MIT License - Dpro Bot Team

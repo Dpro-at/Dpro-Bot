@@ -1,7 +1,7 @@
 /**
  * API Client
  *
- * Communicates with the Agent Player backend. Authenticated calls send the
+ * Communicates with the Dpro Bot backend. Authenticated calls send the
  * token saved by `agent-player login` as a bearer token. The token is never
  * printed or included in error messages.
  */

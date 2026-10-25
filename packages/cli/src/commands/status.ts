@@ -11,7 +11,7 @@ import { getRunStatus, type ProcessOps, type RunStatus } from '../utils/runtime.
 
 export function formatStatus(status: RunStatus, root: string): string {
   const lines: string[] = [];
-  lines.push(chalk.bold(`Agent Player — ${status.running ? chalk.green('running') : chalk.red('not running')}${status.stale ? chalk.gray(' (stale pid file)') : ''}`));
+  lines.push(chalk.bold(`Dpro Bot — ${status.running ? chalk.green('running') : chalk.red('not running')}${status.stale ? chalk.gray(' (stale pid file)') : ''}`));
   lines.push(chalk.gray(`Install: ${root}${status.mode ? `   Mode: ${status.mode}` : ''}${status.startedAt ? `   Since: ${status.startedAt}` : ''}`));
   for (const p of status.parts) {
     const proc = p.pid ? `pid ${p.pid} ${p.alive ? chalk.green('alive') : chalk.red('not alive')}` : chalk.gray('no pid');

@@ -99,7 +99,7 @@ export function systemdUnit(spec: ServiceSpec): string {
   assertPrintable([spec.nodePath, ...spec.args, spec.workingDir, spec.logFile, ...Object.values(spec.env)]);
   const env = Object.entries(spec.env).map(([k, v]) => `Environment=${sd(`${k}=${v}`)}`).join('\n');
   return `[Unit]
-Description=Agent Player (backend + web UI on 127.0.0.1)
+Description=Dpro Bot (backend + web UI on 127.0.0.1)
 After=network.target
 
 [Service]

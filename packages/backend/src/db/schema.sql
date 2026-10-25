@@ -1,4 +1,4 @@
--- Agent Player Database Schema
+-- Dpro Bot Database Schema
 -- SQLite 3 with better-sqlite3
 
 -- Users Table (Authentication & Team Management)

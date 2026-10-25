@@ -1,6 +1,6 @@
-# SEO Extension for Agent Player
+# SEO Extension for Dpro Bot
 
-Professional SEO suite for Agent Player with keyword tracking, SERP scraping, Google Search Console integration, competitor analysis, and AI-powered insights.
+Professional SEO suite for Dpro Bot with keyword tracking, SERP scraping, Google Search Console integration, competitor analysis, and AI-powered insights.
 
 ## Features
 
@@ -202,8 +202,8 @@ All endpoints under `/api/ext/seo/*`:
 
 ## Support
 
-For issues or feature requests, visit the Agent Player repository or check the extension logs in the terminal.
+For issues or feature requests, visit the Dpro Bot repository or check the extension logs in the terminal.
 
 ## License
 
-Same as Agent Player (MIT)
+Same as Dpro Bot (MIT)

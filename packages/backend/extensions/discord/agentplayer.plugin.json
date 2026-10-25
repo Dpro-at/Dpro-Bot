@@ -4,7 +4,7 @@
   "description": "Discord messaging integration - send and receive messages via Discord bot",
   "version": "2.1.0",
   "type": "channel",
-  "author": "Agent Player Team",
+  "author": "Dpro Bot Team",
   "main": "index.js",
   "permissions": [
     "network",

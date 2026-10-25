@@ -4,7 +4,7 @@ import { safeConsole } from '../../services/safe-error-log.js';
  *
  * Sends a prompt to the locally-installed Google Gemini CLI (`gemini`)
  * and returns the response. The CLI handles authentication via the local
- * ~/.gemini config — no API key needed from Agent Player.
+ * ~/.gemini config — no API key needed from Dpro Bot.
  *
  * Capabilities exposed via this bridge:
  *   - Web search (Gemini CLI has Google Search built-in)

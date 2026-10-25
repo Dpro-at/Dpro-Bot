@@ -11,7 +11,7 @@
  *
  * Innovation: Intelligent orchestration with minimal token usage
  *
- * @author Agent Player Team
+ * @author Dpro Bot Team
  * @license MIT
  */
 

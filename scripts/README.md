@@ -1,6 +1,6 @@
-# Agent Player Build Scripts
+# Dpro Bot Build Scripts
 
-This directory contains scripts for building and releasing Agent Player installers.
+This directory contains scripts for building and releasing Dpro Bot installers.
 
 ## 📁 Available Scripts
 
@@ -260,4 +260,4 @@ If you improve these scripts, please:
 
 ## 📄 License
 
-MIT License - Same as Agent Player
+MIT License - Same as Dpro Bot

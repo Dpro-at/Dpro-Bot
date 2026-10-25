@@ -1,4 +1,6 @@
 const {packRoute,allowedPack,packResponse}=require('../src/workspace-pack-contract.js');
+const {marketRoute,allowedMarket,marketResponse}=require('../src/trading-market-contract.js');
+const {practiceRoute,allowedPractice,practiceResponse}=require('../src/trading-practice-contract.js');
 const {allowedLibrary,libraryPath,libraryResponse}=require('../src/personality-library-contract.js');
 const {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse}=require('../src/trading-runtime-contract.js');
 const {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse}=require('../src/trading-account-setup-contract.js');
@@ -81,6 +83,8 @@ const agent = x => {
 };
 function allowed(method, target, body) {
   if(packRoute(target))return allowedPack(method,target,body);
+  if(marketRoute(target))return allowedMarket(method,target,body);
+  if(practiceRoute(target))return allowedPractice(method,target,body);
   if(tradingRuntimeRoute(target))return allowedTradingRuntime(method,target,body);
   if(tradingAccountSetupRoute(target))return allowedTradingAccountSetup(method,target,body);
   if(tradingInstallRoute(target))return allowedTradingInstall(method,target,body);
@@ -148,6 +152,8 @@ function stage1Route(method, target) {
 }
 function project(target, status, body) {
   if(packRoute(target))return packResponse(target,status,body);
+  if(marketRoute(target))return marketResponse(target,status,body);
+  if(practiceRoute(target))return practiceResponse(target,status,body);
   if(tradingRuntimeRoute(target))return tradingRuntimeResponse(target,status,body);
   if(tradingAccountSetupRoute(target))return tradingAccountSetupResponse(target,status,body);
   if(tradingInstallRoute(target))return tradingInstallResponse(target,status,body);

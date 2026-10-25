@@ -3,7 +3,7 @@
   "name": "Email Client",
   "version": "1.0.0",
   "description": "Professional email client with multi-account support, Gmail/Outlook OAuth, IMAP/SMTP sync, and full-text search",
-  "author": "Agent Player",
+  "author": "Dpro Bot",
   "capabilities": {
     "database": true,
     "cron": true,

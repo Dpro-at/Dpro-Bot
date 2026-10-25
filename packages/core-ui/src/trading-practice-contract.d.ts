@@ -1,0 +1,4 @@
+export type PracticeSnapshot={mode:'practice';active:boolean;market:{symbol:string;name:string;priceMinor:number}[];currency:'USD';initialCashMinor:number;feeBps:number;persistent:false;sessionId?:string;expiresAt?:number;cashMinor?:number;marketValueMinor?:number;equityMinor?:number;netResultMinor?:number;positions?:{symbol:string;quantity:number;costMinor:number;marketValueMinor:number}[];orders?:{id:string;requestId:string;symbol:string;side:'buy'|'sell';quantity:number;priceMinor:number;feeMinor:number;totalMinor:number;createdAt:number;source:'manual'|'bot'}[];bot?:{stopped:boolean;ticks:number;maxTicks:20};replayed?:boolean};
+export function practiceRoute(path:string):'session'|'order'|'step'|'stop'|'end'|null;
+export function allowedPractice(method:string,path:string,body?:unknown):boolean;
+export function practiceResponse(path:string,status:number,body:unknown):PracticeSnapshot|{code:string};

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Common utilities shared across all Agent Player Python tools.
+Common utilities shared across all Dpro Bot Python tools.
 """
 
 import json

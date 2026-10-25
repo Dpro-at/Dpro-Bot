@@ -1,6 +1,6 @@
-# Contributing to Agent Player
+# Contributing to Dpro Bot
 
-Thank you for your interest in contributing to Agent Player! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Dpro Bot! This document provides guidelines and instructions for contributing.
 
 ## Table of Contents
 

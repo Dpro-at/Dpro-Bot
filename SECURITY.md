@@ -52,7 +52,7 @@ Please report security vulnerabilities via **GitHub Security Advisories**:
 
 ## Security Features
 
-Agent Player implements multiple security layers:
+Dpro Bot implements multiple security layers:
 
 ### 1. Authentication & Authorization
 
@@ -119,7 +119,7 @@ Agent Player implements multiple security layers:
    ```bash
    # Strong JWT secret (32+ characters)
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   
+
    # Set in .env
    JWT_SECRET=<generated-secret>
    ```
@@ -180,9 +180,9 @@ Agent Player implements multiple security layers:
 4. **Monitor logs**
    ```bash
    # Check audit logs regularly
-   SELECT * FROM audit_logs 
-   WHERE event_type = 'auth_failed' 
-   ORDER BY created_at DESC 
+   SELECT * FROM audit_logs
+   WHERE event_type = 'auth_failed'
+   ORDER BY created_at DESC
    LIMIT 100;
    ```
 
@@ -192,7 +192,7 @@ Agent Player implements multiple security layers:
 
 ### Local-Only Design
 
-Agent Player is designed for **local deployment**:
+Dpro Bot is designed for **local deployment**:
 - ✅ Frontend: `localhost:41521`
 - ✅ Backend: `localhost:41522`
 - ✅ Database: SQLite (file-based)
@@ -205,7 +205,7 @@ Agent Player is designed for **local deployment**:
 
 ### AI Provider APIs
 
-Agent Player sends messages to external AI providers:
+Dpro Bot sends messages to external AI providers:
 - Anthropic Claude API
 - OpenAI API (optional)
 - Google Gemini API (optional)
@@ -288,7 +288,7 @@ We follow **coordinated disclosure**:
 
 ## Security Hall of Fame
 
-Thank you to security researchers who have helped improve Agent Player:
+Thank you to security researchers who have helped improve Dpro Bot:
 
 <!-- Add researchers here after coordinated disclosure -->
 

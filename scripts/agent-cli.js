@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Agent Player CLI
- * Command-line interface for Agent Player
+ * Dpro Bot CLI
+ * Command-line interface for Dpro Bot
  */
 
 const BACKEND_URL = 'http://localhost:41522';
@@ -174,7 +174,7 @@ const commands = {
   },
 
   help() {
-    log('\n📖 Agent Player CLI - Available Commands:\n', 'cyan');
+    log('\n📖 Dpro Bot CLI - Available Commands:\n', 'cyan');
     log('  skills              - List all local skills', 'green');
     log('  agents              - List all agents', 'green');
     log('  marketplace         - Browse skills marketplace', 'green');

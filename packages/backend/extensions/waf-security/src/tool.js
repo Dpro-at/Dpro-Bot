@@ -11,7 +11,7 @@ export const wafScanTool = {
     properties: {
       url: {
         type: 'string',
-        description: 'Target URL to scan, or "self" to audit Agent Player backend security',
+        description: 'Target URL to scan, or "self" to audit Dpro Bot backend security',
       },
       mode: {
         type: 'string',
@@ -48,7 +48,7 @@ export const wafScanTool = {
         return {
           content: [{
             type: 'text',
-            text: `# Agent Player Security Audit\n\n**Total Issues**: ${audit.totalIssues}\n` +
+            text: `# Dpro Bot Security Audit\n\n**Total Issues**: ${audit.totalIssues}\n` +
                   `- High: ${audit.highSeverity}\n` +
                   `- Medium: ${audit.mediumSeverity}\n` +
                   `- Low: ${audit.lowSeverity}\n\n` +

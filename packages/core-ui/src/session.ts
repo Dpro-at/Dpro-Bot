@@ -1,4 +1,6 @@
 import {packRoute,allowedPack,packResponse} from './workspace-pack-contract.js';
+import {marketRoute,allowedMarket,marketResponse} from './trading-market-contract.js';
+import {practiceRoute,allowedPractice,practiceResponse} from './trading-practice-contract.js';
 import {allowedLibrary,libraryPath,libraryResponse} from './personality-library-contract.js';
 import {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse} from './trading-runtime-contract.js';
 import {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse} from './trading-account-setup-contract.js';
@@ -86,6 +88,8 @@ function user(value: unknown): User {
 // Reject before URL normalization. No generic URL, header, key or mutation escape hatch.
 export function allowedRequest(method: string, path: string, body?: unknown): boolean {
   if(packRoute(path))return allowedPack(method,path,body);
+  if(marketRoute(path))return allowedMarket(method,path,body);
+  if(practiceRoute(path))return allowedPractice(method,path,body);
   if(tradingRuntimeRoute(path))return allowedTradingRuntime(method,path,body);
   if(tradingAccountSetupRoute(path))return allowedTradingAccountSetup(method,path,body);
   if(tradingInstallRoute(path))return allowedTradingInstall(method,path,body);
@@ -158,6 +162,8 @@ function safeResponse(path: string, response: WireResponse): WireResponse {
 }
 function projectResponse(path: string, response: WireResponse): WireResponse {
   if(packRoute(path))return {status:response.status,body:packResponse(path,response.status,response.body)};
+  if(marketRoute(path))return {status:response.status,body:marketResponse(path,response.status,response.body)};
+  if(practiceRoute(path))return {status:response.status,body:practiceResponse(path,response.status,response.body)};
   if(tradingRuntimeRoute(path))return {status:response.status,body:tradingRuntimeResponse(path,response.status,response.body)};
   if(tradingAccountSetupRoute(path))return {status:response.status,body:tradingAccountSetupResponse(path,response.status,response.body)};
   if(tradingInstallRoute(path))return {status:response.status,body:tradingInstallResponse(path,response.status,response.body)};
@@ -492,7 +498,7 @@ export class SessionClient {
     if (conversationPath(request.path)?.kind === 'approval' && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((conversationRoute(request.path) || chatSearchRoute(request.path) || chatExportRoute(request.path) || chatSecretsRoute(request.path)) && this.#state.user?.role === 'guest') throw new SessionFailure('blocked');
     if (request.path === CLEANUP_PATH && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
-    if ((packRoute(request.path) || workspaceAppsRoute(request.path) || sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if ((marketRoute(request.path) || practiceRoute(request.path) || packRoute(request.path) || workspaceAppsRoute(request.path) || sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((memoryDesktopRoute(request.path) || memoryPagesRoute(request.path) || memoryRecallRoute(request.path) || memoryBridgeRoute(request.path) || discoveryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (terminalRoute(request.path) && (this.#state.user?.role !== 'owner' || terminalPath(request.path)?.kind === 'stream')) throw new SessionFailure('blocked');
     if (request.method === 'PUT' && !conversationRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
@@ -501,7 +507,7 @@ export class SessionClient {
     if (((request.method === 'POST' && request.path === '/api/agents') || grantsAgentId(request.path) || request.path === CATALOGUE_PATH || request.path === PLAN_PATH || request.path === DISTRIBUTION_PATH || request.path === BATCHES_PATH || batchPath(request.path) || permissionsAgentId(request.path) || request.path === BOARDS_PATH || request.path.startsWith(`${BOARDS_PATH}/`)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     const epoch = this.#state.epoch;
     const result = await this.#send(request.method, request.path, 'body' in request ? request.body : undefined, this.#token, epoch, signal);
-    if (epoch !== this.#state.epoch){if(tradingRuntimeRoute(request.path)||tradingAccountSetupRoute(request.path)||tradingInstallRoute(request.path)||tradingBotRoute(request.path)||tradingPaperRoute(request.path)||skillInstallRoute(request.path)||verificationRoute(request.path)||reviewerRoute(request.path)||scheduleAuthorizationRoute(request.path)||scheduleDefinitionRoute(request.path))throw new SessionFailure('cancelled');return safeResponse(request.path,result);}
+    if (epoch !== this.#state.epoch){if(practiceRoute(request.path)||tradingRuntimeRoute(request.path)||tradingAccountSetupRoute(request.path)||tradingInstallRoute(request.path)||tradingBotRoute(request.path)||tradingPaperRoute(request.path)||skillInstallRoute(request.path)||verificationRoute(request.path)||reviewerRoute(request.path)||scheduleAuthorizationRoute(request.path)||scheduleDefinitionRoute(request.path))throw new SessionFailure('cancelled');return safeResponse(request.path,result);}
     if(verificationRoute(request.path)&&result.status===200&&request.method==='POST'&&(request.path.endsWith('/confirm')||request.path.endsWith('/disable'))){
       const projected=safeResponse(request.path,result);
       if(!record(projected.body)||projected.body.requiresSignIn!==true)throw new SessionFailure('unavailable');

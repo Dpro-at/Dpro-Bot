@@ -1,7 +1,7 @@
 /**
  * Small-agent runs (MCP-01, D-HYBRID).
  *
- * A large agent (Claude Code / Codex through the Agent Player MCP server, with
+ * A large agent (Claude Code / Codex through the Dpro Bot MCP server, with
  * the owner's CLI token) hands a light task to the small local agent: a
  * dedicated agent `small-local-agent` (provider ollama, local Qwen model).
  * Every task becomes an ordinary durable task run (CORE-08) with:
@@ -80,7 +80,7 @@ const MAX_REQUESTED_DRAWERS = 14;
 const MAX_CARD_OUTPUT_CHARS = 20_000;
 
 export const SYSTEM_PROMPT = [
-  'You are the small local helper agent of Agent Player.',
+  'You are the small local helper agent of Dpro Bot.',
   'A larger agent gave you one light task: a lookup, a summary, a classification or a draft.',
   'Do only that task. Use only the tools you were given; you cannot send messages, change files or run commands.',
   'If you cannot do the task with what you have, say so plainly.',
@@ -297,7 +297,7 @@ export function validateSmallAgentReadDir(input: unknown): string {
     throw new SmallAgentInputError('read_dir is outside the directories allowed by SMALL_AGENT_READ_ROOTS');
   }
   for (const t of smallAgentProtectedTrees()) {
-    if (isInsideIgnoringCase(t, real) || isInsideIgnoringCase(real, t)) throw new SmallAgentInputError('read_dir cannot be or contain the Agent Player backend, data, config or credential folders');
+    if (isInsideIgnoringCase(t, real) || isInsideIgnoringCase(real, t)) throw new SmallAgentInputError('read_dir cannot be or contain the Dpro Bot backend, data, config or credential folders');
   }
   if (denyReason('', real)) throw new SmallAgentInputError('read_dir points to a protected location');
   return real;

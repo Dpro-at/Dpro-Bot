@@ -2,7 +2,7 @@
 
 ## Overview
 
-Agent Player extensions are self-contained plugins that add new functionality to the system. They can:
+Dpro Bot extensions are self-contained plugins that add new functionality to the system. They can:
 - Register new API routes
 - Add AI agent tools
 - Run database migrations

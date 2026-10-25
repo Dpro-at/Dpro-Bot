@@ -572,7 +572,7 @@ export async function registerNumberRoutes(fastify) {
           twiml: `
             <Response>
               <Say voice="${voiceToUse}" language="${languageToUse}">
-                Hello! This is a test call from your Agent Player Call Center system.
+                Hello! This is a test call from your Dpro Bot Call Center system.
                 Your phone number ${number.phone_number.split('').join(' ')} is working correctly.
                 This was an automated test. Thank you!
               </Say>

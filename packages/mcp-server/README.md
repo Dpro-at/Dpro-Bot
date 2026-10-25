@@ -1,12 +1,12 @@
-# Agent Player MCP server
+# Dpro Bot MCP server
 
 An MCP server (stdio) that lets a large coding agent — Claude Code, Codex or
-any other MCP client — hand **light subtasks** to the Agent Player **small
+any other MCP client — hand **light subtasks** to the Dpro Bot **small
 local agent** (a local Qwen model through Ollama). The large agent keeps the
 heavy work; the small agent is free, private and always on.
 
 ```
-Claude Code / Codex ──stdio──> agent-player-mcp ──HTTP (loopback only)──> Agent Player backend
+Claude Code / Codex ──stdio──> agent-player-mcp ──HTTP (loopback only)──> Dpro Bot backend
                                                                            └─ small-local-agent (ollama, qwen3.8:27b)
                                                                               durable task run (CORE-08)
 ```
@@ -73,7 +73,7 @@ outputs before using them or passing them on (D-HYBRID).
 
 Delegate to the small agent:
 
-- **Lookups** in Agent Player memory and storage ("what did the owner decide about X?").
+- **Lookups** in Dpro Bot memory and storage ("what did the owner decide about X?").
 - **Summaries** of text you pass in the task (logs, notes, long replies).
 - **Classification / tagging / triage** with a fixed label set you give.
 - **First drafts** of short texts (posts, replies, descriptions) — always reviewed.
@@ -116,7 +116,7 @@ the memory drawers it needs.
   directory you pass as `read_dir`. `read_dir` is off by default: the owner
   must list the allowed folders in `SMALL_AGENT_READ_ROOTS` (path-list, e.g.
   `/Users/me/Projects`) in the backend environment. Even inside an allowed
-  folder, `read_dir` may never be or contain the Agent Player backend, data
+  folder, `read_dir` may never be or contain the Dpro Bot backend, data
   folder, CLI config folder (token + instance secret), `~/.config`, `~/.aws`,
   `~/.kube`, `~/.docker`, `~/.gnupg`, `~/.ssh`, `~/Library`, `~/.claude*`,
   `~/.codex`, `/etc`, the home folder itself or `/`; `.env*`, keys, databases,
@@ -150,7 +150,7 @@ Backend settings (environment of the backend): `SMALL_AGENT_MODEL` (default
 
 ## Setup
 
-1. Agent Player backend running locally; Ollama running with the Qwen model.
+1. Dpro Bot backend running locally; Ollama running with the Qwen model.
 2. Sign in as the owner once: `agent-player login`.
 3. Build the server: `npx tsc -p packages/mcp-server` (from the repo root;
    output in `packages/mcp-server/dist/`).

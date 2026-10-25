@@ -1,4 +1,4 @@
-# 🚀 Agent Player - Automated Release Guide
+# 🚀 Dpro Bot - Automated Release Guide
 
 ## Overview
 
@@ -146,7 +146,7 @@ cd installer
 cargo tauri build
 ```
 
-Output: `installer\target\release\bundle\msi\Agent Player_1.3.0_x64_en-US.msi`
+Output: `installer\target\release\bundle\msi\Dpro Bot_1.3.0_x64_en-US.msi`
 
 ### 3. Build Linux/macOS (requires VM or Docker)
 ```bash
@@ -171,7 +171,7 @@ sha256sum *.msi *.AppImage *.dmg *.zip > checksums.txt
 ### 5. Create GitHub Release Manually
 1. Go to: https://github.com/9mtm/Agent-Player/releases/new
 2. Tag: `v1.3.0`
-3. Title: `Agent Player v1.3.0`
+3. Title: `Dpro Bot v1.3.0`
 4. Description: Copy from release-notes template
 5. Upload files:
    - `agent-player-installer-1.3.0-win-x64.msi`

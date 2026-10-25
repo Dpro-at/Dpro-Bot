@@ -1,5 +1,5 @@
 -- Migration 065: small-agent runs (MCP-01, D-HYBRID)
--- A large agent (Claude Code / Codex, through the Agent Player MCP server)
+-- A large agent (Claude Code / Codex, through the Dpro Bot MCP server)
 -- can hand a light task to the small local agent (Ollama Qwen). Each such
 -- task is an ordinary durable task run (064); this table keeps what the run
 -- was allowed when it was created: the tools (requested ∩ safe set ∩ the

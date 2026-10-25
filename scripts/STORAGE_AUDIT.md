@@ -1,6 +1,6 @@
-# 📦 Agent Player - Storage Audit Report
+# 📦 Dpro Bot - Storage Audit Report
 **تاريخ الفحص:** 2026-02-22
-**النظام:** Agent Player v1.3.0
+**النظام:** Dpro Bot v1.3.0
 
 ---
 

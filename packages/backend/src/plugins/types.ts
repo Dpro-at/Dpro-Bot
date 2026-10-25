@@ -1,6 +1,6 @@
 /**
  * Plugin System Types
- * Agent Player Plugin System
+ * Dpro Bot Plugin System
  */
 
 /**

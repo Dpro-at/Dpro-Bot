@@ -1,10 +1,10 @@
 {
   "id": "waf-security",
   "name": "WAF Security Scanner",
-  "description": "Test WAF protection on any website + self-audit Agent Player security",
+  "description": "Test WAF protection on any website + self-audit Dpro Bot security",
   "version": "1.0.0",
   "type": "tool",
-  "author": "Agent Player",
+  "author": "Dpro Bot",
   "main": "index.js",
   "permissions": ["network", "database", "tools"],
   "frontendRoutes": [
