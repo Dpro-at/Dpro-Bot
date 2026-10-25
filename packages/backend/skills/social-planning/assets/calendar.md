@@ -1,10 +1,10 @@
 # Editorial calendar
 
-Campaign: 
-Brand: 
-Objective and audience: 
-Timezone: 
-Source/revision checked: 
+Campaign:
+Brand:
+Objective and audience:
+Timezone:
+Source/revision checked:
 
 | ID | Channel/account | Theme and concept | Format | Owner | Production due | Target publish time and zone | Status | Revision | Source/asset links | Approval target | Provider receipt | Next action |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
