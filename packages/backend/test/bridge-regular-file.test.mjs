@@ -23,3 +23,8 @@ test('descriptor reads reject links, directories, oversize files and swaps betwe
   assert.throws(()=>readRegularFile(file,32));
  } finally {fs.openSync=open;fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('the descriptor is bound to the leaf entry even when no-follow is unavailable',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dpro-regular-fallback-')),file=path.join(root,'file'),other=path.join(root,'outside');const open=fs.openSync;
+ try{fs.writeFileSync(file,'original');fs.writeFileSync(other,'PRIVATE FIXTURE');fs.openSync=function(target,flags,...args){if(target===file){fs.renameSync(file,file+'.old');fs.symlinkSync(other,file);}return open.call(fs,target,flags&~(fs.constants.O_NOFOLLOW??0),...args);};assert.throws(()=>readRegularFile(file,64),{code:'ENOTREG'});}finally{fs.openSync=open;fs.rmSync(root,{recursive:true,force:true});}
+});

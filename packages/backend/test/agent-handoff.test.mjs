@@ -9,7 +9,7 @@
 // Run: node --import tsx --test test/agent-handoff.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -165,7 +165,7 @@ test('channel (outside) turns never get the tools or a note', async () => {
   assert.ok((await legacy.execute('handoff_save', { done: ['x'] })).error);
   // Only the saved-conversation route and the task-run executor put a note into a prompt.
   const users = [];
-  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (p.endsWith('.ts') && /HandoffText\(/.test(readFileSync(p, 'utf8'))) users.push(p.slice(backendDir.length + 1)); } };
+  const walk = (d) => { for (const entry of readdirSync(d,{withFileTypes:true})) { const p = join(d,entry.name); if (entry.isDirectory()) walk(p); else if (entry.isFile()&&p.endsWith('.ts') && /HandoffText\(/.test(readFileSync(p, 'utf8'))) users.push(p.slice(backendDir.length + 1)); } };
   walk(join(backendDir, 'src'));
   assert.deepEqual(users.sort(), ['src/api/routes/chat-conversations.ts', 'src/memory/handoff/scope.ts', 'src/services/task-run-executor.ts']);
 });

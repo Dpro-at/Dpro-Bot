@@ -1,3 +1,6 @@
+import {actorOf} from '../../auth/auth-gate.js';
+import {actorOrReply,requireOwner} from '../../repositories/scope.js';
+import {MAX_PERSONALITY_BYTES,validAgentFileId} from '../../services/agent-files.js';
 import {AuthTokenError,verifyRequestTokenAsync} from '../../auth/jwt.js';
 /**
  * Agent Files API Routes
@@ -26,7 +29,10 @@ export async function agentFilesRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/agents/:id/personality',
+    {config:{access:'owner'}},
     async (request, reply) => {
+      if(!actorOrReply(reply,actorOf(request),requireOwner))return reply;
+      if(!validAgentFileId(request.params.id))return reply.code(400).send({code:'invalid_agent_id'});
       const { id } = request.params;
 
       try {
@@ -46,11 +52,14 @@ export async function agentFilesRoutes(fastify: FastifyInstance) {
    */
   fastify.put<{ Params: { id: string }; Body: { content: string } }>(
     '/api/agents/:id/personality',
+    {config:{access:'owner'}},
     async (request, reply) => {
+      if(!actorOrReply(reply,actorOf(request),requireOwner))return reply;
+      if(!validAgentFileId(request.params.id))return reply.code(400).send({code:'invalid_agent_id'});
       const { id } = request.params;
-      const { content } = request.body;
+      const content = request.body?.content;
 
-      if (!content) {
+      if (typeof content!=='string'||!content||Buffer.byteLength(content,'utf8')>MAX_PERSONALITY_BYTES||Object.keys(request.body).some(k=>k!=='content')) {
         return reply.code(400).send({
           success: false,
           error: 'content is required'

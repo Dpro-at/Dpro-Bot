@@ -2,12 +2,12 @@ import fs from 'node:fs';
 
 /** Validate and read one descriptor, refusing symlink swaps and bounding allocation/read size. */
 export function readRegularFile(file: string, limit: number): { bytes: Buffer; mode: number } {
-  const before = fs.lstatSync(file);
-  if (!before.isFile() || before.isSymbolicLink()) throw Object.assign(new Error('Not a regular file'), { code: 'ENOTREG' });
-  const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0) | (fs.constants.O_NONBLOCK ?? 0));
+  let fd:number;
+  try{fd=fs.openSync(file,fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0)|(fs.constants.O_NONBLOCK??0));}
+  catch(error){if((error as NodeJS.ErrnoException).code==='ELOOP')throw Object.assign(new Error('Not a regular file'),{code:'ENOTREG'});throw error;}
   try {
-    const opened = fs.fstatSync(fd);
-    if (!opened.isFile() || before.dev !== opened.dev || before.ino !== opened.ino) throw Object.assign(new Error('File changed during open'), { code: 'ENOTREG' });
+    const opened=fs.fstatSync(fd),entry=fs.lstatSync(file);
+    if(!opened.isFile()||!entry.isFile()||entry.isSymbolicLink()||entry.dev!==opened.dev||entry.ino!==opened.ino)throw Object.assign(new Error('File changed during open'),{code:'ENOTREG'});
     if (opened.size > limit) throw Object.assign(new Error('File is too large'), { code: 'EFBIG' });
     const bytes = Buffer.alloc(limit + 1);
     let length = 0;

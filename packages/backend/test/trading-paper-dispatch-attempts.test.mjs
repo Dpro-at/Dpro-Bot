@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -82,10 +83,7 @@ test('independent Worker claims serialize to one pending attempt; restart expiry
 
 test('actual child SIGKILL after journal INSERT restores the claim budget and allows one fresh claim',async()=>{
  const f=provision(),request=claim(f,'crash',1000),before=read(f);
- const module=new URL('../src/services/trading-paper-dispatch-attempts.ts',import.meta.url).href;
- const databaseModule=new URL('../src/db/database.ts',import.meta.url).href;
- const script=`import{getDatabase}from${JSON.stringify(databaseModule)};import{claimPaperDispatchAttempt}from${JSON.stringify(module)};const db=getDatabase().getDb(),original=db.prepare;db.prepare=function(sql,...args){const statement=original.call(this,sql,...args);if(sql.startsWith('INSERT INTO main.paper_dispatch_attempts '))return{run(...values){statement.run(...values);process.kill(process.pid,'SIGKILL');}};return statement;};claimPaperDispatchAttempt(db,${JSON.stringify(f.ownerId)},${JSON.stringify(request)},${now});process.exit(2);`;
- const child=spawn(process.execPath,['--import','tsx','--input-type=module','-e',script],{cwd:new URL('..',import.meta.url).pathname,stdio:'ignore'});
+ const child=spawn(process.execPath,['--import','tsx',fileURLToPath(new URL('./fixtures/paper-dispatch-crash.mjs',import.meta.url)),JSON.stringify({ownerId:f.ownerId,request,now})],{cwd:fileURLToPath(new URL('..',import.meta.url)),stdio:'ignore'});
  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Owned crash fixture timed out'));},10000);child.once('error',error=>{clearTimeout(timer);reject(error);});child.once('close',(code,signal)=>{clearTimeout(timer);try{assert.equal(signal,'SIGKILL');resolve();}catch(error){reject(error);}});});
  assert.deepEqual(read(f),before);const committed=journal.claimPaperDispatchAttempt(db,f.ownerId,request,now);assert.equal(committed.ok,true);assert.equal(committed.replayed,false);assert.equal(read(f).attemptCount,1);assert.equal(read(f).attempts.length,1);
 });

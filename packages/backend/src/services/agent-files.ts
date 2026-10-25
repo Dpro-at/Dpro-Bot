@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import {constants} from 'node:fs';
 import {createHash,randomUUID} from 'node:crypto';
+import {readRegularFile} from './read-regular-file.js';
 import {redactImportText} from '../memory/import/redact.js';
 
 const AGENTS_DIR = dataPath('agents');
@@ -46,64 +47,66 @@ function sanitizePathParam(param: string): string {
 /**
  * Get agent directory path
  */
+export const validAgentFileId=(id:unknown):id is string=>typeof id==='string'&&(/^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,127}$/).test(id)&&!id.includes('..');
 export function getAgentDir(agentId: string): string {
-  const sanitizedId = sanitizePathParam(agentId);
-  return path.join(AGENTS_DIR, sanitizedId);
+  if(!validAgentFileId(agentId))throw Error('Invalid agent id');
+  return path.join(AGENTS_DIR, agentId);
 }
 
 /**
  * Initialize agent directory structure
  */
+export const MAX_PERSONALITY_BYTES = 1024 * 1024;
+
+async function agentDirectory(dir:string,recursive=false):Promise<void>{
+  try{await fs.mkdir(dir,{recursive,mode:0o700});}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;}
+  const stat=await fs.lstat(dir);
+  if(!stat.isDirectory()||stat.isSymbolicLink()||(process.platform!=='win32'&&((stat.mode&0o022)!==0||stat.uid!==process.getuid?.())))throw Error('Unsafe agent directory');
+}
+async function checkedAgentDirectory(agentId:string):Promise<string>{
+  const dir=getAgentDir(agentId);
+  await agentDirectory(AGENTS_DIR,true);
+  await agentDirectory(dir);
+  return dir;
+}
+async function regularAgentEntry(file:string):Promise<boolean>{
+  try{const stat=await fs.lstat(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink!==1)throw Error('Unsafe agent file');return true;}
+  catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return false;throw error;}
+}
+async function createAgentDefault(file:string,content:string):Promise<void>{
+  let handle;
+  try{handle=await fs.open(file,constants.O_CREAT|constants.O_EXCL|constants.O_WRONLY|(constants.O_NOFOLLOW??0),0o600);}
+  catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;await regularAgentEntry(file);return;}
+  try{await handle.writeFile(content,'utf8');}finally{await handle.close();}
+}
 export async function initializeAgentDir(agentId: string): Promise<void> {
-  const agentDir = getAgentDir(agentId);
-  const knowledgeDir = path.join(agentDir, 'knowledge');
-
-  // Create directories
-  await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
-  await fs.mkdir(knowledgeDir, { recursive: true });
-  await fs.mkdir(path.join(knowledgeDir, 'docs'), { recursive: true });
-  await fs.mkdir(path.join(knowledgeDir, 'templates'), { recursive: true });
-  await fs.mkdir(path.join(knowledgeDir, 'data'), { recursive: true });
-
-  // Create default files if they don't exist
-  const personalityPath = path.join(agentDir, 'PERSONALITY.md');
-  const memoryPath = path.join(agentDir, 'MEMORY.md');
-
-  try {
-    await fs.access(personalityPath);
-  } catch {
-    await fs.writeFile(personalityPath, getDefaultPersonality(), 'utf-8');
-  }
-
-  try {
-    await fs.access(memoryPath);
-  } catch {
-    await fs.writeFile(memoryPath, getDefaultMemory(), {encoding:'utf8',mode:0o600,flag:'wx'});
-  }
+  const dir=await checkedAgentDirectory(agentId),knowledge=path.join(dir,'knowledge');
+  await agentDirectory(knowledge);
+  for(const name of ['docs','templates','data'])await agentDirectory(path.join(knowledge,name));
+  await createAgentDefault(path.join(dir,'PERSONALITY.md'),getDefaultPersonality());
+  await createAgentDefault(path.join(dir,'MEMORY.md'),getDefaultMemory());
 }
 
-/**
- * Read PERSONALITY.md for an agent
- */
+/** Read only the fixed profile file; a bad entry is never replaced by defaults. */
 export async function readPersonality(agentId: string): Promise<string> {
-  const filePath = path.join(getAgentDir(agentId), 'PERSONALITY.md');
-
-  try {
-    return await fs.readFile(filePath, 'utf-8');
-  } catch (err) {
-    // File doesn't exist, initialize and return default
-    await initializeAgentDir(agentId);
-    return getDefaultPersonality();
-  }
+  const dir=await checkedAgentDirectory(agentId),file=path.join(dir,'PERSONALITY.md');
+  try{const result=await readRegularFile(file,MAX_PERSONALITY_BYTES,{root:dir});if(result.stat.nlink!==1)throw Error('Unsafe agent file');return result.data.toString('utf8');}
+  catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;await initializeAgentDir(agentId);return getDefaultPersonality();}
 }
 
-/**
- * Write PERSONALITY.md for an agent
- */
+/** Replace the fixed profile atomically. Never follow a caller-selected leaf or truncate a linked file. */
 export async function writePersonality(agentId: string, content: string): Promise<void> {
+  if(typeof content!=='string'||Buffer.byteLength(content,'utf8')>MAX_PERSONALITY_BYTES)throw Error('Invalid personality content');
   await initializeAgentDir(agentId);
-  const filePath = path.join(getAgentDir(agentId), 'PERSONALITY.md');
-  await fs.writeFile(filePath, content, 'utf-8');
+  const dir=await checkedAgentDirectory(agentId),file=path.join(dir,'PERSONALITY.md');
+  await regularAgentEntry(file);
+  const temporary=path.join(dir,'.personality-'+randomUUID()+'.tmp');
+  const handle=await fs.open(temporary,constants.O_CREAT|constants.O_EXCL|constants.O_WRONLY|(constants.O_NOFOLLOW??0),0o600);
+  try{
+    await handle.writeFile(content,'utf8');await handle.sync();await handle.close();
+    await checkedAgentDirectory(agentId);await regularAgentEntry(file);
+    await fs.rename(temporary,file);
+  }finally{await handle.close().catch(()=>{});await fs.unlink(temporary).catch(()=>{});}
 }
 
 /**

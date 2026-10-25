@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
@@ -62,10 +63,9 @@ test('separate SQLite workers cannot exceed a one-success bot cap',async t=>{
 });
 
 test('actual child SIGKILL after fill and tick insert recovers the entire uncommitted transaction',async t=>{
- const f=botFixture(t),r=f.reserve(),before=f.snapshot(),module=new URL('../src/services/trading-paper-bots.ts',import.meta.url).href;
+ const f=botFixture(t),r=f.reserve(),before=f.snapshot();
  f.db.exec('CREATE TRIGGER crash_tick AFTER INSERT ON paper_bot_ticks BEGIN SELECT crash_now(); END');
- const script=`import Database from 'better-sqlite3';import{runPaperBotTick}from${JSON.stringify(module)};const db=new Database(${JSON.stringify(f.file)});db.function('crash_now',()=>{process.kill(process.pid,'SIGKILL');});runPaperBotTick(db,'owner',${JSON.stringify({botId:'bot',tickKey:'crash',side:'buy',reservationId:r.reservationId})},()=>${now});process.exit(2);`;
- const child=spawn(process.execPath,['--import','tsx','--input-type=module','-e',script],{cwd:new URL('..',import.meta.url).pathname,stdio:'ignore'});
+ const child=spawn(process.execPath,['--import','tsx',fileURLToPath(new URL('./fixtures/paper-bot-crash.mjs',import.meta.url)),JSON.stringify({file:f.file,input:{botId:'bot',tickKey:'crash',side:'buy',reservationId:r.reservationId},now})],{cwd:fileURLToPath(new URL('..',import.meta.url)),stdio:'ignore'});
  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('owned crash fixture timed out'));},5000);child.once('error',error=>{clearTimeout(timer);reject(error);});child.once('close',(code,signal)=>{clearTimeout(timer);try{assert.equal(signal,'SIGKILL');resolve();}catch(error){reject(error);}});});
  f.db.close();const db=new Database(f.file);try{assert.deepEqual(db.prepare('SELECT * FROM paper_accounts').all(),before.ledger.account);assert.deepEqual(db.prepare('SELECT * FROM paper_positions').all(),before.ledger.positions);assert.deepEqual(db.prepare('SELECT * FROM paper_reservations').all(),before.ledger.reservations);assert.deepEqual(db.prepare('SELECT * FROM paper_bots').all(),before.bots);assert.equal(db.prepare('SELECT count(*) n FROM paper_bot_ticks').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM paper_fills').get().n,0);db.exec('DROP TRIGGER crash_tick');const result=runPaperBotTick(db,'owner',{botId:'bot',tickKey:'crash',side:'buy',reservationId:r.reservationId},()=>now);assert.equal(result.ok,true);assert.equal(db.prepare('SELECT successful_ticks FROM paper_bots').get().successful_ticks,1);assert.equal(db.prepare('SELECT count(*) n FROM paper_fills').get().n,1);}finally{db.close();}
 });
