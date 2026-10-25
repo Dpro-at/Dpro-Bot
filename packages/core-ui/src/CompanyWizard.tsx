@@ -151,7 +151,7 @@ function ShareReview({ shares, busy, controller }: { shares: readonly Share[]; b
           <small>{rolesSummary(roles)}</small>
         </div>
         <div className="company-share-personas">{teamRoleOrder.filter(r => roles[r] > 0).map(r =>
-          <div key={r}><strong>{teamRoleLabel[r]}</strong><PersonalityPicker client={controller.client} value={x.personalities?.[r]} defaultId={x.presets[r]} disabled={busy} onPick={entry=>controller.editShare(x.department,{role:r,personality:{id:entry.id,revision:entry.revision}})}/></div>)}
+          <div key={r}><strong>{teamRoleLabel[r]}</strong><PersonalityPicker client={controller.client} value={x.personalities?.[r]} defaultId="temperament-balanced" disabled={busy} onPick={entry=>controller.editShare(x.department,{role:r,personality:{id:entry.id,revision:entry.revision}})}/></div>)}
         </div>
         <SpecialtyEditor share={x} busy={busy} controller={controller}/>
         <details className="company-people"><summary>Show the {x.count} {x.count === 1 ? 'agent' : 'agents'}</summary>

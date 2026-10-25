@@ -2,7 +2,7 @@ import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {createPortal} from 'react-dom';
 import {Avatar} from './desktop-ui';
 import {DocumentEditor} from './DocumentEditor';
-import {AgentSpecialties} from './AgentSpecialties';
+import {AgentConfigurationSummary} from './AgentConfigurationSummary';
 import { AgentMcp } from './McpLibrary';
 import { AgentSkills } from './SkillLibrary';
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -12,7 +12,6 @@ import type { AgentsController } from './agents';
 import type { PersonalityController } from './personality';
 import { PersonalityReview } from './PersonalityReview';
 import { permissionCategories, drawerKinds } from './hire-contract.js';
-import type { TraitName } from './agent-card-contract.js';
 import { drawerLabel } from './MemoryViews';
 import { AgentMemoryController, handoffLine } from './agent-memory';
 import { ago, oneLine } from './memory-store';
@@ -25,11 +24,6 @@ const TABS: { key: CardTab; label: string }[] = [
 ];
 const VIEWS: { label: string; tabs: CardTab[] }[] = [{ label: 'Profile', tabs: ['profile', 'persona'] }, { label: 'Memory', tabs: ['memory'] }, { label: 'Skills and tools', tabs: ['skills', 'mcp', 'permissions'] }];
 const ROLE_LABEL: Record<string, string> = { '': 'No role', main: 'Main agent', manager: 'Manager', specialist: 'Specialist', evaluator: 'Evaluator' };
-const TRAIT: Record<TraitName, [string, string, string]> = {
-  doubt: ['Confidence', 'Checks everything', 'Trusts quickly'], caution: ['Caution', 'Bold', 'Careful'], creativity: ['Creativity', 'Conventional', 'Inventive'],
-  thoroughness: ['Thoroughness', 'Quick', 'Thorough'], independence: ['Independence', 'Asks often', 'Decides alone'], verbosity: ['Length', 'Short', 'Detailed'],
-  warmth: ['Warmth', 'Neutral', 'Warm'], curiosity: ['Curiosity', 'Focused', 'Explores'], persistence: ['Persistence', 'Gives up early', 'Keeps trying'],
-};
 export const CATEGORY: Record<string, string> = { browser: 'Use the browser', network: 'Reach the internet', message: 'Send messages', delete: 'Delete things', install: 'Install software', money: 'Spend money', settings: 'Change settings' };
 const DIALECT: Record<string, string> = { 'ar-IQ': 'Arabic (Iraqi)', ar: 'Arabic', en: 'English', de: 'German', fr: 'French', es: 'Spanish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', 'pt-BR': 'Portuguese (Brazil)', ru: 'Russian', tr: 'Turkish', hi: 'Hindi' };
 
@@ -60,7 +54,7 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
     {s.notice && <p className="card-notice" role="alert">{s.notice}</p>}
     {s.saved && <p className="card-saved" role="status"><UiIcon name="check" size={12}/>{s.saved}</p>}
     {s.phase === 'error' ? null : <>
-      {s.tab === 'profile' && <><AgentSpecialties key={s.agentId} client={card.client} agentId={s.agentId}/><ProfileTab card={card} agents={agents} busy={busy}/></>}
+      {s.tab === 'profile' && <><AgentConfigurationSummary key={s.agentId} client={card.client} agentId={s.agentId} onPersonality={()=>void card.openTab('persona')} onSkills={()=>void card.openTab('skills')}/><ProfileTab card={card} agents={agents} busy={busy}/></>}
       {s.tab === 'persona' && <PersonaTab card={card} personality={personality} busy={busy}/>}
       {s.tab === 'permissions' && <PermissionsTab card={card} busy={busy} part="access"/>}
       {s.tab === 'mcp' && <><PermissionsTab card={card} busy={busy} part="tools"/><AgentMcp key={s.agentId} client={card.client} agentId={s.agentId}/></>}
@@ -105,36 +99,13 @@ function ProfileTab({ card, agents, busy }: { card: AgentCardController; agents?
 
 function PersonaTab({ card, personality, busy }: { card: AgentCardController; personality?: PersonalityController; busy: boolean }) {
   const s = useSyncExternalStore(card.subscribe, card.getSnapshot, card.getSnapshot);
-  const [note, setNote] = useState('');
-  const p = s.persona, d = s.personaDraft;
-  if (!p || !d) return <p className="fine-print">The persona could not be loaded.</p>;
+  const p = s.persona;
+  if (!p) return <p className="fine-print">The persona could not be loaded.</p>;
   const locked = p.locked;
   return <div className="card-section">
     <AgentPersonalityLibrary client={card.client} agentId={s.agentId} version={p.version} locked={locked||busy} onChanged={()=>void card.load()}/>
-    <p className="fine-print">Fine-tune this agent below. The library personality stays unchanged.</p>
-    <div className="traits">{p.traitNames.map(t => {
-      const [label, low, high] = TRAIT[t];
-      return <label key={t} className="trait">
-        <span className="trait-name">{label}</span>
-        <span className="trait-scale"><small>{low}</small>
-          <input type="range" min={0} max={100} step={5} value={t==='doubt'?100-d.traits[t]:d.traits[t]} disabled={busy || locked} onChange={e => card.setTrait(t, t==='doubt'?100-Number(e.target.value):Number(e.target.value))} aria-valuetext={`${t==='doubt'?100-d.traits[t]:d.traits[t]}%`}/>
-          <small>{high}</small></span>
-        <span className="trait-value" data-changed={d.traits[t] !== p.traits[t] || undefined}>{t==='doubt'?100-d.traits[t]:d.traits[t]}%</span>
-      </label>;
-    })}</div>
-    <div className="field-grid">
-      <label className="field"><span>Language and dialect</span>
-        <select value={d.dialect} disabled={busy || locked} onChange={e => card.setDialect(e.target.value)}>
-          {p.dialects.map(x => <option key={x} value={x}>{DIALECT[x] ?? x}</option>)}
-        </select></label>
-      <label className="field"><span>Note for this version (optional)</span>
-        <input value={note} maxLength={500} disabled={busy || locked} placeholder="Why the change" onChange={e => setNote(e.target.value)}/></label>
-    </div>
-    <p className="fine-print">The persona shapes how the agent answers and when it asks first. It never gives tools or permissions.</p>
-    <div className="card-actions">
-      <button type="button" className="primary" disabled={busy || locked || !card.personaChanged()} onClick={() => { void card.savePersona(note); setNote(''); }}>Save as new version</button>
-      <button type="button" disabled={busy} onClick={() => void card.lock(!locked)}>{locked ? 'Unlock persona' : 'Lock persona'}</button>
-    </div>
+    <p className="fine-print">Choose a library personality above. Use Fine-tune work style to adjust this agent's weights in one place. Personality never grants tools or permissions.</p>
+    <div className="card-actions"><button type="button" disabled={busy} onClick={() => void card.lock(!locked)}>{locked ? 'Unlock persona' : 'Lock persona'}</button></div>
     {s.versions && s.versions.length > 0 && <section className="card-sub" aria-label="Persona history">
       <h4>History</h4>
       <ol className="version-list">{s.versions.map(v => <li key={v.version} data-current={v.version === p.version || undefined}>

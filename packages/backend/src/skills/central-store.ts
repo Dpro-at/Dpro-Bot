@@ -74,6 +74,12 @@ export class CentralSkills {
    });return {skill:{id,name:b.name,description:b.description,version:b.version,revision:result,content_hash:b.hash,origin},duplicate:false};
   });this.tail=work.catch(()=>undefined);return work;
  }
+ /** Import an explicitly reviewed Markdown-only bundle; never executes or installs packages. */
+ async installPortable(name:string,files:{path:string;content:string}[]){
+  if(!Array.isArray(files)||files.length<1||files.length>200)throw new SkillLibraryError('invalid_skill');
+  const seen=new Set<string>();let total=0;const clean=files.map(file=>{if(!file||!safeRelative(file.path)||file.path.split('/').some(p=>p.startsWith('.'))||!file.path.endsWith('.md')||seen.has(file.path)||typeof file.content!=='string'||Buffer.byteLength(file.content)>MAX_FILE||file.content.includes('\0'))throw new SkillLibraryError('invalid_skill');seen.add(file.path);const text=normalize(file.content);total+=Buffer.byteLength(text);if(total>MAX_BUNDLE||redactImportText(text).total)throw new SkillLibraryError('secret_refused');return {path:file.path,content:text};}).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+  const main=clean.find(f=>f.path==='SKILL.md');if(!main)throw new SkillLibraryError('invalid_skill');const prepared=prepareSkillMarkdown(main.content,name);await this.initialize();return this.store({...prepared,files:clean,hash:hash(JSON.stringify(clean))},'shared-workspace');
+ }
  async installMarkdown(content:string,name:string,origin:string){const prepared=prepareSkillMarkdown(content,name);await this.initialize();return this.store(prepared,origin);}
  async seedBundled(){await this.seedLegacy();await this.seedGenvrSdk();const directory=fileURLToPath(new URL('../../skills/',import.meta.url));for(const entry of await fs.readdir(directory,{withFileTypes:true}).catch(()=>[])){if(!entry.isDirectory())continue;try{const b=await bundle(path.join(directory,entry.name));if(!(await q.one('SELECT id FROM central_skills WHERE name=?',b.name)))await this.store(b,'bundled');}catch{/* Invalid optional bundled skills never block startup. */}}}
  /** Skills shipped inside the installed GenVR SDK (core-ui/vendor/genvr): added when new and updated

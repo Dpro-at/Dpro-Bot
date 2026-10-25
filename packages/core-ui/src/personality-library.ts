@@ -4,6 +4,6 @@ export type Profile={name:string;description:string;archetype:string;strengths:s
 export type Entry={id:string;revision:number;profile:Profile;archived:boolean;usedBy?:number};
 export const P='/api/personality-library';
 export async function libraryRpc<T>(client:SessionClient,method:string,path:string,body?:unknown):Promise<T>{const r=await client.request({method,path,...(body===undefined?{}:{body})} as never);if(r.status!==200)throw Error((r.body as {code?:string})?.code??'library_unavailable');return r.body as T;}
-export function defaultLibraryId(role:string,department:string){const d=department.trim().toLowerCase();if(role==='main')return 'main-agent';if(role==='evaluator')return 'strict-evaluator';if(role==='specialist'){if(['development','dev','engineering','software'].includes(d))return 'precise-developer';if(d==='marketing')return 'bold-creative';if(['accounting','finance','security'].includes(d))return 'careful-auditor';}return 'balanced-assistant';}
-export const labels:Record<TraitName,string>={doubt:'Confidence',caution:'Risk appetite',creativity:'Inventiveness',thoroughness:'Rigour',independence:'Autonomy',verbosity:'Reply length',warmth:'Warmth',curiosity:'Curiosity',persistence:'Persistence'};
-export const inverse=(k:TraitName)=>k==='doubt'||k==='caution';
+export function defaultLibraryId(_role:string,_department:string){return 'temperament-balanced';}
+export const labels:Record<TraitName,string>={doubt:'Confidence',caution:'Caution',creativity:'Inventiveness',thoroughness:'Attention to detail',independence:'Independence',verbosity:'Reply length',warmth:'Friendliness',curiosity:'Curiosity',persistence:'Persistence'};
+export const inverse=(k:TraitName)=>k==='doubt';

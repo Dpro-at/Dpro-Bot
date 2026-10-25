@@ -1,3 +1,4 @@
+import {WorkspacePackSettings} from './WorkspacePackSettings';
 import {PersonalityLibrary} from './PersonalityLibrary';
 import {VerificationSettings as AccountVerificationSettings} from './VerificationSettings';
 import {ReviewerPoliciesSettings} from './ReviewerPoliciesSettings';
@@ -19,7 +20,7 @@ import type { ThemePreference } from './app-navigation';
 import { MemorySettings, MEMORY_PANES } from './MemorySettings';
 import type { MemorySettingsPane } from './MemorySettings';
 import { UiIcon } from './ui-icons';
-export type SettingsTab='approval-rules'|'schedules'|'general'|'account'|'models'|'connections'|'channels'|'skills'|'mcp'|'personalities'|'specialties'|'memory'|'about'|'permissions'|'verification'|'apps';
+export type SettingsTab='sharing'|'approval-rules'|'schedules'|'general'|'account'|'models'|'connections'|'channels'|'skills'|'mcp'|'personalities'|'specialties'|'memory'|'about'|'permissions'|'verification'|'apps';
 /**
  * Settings. In the signed-in window the sections are the sidebar (the shell
  * gives a slot; Memory has its own sub-places); without a slot (signed out,
@@ -32,10 +33,10 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
   useEffect(()=>{setTab(initialTab);},[initialTab]);useEffect(()=>{setPane(initialMemoryPane);},[initialMemoryPane]);
   const owner=signedIn&&client?.getSnapshot().user?.role==='owner';
   const tabs:{value:SettingsTab;label:string}[]=[{value:'general',label:'General'},{value:'account',label:'Account'},{value:'models',label:'Models & tools'},...(signedIn?[{value:'apps' as const,label:'Apps'},{value:'verification' as const,label:'Verification'}]:[]),...(owner?[{value:'schedules' as const,label:'Scheduled tasks'},{value:'permissions' as const,label:'Permissions'},{value:'connections' as const,label:'Connections'},{value:'channels' as const,label:'Channels'},{value:'skills' as const,label:'Skills'},{value:'personalities' as const,label:'Personalities'},{value:'specialties' as const,label:'Specialties'},{value:'mcp' as const,label:'MCP'},{value:'memory' as const,label:'Memory'}]:[]),{value:'about',label:'Application'}];
-  if(owner)tabs.splice(tabs.length-1,0,{value:'approval-rules',label:'Approval rules'});
-  const icons={'approval-rules':'shield',schedules:'clock',general:'sun',account:'contact',models:'cpu',connections:'link',channels:'message',skills:'file',personalities:'contact',specialties:'layers',mcp:'tool',memory:'brain',about:'info',apps:'layers',permissions:'shield',verification:'check'} as const;
+  if(owner)tabs.splice(tabs.length-1,0,{value:'sharing',label:'Share settings'},{value:'approval-rules',label:'Approval rules'});
+  const icons={sharing:'file','approval-rules':'shield',schedules:'clock',general:'sun',account:'contact',models:'cpu',connections:'link',channels:'message',skills:'file',personalities:'contact',specialties:'layers',mcp:'tool',memory:'brain',about:'info',apps:'layers',permissions:'shield',verification:'check'} as const;
   const choose=(value:SettingsTab)=>{if(value==='apps'&&onOpenApps){onOpenApps();return;}if(onOpenTool&&(value==='skills'||value==='mcp'||value==='specialties'||value==='personalities'))onOpenTool(value);else setTab(value);};
-  const groups=[{name:'Application',keys:['general','account','models']},{name:'Security',keys:['permissions','verification','approval-rules']},{name:'Connections',keys:['connections','channels','memory']},{name:'Workspace',keys:['schedules','apps','skills','specialties','personalities','mcp']},{name:'',keys:['about']}];
+  const groups=[{name:'Application',keys:['general','account','models','sharing']},{name:'Security',keys:['permissions','verification','approval-rules']},{name:'Connections',keys:['connections','channels','memory']},{name:'Workspace',keys:['schedules','apps','skills','specialties','personalities','mcp']},{name:'',keys:['about']}];
   const sidebar=<nav className="dk-sidebar settings-sidebar" aria-label="Settings sections"><div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input type="search" aria-label="Search settings sections" placeholder="Search settings" value={query} onChange={e=>setQuery(e.target.value)}/></label></div>
     {groups.map(group=>{const rows=group.keys.flatMap(key=>tabs.filter(t=>t.value===key)).filter(t=>!query.trim()||t.label.toLowerCase().includes(query.toLowerCase())||t.value==='memory'&&MEMORY_PANES.some(p=>p.label.toLowerCase().includes(query.toLowerCase())));return rows.length?<div key={group.name} className="settings-nav-group">{group.name&&<p className="section-label dk-label">{group.name}</p>}{rows.map(t=><div key={t.value} className="dk-group"><button type="button" className="nav-item dk-place" aria-current={active_===t.value?'page':undefined} aria-expanded={t.value==='memory'?active_==='memory':undefined} onClick={()=>choose(t.value)}><UiIcon name={icons[t.value]} size={16}/><span className="dk-place-name">{t.label}</span>{['apps','skills','specialties','personalities','mcp'].includes(t.value)&&<UiIcon name="chevron" size={11}/>}</button>{t.value==='memory'&&active_==='memory'&&MEMORY_PANES.map(p=><button key={p.key} type="button" className="nav-item dk-place" data-nested aria-current={pane===p.key?'page':undefined} onClick={()=>setPane(p.key)}><span className="dk-place-name">{p.label}</span></button>)}</div>)}</div>:null;})}
   </nav>;
@@ -49,6 +50,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='permissions'&&owner&&client&&<PermissionsSettings client={client} onApprovals={onApprovals??(()=>{})} onAccount={onAccount} onAgent={onAgent}/>}
       {active_==='verification'&&signedIn&&client&&<VerificationSettings client={client} onApprovals={onApprovals??(()=>{})} onBoard={onBoard??(()=>{})} onAgent={onAgent??(()=>onAgents?.())} onAccount={onAccount}/>}
       {active_==='apps'&&signedIn&&onOpenApps&&<section><p>Applications and local add-ons for this workspace.</p><button onClick={onOpenApps}>Open Apps</button></section>}
+      {active_==='sharing'&&owner&&client&&<WorkspacePackSettings client={client}/>}
       {active_==='general'&&<PreferenceGroup title="Appearance" note="Changes save automatically on this device."><PreferenceRow title="Theme" description="Use your device appearance or choose a theme." icon="sun"><select id="app-theme" aria-label="Theme" value={preference} onChange={e=>onTheme(e.target.value as ThemePreference)}><option value="system">Use system appearance</option><option value="light">Light</option><option value="dark">Dark</option></select></PreferenceRow></PreferenceGroup>}
       {active_==='approval-rules'&&owner&&client&&<ReviewerPoliciesSettings client={client} onAccount={onAccount}/>}
       {active_==='account'&&(signedIn&&client?<><AccountPanel client={client} compact/><AccountVerificationSettings client={client}/></>:<PreferenceGroup title="Account"><PreferenceRow title="Sign in required" description="Connect to your workspace to manage your account." icon="contact"><button onClick={onAccount}>Sign in</button></PreferenceRow></PreferenceGroup>)}

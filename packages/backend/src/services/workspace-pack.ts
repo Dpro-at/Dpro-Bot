@@ -1,0 +1,57 @@
+import {createHash} from 'node:crypto';
+import {q,sql,one,run,lockName} from '../repositories/sql-steps.js';
+import {PersonalityLibrary,type LibraryEntry} from './personality-library.js';
+import {profile,validateProfile,type Profile} from './personality-library-profile.js';
+import {getCurrentPersonality,exportPersonalityFile} from './personality-store.js';
+import {insertAgentConfigStep} from '../repositories/agents-config.js';
+import {CentralSkills,centralSkills} from '../skills/central-store.js';
+import {SpecialtyTemplates} from './specialty-templates.js';
+import {PERMISSION_CATEGORIES} from '../tools/agent-permissions.js';
+import {redactImportText} from '../memory/import/redact.js';
+import {prepareSkillMarkdown} from '../skills/markdown-bundle.js';
+import {initializeAgentDir} from './agent-files.js';
+export class PackError extends Error{constructor(readonly code:string,readonly status=400){super(code);}}
+type Skill={id:string;name:string;files:{path:string;content:string}[]};
+type Specialty={id:string;name:string;department:string;description:string;instructions:string;skills:string[]};
+type Staff={id:string;name:string;description:string;role:'main'|'manager'|'specialist'|'evaluator'|null;department:string|null;model:string;provider:string;personality:string;skills:string[];specialties:string[]};
+export type WorkspacePack={format:'dpro-workspace-pack';version:1;personalities:{id:string;profile:Profile}[];skills:Skill[];specialties:Specialty[];agents:Staff[]};
+const object=(x:any)=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const exact=(x:any,keys:string[])=>object(x)&&Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
+const text=(x:any,n=1000)=>typeof x==='string'&&x.length<=n&&!/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(x);
+const id=(x:any)=>typeof x==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(x);
+const stable=(x:any):string=>JSON.stringify(x&&typeof x==='object'?(Array.isArray(x)?x.map(v=>JSON.parse(stable(v))):Object.fromEntries(Object.keys(x).sort().map(k=>[k,JSON.parse(stable(x[k]))]))):x);
+const hash=(x:any)=>createHash('sha256').update(stable(x)).digest('hex');
+function uid(x:string){const h=hash(x);return h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32);}
+export function validateWorkspacePack(raw:unknown):WorkspacePack{
+ const p=raw as WorkspacePack;if(!exact(p,['format','version','personalities','skills','specialties','agents'])||p.format!=='dpro-workspace-pack'||p.version!==1||Buffer.byteLength(JSON.stringify(p))>2_000_000)throw new PackError('invalid_pack');
+ for(const [key,max]of [['personalities',250],['skills',100],['specialties',300],['agents',100]] as const){if(!Array.isArray(p[key])||p[key].length>max||p[key].some(x=>!id(x?.id))||new Set(p[key].map(x=>x.id)).size!==p[key].length)throw new PackError('invalid_pack');}
+ const refs=(a:unknown,items:{id:string}[])=>Array.isArray(a)&&a.length<=100&&new Set(a).size===a.length&&a.every(v=>items.some(x=>x.id===v));
+ for(const x of p.personalities){if(!exact(x,['id','profile']))throw new PackError('invalid_pack');validateProfile(x.profile);}
+ for(const x of p.skills){if(!exact(x,['id','name','files'])||!text(x.name,100)||!Array.isArray(x.files)||x.files.length<1||x.files.length>200)throw new PackError('invalid_pack');const seen=new Set();for(const f of x.files){if(!exact(f,['path','content'])||!text(f.path,400)||f.path.split('/').some(k=>!k||k.startsWith('.')||k.includes('\\'))||!f.path.endsWith('.md')||seen.has(f.path)||!text(f.content,200000))throw new PackError('invalid_pack');seen.add(f.path);}const main=x.files.find(f=>f.path==='SKILL.md');if(!main||prepareSkillMarkdown(main.content,x.name).redactions)throw new PackError('invalid_pack');}
+ for(const x of p.specialties)if(!exact(x,['id','name','department','description','instructions','skills'])||!text(x.name,80)||!x.name.trim()||!text(x.department,64)||!x.department.trim()||!text(x.description,1800)||!text(x.instructions,30000)||!x.instructions.trim()||!refs(x.skills,p.skills))throw new PackError('invalid_pack');
+ for(const x of p.agents)if(!exact(x,['id','name','description','role','department','model','provider','personality','skills','specialties'])||!text(x.name,80)||!x.name.trim()||!text(x.description,1000)||![null,'main','manager','specialist','evaluator'].includes(x.role)||!(x.department===null||text(x.department,64))||!text(x.model,150)||!['claude','openai','gemini','ollama','lmstudio'].includes(x.provider)||!p.personalities.some(v=>v.id===x.personality)||!refs(x.skills,p.skills)||!refs(x.specialties,p.specialties))throw new PackError('invalid_pack');
+ const secret=(v:any):boolean=>typeof v==='string'?redactImportText(v).total>0:Array.isArray(v)?v.some(secret):object(v)?Object.values(v).some(secret):false;
+ if(secret(p))throw new PackError('secret_found');return structuredClone(p);
+}
+export class WorkspacePacks{
+ private busy=new Set<string>();constructor(private skills:CentralSkills=centralSkills(),private specialties=new SpecialtyTemplates(),private library=new PersonalityLibrary()){}
+ async export(selection:{agents:boolean;personalities:boolean;specialties:boolean;skills:boolean}){
+  const pack:WorkspacePack={format:'dpro-workspace-pack',version:1,personalities:[],skills:[],specialties:[],agents:[]},personalityIds=new Map<string,string>(),skillIds=new Map<string,string>(),specialtyIds=new Map<string,string>();
+  if(selection.personalities||selection.agents)for(const e of (await this.library.list()).filter(e=>!e.archived)){const id='personality-'+(pack.personalities.length+1);personalityIds.set(e.id,id);pack.personalities.push({id,profile:e.profile});}
+  if(selection.skills)for(const row of await this.skills.list()){const read=await this.skills.read(row.id),id='skill-'+(pack.skills.length+1);skillIds.set(row.id,id);pack.skills.push({id,name:row.name,files:read.files.map(f=>({...f}))});}
+  if(selection.specialties)for(const row of await q.all<{id:string}>('SELECT id FROM specialty_templates ORDER BY name')){const t=await this.specialties.get(row.id),id='specialty-'+(pack.specialties.length+1);specialtyIds.set(t.id,id);pack.specialties.push({id,name:t.name,department:t.department,description:t.description,instructions:t.instructions,skills:[...new Set([...(t.config.primarySkill?[t.config.primarySkill]:[]),...t.config.skills])].flatMap(id=>skillIds.has(id)?[skillIds.get(id)!]:[])});}
+  if(selection.agents)for(const row of await q.all<any>('SELECT id,name,description,role,department,model,provider FROM agents_config ORDER BY name')){const current=await getCurrentPersonality(row.id),assignment=await this.library.assignment(row.id);const effective=assignment?.profile??profile('Individual style',current?.traits,current?.dialect);let personality=pack.personalities.find(p=>stable(p.profile)===stable(effective))?.id;if(!personality){personality='personality-'+(pack.personalities.length+1);pack.personalities.push({id:personality,profile:effective});}const skills=await q.all<{skill_id:string}>('SELECT skill_id FROM central_agent_skills WHERE agent_id=?',row.id),specialties=await q.all<{template_id:string}>('SELECT template_id FROM agent_specialties WHERE agent_id=?',row.id);pack.agents.push({id:'agent-'+(pack.agents.length+1),name:row.name,description:row.description??'',role:row.role??null,department:row.department??null,model:row.model,provider:row.provider,personality,skills:skills.flatMap(s=>skillIds.has(s.skill_id)?[skillIds.get(s.skill_id)!]:[]),specialties:specialties.flatMap(s=>specialtyIds.has(s.template_id)?[specialtyIds.get(s.template_id)!]:[])});}
+  return validateWorkspacePack(pack);
+ }
+ async preview(raw:unknown){const p=validateWorkspacePack(raw);for(const skill of p.skills){const existing=await q.one<{id:string;content_hash:string}>('SELECT id,content_hash FROM central_skills WHERE name=?',skill.name);if(existing){const files=skill.files.map(f=>({path:f.path,content:f.content.replace(/\r\n?/g,'\n').trim()+'\n'})).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);if(existing.content_hash!==createHash('sha256').update(JSON.stringify(files)).digest('hex'))throw new PackError('skill_name_conflict',409);}}
+  return {fingerprint:hash(p),counts:{agents:p.agents.length,personalities:p.personalities.length,specialties:p.specialties.length,skills:p.skills.length},names:{agents:p.agents.map(x=>x.name),personalities:p.personalities.map(x=>x.profile.name),specialties:p.specialties.map(x=>x.name),skills:p.skills.map(x=>x.name)}};
+ }
+ async import(owner:string,raw:unknown,fingerprint:string){const p=validateWorkspacePack(raw);if(hash(p)!==fingerprint)throw new PackError('preview_changed',409);if(this.busy.has(owner))throw new PackError('pack_busy',409);this.busy.add(owner);const seed=owner+':'+fingerprint,profiles=new Map<string,{id:string;revision:number}>(),skills=new Map<string,string>(),specialties=new Map<string,string>();let completed=0;
+  try{await this.preview(p);for(const x of p.skills){const r=await this.skills.installPortable(x.name,x.files);skills.set(x.id,r.skill.id);completed++;}
+   for(const x of p.personalities){let entry:LibraryEntry|undefined=(await this.library.list()).find(e=>!e.archived&&stable(e.profile)===stable(x.profile));const key='shared-'+uid(seed+':personality:'+x.id);if(!entry){try{entry=await this.library.read(key);}catch(e){if((e as any).code!=='not_found')throw e;entry=await this.library.save(owner,key,{revision:0,profile:x.profile});}}profiles.set(x.id,{id:entry.id,revision:entry.revision});completed++;}
+   for(const x of p.specialties){const key=uid(seed+':specialty:'+x.id);if(!await q.one('SELECT id FROM specialty_templates WHERE id=?',key))await this.specialties.save(key,{name:x.name,department:x.department,description:x.description,instructions:x.instructions,revision:0,config:{primarySkill:null,skills:x.skills.map(id=>skills.get(id)!),tools:[],memoryRead:[],memoryWrite:[],sharedMemory:false,modes:Object.fromEntries(PERMISSION_CATEGORIES.map(c=>[c,'ask']))}});specialties.set(x.id,key);completed++;}
+   const agentIds=[];for(const x of p.agents){const key='shared-'+uid(seed+':agent:'+x.id);agentIds.push(key);if(!await q.one('SELECT id FROM agents_config WHERE id=?',key)){const selected=profiles.get(x.personality)!;await sql().tx(function*(){yield* lockName('workspace-pack:'+owner);if(yield* one('SELECT id FROM agents_config WHERE id=?',key))return;yield* insertAgentConfigStep({id:key,name:(x.name.slice(0,65)+' '+uid(seed+':agent:'+x.id).slice(0,6)),language:null,body:{description:x.description,model:x.model,provider:x.provider,libraryPersonality:selected},role:x.role,department:x.department,explicit:null,userId:owner});yield* run('INSERT INTO central_skill_assignments(agent_id,revision) VALUES(?,1)',key);for(const ref of x.skills)yield* run('INSERT INTO central_agent_skills(agent_id,skill_id) VALUES(?,?)',key,skills.get(ref)!);for(const ref of x.specialties)yield* run('INSERT INTO agent_specialties(agent_id,template_id,linked_by) VALUES(?,?,?)',key,specialties.get(ref)!,owner);},{immediate:true});}await initializeAgentDir(key);const current=await getCurrentPersonality(key);if(current)await exportPersonalityFile(current);completed++;}
+   return {fingerprint,completed,agentIds,counts:{agents:p.agents.length,personalities:p.personalities.length,specialties:p.specialties.length,skills:p.skills.length}};
+  }catch(e){if(e instanceof PackError)throw e;throw new PackError(completed?'import_incomplete':'import_unavailable',503);}finally{this.busy.delete(owner);}
+ }
+}

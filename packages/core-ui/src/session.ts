@@ -1,3 +1,4 @@
+import {packRoute,allowedPack,packResponse} from './workspace-pack-contract.js';
 import {allowedLibrary,libraryPath,libraryResponse} from './personality-library-contract.js';
 import {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse} from './trading-runtime-contract.js';
 import {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse} from './trading-account-setup-contract.js';
@@ -11,7 +12,7 @@ import {allowedVerification,verificationRoute,verificationResponse} from './veri
 import {allowedReviewer,reviewerRoute,reviewerOwnerRoute,reviewerResponse} from './reviewers-contract.js';
 import {coverageRoute,allowedCoverage,coverageResponse} from './security-coverage-contract.js';
 import {schedulerRoute,allowedScheduler,schedulerResponse} from './scheduler-contract.js';
-import {sourceCatalogueRoute,allowedSourceCatalogue,sourceCatalogueResponse,appsCatalogueRoute,allowedAppsCatalogue,appsCatalogueResponse} from './apps-contract.js';
+import {workspaceAppsRoute,allowedWorkspaceApps,workspaceAppsResponse,sourceCatalogueRoute,allowedSourceCatalogue,sourceCatalogueResponse,appsCatalogueRoute,allowedAppsCatalogue,appsCatalogueResponse} from './apps-contract.js';
 import {chatAddonsRoute,allowedChatAddons,chatAddonsResponse} from './chat-addons-contract.js';
 import {approvalRoute,allowedApproval,approvalResponse} from './approvals-contract.js';
 import { allowedConnections, connectionsRoute, connectionsResponse } from './connections-contract.js';
@@ -84,6 +85,7 @@ function user(value: unknown): User {
 }
 // Reject before URL normalization. No generic URL, header, key or mutation escape hatch.
 export function allowedRequest(method: string, path: string, body?: unknown): boolean {
+  if(packRoute(path))return allowedPack(method,path,body);
   if(tradingRuntimeRoute(path))return allowedTradingRuntime(method,path,body);
   if(tradingAccountSetupRoute(path))return allowedTradingAccountSetup(method,path,body);
   if(tradingInstallRoute(path))return allowedTradingInstall(method,path,body);
@@ -97,6 +99,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if(tradingPaperRoute(path))return allowedTradingPaper(method,path,body);
   if(schedulerRoute(path))return allowedScheduler(method,path,body);
   if(sourceCatalogueRoute(path))return allowedSourceCatalogue(method,path,body);
+  if(workspaceAppsRoute(path))return allowedWorkspaceApps(method,path,body);
   if(appsCatalogueRoute(path))return allowedAppsCatalogue(method,path,body);
   if(chatAddonsRoute(path))return allowedChatAddons(method,path,body);
   if (approvalRoute(path)) return allowedApproval(method,path,body);
@@ -154,6 +157,7 @@ function safeResponse(path: string, response: WireResponse): WireResponse {
   return delay === undefined ? projected : { ...projected, retryAfterSeconds: delay };
 }
 function projectResponse(path: string, response: WireResponse): WireResponse {
+  if(packRoute(path))return {status:response.status,body:packResponse(path,response.status,response.body)};
   if(tradingRuntimeRoute(path))return {status:response.status,body:tradingRuntimeResponse(path,response.status,response.body)};
   if(tradingAccountSetupRoute(path))return {status:response.status,body:tradingAccountSetupResponse(path,response.status,response.body)};
   if(tradingInstallRoute(path))return {status:response.status,body:tradingInstallResponse(path,response.status,response.body)};
@@ -167,6 +171,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if(tradingPaperRoute(path))return {status:response.status,body:tradingPaperResponse(path,response.status,response.body)};
   if(schedulerRoute(path))return {status:response.status,body:schedulerResponse(path,response.status,response.body)};
   if(sourceCatalogueRoute(path))return {status:response.status,body:sourceCatalogueResponse(response.status,response.body)};
+  if(workspaceAppsRoute(path))return {status:response.status,body:workspaceAppsResponse(response.status,response.body)};
   if(appsCatalogueRoute(path))return {status:response.status,body:appsCatalogueResponse(response.status,response.body)};
   if(chatAddonsRoute(path))return {status:response.status,body:chatAddonsResponse(response.status,response.body)};
   if (path === '/api/setup/status') return { status: response.status, body: setupStatus(response.status, response.body) };
@@ -487,7 +492,7 @@ export class SessionClient {
     if (conversationPath(request.path)?.kind === 'approval' && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((conversationRoute(request.path) || chatSearchRoute(request.path) || chatExportRoute(request.path) || chatSecretsRoute(request.path)) && this.#state.user?.role === 'guest') throw new SessionFailure('blocked');
     if (request.path === CLEANUP_PATH && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
-    if ((sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if ((packRoute(request.path) || workspaceAppsRoute(request.path) || sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((memoryDesktopRoute(request.path) || memoryPagesRoute(request.path) || memoryRecallRoute(request.path) || memoryBridgeRoute(request.path) || discoveryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (terminalRoute(request.path) && (this.#state.user?.role !== 'owner' || terminalPath(request.path)?.kind === 'stream')) throw new SessionFailure('blocked');
     if (request.method === 'PUT' && !conversationRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');

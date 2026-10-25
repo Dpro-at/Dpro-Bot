@@ -16,3 +16,20 @@ export function sourceCatalogueResponse(status,body){
  const source=x=>['claude-code','codex'].includes(x);
  return {items:body.items.map(x=>{if(!x||typeof x.id!=='string'||x.id.length>320||!source(x.source)||typeof x.present!=='boolean')throw Error('protocol');return {id:text(x.id,320),name:text(x.name,150),description:text(x.description,1000),publisher:text(x.publisher,150),source:x.source,present:x.present};}),sources:body.sources.map(x=>{if(!x||!source(x.source)||!['limited','local_snapshot'].includes(x.status))throw Error('protocol');return {source:x.source,name:text(x.name,150),status:x.status};})};
 }
+
+/** Unified local app inventory; lifecycle changes use the existing reviewed services. */
+export const WORKSPACE_APPS_PATH='/api/apps';
+export const workspaceAppsRoute=path=>path===WORKSPACE_APPS_PATH;
+export const allowedWorkspaceApps=(method,path,body)=>workspaceAppsRoute(path)&&method==='GET'&&body===undefined;
+export function workspaceAppsResponse(status,body){
+ if(status!==200)return {code:'apps_unavailable'};
+ if(!body||!Array.isArray(body.items)||body.items.length>1000)throw Error('protocol');
+ const seen=new Set();
+ return {items:body.items.map(x=>{
+  if(!x||typeof x.id!=='string'||!(/^(terminal|trading|genvr|mcp:[a-f0-9-]{36})$/).test(x.id)||seen.has(x.id)||!['builtin','mcp','api'].includes(x.kind)||!['included','disabled','connected','connecting','disconnected','attention','not_connected','expired'].includes(x.state)||!Number.isSafeInteger(x.tools)||x.tools<0||x.tools>10000||!Array.isArray(x.permissions)||x.permissions.length>60)throw Error('protocol');
+  if(x.kind==='mcp'?(x.id!=='mcp:'+x.sourceId||x.removable!==true):x.sourceId!==(x.id==='genvr'?'genvr':null)||x.removable!==false)throw Error('protocol');
+  if(x.kind!==(x.id==='genvr'?'api':x.id.startsWith('mcp:')?'mcp':'builtin'))throw Error('protocol');
+  seen.add(x.id);
+  return {id:x.id,name:text(x.name,180),kind:x.kind,version:x.version===null?null:text(x.version,80),summary:text(x.summary,1500),state:x.state,sourceId:x.sourceId,permissions:x.permissions.map(p=>{if(typeof p!=='string')throw Error('protocol');return text(p,180);}),tools:x.tools,removable:x.removable};
+ })};
+}
