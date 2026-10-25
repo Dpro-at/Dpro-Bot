@@ -18,6 +18,16 @@ if (window.location.protocol === 'file:') {
 
 // Public application metadata and fixed navigation only; never filesystem or authentication access.
 contextBridge.exposeInMainWorld('dproApp', {
+  nabu: {
+    status: () => ipcRenderer.invoke('dpro:nabu-status'),
+    select: (mode, top, bottom) => ipcRenderer.invoke('dpro:nabu-select', { mode, top, bottom }),
+    layout: (top, bottom) => ipcRenderer.send('dpro:nabu-layout', { top, bottom }),
+    onState: callback => {
+      const listener = (_event, value) => callback(value);
+      ipcRenderer.on('dpro:nabu-state', listener);
+      return () => ipcRenderer.removeListener('dpro:nabu-state', listener);
+    },
+  },
   chooseProjectFolders: () => ipcRenderer.invoke('dpro:choose-project-folders'),
   info: () => ipcRenderer.invoke('dpro:app-info'),
   onNavigate: callback => {

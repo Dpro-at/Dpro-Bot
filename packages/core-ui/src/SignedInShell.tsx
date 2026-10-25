@@ -1,4 +1,5 @@
 import {PersonalityLibrary} from './PersonalityLibrary';
+import {WorkspaceModes,editorBounds,useNabuAvailability} from './WorkspaceModes';
 import {TradingWorkspace} from './TradingWorkspace';
 import {AppsWorkspace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
@@ -31,7 +32,7 @@ import { CommandPalette } from './CommandPalette';
 import { ChatSearchController } from './chat-search';
 import type { Command } from './CommandPalette';
 
-type Page = 'trading' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
+type Page = 'code' | 'trading' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
 /** Sections that own the sidebar with their own places (the chat list shows only in Chat). */
 const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'skills', 'mcp', 'terminal','specialties','personalities','board','approvals','apps','trading'];
 const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' }> = [
@@ -56,6 +57,10 @@ const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' 
 export function SignedInShell({ client, notice }: { client: SessionClient; notice: ReactNode }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [page, setPage] = useState<Page>('chat');
+  const nativeEditor=useNabuAvailability();
+  useEffect(()=>{if(page!=='code'){const {top,bottom}=editorBounds();void window.dproApp?.nabu?.select('chat',top,bottom).catch(()=>{});}},[page]);
+  useEffect(()=>()=>{void window.dproApp?.nabu?.select('chat',48,32).catch(()=>{});},[]);
+  const openCode=()=>{setPage('code');const {top,bottom}=editorBounds();void window.dproApp?.nabu?.select('code',top,bottom).catch(()=>{});};
   const appearance = useAppTheme();
   const theme = appearance.theme;
   const setTheme = (fn: (v: 'light' | 'dark') => 'light' | 'dark') => appearance.setPreference(fn(theme));
@@ -91,6 +96,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     {id:'genvr',label:'GenVR',icon:<Icon name="dice"/>,run:()=>setPage('genvr')},
     ...(user.role==='owner'?[
       {id:'terminal',label:'Terminal',icon:<UiIcon name="terminal" size={14}/>,run:()=>setPage('terminal')},
+      ...(nativeEditor?[{id:'code',label:'Code',icon:<UiIcon name="code" size={14}/>,run:openCode}]:[]),
       {id:'skills',label:'Skills',icon:<UiIcon name="file" size={14}/>,run:()=>setPage('skills')},
       {id:'personalities',label:'Personalities',icon:<UiIcon name="contact" size={14}/>,run:()=>setPage('personalities')},
       {id:'specialties',label:'Specialties',icon:<Icon name="user"/>,run:()=>setPage('specialties')},
@@ -120,13 +126,14 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     { id: 'rail', group: 'Actions', icon:<UiIcon name="sidebar" size={14}/>, label: rail ? 'Hide the sidebar' : 'Show the sidebar', run: () => setRail(v => !v) },
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
-  const pageTitle = page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
+  const pageTitle = page === 'code'?'Code':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
   const openCards = boardState?.boards.reduce((a, b) => a + b.cards, 0);
 
   const sidebarShown = rail && (page === 'chat' || ownSidebar);
   return <div className="shell app-shell" data-theme={theme} data-rail={sidebarShown ? 'open' : 'closed'} data-section={page} lang="en" dir="ltr">
     {choosingChat&&chat&&<NewChatDialog controller={chat} onClose={()=>setChoosingChat(false)}/>}
     <header className="titlebar">
+      <WorkspaceModes onModeChange={mode=>{if(mode==='code')setPage('code');else if(page==='code')setPage('chat');}}/>
       <div className="titlebar-tools">
         <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar' : 'Show the sidebar'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
         {page === 'chat' && <button type="button" className="tool" aria-label="New chat" title="New chat" onClick={newChat}><UiIcon name="compose" size={14}/></button>}
@@ -173,6 +180,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
         <section className="page page-ui mem-desk" hidden={page !== 'terminal'}><TerminalSection client={client} active={page === 'terminal'} slot={slot} onOpenTerminal={openTerminal}/></section>
       </>}
+      <section className="page page-ui" hidden={page!=='code'}><p role="status" className="fine-print">Select Code in the bottom bar to open or reconnect the project editor.</p></section>
       <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} onOpen={id=>setPage(id)} onConnections={()=>setPage('mcp')} onAccountConnections={()=>{setSettingsTab('connections');setSettingsVisit(n=>n+1);setPage('settings');}} onChat={()=>setPage('chat')} onPermissions={()=>{setSettingsTab('permissions');setSettingsVisit(n=>n+1);setPage('settings');}}/></section>
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>

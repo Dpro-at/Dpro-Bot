@@ -10,13 +10,15 @@
  *   on this computer); nothing runs locally.
  * - Quit (menu, Cmd/Ctrl+Q, last window closed) stops the backend first.
  */
-const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog } = require('electron');
+const electron = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session, shell, dialog } = electron;
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createLocalRuntime, openLog } = require('./local-runtime.cjs');
 const { resolvePayload, backendArgs, checkPayload } = require('./payload.cjs');
 const { loadSettings, saveSettings, remoteOrigin } = require('./settings.cjs');
+const { installNabuEditor } = require('./nabu-editor.cjs');
 
 const discovery = require('./data-discovery.cjs');
 // Keep the existing profile before Electron derives storage from the display name.
@@ -32,6 +34,8 @@ let log = null;
 let appOrigin = null;
 let quitting = false;
 let stopped = false;
+let nabuEditor = null;
+let editorLog = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -296,6 +300,13 @@ async function boot() {
   hardenSession();
   buildMenu();
   mainWindow = createMainWindow();
+  const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
+  nabuEditor = installNabuEditor({
+    win: mainWindow, electron, getOrigin: () => appOrigin,
+    runtimeRoot: process.env.DPRO_NABU_ROOT || path.join(process.resourcesPath, 'nabu-runtime'),
+    node: process.env.DPRO_DESKTOP_NODE || payload.node, dataDir: path.join(settingsDir(), 'nabu-editor'),
+    onLog: line => { editorLog ||= openLog(path.join(settingsDir(), 'logs', 'editor.log')); editorLog.write(line); },
+  });
   await applyMode();
 }
 
@@ -307,9 +318,13 @@ app.on('before-quit', event => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
-  stopLocal()
-    .catch(error => { if (log) log.write(`stop failed: ${error.message}`); })
-    .finally(() => { stopped = true; if (log) log.close(); app.quit(); });
+  Promise.resolve(nabuEditor?.requestClose()).then(async allowed => {
+    if (allowed === false) { quitting = false; return false; }
+    try { await nabuEditor?.stop(); } finally { await stopLocal(); }
+    return true;
+  })
+    .catch(error => { quitting = false; if (log) log.write(`stop failed: ${error.message}`); editorLog?.write(`Editor shutdown failed: ${error.message}`); return false; })
+    .then(allowed => { if (allowed === false) return; stopped = true; if (log) log.close(); editorLog?.close(); app.quit(); });
 });
 
 app.on('web-contents-created', (_event, contents) => {
