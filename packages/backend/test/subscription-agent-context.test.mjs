@@ -31,7 +31,7 @@ test.after(()=>closeDatabase());
 test('selected agent includes database style, linked specialty and complete immutable resources without private memory',async()=>{
  const before=db.prepare('SELECT * FROM agent_permissions WHERE agent_id=?').get(created.id);
  const context=await subscriptionAgentContext(created.id);
- for(const marker of ['BASE_MARKER','PERSONALITY_MARKER','SPECIALTY_MARKER','RESOURCE_MARKER','context-fixture/SKILL.md','context-fixture/references/guide.md'])assert.ok(context.includes(marker),marker);
+ for(const marker of ['<effective-personality>','Synthetic calm','BASE_MARKER','PERSONALITY_MARKER','SPECIALTY_MARKER','RESOURCE_MARKER','context-fixture/SKILL.md','context-fixture/references/guide.md'])assert.ok(context.includes(marker),marker);
  assert.ok(!context.includes('PRIVATE_MEMORY_MARKER'));
  assert.ok(!context.includes(path.join(root,'skill-library/objects')),'do not expose private storage paths');
  assert.deepEqual(db.prepare('SELECT * FROM agent_permissions WHERE agent_id=?').get(created.id),before);

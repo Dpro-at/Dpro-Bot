@@ -27,6 +27,7 @@ export const EXEC_CLASS_TOOLS: ReadonlySet<string> = new Set([
   'claude_cli',
   'gemini_cli',
   'ask_coding_app', // CORE-ROUTE-01: runs the owner's Claude Code / Codex
+  'team_delegate', // Runs an existing team agent's configured reply provider.
 ]);
 
 export function isExecToolsEnabled(): boolean {
