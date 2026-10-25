@@ -71,3 +71,10 @@ f49fb6d6ddb1922becc5f7372d2c2679e4422eaf:backend/test/agents/OLLAMA_TESTING_GUID
 
 # Synthetic redaction fixture: alphabet followed by digits, not an issued token.
 1520ef1deae70797cab0cfbca2589f83232c29de:packages/backend/test/agent-handoff.test.mjs:github-pat:30
+
+# Synthetic memory redaction fixture; literal fictional value, never an issued credential.
+12ab002a04d50adeed3d77c3706f4d9f4c98a88c:packages/backend/test/agent-memory-files.test.mjs:generic-api-key:6
+# Synthetic password-redaction fixture; same fictional value, never an issued credential.
+12ab002a04d50adeed3d77c3706f4d9f4c98a88c:packages/backend/test/agent-memory-files.test.mjs:generic-api-key:10
+# Synthetic reviewer masking fixture, never an issued credential.
+dc3990b4fc87278adb35da36ad4f036bde140d9d:packages/backend/test/reviewer-votes-api.test.mjs:generic-api-key:98
