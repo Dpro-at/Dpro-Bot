@@ -2,7 +2,7 @@ import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {createPortal} from 'react-dom';
 import {Avatar} from './desktop-ui';
 import {DocumentEditor} from './DocumentEditor';
-import {AgentSpecialties} from './AgentSpecialties';
+import {AgentConfigurationSummary} from './AgentConfigurationSummary';
 import { AgentMcp } from './McpLibrary';
 import { AgentSkills } from './SkillLibrary';
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -54,7 +54,7 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
     {s.notice && <p className="card-notice" role="alert">{s.notice}</p>}
     {s.saved && <p className="card-saved" role="status"><UiIcon name="check" size={12}/>{s.saved}</p>}
     {s.phase === 'error' ? null : <>
-      {s.tab === 'profile' && <><AgentSpecialties key={s.agentId} client={card.client} agentId={s.agentId}/><ProfileTab card={card} agents={agents} busy={busy}/></>}
+      {s.tab === 'profile' && <><AgentConfigurationSummary key={s.agentId} client={card.client} agentId={s.agentId} onPersonality={()=>void card.openTab('persona')} onSkills={()=>void card.openTab('skills')}/><ProfileTab card={card} agents={agents} busy={busy}/></>}
       {s.tab === 'persona' && <PersonaTab card={card} personality={personality} busy={busy}/>}
       {s.tab === 'permissions' && <PermissionsTab card={card} busy={busy} part="access"/>}
       {s.tab === 'mcp' && <><PermissionsTab card={card} busy={busy} part="tools"/><AgentMcp key={s.agentId} client={card.client} agentId={s.agentId}/></>}

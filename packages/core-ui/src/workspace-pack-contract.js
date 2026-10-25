@@ -1,0 +1,18 @@
+import {validProfile} from './personality-library-contract.js';
+const base='/api/workspace-pack/';
+const obj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const exact=(x,keys)=>obj(x)&&Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
+const txt=(x,n=2000)=>typeof x==='string'&&x.length<=n;
+const keys=['agents','personalities','specialties','skills'];
+export function packRoute(path){return [base+'export',base+'preview',base+'import'].includes(path)?path.slice(base.length):null;}
+export function validPack(p){if(!exact(p,['format','version',...keys])||p.format!=='dpro-workspace-pack'||p.version!==1)return false;for(const [k,max] of [['agents',100],['personalities',250],['specialties',300],['skills',100]])if(!Array.isArray(p[k])||p[k].length>max||p[k].some(x=>!obj(x)||!txt(x.id,64)))return false;
+ for(const x of p.personalities)if(!exact(x,['id','profile'])||!validProfile(x.profile))return false;
+ for(const x of p.skills)if(!exact(x,['id','name','files'])||!txt(x.name,100)||!Array.isArray(x.files)||x.files.length>200||x.files.some(f=>!exact(f,['path','content'])||!txt(f.path,400)||!txt(f.content,200000)))return false;
+ const refs=a=>Array.isArray(a)&&a.length<=100&&a.every(x=>txt(x,64));
+ for(const x of p.specialties)if(!exact(x,['id','name','department','description','instructions','skills'])||!txt(x.name,80)||!txt(x.department,64)||!txt(x.description,1800)||!txt(x.instructions,30000)||!refs(x.skills))return false;
+ for(const x of p.agents)if(!exact(x,['id','name','description','role','department','model','provider','personality','skills','specialties'])||!txt(x.name,80)||!txt(x.description,1000)||![null,'main','manager','specialist','evaluator'].includes(x.role)||!(x.department===null||txt(x.department,64))||!txt(x.model,150)||!txt(x.provider,50)||!txt(x.personality,64)||!refs(x.skills)||!refs(x.specialties))return false;return JSON.stringify(p).length<=2_000_000;
+}
+export function allowedPack(method,path,body){const action=packRoute(path);if(!action||method!=='POST')return false;if(action==='export')return exact(body,keys)&&Object.values(body).every(v=>typeof v==='boolean')&&Object.values(body).some(Boolean);return exact(body,action==='preview'?['pack']:['pack','fingerprint','confirmed'])&&validPack(body.pack)&&(action==='preview'||body.confirmed===true&&typeof body.fingerprint==='string'&&/^[a-f0-9]{64}$/.test(body.fingerprint));}
+export function packResponse(path,status,b){if(status!==200){const codes=['invalid_pack','secret_found','skill_name_conflict','preview_changed','pack_busy','import_incomplete','import_unavailable'];return {code:codes.includes(b?.code)?b.code:'pack_unavailable'};}const action=packRoute(path);if(action==='export'){if(!exact(b,['pack'])||!validPack(b.pack))throw Error('Invalid pack');return {pack:structuredClone(b.pack)};}
+ if(!obj(b)||typeof b.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(b.fingerprint)||!exact(b.counts,keys)||!Object.values(b.counts).every(n=>Number.isSafeInteger(n)&&n>=0&&n<=300))throw Error('Invalid pack response');if(action==='preview'){if(!exact(b.names,keys)||keys.some(k=>!Array.isArray(b.names[k])||b.names[k].length!==b.counts[k]||!b.names[k].every(x=>txt(x,100))))throw Error('Invalid pack preview');return {fingerprint:b.fingerprint,counts:{...b.counts},names:structuredClone(b.names)};}
+ if(action!=='import'||!Number.isSafeInteger(b.completed)||!Array.isArray(b.agentIds)||b.agentIds.length!==b.counts.agents||!b.agentIds.every(x=>typeof x==='string'&&/^shared-[a-f0-9-]{36}$/.test(x)))throw Error('Invalid import');return {fingerprint:b.fingerprint,completed:b.completed,counts:{...b.counts},agentIds:[...b.agentIds]};}

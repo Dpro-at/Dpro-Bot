@@ -1,3 +1,4 @@
+import {packRoute,allowedPack,packResponse} from './workspace-pack-contract.js';
 import {allowedLibrary,libraryPath,libraryResponse} from './personality-library-contract.js';
 import {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse} from './trading-runtime-contract.js';
 import {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse} from './trading-account-setup-contract.js';
@@ -84,6 +85,7 @@ function user(value: unknown): User {
 }
 // Reject before URL normalization. No generic URL, header, key or mutation escape hatch.
 export function allowedRequest(method: string, path: string, body?: unknown): boolean {
+  if(packRoute(path))return allowedPack(method,path,body);
   if(tradingRuntimeRoute(path))return allowedTradingRuntime(method,path,body);
   if(tradingAccountSetupRoute(path))return allowedTradingAccountSetup(method,path,body);
   if(tradingInstallRoute(path))return allowedTradingInstall(method,path,body);
@@ -155,6 +157,7 @@ function safeResponse(path: string, response: WireResponse): WireResponse {
   return delay === undefined ? projected : { ...projected, retryAfterSeconds: delay };
 }
 function projectResponse(path: string, response: WireResponse): WireResponse {
+  if(packRoute(path))return {status:response.status,body:packResponse(path,response.status,response.body)};
   if(tradingRuntimeRoute(path))return {status:response.status,body:tradingRuntimeResponse(path,response.status,response.body)};
   if(tradingAccountSetupRoute(path))return {status:response.status,body:tradingAccountSetupResponse(path,response.status,response.body)};
   if(tradingInstallRoute(path))return {status:response.status,body:tradingInstallResponse(path,response.status,response.body)};
@@ -489,7 +492,7 @@ export class SessionClient {
     if (conversationPath(request.path)?.kind === 'approval' && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((conversationRoute(request.path) || chatSearchRoute(request.path) || chatExportRoute(request.path) || chatSecretsRoute(request.path)) && this.#state.user?.role === 'guest') throw new SessionFailure('blocked');
     if (request.path === CLEANUP_PATH && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
-    if ((workspaceAppsRoute(request.path) || sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if ((packRoute(request.path) || workspaceAppsRoute(request.path) || sourceCatalogueRoute(request.path) || appsCatalogueRoute(request.path) || chatAddonsRoute(request.path) || request.path === '/api/chat/project-folders' || approvalRoute(request.path) || connectionsRoute(request.path) || libraryPath(request.path) || templatePath(request.path) || mcpImportPath(request.path) || channelRoute(request.path) || connectorRoute(request.path) || localImportRoute(request.path) || chatBoardRoute(request.path) || chatMemoryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((memoryDesktopRoute(request.path) || memoryPagesRoute(request.path) || memoryRecallRoute(request.path) || memoryBridgeRoute(request.path) || discoveryRoute(request.path)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (terminalRoute(request.path) && (this.#state.user?.role !== 'owner' || terminalPath(request.path)?.kind === 'stream')) throw new SessionFailure('blocked');
     if (request.method === 'PUT' && !conversationRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');

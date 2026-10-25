@@ -1,3 +1,4 @@
+const {packRoute,allowedPack,packResponse}=require('../src/workspace-pack-contract.js');
 const {allowedLibrary,libraryPath,libraryResponse}=require('../src/personality-library-contract.js');
 const {tradingRuntimeRoute,allowedTradingRuntime,tradingRuntimeResponse}=require('../src/trading-runtime-contract.js');
 const {tradingAccountSetupRoute,allowedTradingAccountSetup,tradingAccountSetupResponse}=require('../src/trading-account-setup-contract.js');
@@ -79,6 +80,7 @@ const agent = x => {
     : { id: x.id, version: x.version, nameUnavailable: true, ...profile(x) };
 };
 function allowed(method, target, body) {
+  if(packRoute(target))return allowedPack(method,target,body);
   if(tradingRuntimeRoute(target))return allowedTradingRuntime(method,target,body);
   if(tradingAccountSetupRoute(target))return allowedTradingAccountSetup(method,target,body);
   if(tradingInstallRoute(target))return allowedTradingInstall(method,target,body);
@@ -145,6 +147,7 @@ function stage1Route(method, target) {
   return read && allowed('GET', target, undefined);
 }
 function project(target, status, body) {
+  if(packRoute(target))return packResponse(target,status,body);
   if(tradingRuntimeRoute(target))return tradingRuntimeResponse(target,status,body);
   if(tradingAccountSetupRoute(target))return tradingAccountSetupResponse(target,status,body);
   if(tradingInstallRoute(target))return tradingInstallResponse(target,status,body);
@@ -315,7 +318,7 @@ function createApplicationServer({ packageRoot = root, channel, stage1ReadOnly =
     if ((login || discovery) ? auth !== undefined : typeof auth !== 'string' || auth.length > 8200 || !/^Bearer [A-Za-z0-9._~-]+$/.test(auth)) return send(401);
     const length = Number(req.headers['content-length'] || 0);
     const audio = req.method === 'POST' && raw === '/api/chat/transcribe';
-    const limit = genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : LIMIT;
+    const limit = packRoute(raw) ? 2_100_000 : genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : LIMIT;
     if (!Number.isSafeInteger(length) || length < 0 || length > limit) return send(413);
     if (req.headers['content-type'] && !/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'])) return send(415);
     try {

@@ -29,6 +29,11 @@ const RUN_ID = /^[0-9a-f-]{36}$/i;
 
 export const TOOL_DEFINITIONS = [
   {
+    name:'workspace_settings',title:'Portable workspace settings',
+    description:'Owner-session only. Export selected agents, personalities, specialties and Markdown skills, or preview a supplied JSON pack. Keys, accounts, conversations and memories are excluded. Import requires the owner’s explicit instruction after reviewing the preview, its fingerprint and confirmed=true. Imports copies with safe permissions; retry the same file after an uncertain result. Never automatically import or share a file externally.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['export','preview','import']},body:{type:'object'}},required:['operation','body'],additionalProperties:false},
+  },
+  {
     name:'workspace_apps',title:'Workspace applications',
     description:'Owner-session only. List Apps, add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. Adding does not execute a program or grant tools. Program startup, account linking, secrets and permanent removal are reviewed by the owner in the app.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
@@ -248,6 +253,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
   try {
     const args = obj(rawArgs);
     switch (name) {
+      case 'workspace_settings': return await workspaceSettingsTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
@@ -450,4 +456,20 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   return ok('Connection added disabled. The owner reviews startup and agent access in the app.',{id:saved.id});
  }
  throw new InputError('Unknown application operation');
+}
+
+async function workspaceSettingsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','body']);
+ const operation=args.operation,body=obj(args.body);
+ if(!['export','preview','import'].includes(String(operation)))throw new InputError('Unknown settings operation');
+ if(operation==='export'){
+  only(body,['agents','personalities','specialties','skills']);
+  if(Object.keys(body).length!==4||!Object.values(body).every(v=>typeof v==='boolean')||!Object.values(body).some(Boolean))throw new InputError('Choose settings to export');
+ }else{
+  only(body,operation==='preview'?['pack']:['pack','fingerprint','confirmed']);
+  const pack=obj(body.pack);
+  if(pack.format!=='dpro-workspace-pack'||pack.version!==1||JSON.stringify(body).length>2_100_000)throw new InputError('A supported settings pack is required');
+  if(operation==='import'&&(body.confirmed!==true||typeof body.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(body.fingerprint)))throw new InputError('Review the preview and explicitly confirm its fingerprint');
+ }
+ return ok('Workspace settings result. Import preserves existing settings and does not grant tools.',await backend.request('POST','/api/workspace-pack/'+operation,body));
 }
