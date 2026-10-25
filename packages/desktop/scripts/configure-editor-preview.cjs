@@ -4,6 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { compatibleRuntime, loopbackOrigin } = require('../src/nabu-editor.cjs');
 
+function initializeSettings(settings, origin) {
+  try {
+    fs.writeFileSync(settings, JSON.stringify({ mode: 'remote', remoteUrl: origin }), { mode: 0o600, flag: 'wx' });
+    return true;
+  } catch (error) { if (error.code === 'EEXIST') return false; throw error; }
+}
+
 function configure({ appDir, runtimeRoot, node, profile, origin }) {
   if (process.platform !== 'darwin') throw Error('This local preview launcher requires macOS');
   if (!loopbackOrigin(origin)) throw Error('The preview requires a loopback Dpro address');
@@ -17,7 +24,7 @@ function configure({ appDir, runtimeRoot, node, profile, origin }) {
   const main = path.resolve(__dirname, '../src/main.cjs');
   fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
   const settings = path.join(profile, 'desktop.json');
-  if (!fs.existsSync(settings)) fs.writeFileSync(settings, JSON.stringify({ mode: 'remote', remoteUrl: origin }), { mode: 0o600 });
+  initializeSettings(settings, origin);
   fs.mkdirSync(destination);
   fs.writeFileSync(path.join(destination, 'package.json'), JSON.stringify({ name: 'dpro-local-preview', productName: 'Dpro Agent', version: require('../package.json').version, main: 'bootstrap.cjs', private: true }));
   fs.writeFileSync(path.join(destination, 'bootstrap.cjs'), `'use strict';\nObject.assign(process.env,${JSON.stringify({ DPRO_NABU_ROOT: runtimeRoot, DPRO_DESKTOP_NODE: node, DPRO_DESKTOP_PROFILE_DIR: profile })});\nrequire(${JSON.stringify(main)});\n`);
@@ -36,4 +43,4 @@ if (require.main === module) {
     console.log(configure(options));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = { configure };
+module.exports = { configure, initializeSettings };

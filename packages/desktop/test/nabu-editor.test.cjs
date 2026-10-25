@@ -115,3 +115,36 @@ test('shutdown tolerates Electron releasing the closed child webContents',async(
  const f=fixture();await f.select('code');assert.equal(await f.controller.requestClose(),true);
  f.views[0].webContents=undefined;await f.controller.stop();assert.equal(f.stops(),1);
 });
+
+// These fixtures exercise files created by a competing writer without replacing its data.
+test('preview settings creation never overwrites an existing or linked account file',t=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {initializeSettings}=require('../scripts/configure-editor-preview.cjs');
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dpro-preview-settings-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const settings=path.join(root,'desktop.json');
+ assert.equal(initializeSettings(settings,'http://127.0.0.1:42522'),true);
+ const original=fs.readFileSync(settings,'utf8');
+ assert.equal(initializeSettings(settings,'http://127.0.0.1:42524'),false);
+ assert.equal(fs.readFileSync(settings,'utf8'),original);
+ if(process.platform!=='win32'){
+  const link=path.join(root,'linked.json');fs.symlinkSync(settings,link);
+  assert.equal(initializeSettings(link,'http://127.0.0.1:42524'),false);
+  assert.equal(fs.readFileSync(settings,'utf8'),original);
+ }
+});
+test('runtime validation binds its size check and bounded read to the opened manifest',t=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {compatibleRuntime}=require('../src/nabu-editor.cjs');
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dpro-runtime-manifest-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.mkdirSync(path.join(root,'nabu/dpro'),{recursive:true});
+ const manifest=path.join(root,'nabu/runtime.json');
+ fs.writeFileSync(manifest,JSON.stringify({protocolVersion:1,entry:'dpro/editor-runtime.mjs'}));
+ fs.writeFileSync(path.join(root,'nabu/dpro/editor-runtime.mjs'),'');
+ const fstat=fs.fstatSync;let swapped=false;
+ fs.fstatSync=fd=>{const info=fstat(fd);if(!swapped){swapped=true;fs.renameSync(manifest,manifest+'.old');fs.writeFileSync(manifest,'invalid replacement');}return info;};
+ try {assert.equal(compatibleRuntime(root),true);assert.equal(swapped,true);}finally{fs.fstatSync=fstat;}
+ assert.equal(compatibleRuntime(root),false);
+ fs.writeFileSync(manifest,' '.repeat(8193));assert.equal(compatibleRuntime(root),false);
+});

@@ -6,13 +6,19 @@ const { pathToFileURL } = require('node:url');
 const CHANNELS = Object.freeze({ status: 'dpro:nabu-status', select: 'dpro:nabu-select', layout: 'dpro:nabu-layout', state: 'dpro:nabu-state' });
 
 function compatibleRuntime(root) {
+  let fd;
   try {
     if (!root || !path.isAbsolute(root)) return false;
-    const manifest = path.join(root, 'nabu', 'runtime.json');
-    if (fs.statSync(manifest).size > 8192) return false;
-    const value = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+    fd = fs.openSync(path.join(root, 'nabu', 'runtime.json'), fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+    const info = fs.fstatSync(fd);
+    if (!info.isFile() || info.size > 8192) return false;
+    const bytes = Buffer.alloc(8193);
+    const count = fs.readSync(fd, bytes, 0, bytes.length, 0);
+    if (count > 8192) return false;
+    const value = JSON.parse(bytes.subarray(0, count).toString('utf8'));
     return value.protocolVersion === 1 && value.entry === 'dpro/editor-runtime.mjs' && fs.statSync(path.join(root, 'nabu', value.entry)).isFile();
   } catch { return false; }
+  finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 
 function loopbackOrigin(value) {
