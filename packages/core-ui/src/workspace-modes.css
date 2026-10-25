@@ -1,0 +1,5 @@
+.workspace-modes { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.workspace-mode-notice { font-size: 12px; max-inline-size: 24em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-mode-notice:empty { display: none; }
+.titlebar[data-nabu-mode="code"] .titlebar-tools { visibility: hidden; pointer-events: none; }
+@media (max-width: 1000px) { .workspace-mode-notice { max-inline-size: 12em; } }
