@@ -5,6 +5,7 @@ import { FakeRaw } from '../../services/chat-runs.js';
 import { vaultChatFrames } from '../../services/chat-secrets.js';
 import { currentChatRun } from '../../services/chat-run-context.js';
 import {subscriptionModel,subscriptionEnabled,runSubscription} from '../../services/subscription-chat.js';
+import {subscriptionAgentContext,subscriptionReplyPrompt} from '../../services/subscription-agent-context.js';
 import { agentSkillsPrompt } from '../../skills/central-store.js';
 import { safeConsole } from '../../services/safe-error-log.js';
 /**
@@ -423,8 +424,11 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
       const abort=new AbortController();reply.raw.once?.('close',()=>{if(!reply.raw.writableEnded)abort.abort();});
       openSseStream(reply.raw);
       try{
-        const history=messages.map(m=>`${m.role}: ${messageText(m.content)}`).join('\n\n').slice(-200000);
-        const answer=await runSubscription(model,input.fileReadRoot,'Work only inside the selected project directory. Do not access credentials, .env, .data, private keys or unrelated files. No git commit, push or publication. User conversation:\n'+history,abort.signal);
+        const selectedAgent=agentId?await getAgentById(agentId):await getPrimaryAgent();
+        if(!selectedAgent)throw Error('agent_context_unavailable');
+        const context=await subscriptionAgentContext(selectedAgent.id);
+        const history=messages.map(m=>`${m.role}: ${messageText(m.content)}`).join('\n\n');
+        const answer=await runSubscription(model,input.fileReadRoot,subscriptionReplyPrompt(context,history),abort.signal);
         for(const content of chunkText(answer,ANSWER_FRAME_BYTES))if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({content,done:false})}\n\n`);
         if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({content:'',done:true})}\n\n`);
       }catch(error){if(!abort.signal.aborted&&!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'error',code:error instanceof Error&&error.message==='subscription_org_blocked'?'subscription_org_blocked':'model_unavailable',error:'The subscription CLI could not finish.'})}\n\n`);}
