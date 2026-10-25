@@ -359,3 +359,18 @@ test('team chat: another agent can write the next reply; it is stored per reply 
   assert.equal((await call('r-owner', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId: rid(), message: 'x', agentId: 'nobody' })).statusCode, 400);
   assert.equal((await call('r-other', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId: rid(), message: 'x', agentId: 'team-b' })).statusCode, 404, 'not their conversation');
 });
+
+test('saved primary subscription source is gated before accepting a run; an explicit local override stays local',async()=>{
+ const previous=db.prepare('SELECT id,model,provider FROM agents_config WHERE is_primary=1 ORDER BY id LIMIT 1').get();
+ const flag=process.env.DPRO_SUBSCRIPTION_CHAT;delete process.env.DPRO_SUBSCRIPTION_CHAT;
+ try{
+  db.prepare("UPDATE agents_config SET model='subscription:gemini',provider='subscription' WHERE id=?").run(previous.id);
+  const c=(await call('r-owner','POST','/api/chat/conversations',{})).json().conversation;
+  const denied=await call('r-owner','POST',`/api/chat/conversations/${c.id}/runs`,{runId:rid(),message:'do not spawn'});
+  assert.equal(denied.statusCode,400);assert.equal(denied.json().code,'no_folder');
+  assert.equal((await call('r-owner','GET',`/api/chat/conversations/${c.id}/messages`)).json().messages.length,0);
+  script.push([{message:{content:'local override'},done:false},{done:true}]);const id=rid();
+  const allowed=await call('r-owner','POST',`/api/chat/conversations/${c.id}/runs`,{runId:id,message:'local only',model:'qwen-test'});
+  assert.equal(allowed.statusCode,202);await ended(id);
+ }finally{db.prepare('UPDATE agents_config SET model=?,provider=? WHERE id=?').run(previous.model,previous.provider,previous.id);if(flag===undefined)delete process.env.DPRO_SUBSCRIPTION_CHAT;else process.env.DPRO_SUBSCRIPTION_CHAT=flag;}
+});

@@ -1,3 +1,4 @@
+import {subscriptionToolLoop} from '../../services/subscription-tool-loop.js';
 import {libraryBehavior} from '../../services/personality-library.js';
 import {frameUntrustedMemory} from '../../services/untrusted-memory-context.js';
 import {narrowProjectMemory} from '../../tools/memory/project-access.js';
@@ -418,17 +419,27 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
       agentId, messages, stream, model, temperature, maxTokens, sessionId, systemPrompt, systemPromptAppend,
       memoryContext: bodyMemoryContext, memoryScope, chatContext, userId,
     } = input;
-    if(subscriptionModel(model)){
+    const savedReplyAgent=agentId?await getAgentById(agentId):await getPrimaryAgent();
+    const subscriptionSource=model||savedReplyAgent?.model;
+    if(subscriptionModel(subscriptionSource)){
       const owner=await sql().read(one<{role:string}>('SELECT role FROM users WHERE id=?',userId));
       if(!subscriptionEnabled()||owner?.role!=='owner'||input.channelTurn||!input.fileReadRoot)return reply.code(403).send({code:'forbidden'});
       const abort=new AbortController();reply.raw.once?.('close',()=>{if(!reply.raw.writableEnded)abort.abort();});
       openSseStream(reply.raw);
       try{
-        const selectedAgent=agentId?await getAgentById(agentId):await getPrimaryAgent();
+        const selectedAgent=savedReplyAgent;
         if(!selectedAgent)throw Error('agent_context_unavailable');
         const context=await subscriptionAgentContext(selectedAgent.id);
         const history=messages.map(m=>`${m.role}: ${messageText(m.content)}`).join('\n\n');
-        const answer=await runSubscription(model,input.fileReadRoot,subscriptionReplyPrompt(context,history),abort.signal);
+        const drawers=await withoutArchivedDrawers(userId,chatTurnDrawers(true,memoryScope));
+        const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
+        let toolStep=0;
+        const answer=await subscriptionToolLoop({prompt:subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history),signal:abort.signal,
+          tools:registry.getAll().map(t=>({name:t.name,description:t.description,input_schema:t.input_schema})),
+          reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,{appToolsOnly:true}),
+          execute:(name,args)=>{toolStep++;if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_start',step:toolStep,tools:[{id:`subscription-${toolStep}`,name,input:JSON.stringify(args)}]})}\n\n`);return registry.execute(name,args);},
+          onTool:(name,result)=>{if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_result',step:toolStep,results:[{id:`subscription-${toolStep}`,name,output:result.content.filter(b=>b.type==='text').map(b=>b.text??'').join('\n').slice(0,2000),isError:!!result.error}]})}\n\n`);},
+        });
         for(const content of chunkText(answer,ANSWER_FRAME_BYTES))if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({content,done:false})}\n\n`);
         if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({content:'',done:true})}\n\n`);
       }catch(error){if(!abort.signal.aborted&&!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'error',code:error instanceof Error&&error.message==='subscription_org_blocked'?'subscription_org_blocked':'model_unavailable',error:'The subscription CLI could not finish.'})}\n\n`);}

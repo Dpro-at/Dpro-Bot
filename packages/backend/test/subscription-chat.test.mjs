@@ -56,7 +56,7 @@ test('ask_coding_app: owner approval always; desktop only; project folder only; 
   process.env.DPRO_SUBSCRIPTION_CHAT='1';
   assert.match(text(await askCodingAppTool.execute({app:'claude',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/Only the owner/,'no owner turn → refused before anything starts');
   assert.match(text(await askCodingAppTool.execute({app:'codex',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp',toolPolicy:{channel:'telegram'}})),/not available for outside senders/);
-  assert.match(text(await askCodingAppTool.execute({app:'other',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/must be "claude" or "codex"/);
+  assert.match(text(await askCodingAppTool.execute({app:'other',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/must be "claude", "codex" or "gemini"/);
   assert.match(text(await askCodingAppTool.execute({app:'claude',request:'  '},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/empty/);
   const {isExecClassTool,isToolAllowedByExecPolicy}=await import('../src/tools/exec-policy.ts');
   assert.ok(isExecClassTool('ask_coding_app')&&askCodingAppTool.execClass,'exec-class: off unless AGENT_EXEC_TOOLS=true');

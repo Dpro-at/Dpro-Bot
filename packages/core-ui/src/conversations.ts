@@ -248,7 +248,7 @@ export class ConversationsController {
   #modelSaveFailures = new Set<string>();
   /** CORE-PICKER-02: a listed coding app (or this chat's previous session of it) with one of the app's own models. */
   #appModel(model:string):boolean{
-    const m=/^(subscription:(claude|codex))(:[a-f0-9]{32})?(?:\/([a-z0-9][a-z0-9.-]{0,40}))?$/.exec(model);if(!m)return false;
+    const m=/^(subscription:(claude|codex|gemini))(:[a-f0-9]{32})?(?:\/([a-z0-9][a-z0-9.-]{0,40}))?$/.exec(model);if(!m||(m[2]==='gemini'&&m[3]))return false;
     const app=this.#state.models.find(x=>x.id===m[1]&&x.provider==='subscription');if(!app)return false;
     if(m[3]&&!this.#state.model.startsWith(m[1]+m[3]))return false;
     return !m[4]||!!app.variants?.some(v=>v.id===m[4]);

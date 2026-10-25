@@ -1,6 +1,6 @@
 /**
  * ask_coding_app (CORE-ROUTE-01, first step): the agent hands one request to
- * the owner's signed-in Claude Code or Codex in the chat's project folder,
+ * the owner's signed-in Claude Code, Codex or Google Gemini (Antigravity) in the chat's project folder,
  * waits for the answer and continues with it.
  *
  * Locks: it is exec-class (off unless the server sets AGENT_EXEC_TOOLS=true);
@@ -15,7 +15,7 @@ import type { Tool, ToolResult } from '../types.js';
 import { chatWorkspace, runSubscription, subscriptionEnabled } from '../../services/subscription-chat.js';
 import { one, sql } from '../../repositories/sql-steps.js';
 
-const APPS = { claude: 'Claude Code', codex: 'Codex' } as const;
+const APPS = { claude: 'Claude Code', codex: 'Codex', gemini: 'Google Gemini (Antigravity)' } as const;
 export const MAX_CODING_REQUEST_CHARS = 20_000;
 const MAX_ANSWER_CHARS = 60_000;
 
@@ -26,23 +26,23 @@ const PREFIX = 'Work only inside the selected project directory. Do not access c
 export const askCodingAppTool: Tool = {
   name: 'ask_coding_app',
   execClass: true,
-  description: 'Ask the owner\'s signed-in Claude Code or Codex to do or answer something in the current project folder, wait for its answer, then use it in your reply. Use it for coding work, reviewing code or questions that need a stronger model; answer simple things yourself. Write a complete, self-contained request (it does not see this conversation). The owner approves each call.',
+  description: 'Ask the owner\'s signed-in Claude Code, Codex or Google Gemini (Antigravity) to do or answer something in the current project folder, wait for its answer, then use it in your reply. Use it for coding work, reviewing code or questions that need a stronger model; answer simple things yourself. Write a complete, self-contained request (it does not see this conversation). The owner approves each call.',
   input_schema: {
     type: 'object',
     properties: {
-      app: { type: 'string', enum: Object.keys(APPS), description: 'claude = Claude Code, codex = Codex (ChatGPT)' },
+      app: { type: 'string', enum: Object.keys(APPS), description: 'claude = Claude Code, codex = Codex (ChatGPT), gemini = Antigravity CLI (Google)' },
       request: { type: 'string', description: `The full request for the coding app (up to ${MAX_CODING_REQUEST_CHARS} characters)` },
     },
     required: ['app', 'request'],
   },
   async execute(params, context): Promise<ToolResult> {
-    if (params.app !== 'claude' && params.app !== 'codex') return fail('app must be "claude" or "codex".');
+    if (params.app !== 'claude' && params.app !== 'codex' && params.app !== 'gemini') return fail('app must be "claude", "codex" or "gemini".');
     const app: keyof typeof APPS = params.app;
     const request = typeof params.request === 'string' ? params.request.trim() : '';
     if (!request) return fail('request is empty.');
     if (request.length > MAX_CODING_REQUEST_CHARS) return fail(`request is longer than ${MAX_CODING_REQUEST_CHARS} characters.`);
     if (context?.toolPolicy) return fail('Coding apps are not available for outside senders.');
-    if (!subscriptionEnabled()) return fail('Claude Code and Codex are available only in the Dpro desktop app.');
+    if (!subscriptionEnabled()) return fail('Coding apps are available only in the Dpro desktop app.');
     const caller = context?.userId ? await sql().read(one<{ role: string }>('SELECT role FROM users WHERE id=?', context.userId)) : null;
     if (caller?.role !== 'owner') return fail('Only the owner\'s own chats may use the coding apps.');
     let folder = context?.fileReadRoot;

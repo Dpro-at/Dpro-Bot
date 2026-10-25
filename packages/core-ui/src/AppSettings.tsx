@@ -1,3 +1,4 @@
+import {PrimaryReplySettings} from './PrimaryReplySettings';
 import {WorkspacePackSettings} from './WorkspacePackSettings';
 import {PersonalityLibrary} from './PersonalityLibrary';
 import {VerificationSettings as AccountVerificationSettings} from './VerificationSettings';
@@ -54,7 +55,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='general'&&<PreferenceGroup title="Appearance" note="Changes save automatically on this device."><PreferenceRow title="Theme" description="Use your device appearance or choose a theme." icon="sun"><select id="app-theme" aria-label="Theme" value={preference} onChange={e=>onTheme(e.target.value as ThemePreference)}><option value="system">Use system appearance</option><option value="light">Light</option><option value="dark">Dark</option></select></PreferenceRow></PreferenceGroup>}
       {active_==='approval-rules'&&owner&&client&&<ReviewerPoliciesSettings client={client} onAccount={onAccount}/>}
       {active_==='account'&&(signedIn&&client?<><AccountPanel client={client} compact/><AccountVerificationSettings client={client}/></>:<PreferenceGroup title="Account"><PreferenceRow title="Sign in required" description="Connect to your workspace to manage your account." icon="contact"><button onClick={onAccount}>Sign in</button></PreferenceRow></PreferenceGroup>)}
-      {active_==='models'&&<><PreferenceGroup title="Agent replies"><PreferenceRow title="Model for each agent" description="Select an agent to choose its model and provider." icon="cpu"><button onClick={signedIn&&onAgents?onAgents:onAccount}>{signedIn?'Choose agent':'Sign in'}</button></PreferenceRow></PreferenceGroup>{signedIn&&client&&owner&&<ReplyAppsSettings client={client} onOpenChat={onOpenChat}/>}</>}
+      {active_==='models'&&<><PreferenceGroup title="Agent replies"><PreferenceRow title="Model for each agent" description="Select an agent to choose its model and provider." icon="cpu"><button onClick={signedIn&&onAgents?onAgents:onAccount}>{signedIn?'Choose agent':'Sign in'}</button></PreferenceRow></PreferenceGroup>{signedIn&&client&&owner&&<><PrimaryReplySettings client={client}/><ReplyAppsSettings client={client} onOpenChat={onOpenChat}/></>}</>}
       {active_==='connections'&&signedIn&&client&&<ConnectionsSettings client={client}/>}
       {active_==='channels'&&signedIn&&client&&<AgentConnectSettings client={client}/>}
       {active_==='mcp'&&signedIn&&client&&<McpLibrary client={client}/>}

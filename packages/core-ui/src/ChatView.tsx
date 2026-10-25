@@ -17,7 +17,7 @@ import type { PaneName } from './panes';
 import type { SessionClient } from './session';
 import { Markdown } from './markdown';
 import { UiIcon } from './ui-icons';
-import { ClaudeCodeIcon, CodexIcon } from './brand-icons';
+import { ClaudeCodeIcon, CodexIcon, GeminiIcon } from './brand-icons';
 import type { UiIconName } from './ui-icons';
 import { approxTokens, duration, splitWork, toolCount, toolView, turnOutputs, turnPlan, turnSuggestions, withoutPlan, workSummary } from './turns';
 import type { CardSuggestion, PlanStep } from './turns';
@@ -292,7 +292,7 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
       </div>}
 
       {!s.activeId&&onChooseContext&&<button type="button" className="composer-context" onClick={onChooseContext}>{project?.folder?'Folder: '+project.name:'General chat · Choose a folder…'}</button>}
-      {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app in this project. Its native file tools are separate from agent skills and MCP grants. Stop cancels the local process.</p>}
+      {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app. Dpro tools follow the selected agent’s grants and approvals. Stop cancels the local process.</p>}
       <form className="chat-composer" method="post" onSubmit={e => { e.preventDefault(); submit(); }}
         onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); void onFiles(e.dataTransfer.files); } }}>
         <label htmlFor="chat-input" className="sr-only">Message</label>
@@ -308,7 +308,7 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
           <button type="button" className="tool composer-attach" aria-label="Attach text files" title="Attach text files (code, notes, CSV…)" onClick={() => picker.current?.click()}><UiIcon name="plus" size={14}/></button>
           <button type="button" className="tool" aria-label="Expand message editor" title="Write a longer message" onClick={()=>setLongDraft(true)}><UiIcon name="expand" size={14}/></button>
           {s.agents.length>0&&<ChatAgentPicker agents={s.agents.filter(a=>s.activeId?(a.id!==convAgentId&&!(a.primary&&!convAgentId)):!a.primary)} value={s.activeId?s.replyAgent:s.agentId} currentName={s.activeId?convAgentName:s.agents.find(a=>a.primary)?.name??'Main agent'} label={s.activeId?'Reply from':'Agent'} onChange={id=>s.activeId?controller.setReplyAgent(id):controller.selectAgent(id)}/>}
-          <div className="composer-source"><button type="button" className="composer-source-toggle" popoverTarget="chat-reply-source" title="Choose who answers: agent, Claude Code or Codex" aria-label="Choose reply source"><span className="composer-source-icon">{who.app?<AppIcon id={who.app.id} size={14}/>:<UiIcon name="cpu" size={14}/>}</span><span>{who.app?who.text:'Agent model'}</span><UiIcon name="chevron" size={11}/></button><div id="chat-reply-source" popover="auto" className="composer-source-popover"><WhoAnswers controller={controller} agent={convAgentName}/><p className="composer-source-note"><UiIcon name="terminal" size={13}/>Coding apps reply through the local CLI connection. The terminal pane is a separate workspace.</p></div></div>
+          <div className="composer-source"><button type="button" className="composer-source-toggle" popoverTarget="chat-reply-source" title="Choose who answers: agent, Claude Code, Codex or Google Gemini" aria-label="Choose reply source"><span className="composer-source-icon">{who.app?<AppIcon id={who.app.id} size={14}/>:<UiIcon name="cpu" size={14}/>}</span><span>{who.app?who.text:'Agent model'}</span><UiIcon name="chevron" size={11}/></button><div id="chat-reply-source" popover="auto" className="composer-source-popover"><WhoAnswers controller={controller} agent={convAgentName}/><p className="composer-source-note"><UiIcon name="terminal" size={13}/>Coding apps reply through the local CLI connection. The terminal pane is a separate workspace.</p></div></div>
           {mic && <MicButton mic={mic}/>}
           <span className="composer-keys" aria-hidden="true">{running ? 'Esc stops' : 'Enter sends · Shift+Enter new line'}</span>
           {running && !s.draft.trim()
@@ -326,10 +326,11 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
   </div>;
 }
 
-const TERMINAL_APPS = [{ id: 'subscription:claude', label: 'Claude Code' }, { id: 'subscription:codex', label: 'Codex' }] as const;
+const TERMINAL_APPS = [{ id: 'subscription:claude', label: 'Claude Code' }, { id: 'subscription:codex', label: 'Codex' }, { id: 'subscription:gemini', label: 'Google Gemini' }] as const;
 type TerminalApp = (typeof TERMINAL_APPS)[number];
 
 function AppIcon({ id, size }: { id: string; size: number }) {
+  if(id === 'subscription:gemini')return <GeminiIcon size={size}/>;
   return id === 'subscription:claude' ? <ClaudeCodeIcon size={size}/> : <CodexIcon size={size}/>;
 }
 
