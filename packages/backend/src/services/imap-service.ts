@@ -11,7 +11,15 @@
  */
 
 import imaps from 'imap-simple';
-import { simpleParser, ParsedMail, Attachment } from 'mailparser';
+import { simpleParser, ParsedMail, Attachment, AddressObject } from 'mailparser';
+
+/** Flatten a parsed address header to plain { address, name } pairs, skipping empty addresses. */
+function addressList(header: AddressObject | AddressObject[] | undefined): { address: string; name?: string }[] {
+    return (Array.isArray(header) ? header : header ? [header] : [])
+        .flatMap((group) => group.value)
+        .filter((entry) => !!entry.address)
+        .map((entry) => ({ address: entry.address as string, name: entry.name || undefined }));
+}
 import { decryptAccountCredentials } from './email-encryption.js';
 import type { Config } from 'imap-simple';
 
@@ -195,10 +203,10 @@ export class IMAPService {
                         uid: item.attributes.uid,
                         flags: item.attributes.flags || [],
                         messageId: parsed.messageId || `${item.attributes.uid}@${folderPath}`,
-                        from: parsed.from?.value || [],
-                        to: parsed.to?.value || [],
-                        cc: parsed.cc?.value,
-                        bcc: parsed.bcc?.value,
+                        from: addressList(parsed.from),
+                        to: addressList(parsed.to),
+                        cc: parsed.cc ? addressList(parsed.cc) : undefined,
+                        bcc: parsed.bcc ? addressList(parsed.bcc) : undefined,
                         subject: parsed.subject,
                         date: parsed.date || new Date(),
                         textPlain: parsed.text,

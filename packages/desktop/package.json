@@ -17,7 +17,7 @@
     "dist:linux": "electron-builder --linux AppImage --publish never"
   },
   "devDependencies": {
-    "electron": "44.8.0",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3"
   },
   "build": {
