@@ -25,6 +25,8 @@ low-level `Server` + `StdioServerTransport`).
 | `read_handoff` | `kind`, `scope_id`, `agent_id` (all required) | the note and its earlier versions |
 | `edit_handoff` | `kind`, `scope_id`, `agent_id` (required), `done`, `left`, `next`, `questions` (lists you leave out stay) | the new version (source `owner`); the agent's next session starts from it |
 | `workspace_footer` | `operation` (`read` \| `set`), `order`, `hidden` (section ids), `iconsOnly`, `approvalsWhenWaiting` | the footer value; Settings always stays, hidden sections stay in ⌘K |
+| `agents` | `operation` (`list` \| `read` \| `permissions`), `id` | agents (name, role, department, specialty, model and provider name, main agent, description) or one agent's permissions; read only, keys, credential ids and system prompts never returned. Renaming, role, main agent, duplicate, hire and remove stay with the owner in the app |
+| `workspace_approvals` | `operation` (`waiting` \| `history` \| `permissions` \| `rules` \| `coverage`), `status`, `agentId`, `cursor` | waiting requests, history, What agents may do, approval rules, tool coverage; read only, codes and hashes never returned. Approve, allow, reject, vote, rule changes and permission changes stay with the owner in the app |
 
 The handoff tools use the owner-only `/api/handoffs` routes: a session that is
 not the owner account is refused.
