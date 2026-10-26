@@ -10,15 +10,12 @@ import { CompanyWizard } from './CompanyWizard';
 import { namingLanguages, validatedDisplayName } from './naming';
 import type { NamingLanguage } from './naming';
 import type { SessionClient } from './session';
-import { ConnectorsSection } from './ConnectorsSection';
 import { createPortal } from 'react-dom';
 import { UiIcon } from './ui-icons';
 import { DepartmentTile, StaffDirectory } from './StaffDirectory';
 
-export function AgentsDestination({ client, active = false, onOpenMemory, focusConnectors = false, sidebarSlot,focusAgent,onChat,onPersonalities,onSpecialties,onSkills }: { client: SessionClient; active?: boolean; onOpenMemory?: (agentId?: string) => void; focusConnectors?: boolean; sidebarSlot?: HTMLElement | null;focusAgent?:{id:string;n:number}|null;onChat?:(agentId:string)=>void;onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void }) {
+export function AgentsDestination({ client, active = false, onOpenMemory, sidebarSlot,focusAgent,onChat,onPersonalities,onSpecialties,onSkills }: { client: SessionClient; active?: boolean; onOpenMemory?: (agentId?: string) => void; sidebarSlot?: HTMLElement | null;focusAgent?:{id:string;n:number}|null;onChat?:(agentId:string)=>void;onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void }) {
   const [department,setDepartment]=useState('all'),[query,setQuery]=useState(''),[notice,setNotice]=useState<{id:number;text:string}|null>(null);
-  const [connections,setConnections]=useState(focusConnectors);
-  useEffect(()=>{if(focusConnectors)setConnections(true);},[focusConnectors]);
   const [initialSection,setInitialSection]=useState<CardTab>('profile');
   const [open, setOpen] = useState<string | null>(null);
   // The effect owns subscription cleanup; construction also supports offline SSR without reads.
@@ -44,7 +41,7 @@ export function AgentsDestination({ client, active = false, onOpenMemory, focusC
   // The Agents section owns the sidebar: search, New agent and the team by department (board M28 H4).
   // The Agents section owns the sidebar: search, All staff, Main agent and the departments with their icons (board AG1).
   const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} query={query} onQuery={setQuery} onTeam={() => setOpen(null)}
-    department={department} onDepartment={d=>{setDepartment(d);setConnections(false);setOpen(null);}} connections={connections} build={owner?{onPersonalities,onSpecialties,onSkills}:undefined}/>, sidebarSlot) : null;
+    department={department} onDepartment={d=>{setDepartment(d);setOpen(null);}} build={owner?{onPersonalities,onSpecialties,onSkills}:undefined}/>, sidebarSlot) : null;
   if (open && controller && !owner) return <>{sidebar}<MemberAgent controller={controller} agentId={open} onBack={() => setOpen(null)}/></>;
   if (open && controller && personality) return <section aria-label="Agents">
     <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory} onChat={onChat} onGone={text => { setOpen(null); setNotice({ id: Date.now(), text }); void controller.list(); }}/>
@@ -54,7 +51,7 @@ export function AgentsDestination({ client, active = false, onOpenMemory, focusC
   return <section aria-label="Agents" className="agents-destination">{sidebar}
     {owner && company && building && <CompanyWizard controller={company} onClose={() => { setBuilding(false); void controller?.list(); }}/>}
     {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }} onOpen={id => { setHiring(false); void controller?.list(); setInitialSection('profile'); setOpen(id); }}/></HireSheet>}
-    {connections ? <><div className="staff-toolbar"><button title="Back to staff" aria-label="Back to staff" onClick={()=>setConnections(false)}><UiIcon name="arrow-left" size={16}/></button><h2>Agent connections</h2></div><div className="staff-connections">{owner?<ConnectorsSection client={client} active={active} focus={focusConnectors}/>:<p>Only the owner can configure connections.</p>}</div></> : controller ? <StaffDirectory controller={controller} department={department} query={query} notice={notice} onDepartment={setDepartment} onOpen={(id,section='profile')=>{setInitialSection(section);setOpen(id);}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined} onChat={onChat}/>:<p role="status">Loading your team…</p>}
+    {controller ? <StaffDirectory controller={controller} department={department} query={query} notice={notice} onDepartment={setDepartment} onOpen={(id,section='profile')=>{setInitialSection(section);setOpen(id);}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined} onChat={onChat}/>:<p role="status">Loading your team…</p>}
   </section>;
 
 }
@@ -149,11 +146,11 @@ export function AgentsReview({ controller }: { controller: AgentsController }) {
 }
 
 /** The Agents section's sidebar (board AG1): search, All staff, Main agent, the departments with their own icon. */
-function AgentsSidebar({controller,open,query,onQuery,onTeam,department,onDepartment,connections,build}:{controller:AgentsController;open:string|null;query:string;onQuery:(q:string)=>void;onTeam:()=>void;department:string;onDepartment:(value:string)=>void;connections:boolean;build?:{onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void}}){
+function AgentsSidebar({controller,open,query,onQuery,onTeam,department,onDepartment,build}:{controller:AgentsController;open:string|null;query:string;onQuery:(q:string)=>void;onTeam:()=>void;department:string;onDepartment:(value:string)=>void;build?:{onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void}}){
  const tools=build?([['Personalities','smile',build.onPersonalities],['Specialties','layers',build.onSpecialties],['Skills','star',build.onSkills]] as const).filter(([,,run])=>!!run):[];
  const s=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
  const departments=[...new Set(s.agents.map(a=>a.department).filter((d):d is string=>!!d))].sort();
- const here=(d:string)=>!open&&!connections&&department===d?'page':undefined;
+ const here=(d:string)=>!open&&department===d?'page':undefined;
  return <nav className="dk-sidebar ag-places" aria-label="Agent places">
  <label className="dk-search ag-search"><UiIcon name="search" size={13}/><input id="ag-staff-search" type="search" aria-label="Search staff" placeholder="Search  ⌘F" value={query} onChange={e=>{onQuery(e.target.value);if(open)onTeam();}}/></label>
  <button className="nav-item dk-place" aria-current={here('all')} onClick={()=>{onDepartment('all');onTeam();}}><span className="ag-tile ag-tile-plain"><UiIcon name="users" size={13}/></span><span className="dk-place-name">All staff</span></button>
