@@ -12,6 +12,9 @@ import type { DiscoveryKind } from './discovery-contract.js';
 import {PublisherSources} from './PublisherSources';
 import { SkillLibrary } from './SkillLibrary';
 import { McpLibrary } from './McpLibrary';
+import { useRef } from 'react';
+import { ConnectorsController } from './connectors';
+import { isProblem, type McpFilter } from './mcp-desktop';
 import { UiIcon } from './ui-icons';
 import type { UiIconName } from './ui-icons';
 import { IconButton } from './desktop-ui';
@@ -88,12 +91,23 @@ export function SkillsSection({client,active,slot,onOpenAgents}:{client:SessionC
  {place==='available'?<AvailableSkillsWorkspace client={client} active={active} onOpenLibrary={()=>setPlace('library')}/>:place==='sources'?<PublisherSources kind="skill"/>:place==='found'?<><Toolbar title="Found in folders" sub="Skills from allowed folders"/><div className="dk-body">{c?<FoundOnComputer c={c} kind="skill"/>:null}</div></>:<SkillLibrary client={client} active={active} view={place==='import'?'discover':'installed'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents}/>}
  </Section>;
 }
-export function McpSection({ client, active, slot, onOpenAgents }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenAgents?:()=>void }) {
-  const [place,setPlace]=useState('all');
-  const c=useDiscovery(client,active&&place==='found');
-  const places:Place[]=[{key:'all',icon:'tool',label:'All connections'},{key:'on',icon:'check',label:'Enabled'},{key:'off',icon:'stop',label:'Disabled'},{key:'problem',icon:'pulse',label:'Needs attention'},{key:'import',icon:'search',label:'Import from apps'},{key:'sources',icon:'globe',label:'Publisher sources'},{key:'found',icon:'folder',label:'Found in folders'}];
-  return <Section slot={slot} active={active} label="MCP connections" sidebar={<SectionSidebar title="MCP connections" places={places} current={place} onPick={setPlace}/>}>
-    {place==='sources'?<PublisherSources kind="mcp"/>:place==='found'?<><Toolbar title="Found in folders" sub="MCP definitions from allowed folders"/><div className="dk-body">{c?<FoundOnComputer c={c} kind="mcp"/>:null}</div></>:<McpLibrary client={client} active={active} filter={(['on','off','problem'].includes(place)?place:'all') as 'all'|'on'|'off'|'problem'} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents}/>}
+export function McpSection({ client, active, slot, onOpenAgents, openId }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenAgents?:()=>void; openId?:string }) {
+  // MC1: one sidebar for the section: search, connection places, then where to add from. Publisher sources sit in the ⋯ menu.
+  const [place,setPlace]=useState('all'),[query,setQuery]=useState(''),search=useRef<HTMLInputElement>(null);
+  const [c]=useState(()=>new ConnectorsController(client)),s=useSyncExternalStore(c.subscribe,c.getSnapshot,c.getSnapshot);
+  const d=useDiscovery(client,active);
+  useSyncExternalStore(d?.subscribe ?? (() => () => {}), d?.getSnapshot ?? (() => null), d?.getSnapshot ?? (() => null));
+  const needs=s.servers.filter(isProblem).length;
+  const row=(p:Place)=><button key={p.key} type="button" className="nav-item dk-place" title={p.label} aria-current={place===p.key?'page':undefined} onClick={()=>setPlace(p.key)}><UiIcon name={p.icon} size={15}/><span className="dk-place-name">{p.label}</span>{p.badge?<span className="dk-badge-pill" aria-label={`${p.badge} need you`}>{p.badge}</span>:null}</button>;
+  const sidebar=<nav className="dk-sidebar mcp-places" aria-label="MCP connections places">
+    <p className="section-label dk-label"><span>MCP connections</span></p>
+    <label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search connections" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+    {([{key:'all',icon:'link',label:'All connections'},{key:'on',icon:'check',label:'On'},{key:'off',icon:'stop',label:'Off'},{key:'problem',icon:'alert',label:'Needs you',badge:needs}] as Place[]).map(row)}
+    <p className="section-label dk-label"><span>Add from</span></p>
+    {([{key:'import',icon:'code',label:'My coding apps'},{key:'found',icon:'folder',label:'This computer',badge:fresh(d,'mcp')}] as Place[]).map(row)}
+  </nav>;
+  return <Section slot={slot} active={active} label="MCP connections" sidebar={sidebar}>
+    {place==='sources'?<PublisherSources kind="mcp"/>:place==='found'?<><Toolbar title="This computer" sub="Connections found in allowed folders"/><div className="dk-body">{d?<FoundOnComputer c={d} kind="mcp"/>:null}</div></>:<McpLibrary client={client} active={active} controller={c} query={query} searchRef={search} openId={openId} filter={(['on','off','problem'].includes(place)?place:'all') as McpFilter} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents} onShowSources={()=>setPlace('sources')}/>}
   </Section>;
 }
 export function TerminalSection({ client, active, slot, onOpenTerminal }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenTerminal: () => void }) {
