@@ -26,8 +26,9 @@ const askWords: Record<string, string> = { browser: 'browsing', network: 'going 
 
 /**
  * AG4a: hire an agent in three short steps — Who · Personality · How careful.
- * Who and Personality become one create request; "How careful" fills the
- * memory and permission fields (Details shows every switch) and is one save.
+ * Nothing is created until the last step's "Hire <name>": then one create request,
+ * and the "How careful" fields (Details shows every switch) are one save. Back works
+ * on every step, and closing early leaves nothing behind.
  */
 export function HireAgent({ controller, onClose, onOpen }: { controller: HireController; onClose: () => void; onOpen?: (agentId: string) => void }) {
   const [templateMode,setTemplateMode]=useState(false);
@@ -36,10 +37,12 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
   const locked = !s.owner || busy || !!s.agent;
   const d = s.draft;
   const step = s.step === 'memory' || s.step === 'permissions' ? 'care' : s.step;
+  const stuck = busy || s.phase === 'unknown';
   const current = steps.findIndex(x => x.key === step);
   const memory = s.tools.filter(t => memoryTool(t.name));
   const other = s.tools.filter(t => !memoryTool(t.name));
-  const who = s.agent?.name ?? (normalizedName(d.name) || 'The new agent');
+  const named = s.agent?.name ?? normalizedName(d.name);
+  const who = named || 'The new agent';
   const care = careOf(s.permissions);
   const asks = s.permissions ? allCategories.filter(c => s.permissions!.modes[c] === 'ask').map(c => askWords[c]) : [];
   const risky = controller.riskyAllowed();
@@ -54,7 +57,7 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
         <span className="hire-step-n" aria-hidden="true">{i < current ? '✓' : i + 1}</span>{x.label}
       </li>)}
     </ol>}
-    {(s.notice || busy || s.phase === 'error' || s.phase === 'unknown' || (s.agent && s.phase === 'editing')) && <p role="status" className="ag-muted">{s.notice ?? (s.agent && s.phase === 'editing' ? 'Hired — choose how careful it is, then finish' : phaseLabel[s.phase] ?? s.phase)}</p>}
+    {(s.notice || busy || s.phase === 'error' || s.phase === 'unknown' || (s.agent && s.phase === 'editing')) && <p role="status" className="ag-muted">{s.notice ?? (s.agent && s.phase === 'editing' ? 'Hired — finish to save how careful it is' : phaseLabel[s.phase] ?? s.phase)}</p>}
 
     {step==='role'&&templateMode&&<SpecialtyLibrary client={controller.client} hire onHired={onClose}/>}
     {step === 'role' && !templateMode && <form className="hire-form" onSubmit={e => { e.preventDefault(); controller.go('persona'); }}>
@@ -70,7 +73,7 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
       <div className="hire-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={locked}>Next</button></div>
     </form>}
 
-    {step === 'persona' && <form className="hire-form" onSubmit={e => { e.preventDefault(); void controller.create(); }}>
+    {step === 'persona' && <form className="hire-form" onSubmit={e => { e.preventDefault(); controller.go('care'); }}>
       <PersonalityFaces client={controller.client} value={d.libraryPersonality?.id} disabled={locked} autoPick={defaultLibraryId(d.role, d.department)} onPick={entry => controller.edit({ libraryPersonality: { id: entry.id, revision: entry.revision } })}/>
       <p className="fine-print">A personality changes how it talks, never its tools or permissions. Edit the library in Personalities.</p>
       <div className="hire-actions">
@@ -81,21 +84,23 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
 
     {step === 'care' && <div className="hire-form">
       {s.permissions && <div role="radiogroup" aria-label="How careful" className="ag-care">{careLevels.map(c => <label key={c.key} className="ag-role" data-on={care === c.key || undefined}>
-        <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={busy || s.phase === 'unknown'} onChange={() => controller.applyCare(c.key)}/>
+        <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => controller.applyCare(c.key)}/>
         <UiIcon name={careIcon[c.key]} size={18}/><b>{c.title}</b><small>{c.text}</small></label>)}</div>}
       <details className="ag-details"><summary>Details: memory places, projects it works on, each action and tool</summary>
-        <ToolList tools={memory} selected={s.selected} disabled={busy || s.phase === 'unknown'} onToggle={t => controller.toggle(t)} empty="No memory tools on this server."/>
-        {s.permissions && <MemoryScope controller={controller} p={s.permissions} disabled={busy || s.phase === 'unknown'}/>}
+        {s.agent && <ToolList tools={memory} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No memory tools on this server."/>}
+        {s.permissions && <MemoryScope controller={controller} p={s.permissions} disabled={stuck}/>}
         {s.agent && <AgentWorksOn client={controller.client} agentId={s.agent.id} agentName={who}/>}
-        {s.permissions && <ModeTable controller={controller} p={s.permissions} confirm={s.confirmRisky} disabled={busy || s.phase === 'unknown'}/>}
-        <ToolList tools={other} selected={s.selected} disabled={busy || s.phase === 'unknown'} onToggle={t => controller.toggle(t)} empty="No other tools on this server."/>
+        {s.permissions && <ModeTable controller={controller} p={s.permissions} confirm={s.confirmRisky} disabled={stuck}/>}
+        {s.agent ? <ToolList tools={other} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No other tools on this server."/>
+          : <p className="fine-print">Projects it works on and single tools are set on the agent's page after hiring.</p>}
       </details>
       {risky.length > 0 && <label className="check hire-risky"><input type="checkbox" checked={s.confirmRisky} onChange={e => controller.setConfirmRisky(e.target.checked)}/> I understand that {risky.map(c => categoryLabel[c].toLowerCase()).join(', ')} will run without asking me.</label>}
       {s.permissions && <p className="ag-summary"><bdi>{who}</bdi> will be a {roleLabel[d.role]}{normalizedDepartment(d.department) ? ` in ${normalizedDepartment(d.department)}` : ''}{asks.length ? `, and will ask you before ${asks.join(', ')}` : ', and will work on its own'}.</p>}
       <div className="hire-actions">
+        <button type="button" disabled={busy || !!s.agent} onClick={() => controller.go('persona')}>Back</button>
         {s.phase === 'unknown'
-          ? <button type="button" className="primary" disabled={busy} onClick={() => void controller.reconcile()}>Read permissions again</button>
-          : <button type="button" className="primary" disabled={busy || s.grantsVersion === undefined} onClick={() => void controller.save()}>Finish hiring <bdi>{who}</bdi></button>}
+          ? <button type="button" className="primary" disabled={busy || !s.agent} onClick={() => void controller.reconcile()}>Read permissions again</button>
+          : <button type="button" className="primary" disabled={busy || !s.permissions || (!!s.agent && s.grantsVersion === undefined)} onClick={() => void controller.hire()}>{named ? <>Hire <bdi>{named}</bdi></> : 'Hire agent'}</button>}
       </div>
     </div>}
 
