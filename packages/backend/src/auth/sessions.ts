@@ -24,7 +24,7 @@ export type DeviceSession = { id: string; label: string; createdAt: number; last
 export function deviceLabel(userAgent: unknown): string {
   const ua = typeof userAgent === 'string' ? userAgent.slice(0, 400) : '';
   const system = /iPhone|iPad/.test(ua) ? (ua.includes('iPad') ? 'iPad' : 'iPhone') : /Android/.test(ua) ? 'Android' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
-  const app = /Electron|Dpro/i.test(ua) ? 'Dpro app' : /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /^node|undici|curl/i.test(ua) ? 'A program' : '';
+  const app = /Electron|Dpro/i.test(ua) ? 'Dpro app' : /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : (/^node/i.test(ua) || /undici|curl/i.test(ua)) ? 'A program' : '';
   if (!app && !system) return 'Unknown device';
   return app && system ? `${app} on ${system}` : app || system;
 }
