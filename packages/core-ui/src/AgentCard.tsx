@@ -1,4 +1,4 @@
-import {Explorer} from './MemoryExplorer';
+import {AgentMemoryList} from './AgentMemoryList';
 import {MemoryExplorerController} from './memory-explorer';
 import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {AgentSpecialtiesSkills} from './AgentSpecialtiesSkills';
@@ -180,7 +180,7 @@ function MemoryPart({card,name,onDone}:{card:AgentCardController;name:string;onD
  return <div className="ag-part ag-memory">
   <div className="ag-head-row"><h3>Memory</h3><small className="ag-muted">what <bdi>{name}</bdi> remembers · saved memories from this agent</small></div>
   <div className="ag-rules-line"><UiIcon name="database" size={15}/><span>{line}</span><button type="button" className="link-button" disabled={!d} onClick={()=>setRules(true)}>Change…</button></div>
-  {explorer?<Explorer c={explorer} agents={{[s.agentId]:name}}/>:<p className="ag-muted" role="status">Reading memories…</p>}
+  {explorer?<AgentMemoryList c={explorer}/>:<p className="ag-muted" role="status">Reading memories…</p>}
   {rules&&<MemoryRules card={card} onDone={onDone} onClose={()=>setRules(false)}/>}
  </div>;
 }
