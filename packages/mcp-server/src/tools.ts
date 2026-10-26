@@ -54,8 +54,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'skill_library',title:'Skill library',
-    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Writes need the owner\u2019s explicit instruction: give / take_back (one skill for one agent, applies from its next turn), add (a new found package, after preview, with its hash), update (replace an installed copy: needs replaceHash from the preview and confirmed=true after the owner reads the new files). Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only; this tool cannot do it. Removing a skill from Dpro is not available.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','give','take_back','add','update']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},replaceHash:{type:'string',maxLength:64},confirmed:{type:'boolean'}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write: add (a new found package, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Removing a skill from Dpro is not available.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
   },
   {
     name:'personality_library', title:'Personality library',
@@ -453,20 +453,9 @@ async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDep
   case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
   case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
   case 'preview':{only(args,['operation','scanId','sourceId']);return ok('The package files as they would be added (secrets hidden; scripts and links left out). existing shows whether Dpro has a copy.',await backend.request('POST',base+'/preview',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId')}));}
-  case 'give':case 'take_back':{
-   only(args,['operation','id','agentId']);const skill=need('id',SKILL_ID,'skill id'),agent=agentId(),give=operation==='give';
-   const now=await backend.request('GET',`${base}/agents/${agent}`),current:string[]=Array.isArray(now?.selected)?now.selected:[];
-   const selected=give?[...new Set([...current,skill])]:current.filter(x=>x!==skill);if(selected.length>50)throw new InputError('An agent can have up to 50 skills; take one back first');
-   if(selected.length===current.length&&selected.every(x=>current.includes(x)))return ok(give?'The agent already has this skill. Nothing changed.':'The agent did not have this skill. Nothing changed.',{changed:false,selected:current});
-   const saved=await backend.request('PUT',`${base}/agents/${agent}`,{selected,revision:now?.revision});
-   return ok(`${give?'Given':'Taken back'}. It applies from the agent\u2019s next turn; its permissions do not change.`,{changed:true,selected,revision:saved?.revision});
-  }
+  // Changes to what agents follow stay with the owner in the app (same as specialties): MCP can only add an unassigned skill.
+  case 'give':case 'take_back':case 'update':throw new InputError('Giving, taking back and updating a skill change what agents follow; the owner does them in the app after its review');
   case 'add':{only(args,['operation','scanId','sourceId','hash']);return ok('Added to Dpro. It stays unassigned until the owner gives it to an agent.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash')}));}
-  case 'update':{
-   only(args,['operation','scanId','sourceId','hash','replaceHash','confirmed']);
-   if(args.confirmed!==true)throw new InputError('Updating replaces the files every agent with this skill uses. Show the owner the new files (preview) and pass confirmed=true only after the owner says to update');
-   return ok('Updated. Agents that have it use the new files from their next turn; the old files are kept.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash'),replaceHash:need('replaceHash',SKILL_HASH,'replaceHash')}));
-  }
   default:throw new InputError('Unknown operation. Adding from Dpro\u2019s catalogue is done by the owner in the app (it needs the authenticator code)');
  }
 }
