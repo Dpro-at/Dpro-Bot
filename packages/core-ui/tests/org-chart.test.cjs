@@ -141,3 +141,15 @@ test('the chart renders cards as a tree with levels, the main tag and the sub-ag
   assert.equal(toolWords('memory_search'), 'Memory search');
   assert.equal(toolWords('mcp:github:list_issues'), 'List issues');
 });
+
+test('chart choices: per-person route passes only known values', () => {
+  const { chartPrefsResponse, chartPrefs } = require('../src/chart-prefs-contract.js');
+  for (const allow of [allowedRequest, allowed]) {
+    assert.equal(allow('GET', '/api/me/agents-chart'), true);
+    assert.equal(allow('PUT', '/api/me/agents-chart', { view: 'chart', mode: 'departments', lines: 'curved', zoom: 0.8, folded: ['agent-1'] }), true);
+    assert.equal(allow('PUT', '/api/me/agents-chart', { zoom: 5 }), false);
+    assert.equal(allow('PUT', '/api/me/agents-chart', { theme: 'x' }), false);
+  }
+  assert.deepEqual(chartPrefsResponse(200, { chart: { view: 'chart', lines: 'wavy', zoom: 9, folded: ['../x'], secret: 1 } }), { chart: { view: 'chart', mode: 'reports', lines: 'elbow', zoom: 1, folded: [] } });
+  assert.deepEqual(chartPrefs(undefined), { view: 'list', mode: 'reports', lines: 'elbow', zoom: 1, folded: [] });
+});

@@ -16,16 +16,20 @@ const LINE_BUTTONS:{style:LineStyle;label:string;icon:'line-elbow'|'line-curved'
  * Drag a card onto another agent to change who it reports to (the parent
  * gives Undo). Folding and zoom are kept while the app runs.
  */
-export function OrgChart({agents,selected,query,owner,onSelect,onOpen,onMenu,onMove,folded:foldedProp,onFold,onDepartment}:{agents:readonly PublicAgent[];selected:string|null;query:string;owner:boolean;onSelect:(id:string)=>void;onOpen:(id:string)=>void;onMenu:(e:ReactMouseEvent|ReactKeyboardEvent,agent:PublicAgent)=>void;onMove:(id:string,target:string)=>void;folded?:ReadonlySet<string>;onFold?:(id:string)=>void;onDepartment?:(id:string,department:string|null)=>void}){
+export function OrgChart({agents,selected,query,owner,onSelect,onOpen,onMenu,onMove,folded:foldedProp,onFold,onDepartment,saved,onPrefs}:{agents:readonly PublicAgent[];selected:string|null;query:string;owner:boolean;onSelect:(id:string)=>void;onOpen:(id:string)=>void;onMenu:(e:ReactMouseEvent|ReactKeyboardEvent,agent:PublicAgent)=>void;onMove:(id:string,target:string)=>void;folded?:ReadonlySet<string>;onFold?:(id:string)=>void;onDepartment?:(id:string,department:string|null)=>void;
+ /** The person's saved choices (they may arrive after the first draw) and where changes go. */
+ saved?:{mode:ChartMode;lines:LineStyle;zoom:number}|null;onPrefs?:(patch:Partial<{mode:ChartMode;lines:LineStyle;zoom:number}>)=>void}){
  const [ownFolded,setOwnFolded]=useState<Set<string>>(()=>new Set(memory.folded)),[zoom,setZoom]=useState(memory.zoom),[lines,setLines]=useState<LineStyle>(memory.lines),[mode,setMode]=useState<ChartMode>(memory.mode),[overGroup,setOverGroup]=useState<string|null>(null),[drag,setDrag]=useState<string|null>(null),[over,setOver]=useState<string|null>(null);
  const folded=foldedProp??ownFolded;
+ // Saved choices win once they are read.
+ useEffect(()=>{if(!saved)return;setMode(saved.mode);setLines(saved.lines);setZoom(saved.zoom);Object.assign(memory,{mode:saved.mode,lines:saved.lines,zoom:saved.zoom});},[saved]);
  const fold=onFold??((id:string)=>setOwnFolded(f=>{const n=new Set(f);if(n.has(id))n.delete(id);else n.add(id);memory.folded=n;return n;}));
  const box=useRef<HTMLDivElement>(null),[room,setRoom]=useState(Infinity);
  // The rows fit the visible width (at the current zoom).
  useEffect(()=>{const b=box.current;if(!b||typeof ResizeObserver==='undefined')return;const o=new ResizeObserver(()=>setRoom(b.clientWidth||Infinity));o.observe(b);setRoom(b.clientWidth||Infinity);return()=>o.disconnect();},[]);
  const chart=useMemo(()=>mode==='departments'?layoutDepartments(agents,query,room/zoom):layoutChart(agents,folded,query,room/zoom),[agents,folded,query,room,zoom,mode]);
  const byId=useMemo(()=>new Map(agents.map(a=>[a.id,a])),[agents]);
- const setZ=(z:number)=>{const v=Math.round(Math.max(.3,Math.min(1.6,z))*100)/100;setZoom(v);memory.zoom=v;};
+ const setZ=(z:number)=>{const v=Math.round(Math.max(.3,Math.min(1.6,z))*100)/100;setZoom(v);memory.zoom=v;onPrefs?.({zoom:v});};
  const fit=()=>{const b=box.current;if(!b)return;setZ(Math.min(1,(b.clientWidth-8)/chart.width,(b.clientHeight-8)/chart.height));};
  // A search moves the view to the first match.
  useEffect(()=>{if(!query.trim())return;const m=chart.nodes.find(n=>n.match);if(m&&box.current)box.current.scrollTo({left:Math.max(0,m.x*zoom-80),top:Math.max(0,m.y*zoom-80),behavior:'smooth'});},[query,chart,zoom]);
@@ -83,14 +87,14 @@ export function OrgChart({agents,selected,query,owner,onSelect,onOpen,onMenu,onM
   </div>
   {owner&&!lonely&&<span className="oc-hint">{mode==='departments'?'Drag a card onto another department to move it · ⌘Z undoes':'Drag a card onto another agent to change who it reports to · ⌘Z undoes · dashed line = sub-agent'}</span>}
   <div className="oc-zoom" role="toolbar" aria-label="Arrange, zoom and lines">
-   <IconButton icon="org" label="Who reports to whom" pressed={mode==='reports'} onClick={()=>{setMode('reports');memory.mode='reports';}}/>
-   <IconButton icon="group" label="By department" pressed={mode==='departments'} onClick={()=>{setMode('departments');memory.mode='departments';}}/>
+   <IconButton icon="org" label="Who reports to whom" pressed={mode==='reports'} onClick={()=>{setMode('reports');memory.mode='reports';onPrefs?.({mode:'reports'});}}/>
+   <IconButton icon="group" label="By department" pressed={mode==='departments'} onClick={()=>{setMode('departments');memory.mode='departments';onPrefs?.({mode:'departments'});}}/>
    <span className="oc-zoom-sep" aria-hidden="true"/>
    <IconButton icon="zoom-out" label="Zoom out" shortcut="⌘−" onClick={()=>setZ(zoom-.1)}/>
    <IconButton icon="zoom-in" label="Zoom in" shortcut="⌘+" onClick={()=>setZ(zoom+.1)}/>
    <IconButton icon="fit" label="Fit the whole team" shortcut="⌘0" onClick={fit}/>
    <span className="oc-zoom-sep" aria-hidden="true"/>
-   {LINE_BUTTONS.map(b=><IconButton key={b.style} icon={b.icon} label={b.label} pressed={lines===b.style} onClick={()=>{setLines(b.style);memory.lines=b.style;}}/>)}
+   {LINE_BUTTONS.map(b=><IconButton key={b.style} icon={b.icon} label={b.label} pressed={lines===b.style} onClick={()=>{setLines(b.style);memory.lines=b.style;onPrefs?.({lines:b.style});}}/>)}
   </div>
  </div>;
 }
