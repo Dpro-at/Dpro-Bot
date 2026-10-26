@@ -97,6 +97,7 @@ import { agentPermissionsRoutes } from './routes/agent-permissions.js'; // CORE-
 import { taskBoardRoutes } from './routes/task-board.js'; // BOARD-01
 import { terminalRoutes } from './routes/terminal.js';
 import { uiFooterRoutes } from './routes/ui-footer.js';
+import { uiAgentsChartRoutes } from './routes/ui-agents-chart.js';
 import { agentPersonalityRoutes } from './routes/agent-personality.js';
 import { storageRoutes } from './routes/storage.js';
 import { uploadsRoutes } from './routes/uploads.js';
@@ -406,6 +407,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(agentPermissionsRoutes); // CORE-PERMS-01: memory scope + off/ask/allow per agent
   await fastify.register(taskBoardRoutes); // BOARD-01: company task board
   await fastify.register(uiFooterRoutes); // SH3: footer choices per person
+  await fastify.register(uiAgentsChartRoutes); // Agents chart choices per person (AGENTS-ORG-01)
   await fastify.register(terminalRoutes); // TERM-01: owner-only, loopback-only shell (off unless AGENT_TERMINAL=true)
   await fastify.register(personalityLibraryRoutes);
   await fastify.register(workspacePackRoutes);

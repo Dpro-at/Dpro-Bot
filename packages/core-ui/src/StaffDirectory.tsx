@@ -13,10 +13,11 @@ import {useLibraryEntries,type Profile} from './personality-library';
 import {OrgChart} from './OrgChart';
 import {AddSubAgentSheet} from './AgentSubAgents';
 import {canMoveUnder,underOf} from './org-chart';
+import {CHART_PREFS_PATH,type ChartPrefs} from './chart-prefs-contract.js';
 
 type Toast={id:number;text:string;undo:boolean}|null;
 type View='list'|'chart';
-// The chosen view and folded branches are kept for this run of the app (no browser storage in the app source).
+// The chosen view and folded branches: kept while the app runs and saved per person (/api/me/agents-chart; no browser storage).
 const kept:{view:View;folded:Set<string>}={view:'list',folded:new Set()};
 /** List order: each sub-agent right under the agent it belongs to. */
 function withHelpers(list:readonly PublicAgent[]):PublicAgent[]{
@@ -44,8 +45,18 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  const [role,setRole]=useState('all'),[sort,setSort]=useState('name'),[selected,setSelected]=useState<string|null>(null),[showing,setShowing]=useState(false),[removing,setRemoving]=useState<PublicAgent|null>(null),[toast,setToast]=useState<Toast>(null),[busy,setBusy]=useState(false);
  const [view,setViewState]=useState<View>(kept.view),[folded,setFolded]=useState<Set<string>>(()=>new Set(kept.folded)),[picking,setPicking]=useState(false),[addingTo,setAddingTo]=useState<PublicAgent|null>(null);
  const undo=useRef<(()=>void|Promise<void>)|null>(null);
- const setView=(v:View)=>{setViewState(v);kept.view=v;};
- const fold=(id:string)=>setFolded(f=>{const n=new Set(f);if(n.has(id))n.delete(id);else n.add(id);kept.folded=n;return n;});
+ // The person's chart choices (Settings-free): read once, each change saved (a short pause first, so zooming is one save).
+ const [saved,setSaved]=useState<Pick<ChartPrefs,'mode'|'lines'|'zoom'>|null>(null),pending=useRef<Partial<ChartPrefs>>({}),saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ useEffect(()=>{const c=controller.client;if(!c||!onHire)return;let gone=false;
+  void c.request({method:'GET',path:CHART_PREFS_PATH} as never).then(r=>{if(gone||r.status!==200)return;const p=(r.body as {chart:ChartPrefs}).chart;setViewState(p.view);kept.view=p.view;const f=new Set(p.folded);setFolded(f);kept.folded=f;setSaved({mode:p.mode,lines:p.lines,zoom:p.zoom});}).catch(()=>{});
+  return()=>{gone=true;};},[controller.client,!!onHire]);
+ function savePrefs(patch:Partial<ChartPrefs>){
+  const c=controller.client;if(!c||!onHire)return;pending.current={...pending.current,...patch};
+  if(saveTimer.current)clearTimeout(saveTimer.current);
+  saveTimer.current=setTimeout(()=>{const body=pending.current;pending.current={};saveTimer.current=null;void c.request({method:'PUT',path:CHART_PREFS_PATH,body} as never).catch(()=>{});},500);
+ }
+ const setView=(v:View)=>{setViewState(v);kept.view=v;savePrefs({view:v});};
+ const fold=(id:string)=>setFolded(f=>{const n=new Set(f);if(n.has(id))n.delete(id);else n.add(id);kept.folded=n;savePrefs({folded:[...n].slice(0,500)});return n;});
  const rows=useRef<HTMLDivElement>(null);const menu=useMenu();
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
  const q=query.trim().toLowerCase();
@@ -108,7 +119,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
    {onHire&&<button type="button" className="primary ag-main-button" title="Hire an agent (⌘N)" onClick={onHire}><UiIcon name="plus" size={14}/>Hire agent</button>}
   </header>
   {view==='chart'&&s.agents.length>0?<OrgChart agents={s.agents.filter(a=>department==='all'||department==='main'||(department==='none'?!a.department:a.department===department)||a.placed==='main')} selected={selected} query={query} owner={owner} folded={folded} onFold={fold}
-    onSelect={select} onOpen={id=>onOpen(id)} onMenu={(e,a)=>menu.at(e as never,items(a))} onMove={(id,target)=>void moveUnder(id,target)} onDepartment={(id,d)=>void moveToDepartment(id,d)}/>:
+    onSelect={select} onOpen={id=>onOpen(id)} onMenu={(e,a)=>menu.at(e as never,items(a))} onMove={(id,target)=>void moveUnder(id,target)} onDepartment={(id,d)=>void moveToDepartment(id,d)} saved={saved} onPrefs={savePrefs}/>:
   <div className="ag-rows" ref={rows} role="listbox" aria-label="Staff" onKeyDown={move}>
    {shown.map(a=><button type="button" key={a.id} role="option" aria-selected={selected===a.id} tabIndex={selected===a.id||!agent&&shown[0]?.id===a.id?0:-1} className="ag-row" onClick={()=>select(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>rowKey(e,a)} onContextMenu={(e:ReactMouseEvent)=>{select(a.id);menu.at(e,items(a));}}>
     <AgentFace agent={a} face={owner?faces[a.id]:undefined} profile={owner&&faces[a.id]?library?.find(e=>e.profile.name===faces[a.id])?.profile:undefined}/>

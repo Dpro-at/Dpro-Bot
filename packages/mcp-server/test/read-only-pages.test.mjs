@@ -126,3 +126,10 @@ test('agents tool: agent files read, write_file only for Knowledge on a fresh ve
  for(const input of [{operation:'write_file',id:'b',name:'MEMORY.md',content:'x'},{operation:'write_file',id:'b',name:'personality.md',content:'x'},{operation:'write_file',id:'b',name:'run.sh',content:'x'},{operation:'write_file',id:'b',name:'../x.md',content:'x'},{operation:'file',id:'b',name:'x.exe'},{operation:'file',id:'b',name:'PERSONALITY.md'},{operation:'files'}])await refused('agents',input,calls);
  for(const op of ['remove','delete'])await refused('agents',{operation:op,id:'b',name:'notes.md'},calls,/owner in the app/);
 });
+
+test('agents tool: chart choices read and saved',async()=>{
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});if(path==='/api/me/agents-chart')return {chart:method==='GET'?{view:'chart',mode:'departments',lines:'curved',zoom:0.8,folded:[]}:{view:'chart',mode:'reports',lines:'curved',zoom:0.8,folded:[]}};throw Error('unexpected '+method+' '+path);}};
+ const c=await callTool('agents',{operation:'chart'},{backend});assert.deepEqual(c.structuredContent,{view:'chart',mode:'departments',lines:'curved',zoom:0.8});
+ await callTool('agents',{operation:'set_chart',mode:'reports'},{backend});assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/me/agents-chart',body:{mode:'reports'}});
+ for(const input of [{operation:'set_chart'},{operation:'set_chart',zoom:9},{operation:'set_chart',lines:'wavy'},{operation:'chart',view:'list'}])await refused('agents',input,calls);
+});
