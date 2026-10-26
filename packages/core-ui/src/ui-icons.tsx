@@ -109,6 +109,7 @@ const shapes = {
   calc: <><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 7h6M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01"/></>,
   laptop: <><rect x="5" y="6" width="14" height="9" rx="1"/><path d="M3 18h18"/></>,
   book: <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>,
+  inspector: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></>,
 } as const;
 
 export type UiIconName = keyof typeof shapes;
