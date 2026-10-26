@@ -148,3 +148,5 @@
  .sk-files-list button[data-depth="1"]{padding-inline-start:8px}
  .sk-found{padding:18px 16px}
 }
+/* Remove a skill: the refusal line in its sheet */
+.sk-warn{margin:8px 0 0;color:#e5484d;font-size:12.5px}

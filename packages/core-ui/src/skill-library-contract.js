@@ -7,6 +7,8 @@ const version=value=>Number.isSafeInteger(value)&&value>=0&&value<Number.MAX_SAF
 export function skillLibraryPath(path){if([SKILLS_PATH,SKILLS_PATH+'/usage',SKILLS_PATH+'/scan',SKILLS_PATH+'/preview',SKILLS_PATH+'/import'].includes(path))return true;const item=/^\/api\/skill-library\/items\/([^/]+)$/.exec(path);if(item)return uuid(item[1]);const scan=/^\/api\/skill-library\/scans\/([^/]+)$/.exec(path);if(scan)return uuid(scan[1]);const agent=/^\/api\/skill-library\/agents\/([^/]+)$/.exec(path);return !!agent&&validAgentId(agent[1])&&agent[1]!=='small-local-agent';}
 export function allowedSkillLibrary(method,path,body){
  if(!skillLibraryPath(path))return false;if(method==='GET')return body===undefined&&(path===SKILLS_PATH||path===SKILLS_PATH+'/usage'||path.startsWith(SKILLS_PATH+'/items/')||path.startsWith(SKILLS_PATH+'/scans/')||path.startsWith(SKILLS_PATH+'/agents/'));
+ // Remove a skill: owner only, in the app after one confirm (never through MCP).
+ if(method==='DELETE')return path.startsWith(SKILLS_PATH+'/items/')&&record(body)&&Object.keys(body).sort().join(',')==='confirmed,revision'&&body.confirmed===true&&version(body.revision)&&body.revision>0;
  if(method==='PUT'&&path.startsWith(SKILLS_PATH+'/agents/'))return record(body)&&Object.keys(body).sort().join(',')==='revision,selected'&&version(body.revision)&&Array.isArray(body.selected)&&body.selected.length<=50&&body.selected.every(uuid)&&new Set(body.selected).size===body.selected.length;
  if(method!=='POST'||!record(body))return false;
  if(path===SKILLS_PATH+'/scan')return Object.keys(body).length===0;
@@ -17,11 +19,13 @@ export function allowedSkillLibrary(method,path,body){
 const line=(value,max)=>typeof value==='string'&&value.length<=max;
 const skill=row=>{if(!record(row)||!uuid(row.id)||!line(row.name,100)||!line(row.description,2000)||!line(row.version,80)||!version(row.revision)||!hex(row.content_hash)||!line(row.origin,80))throw Error('protocol');return {id:row.id,name:row.name,description:row.description,version:row.version,revision:row.revision,content_hash:row.content_hash,origin:row.origin};};
 export function skillLibraryResponse(path,status,body){
- if(status!==200)return record(body)&&['forbidden','invalid_input','invalid_agent','agent_not_found','scan_not_found','source_not_found','preview_changed','version_conflict','skill_not_found','skill_unavailable','file_too_large','invalid_skill','symlink_refused','scan_busy','bundle_too_large','storage_unavailable'].includes(body.code)?{code:body.code}:null;
+ if(status===409&&record(body)&&body.code==='skill_in_use'&&version(body.agents)&&version(body.specialties))return {code:'skill_in_use',agents:body.agents,specialties:body.specialties};
+ if(status!==200)return record(body)&&['skill_in_use','not_found','forbidden','invalid_input','invalid_agent','agent_not_found','scan_not_found','source_not_found','preview_changed','version_conflict','skill_not_found','skill_unavailable','file_too_large','invalid_skill','symlink_refused','scan_busy','bundle_too_large','storage_unavailable'].includes(body.code)?{code:body.code}:null;
  if(!record(body))throw Error('protocol');
  if(path===SKILLS_PATH){if(!Array.isArray(body.skills)||body.skills.length>10000)throw Error('protocol');return {skills:body.skills.map(skill)};}
  // Who has each skill: skill ids and agent ids only, nothing else crosses the bridge.
  if(path===SKILLS_PATH+'/usage'){if(!Array.isArray(body.usage)||body.usage.length>10000||!body.usage.every(u=>record(u)&&uuid(u.skillId)&&Array.isArray(u.agentIds)&&u.agentIds.length<=1000))throw Error('protocol');return {usage:body.usage.map(u=>({skillId:u.skillId,agentIds:u.agentIds.filter(a=>validAgentId(a))}))};}
+ if(path.startsWith(SKILLS_PATH+'/items/')&&body.removed===true){if(Object.keys(body).length!==1)throw Error('protocol');return {removed:true};}
  if(path.startsWith(SKILLS_PATH+'/items/')){if(!Array.isArray(body.files)||!body.files.length||body.files.length>200||!body.files.every(f=>record(f)&&line(f.path,400)&&!f.path.startsWith('/')&&!f.path.split('/').includes('..')&&f.path.toLowerCase().endsWith('.md')&&line(f.content,200001)))throw Error('protocol');return {skill:skill(body.skill),files:body.files.map(f=>({path:f.path,content:f.content}))};}
  if(path.startsWith(SKILLS_PATH+'/agents/')){if(!version(body.revision))throw Error('protocol');if(body.selected!==undefined){if(!Array.isArray(body.selected)||body.selected.length>50||!body.selected.every(uuid))throw Error('protocol');return {revision:body.revision,selected:body.selected};}return {revision:body.revision};}
  if(path===SKILLS_PATH+'/import'){if(typeof body.duplicate!=='boolean')throw Error('protocol');return {skill:skill(body.skill),duplicate:body.duplicate};}
