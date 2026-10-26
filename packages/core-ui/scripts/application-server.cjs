@@ -38,6 +38,7 @@ const { allowedChatExport, chatExportRoute, chatExportResponse } = require('../s
 const { allowedChatSecrets, chatSecretsRoute, chatSecretsResponse } = require('../src/chat-secrets-contract.js');
 const { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } = require('../src/terminal-contract.js');
 const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-contract.js');
+const { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute, deviceLabel, DEVICE_LABEL_HEADER } = require('../src/account-settings-contract.js');
 const { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_STREAM_MS, RUN_IDLE_MS } = require('../src/conversation-contract.js');
 const { validDeviceToken, validLoginBody, loginContinuation } = require('../src/login-contract.js');
 const { setupStatus } = require('../src/setup-status.js');
@@ -109,6 +110,7 @@ function allowed(method, target, body) {
   if (templatePath(target)) return allowedTemplates(method,target,body);
   if (skillLibraryPath(target)) return allowedSkillLibrary(method,target,body);
   if (footerRoute(target)) return allowedFooter(method, target, body);
+  if (sessionsRoute(target) || updatesRoute(target)) return allowedAccountSettings(method, target, body);
   if (memoryDesktopRoute(target)) return allowedMemoryDesktop(method, target, body);
   if (memoryPagesRoute(target)) return allowedMemoryPages(method, target, body);
   if (memoryRecallRoute(target)) return allowedMemoryRecall(method, target, body);
@@ -187,6 +189,7 @@ function project(target, status, body) {
   if (cardRoute(target)) return agentCardResponse(target, status, body);
   if (terminalRoute(target)) return terminalResponse(target, status, body);
   if (footerRoute(target)) return footerResponse(status, body);
+  if (sessionsRoute(target) || updatesRoute(target)) return accountSettingsResponse(target, status, body);
   if (connectionsRoute(target)) return connectionsResponse(target,status,body);
   if (mcpImportPath(target)) return mcpImportResponse(target,status,body);
   if (libraryPath(target)) return libraryResponse(target,status,body);
@@ -357,7 +360,7 @@ function createApplicationServer({ packageRoot = root, channel, stage1ReadOnly =
         if (!user || user.role !== 'owner' || typeof user.id !== 'string') return send(403, { code: 'forbidden' });
         return send(200, studio.issueTicket(user.id));
       }
-      const headers = { ...(launchToken ? { [LAUNCH_HEADER]: launchToken } : {}), Host: `${HOST}:${port}`, Accept: chat || runEvents || termStream ? 'text/event-stream' : 'application/json', ...(chat ? { 'Idempotency-Key': req.headers['idempotency-key'] } : {}), ...(auth ? { Authorization: auth } : {}), ...(req.headers.origin ? { Origin: origin } : {}), ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {}) };
+      const headers = { ...(launchToken ? { [LAUNCH_HEADER]: launchToken } : {}), Host: `${HOST}:${port}`, Accept: chat || runEvents || termStream ? 'text/event-stream' : 'application/json', ...(chat ? { 'Idempotency-Key': req.headers['idempotency-key'] } : {}), ...(auth ? { Authorization: auth } : {}), ...(raw === '/api/auth/login' ? { [DEVICE_LABEL_HEADER]: deviceLabel(req.headers['user-agent']) } : {}), ...(req.headers.origin ? { Origin: origin } : {}), ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {}) };
       // Request-body intake keeps its ordinary bound. Chat header wait and body
       // share one absolute stream deadline, including upstream model startup.
       if (chat) {

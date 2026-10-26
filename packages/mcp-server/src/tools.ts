@@ -53,6 +53,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
+    name:'account_settings',title:'Account security and updates',
+    description:'Owner-session only. Read: two_step (is two-step sign-in on, how many recovery codes are left), devices (every device signed in to this account, newest first, with an id), updates (version, branch and how many updates wait, from what was last downloaded; reading never goes online). Write only on the owner\u2019s explicit instruction: sign_out_device (id from devices; that device must sign in again, agents keep working) and check_updates (looks online once with git fetch; at most every 30 seconds). Installing an update stays the `agent-player update --stop` command the owner runs in a terminal. Turning two-step sign-in on or off and making new recovery codes need the owner\u2019s password and authenticator code, so the owner does them in Settings › Account; never ask for them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['two_step','devices','sign_out_device','updates','check_updates']},id:{type:'string',maxLength:24}},required:['operation'],additionalProperties:false},
+  },
+  {
     name:'skill_library',title:'Skill library',
     description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write: add (a new found package, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Removing a skill from Dpro is not available.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
@@ -281,6 +286,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
+      case 'account_settings': return await accountSettingsTool(args,deps);
       case 'skill_library': return await skillLibraryTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'specialty_library': return await specialtyLibraryTool(args,deps);
@@ -520,6 +526,21 @@ async function workspaceFooterTool(args:Record<string,unknown>,{backend}:Handler
  for(const k of ['iconsOnly','approvalsWhenWaiting'] as const)if(k in args){if(typeof args[k]!=='boolean')throw new InputError(`${k} must be true or false`);change[k]=args[k];}
  if(!Object.keys(change).length)throw new InputError('Nothing to change');
  return ok('Footer changed. Settings always stays; hidden sections stay in ⌘K.',await backend.request('PUT','/api/me/footer',change));
+}
+
+async function accountSettingsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','id']);
+ const op=args.operation;
+ if(op!=='sign_out_device')only(args,['operation']);
+ if(op==='two_step')return ok('Two-step sign-in. Turning it on or off and new recovery codes are done by the owner in Settings › Account.',await backend.request('GET','/api/auth/verification'));
+ if(op==='devices')return ok('Devices signed in to this account (current = this session).',await backend.request('GET','/api/auth/sessions'));
+ if(op==='updates')return ok('Updates, from what was last downloaded. Installing is the agent-player update --stop command in a terminal.',await backend.request('GET','/api/system/updates'));
+ if(op==='check_updates')return ok('Looked online once (git fetch).',await backend.request('POST','/api/system/updates/check'));
+ if(op==='sign_out_device'){
+  if(typeof args.id!=='string'||!/^[a-f0-9]{24}$/.test(args.id))throw new InputError('id must be a device id from devices');
+  return ok('That device is signed out; it must sign in again.',await backend.request('POST','/api/auth/sessions/'+args.id+'/sign-out'));
+ }
+ throw new InputError('operation must be two_step, devices, sign_out_device, updates or check_updates');
 }
 
 const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);

@@ -40,6 +40,7 @@ import { allowedDiscovery, discoveryRoute, discoveryResponse } from './discovery
 import { allowedMemoryDesktop, memoryDesktopRoute, memoryDesktopResponse } from './memory-desktop-contract.js';
 import { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } from './terminal-contract.js';
 import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js';
+import { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute } from './account-settings-contract.js';
 import type { TerminalFrame } from './terminal-contract.js';
 import { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_IDLE_MS, RUN_STREAM_MS } from './conversation-contract.js';
 import type { RunEvent } from './conversation-contract.js';
@@ -114,6 +115,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (templatePath(path)) return allowedTemplates(method,path,body);
   if (skillLibraryPath(path)) return allowedSkillLibrary(method,path,body);
   if (footerRoute(path)) return allowedFooter(method, path, body);
+  if (sessionsRoute(path) || updatesRoute(path)) return allowedAccountSettings(method, path, body);
   if (memoryDesktopRoute(path)) return allowedMemoryDesktop(method, path, body);
   if (memoryPagesRoute(path)) return allowedMemoryPages(method, path, body);
   if (memoryRecallRoute(path)) return allowedMemoryRecall(method, path, body);
@@ -195,6 +197,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (cardRoute(path)) return { status: response.status, body: agentCardResponse(path, response.status, response.body) };
   if (terminalRoute(path)) return { status: response.status, body: terminalResponse(path, response.status, response.body) };
   if (footerRoute(path)) return { status: response.status, body: footerResponse(response.status, response.body) };
+  if (sessionsRoute(path) || updatesRoute(path)) return { status: response.status, body: accountSettingsResponse(path, response.status, response.body) };
   if (connectionsRoute(path)) return { status: response.status, body: connectionsResponse(path, response.status, response.body) };
   if (mcpImportPath(path)) return { status: response.status, body: mcpImportResponse(path,response.status,response.body) };
   if (libraryPath(path)) return {status:response.status,body:libraryResponse(path,response.status,response.body)};
@@ -498,6 +501,7 @@ export class SessionClient {
     if(scheduleDefinitionRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(scheduleAuthorizationRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(reviewerOwnerRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
+    if((updatesRoute(request.path)&&this.#state.user?.role!=='owner')||(sessionsRoute(request.path)&&this.#state.user?.role==='guest'))throw new SessionFailure('blocked');
     if (conversationPath(request.path)?.kind === 'approval' && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((conversationRoute(request.path) || chatSearchRoute(request.path) || chatExportRoute(request.path) || chatSecretsRoute(request.path)) && this.#state.user?.role === 'guest') throw new SessionFailure('blocked');
     if (request.path === CLEANUP_PATH && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');

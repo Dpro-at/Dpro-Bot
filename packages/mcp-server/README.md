@@ -25,6 +25,7 @@ low-level `Server` + `StdioServerTransport`).
 | `read_handoff` | `kind`, `scope_id`, `agent_id` (all required) | the note and its earlier versions |
 | `edit_handoff` | `kind`, `scope_id`, `agent_id` (required), `done`, `left`, `next`, `questions` (lists you leave out stay) | the new version (source `owner`); the agent's next session starts from it |
 | `workspace_footer` | `operation` (`read` \| `set`), `order`, `hidden` (section ids), `iconsOnly`, `approvalsWhenWaiting` | the footer value; Settings always stays, hidden sections stay in ⌘K |
+| `account_settings` | `operation` (`two_step` \| `devices` \| `sign_out_device` \| `updates` \| `check_updates`), `id` (for `sign_out_device`) | two-step state and recovery codes left, signed-in devices, update state; turning two-step on/off and new recovery codes stay with the owner in Settings › Account |
 
 The handoff tools use the owner-only `/api/handoffs` routes: a session that is
 not the owner account is refused.

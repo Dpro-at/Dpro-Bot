@@ -11,7 +11,7 @@ process.env.DATABASE_PATH=join(dir,'test.db');process.env.JWT_SECRET=randomBytes
 const {getDatabase,closeDatabase}=await import('../src/db/database.ts');const db=getDatabase();await db.initialize();
 for(const [id,role] of [['ds-owner','owner'],['ds-other','user']])db.prepare("INSERT INTO users(id,email,username,password_hash,role,status,email_verified) VALUES(?,?,?,'x',?,'active',1)").run(id,id+'@example.test',id,role);
 const {generateToken,verifyRequestToken}=await import('../src/auth/jwt.ts');
-const {recordSession,deviceLabel}=await import('../src/auth/sessions.ts');
+const {recordSession,deviceLabel,signInLabel}=await import('../src/auth/sessions.ts');
 const {registerAuthGate}=await import('../src/auth/auth-gate.ts');
 const {deviceSessionRoutes}=await import('../src/api/routes/device-sessions.ts');
 const {default:Fastify}=await import('fastify');
@@ -24,7 +24,8 @@ const h=t=>({authorization:'Bearer '+t});
 test('labels are short and plain; the raw browser text is not kept',async()=>{
  assert.equal(deviceLabel(mac),'Chrome on Mac');assert.equal(deviceLabel(win),'Firefox on Windows');
  assert.equal(deviceLabel('Mozilla/5.0 (Macintosh) Electron/38 Dpro'),'Dpro app on Mac');assert.equal(deviceLabel(undefined),'Unknown device');
- await recordSession(a,mac);await recordSession(b,win);await recordSession(other,mac);
+ assert.equal(signInLabel({'x-dpro-device-label':'Dpro app on Mac','user-agent':win}),'Dpro app on Mac');assert.equal(signInLabel({'x-dpro-device-label':'<script>','user-agent':win}),'Firefox on Windows');
+ await recordSession(a,mac);await recordSession(b,signInLabel({'user-agent':win}));await recordSession(other,mac);
  assert.ok(!JSON.stringify(db.prepare('SELECT * FROM auth_sessions').all()).includes('AppleWebKit'));
 });
 test('the list shows only my own live devices and marks this one',async()=>{

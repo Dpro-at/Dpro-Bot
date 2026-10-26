@@ -29,8 +29,21 @@ export function deviceLabel(userAgent: unknown): string {
   return app && system ? `${app} on ${system}` : app || system;
 }
 
+const LABEL = /^(?:Unknown device|(?:Dpro app|Edge|Firefox|Chrome|Safari|A program)(?: on (?:iPhone|iPad|Android|Mac|Windows|Linux))?|iPhone|iPad|Android|Mac|Windows|Linux)$/;
+/**
+ * The device name for a sign-in: the local bridge sends only a short label it
+ * worked out itself (header x-dpro-device-label, never the raw browser text);
+ * a direct caller is named from its own browser text.
+ */
+export function signInLabel(headers: Record<string, unknown>): string {
+  const sent = headers['x-dpro-device-label'];
+  return typeof sent === 'string' && LABEL.test(sent) ? sent : deviceLabel(headers['user-agent']);
+}
+
 /** Called once a sign-in token is made. */
-export async function recordSession(token: string, userAgent: unknown, now = Date.now()): Promise<void> {
+export async function recordSession(token: string, device: unknown, now = Date.now()): Promise<void> {
+  // A ready label (from signInLabel) is kept; anything else is treated as browser text.
+  const label = typeof device === 'string' && LABEL.test(device) ? device : deviceLabel(device);
   const decoded = jwt.decode(token) as { jti?: unknown; userId?: unknown; tokenVersion?: unknown; exp?: unknown } | null;
   if (!decoded || typeof decoded.jti !== 'string' || typeof decoded.userId !== 'string' || typeof decoded.exp !== 'number') return;
   const userId = decoded.userId, version = Number(decoded.tokenVersion ?? 1);
@@ -38,7 +51,7 @@ export async function recordSession(token: string, userAgent: unknown, now = Dat
     // A row is deleted only once its token has expired: a signed-out row must outlive its token.
     yield* run('DELETE FROM auth_sessions WHERE user_id=? AND expires_at<?', userId, now);
     yield* run('INSERT INTO auth_sessions(id,user_id,token_hash,token_version,label,created_at,last_seen_at,expires_at) VALUES(?,?,?,?,?,?,?,?)',
-      randomBytes(12).toString('hex'), userId, tokenHash(decoded.jti as string), version, deviceLabel(userAgent), now, now, Math.round((decoded.exp as number) * 1000));
+      randomBytes(12).toString('hex'), userId, tokenHash(decoded.jti as string), version, label, now, now, Math.round((decoded.exp as number) * 1000));
     // At most 50 devices stay signed in: older ones are signed out (never deleted before they expire).
     yield* run(`UPDATE auth_sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND id NOT IN (SELECT id FROM auth_sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT ${KEEP_PER_USER})`, now, userId, userId);
   });

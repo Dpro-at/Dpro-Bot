@@ -12,17 +12,20 @@ function useTeam(client:SessionClient){
  return {team,state};
 }
 const noop=()=>()=>{};const empty=()=>undefined;
-export function PermissionsSettings({client,onApprovals,onAccount,onAgent}:{client:SessionClient;onApprovals:()=>void;onAccount:()=>void;onAgent?:(id:string)=>void}){
+type Part='actions'|'tools'|'memory';
+/** One agent's permission views. Settings › Permissions shows only Tools and Memory here, under the grid of actions. */
+export function PermissionsSettings({client,onApprovals,onAccount,onAgent,parts=['actions','tools','memory'],agentId}:{client:SessionClient;onApprovals:()=>void;onAccount:()=>void;onAgent?:(id:string)=>void;parts?:Part[];agentId?:string}){
  const owner=client.getSnapshot().user?.role==='owner';
  if(!owner)return <section><p>Only the owner can manage agent permissions.</p></section>;
- return <OwnerPermissions client={client} onApprovals={onApprovals} onAccount={onAccount} onAgent={onAgent}/>;
+ return <OwnerPermissions client={client} onApprovals={onApprovals} onAccount={onAccount} onAgent={onAgent} parts={parts} agentId={agentId}/>;
 }
-function OwnerPermissions({client,onApprovals,onAccount,onAgent}:{client:SessionClient;onApprovals:()=>void;onAccount:()=>void;onAgent?:(id:string)=>void}){
- const {team,state}=useTeam(client),[query,setQuery]=useState(''),[selected,setSelected]=useState(''),[part,setPart]=useState<'actions'|'tools'|'memory'>('actions'),[coverageOpen,setCoverageOpen]=useState(false);
+function OwnerPermissions({client,onApprovals,onAccount,onAgent,parts,agentId}:{client:SessionClient;onApprovals:()=>void;onAccount:()=>void;onAgent?:(id:string)=>void;parts:Part[];agentId?:string}){
+ const {team,state}=useTeam(client),[query,setQuery]=useState(''),[selected,setSelected]=useState(agentId??''),[part,setPart]=useState<Part>(parts[0]),[coverageOpen,setCoverageOpen]=useState(false);
+ useEffect(()=>{if(agentId)setSelected(agentId);},[agentId]);
  const agents=state?.agents??[],shown=agents.filter(a=>`${a.name??''} ${a.department??''}`.toLowerCase().includes(query.toLowerCase()));
  const id=agents.some(a=>a.id===selected)?selected:agents.find(a=>a.isPrimary)?.id??agents[0]?.id??'';
  return <div className="security-settings"><PreferenceGroup title="Selected agent"><div className="security-agent-picker"><label><UiIcon name="search" size={14}/><input type="search" aria-label="Find permission agent" placeholder="Find an agent" value={query} onChange={e=>setQuery(e.target.value)}/></label><select aria-label="Agent permissions" value={shown.some(a=>a.id===id)?id:''} onChange={e=>setSelected(e.target.value)}><option value="" disabled>{shown.length?'Select an agent':'No matching agents'}</option>{shown.map(a=><option key={a.id} value={a.id}>{a.name??'Unnamed agent'}{a.department?` · ${a.department}`:''}</option>)}</select><button title="Refresh agents" aria-label="Refresh permission agents" onClick={()=>void team?.list()}><UiIcon name="refresh" size={15}/></button></div></PreferenceGroup>
- <div className="preference-views" role="group" aria-label="Permission views">{(['actions','tools','memory'] as const).map(p=><button key={p} aria-pressed={part===p} onClick={()=>setPart(p)}><UiIcon name={p==='actions'?'shield':p==='tools'?'tool':'brain'} size={14}/>{p==='actions'?'Actions':p==='tools'?'Tools':'Memory'}</button>)}</div>
+ <div className="preference-views" role="group" aria-label="Permission views">{parts.map(p=><button key={p} aria-pressed={part===p} onClick={()=>setPart(p)}><UiIcon name={p==='actions'?'shield':p==='tools'?'tool':'brain'} size={14}/>{p==='actions'?'Actions':p==='tools'?'Tools':'Memory'}</button>)}</div>
  {state?.notice&&<p role="status">{state.notice}</p>}{!state||state.phase==='listing'?<p role="status">Reading agents…</p>:id?<div className="security-agent-panel"><AgentPanel key={id} client={client} agentId={id} expandedAccess part={part}/>{part==='memory'&&onAgent&&<button onClick={()=>onAgent(id)}>Edit memory access in agent profile</button>}</div>:<p>No agents available.</p>}
  <p className="preference-note">Changes save immediately. “Ask me” requires approval for that category; “Allowed” permits it without asking.</p><details className="preference-help" onToggle={e=>setCoverageOpen(e.currentTarget.open)}><summary>Permission coverage</summary>{coverageOpen&&<PermissionCoverage client={client} active={coverageOpen}/>}<p>Dpro tool and memory permissions apply to this agent. External coding apps and terminal sessions use separate execution paths. These controls do not establish a host-wide sandbox.</p><p>Older agents may have allowed actions. Inspect the actual values before running a task.</p><button onClick={onAccount}>Account and sessions</button></details><button className="preference-link" onClick={onApprovals}><UiIcon name="check" size={15}/>Open approval requests</button></div>;
 

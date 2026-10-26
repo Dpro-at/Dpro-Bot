@@ -96,7 +96,6 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [terminalRequest,setTerminalRequest]=useState(0);
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
-  const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
   // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
   useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');},[page]);
   const openTerminal=()=>{if(user.role!=='owner')return;setTerminalRequest(n=>n+1);setPage('chat');};
@@ -197,7 +196,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onConnections={()=>setPage('mcp')} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>setPage(user.role==='owner'?'approvals':'agents')}/></section>
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
-      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChannels={() => openApps('channels')}/></section>}
+      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
     </main>
     <ShellFooter controller={footer} settingsCurrent={page==='settings'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
       status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
