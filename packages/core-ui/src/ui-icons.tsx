@@ -101,6 +101,11 @@ const shapes = {
   mix: <path d="M4 7h4l8 10h4M4 17h4l2-2.5M14 9.5L16 7h4"/>,
   send: <path d="M4 12l16-8-6 16-3-7z"/>,
   unlink: <><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7"/><path d="M4 4l16 16"/></>,
+  box: <><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></>,
+  dice: <><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 9h.01M15 15h.01M15 9h.01M9 15h.01"/></>,
+  calc: <><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 7h6M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01"/></>,
+  laptop: <><rect x="5" y="6" width="14" height="9" rx="1"/><path d="M3 18h18"/></>,
+  book: <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>,
 } as const;
 
 export type UiIconName = keyof typeof shapes;

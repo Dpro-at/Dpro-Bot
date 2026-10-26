@@ -1,0 +1,150 @@
+/* Skills as a desktop window (boards SK1–SK3): sidebar places with search, a quiet list grouped by
+   where each skill came from, the selected skill on the right, its files in their own view. */
+.sk-places .sk-search{flex:none;margin:0 2px 8px}
+.sk-places .dk-place{gap:9px}
+.sk-places .dk-badge-pill{margin-inline-start:auto}
+.sk-place-group{display:flex;flex-direction:column;gap:1px}
+.sk-place-group .section-label{margin-block-start:12px}
+.sk-content{block-size:100%}
+.sk-muted{color:var(--text-3);font-size:12px}
+.sk-gap{flex:1}
+.sk-anchor{position:relative;display:inline-flex}
+.sk-anchor .dk-popover{inset-inline-end:0;inset-inline-start:auto}
+.sk-main{border-radius:8px;padding-inline:14px;min-block-size:32px;font-weight:600}
+.sk-link{align-self:flex-start;padding:0;border:0;background:transparent;color:var(--accent);font-size:12.5px;cursor:pointer}
+.sk-link:hover{text-decoration:underline}
+.sk-notice,.sk-ok{margin:0;padding:7px 16px;border-block-end:1px solid var(--border);font-size:12.5px;color:var(--text-2)}
+.sk-alert{margin:0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--danger) 10%,transparent);font-size:12.5px}
+.sk-hint{margin:0;margin-block-start:auto;font-size:12px;color:var(--text-3);line-height:1.45}
+.sk-tile{display:inline-grid;place-items:center;flex:none;border-radius:9px}
+
+/* SK1 list + inspector */
+.sk-place{display:grid;grid-template-columns:minmax(0,1fr) clamp(280px,30%,340px);block-size:100%;min-block-size:0}
+.sk-main-pane{display:flex;flex-direction:column;min-inline-size:0;min-block-size:0}
+.sk-toolbar{display:flex;align-items:center;gap:8px;min-block-size:44px;padding:6px 16px;border-block-end:1px solid var(--border)}
+.sk-toolbar h2{margin:0;font-size:14px;white-space:nowrap}
+.sk-own-search{flex:0 1 220px}
+.sk-status{display:inline-flex;align-items:center;gap:6px;min-inline-size:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;color:var(--text-3)}
+.sk-status svg{color:#3BB273;flex:none}
+.sk-show{display:grid;gap:10px;min-inline-size:220px}
+.sk-show label{display:grid;gap:4px;font-size:12px;color:var(--text-2)}
+.sk-show .sk-check{display:flex;align-items:center;gap:8px}
+.sk-list{flex:1;overflow:auto;outline:none;padding-block-end:12px}
+.sk-group{display:flex;align-items:center;gap:6px;margin:0;padding:12px 16px 4px;font-size:11.5px;font-weight:600;color:var(--text-3)}
+.sk-row{display:flex;align-items:center;gap:12px;inline-size:100%;padding:7px 16px;border:0;border-radius:0;background:transparent;border-block-end:1px solid color-mix(in srgb,var(--border) 60%,transparent);text-align:start;color:inherit;cursor:default}
+.sk-row:hover{background:var(--row-hover)}
+.sk-row[aria-selected="true"]{background:var(--row-active);box-shadow:inset 2px 0 0 var(--accent)}
+.sk-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sk-row-text{display:grid;gap:1px;flex:1;min-inline-size:0}
+.sk-row-name{font-size:13px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sk-row-sub{font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sk-faces{display:flex;align-items:center;flex:none;padding-inline-start:5px}
+.sk-faces .dk-avatar{margin-inline-start:-5px;box-shadow:0 0 0 2px var(--surface)}
+.sk-more{margin-inline-start:4px;font-size:11px;color:var(--text-3)}
+.sk-chip{display:inline-flex;align-items:center;flex:none;block-size:22px;padding:0 9px;border-radius:6px;font-size:11.5px;background:var(--secondary);color:var(--text-3)}
+.sk-chip[data-state="add"]{background:color-mix(in srgb,#3BB273 16%,transparent);color:#2F8F5B}
+.sk-chip[data-state="update"]{background:color-mix(in srgb,#E0A73A 18%,transparent);color:#9A6A12}
+.shell[data-theme="dark"] .sk-chip[data-state="add"]{color:#8FD6B0}
+.shell[data-theme="dark"] .sk-chip[data-state="update"]{color:#F0C27A}
+.sk-empty{display:grid;justify-items:center;gap:8px;padding:48px 20px;color:var(--text-3);text-align:center}
+.sk-empty p{margin:0;max-inline-size:360px;line-height:1.45}
+.sk-inspector{border-inline-start:1px solid var(--border);overflow:auto;min-block-size:0;background:var(--surface)}
+.sk-insp{display:flex;flex-direction:column;gap:14px;padding:18px 16px;min-block-size:100%;box-sizing:border-box}
+.sk-insp hr{border:0;block-size:1px;background:var(--border);margin:0;inline-size:100%}
+.sk-insp-head{display:flex;align-items:center;gap:12px}
+.sk-insp-head>span{display:grid;gap:2px;min-inline-size:0}
+.sk-insp-head b{font-size:16px;overflow-wrap:anywhere}
+.sk-insp-head small{font-size:12px;color:var(--text-3)}
+.sk-insp-head>.dk-icon{display:none}
+.sk-insp-text{margin:0;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.sk-insp-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sk-insp-actions>button:not(.dk-icon){border-radius:8px;padding-inline:14px;min-block-size:32px}
+.sk-fact{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start}
+.sk-fact>svg{color:var(--text-3);margin-block-start:2px}
+.sk-fact>span{display:grid;gap:3px;min-inline-size:0}
+.sk-fact small{font-size:11.5px;font-weight:600;color:var(--text-3)}
+.sk-fact>span>span{font-size:12.5px;overflow-wrap:anywhere}
+.sk-box{padding:10px 12px;border-radius:8px;background:var(--row-hover);font-size:12.5px;line-height:1.5}
+
+/* Give to an agent, Where skills come from */
+.sk-give,.sk-sources{display:grid;gap:2px;margin:0;padding:0;list-style:none}
+.sk-give li{display:flex;align-items:center;gap:10px;padding:5px 4px;border-radius:8px}
+.sk-give li:hover{background:var(--row-hover)}
+.sk-give li>span{flex:1;font-size:13px}
+.sk-give button{display:inline-flex;align-items:center;gap:5px;min-block-size:28px;border-radius:7px;padding-inline:12px;font-size:12px}
+.sk-give button[aria-pressed="true"]{background:var(--row-active);color:var(--accent)}
+.sk-sources li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;padding:8px 4px;border-block-end:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+.sk-sources li>svg{color:var(--text-3);margin-block-start:2px}
+.sk-sources li>span{display:grid;gap:2px;font-size:12.5px;line-height:1.45}
+.sk-sources small{color:var(--text-3)}
+
+/* SK2 a skill's files */
+.sk-files{display:grid;grid-template-rows:auto auto minmax(0,1fr) 26px;block-size:100%;min-block-size:0;outline:none}
+.sk-files-bar{display:flex;align-items:center;gap:8px;min-block-size:44px;padding:4px 14px;border-block-end:1px solid var(--border)}
+.sk-files-bar b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-segmented{display:flex;padding:2px;border-radius:7px;background:var(--secondary)}
+.sk-segmented button{block-size:24px;min-block-size:24px;padding:0 10px;border:0;border-radius:5px;background:transparent;color:var(--text-2);font-size:12px}
+.sk-segmented button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px color-mix(in srgb,var(--text) 14%,transparent)}
+.sk-find{display:flex;align-items:center;gap:8px;padding:6px 14px;border-block-end:1px solid var(--border);color:var(--text-3)}
+.sk-find input{flex:0 1 320px;block-size:26px;font-size:12.5px}
+.sk-files-panes{display:grid;grid-template-columns:220px minmax(0,1fr) 220px;min-block-size:0}
+.sk-files-list{display:flex;flex-direction:column;gap:1px;padding:10px 8px;overflow:auto;background:var(--sidebar);border-inline-end:1px solid var(--border)}
+.sk-files-item{display:contents}
+.sk-files-folder{display:flex;align-items:center;gap:6px;padding:10px 8px 3px;font-size:11.5px;font-weight:600;color:var(--text-3)}
+.sk-files-list button,.sk-files-outline button{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:26px;padding:3px 8px;border:0;border-radius:6px;background:transparent;color:var(--text-2);font-size:12.5px;text-align:start}
+.sk-files-list button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sk-files-list button[data-depth="1"]{padding-inline-start:22px}
+.sk-files-list button:hover,.sk-files-outline button:hover{background:var(--row-hover)}
+.sk-files-list button[aria-current="page"]{background:var(--row-active);color:var(--text)}
+.sk-files-page{overflow:auto;padding:26px 48px;outline:none}
+.sk-page{max-inline-size:760px;font-size:14px;line-height:1.65}
+.sk-source{margin:0;max-inline-size:900px;white-space:pre-wrap;overflow-wrap:anywhere;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+.sk-source mark{background:color-mix(in srgb,#F0C27A 55%,transparent);color:inherit;border-radius:2px}
+.sk-files-outline{display:flex;flex-direction:column;gap:2px;padding:14px 12px;overflow:auto;border-inline-start:1px solid var(--border)}
+.sk-files-outline hr{border:0;block-size:1px;background:var(--border);margin:8px 0;inline-size:100%}
+.sk-files-outline button[data-depth="1"]{padding-inline-start:20px}
+.sk-files-outline button[data-depth="2"],.sk-files-outline button[data-depth="3"]{padding-inline-start:32px}
+.sk-label{font-size:11.5px;font-weight:600;color:var(--text-3);padding:0 8px 4px}
+.sk-files-status{display:flex;align-items:center;gap:16px;padding:0 12px;border-block-start:1px solid var(--border);font-size:11px;color:var(--text-3)}
+
+/* SK3a the catalogue sheet */
+.sk-install{inline-size:min(700px,calc(100vw - 48px))}
+.sk-install-head{display:flex;align-items:center;gap:12px}
+.sk-install-head>span{display:grid;gap:2px}
+.sk-install-head h3{margin:0;font-size:15px}
+.sk-install-head small{font-size:12px;color:var(--text-3)}
+.sk-steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;padding:0;list-style:none}
+.sk-steps li{display:flex;align-items:center;gap:8px;block-size:30px;padding:0 12px;border-radius:8px;background:var(--secondary);color:var(--text-3);font-size:12.5px}
+.sk-steps li>span{display:grid;place-items:center;inline-size:18px;block-size:18px;border-radius:50%;background:color-mix(in srgb,var(--text) 10%,transparent);font-size:11px}
+.sk-steps li[aria-current="step"]{background:var(--row-active);color:var(--text)}
+.sk-steps li[aria-current="step"]>span,.sk-steps li[data-done]>span{background:var(--accent);color:var(--on-accent)}
+.sk-install-guide pre{max-block-size:min(420px,50vh);overflow:auto;margin:0;padding:14px 16px;border-radius:10px;background:var(--canvas);white-space:pre-wrap;overflow-wrap:anywhere;font-size:12.5px;line-height:1.55}
+.sk-install footer.actions{display:flex;align-items:center;gap:8px}
+.sk-install footer.actions .sk-muted{margin-inline-end:auto}
+
+/* SK3c found on this computer, one at a time */
+.sk-found{display:flex;flex-direction:column;gap:14px;padding:24px 32px;block-size:100%;box-sizing:border-box;overflow:auto;outline:none}
+.sk-found-head{display:flex;align-items:center;gap:10px}
+.sk-found-head h2{margin:0;font-size:15px}
+.sk-found-title{display:flex;align-items:center;gap:12px}
+.sk-found-title>span{display:grid;gap:2px;min-inline-size:0}
+.sk-found-title b{font-size:14px}
+.sk-found-title small{font-size:12px;color:var(--text-3);overflow-wrap:anywhere}
+.sk-found-text{max-inline-size:760px;min-block-size:160px;max-block-size:420px;overflow:auto;margin:0;padding:14px 16px;border-radius:10px;background:var(--row-hover);white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.6}
+.sk-found .sk-ok,.sk-found .sk-notice{border:0;padding:0}
+
+/* Medium: a narrower inspector and files outline; narrow: one pane at a time. */
+@media (max-width:1180px){.sk-files-panes{grid-template-columns:200px minmax(0,1fr)}.sk-files-outline{display:none}.sk-files-page{padding:22px 28px}}
+@media (max-width:900px){
+ .sk-place{grid-template-columns:minmax(0,1fr)}
+ .sk-place .sk-inspector{display:none}
+ .sk-place:has(.sk-insp) .sk-inspector{display:block;border:0}
+ .sk-place:has(.sk-insp) .sk-main-pane{display:none}
+ .sk-insp-head>.dk-icon{display:inline-grid}
+ .sk-files-panes{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+ .sk-files-list{flex-direction:row;overflow-x:auto;padding:6px 8px;border-inline-end:0;border-block-end:1px solid var(--border)}
+ .sk-files-folder{display:none}
+ .sk-files-list button{inline-size:auto;flex:none}
+ .sk-files-list button[data-depth="1"]{padding-inline-start:8px}
+ .sk-found{padding:18px 16px}
+}
