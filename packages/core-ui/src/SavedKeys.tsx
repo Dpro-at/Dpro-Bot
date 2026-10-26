@@ -10,7 +10,8 @@ import { UiIcon } from './ui-icons';
 const when = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function SavedKeys({ client, owner, highlight, onClose }: { client: SessionClient; owner: boolean; highlight?: string; onClose: () => void }) {
+/** The chat chip opens it as a small panel; Settings › Saved keys shows it as a page (`page`). */
+export function SavedKeys({ client, owner, highlight, onClose, page = false }: { client: SessionClient; owner: boolean; highlight?: string; onClose?: () => void; page?: boolean }) {
   const [keys, setKeys] = useState<ChatSecret[] | null | 'error'>(null);
   const [scan, setScan] = useState<CleanupReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,10 +29,10 @@ export function SavedKeys({ client, owner, highlight, onClose }: { client: Sessi
     setNote(r ? `${plural(r.secrets, 'secret')} moved to the key store from ${plural(r.conversations, 'chat')}.` : 'Nothing was moved. Try again.');
     await load();
   };
-  return <div className="saved-keys" role="dialog" aria-label="Saved keys" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <div className="saved-keys-head"><UiIcon name="lock" size={14}/><strong>Saved keys</strong>
-      <button type="button" className="tool" onClick={onClose} aria-label="Close"><UiIcon name="close" size={12}/></button></div>
-    <p className="chat-export-hint">Keys, tokens and passwords you type in a chat are stored encrypted on this computer. The chat and the model only see a reference; a tool gets the value after you approve that call.</p>
+  return <div className="saved-keys" data-page={page || undefined} role={page ? undefined : 'dialog'} aria-label="Saved keys" onKeyDown={e => { if (e.key === 'Escape') onClose?.(); }}>
+    {!page && <div className="saved-keys-head"><UiIcon name="lock" size={14}/><strong>Saved keys</strong>
+      <button type="button" className="tool" onClick={onClose} aria-label="Close"><UiIcon name="close" size={12}/></button></div>}
+    <p className="chat-export-hint">{page ? 'Keys, tokens and passwords you pasted in chats are stored encrypted on this computer and never shown again. Agents use them by name; a tool gets the value after you approve that call.' : 'Keys, tokens and passwords you type in a chat are stored encrypted on this computer. The chat and the model only see a reference; a tool gets the value after you approve that call.'}</p>
     {keys === null ? <p className="chat-export-hint" role="status">Loading…</p>
       : keys === 'error' ? <p className="chat-export-note" role="alert">The saved keys could not be read.</p>
         : keys.length === 0 ? <p className="chat-export-hint">No keys saved from the chat yet.</p>

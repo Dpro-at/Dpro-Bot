@@ -2,6 +2,7 @@ import {PersonalityLibrary} from './PersonalityLibrary';
 import {WorkspaceModes,editorBounds,useNabuAvailability} from './WorkspaceModes';
 import {TradingWorkspace} from './TradingWorkspace';
 import {AppsWorkspace} from './AppsWorkspace';
+import type {AppsPlace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
 import {NewChatDialog} from './NewChatDialog';
 import {usePendingApprovalCount} from './ApprovalPage';
@@ -20,7 +21,6 @@ import { GenVRPage } from './GenVRPage';
 import type {SettingsTab} from './AppSettings';
 import { AppSettings } from './AppSettings';
 import { useAppNavigation, useAppTheme } from './app-navigation';
-import { AccountPanel } from './SessionPanels';
 import { MemoryWindow } from './MemoryDesktop';
 import type { MemoryFocus, SettingsTarget } from './MemoryDesktop';
 import type { MemorySettingsPane } from './MemorySettings';
@@ -63,7 +63,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const openCode=()=>{setPage('code');const {top,bottom}=editorBounds();void window.dproApp?.nabu?.select('code',top,bottom).catch(()=>{});};
   const appearance = useAppTheme();
   const theme = appearance.theme;
-  const setTheme = (fn: (v: 'light' | 'dark') => 'light' | 'dark') => appearance.setPreference(fn(theme));
+  // The title-bar switch goes back to "system" when it lands on the system's own theme.
+  const toggleTheme = () => { const next = theme === 'dark' ? 'light' : 'dark'; const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; appearance.setPreference(next === system ? 'system' : next); };
   useAppNavigation(destination => setPage(destination === 'home' ? 'chat' : destination));
   const [chat, setChat] = useState<ConversationsController>();
   useEffect(() => { const c = new ConversationsController(client); setChat(c); void c.load(); return () => c.dispose(); }, [client]);
@@ -89,7 +90,11 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const ownSidebar=OWN_SIDEBAR.includes(page);
   const [settingsVisit,setSettingsVisit]=useState(0);
   const [terminalRequest,setTerminalRequest]=useState(0);
-  const openSettings=(tab:SettingsTab)=>{if(tab==='personalities'||tab==='specialties'||tab==='skills'||tab==='mcp'){setPage(tab);return;}setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
+  const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
+  const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
+  const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
+  // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
+  useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');},[page]);
   const openTerminal=()=>{if(user.role!=='owner')return;setTerminalRequest(n=>n+1);setPage('chat');};
   const openMemorySettings=(target:SettingsTarget)=>{setMemoryPane(target);setSettingsTab('memory');setSettingsVisit(n=>n+1);setPage('settings');};
   const tools=[
@@ -122,7 +127,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     ...(user.role==='owner'?[{id:'scheduled-tasks',group:'Settings',label:'Scheduled tasks',keywords:'schedule cron automation paused active',icon:<UiIcon name="clock" size={14}/>,run:()=>openSettings('schedules')}]:[]),
     { id: 'new-chat', group: 'Actions', icon:<UiIcon name="compose" size={14}/>, label: 'New chat', run: newChat },
     ...(chatState?.conversations ?? []).slice(0, 30).map(c => ({ id: `chat-${c.id}`, group: 'Conversations', icon:<Icon name="message-circle"/>, label: c.title || c.preview || 'New chat', run: () => { void chat?.open(c.id); setPage('chat'); } })),
-    { id: 'theme', group: 'Actions', icon:<UiIcon name={theme==='dark'?'sun':'moon'} size={14}/>, label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', run: () => setTheme(t => t === 'dark' ? 'light' : 'dark') },
+    { id: 'theme', group: 'Actions', icon:<UiIcon name={theme==='dark'?'sun':'moon'} size={14}/>, label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', run: toggleTheme },
     { id: 'rail', group: 'Actions', icon:<UiIcon name="sidebar" size={14}/>, label: rail ? 'Hide the sidebar' : 'Show the sidebar', run: () => setRail(v => !v) },
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
@@ -141,7 +146,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <p className="titlebar-title">{pageTitle}</p>
       <div className="titlebar-tools end">
         <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Commands (⌘K)"><UiIcon name="search" size={13}/>Commands<kbd>⌘K</kbd></button>
-        <button type="button" className="tool" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label="Switch theme" title="Switch theme"><UiIcon name={theme === 'dark' ? 'sun' : 'moon'} size={14}/></button>
+        <button type="button" className="tool" onClick={toggleTheme} aria-label="Switch theme" title="Switch theme"><UiIcon name={theme === 'dark' ? 'sun' : 'moon'} size={14}/></button>
       </div>
     </header>
     <aside className="sidebar">
@@ -158,7 +163,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <details className="account-menu"><summary className="user-chip" title="Account">
           <span className="avatar" aria-hidden="true">{(displayName(user) || '?').slice(0, 1).toUpperCase()}</span>
           <span className="user-name"><bdi>{displayName(user)}</bdi><small>{user.role}</small></span>
-        </summary><div><button onClick={() => setPage('account')}>Account & sessions</button><button onClick={() => setPage('settings')}>Settings</button><button onClick={() => client.cancel()}>Sign out on this device</button></div></details>
+        </summary><div><button onClick={() => openSettings('account')}>Account</button><button onClick={() => setPage('settings')}>Settings</button><button onClick={() => client.cancel()}>Sign out on this device</button></div></details>
         <button type="button" className="tool sidebar-settings" aria-label="Settings" title="Settings" onClick={() => setPage('settings')}><Icon name="settings"/></button>
       </div>
     </aside>
@@ -171,7 +176,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       </section>
       <section className="page page-agents" hidden={page !== 'agents'}><AgentsDestination key={`agents-${connectorsFocus}`} client={client} active={page === 'agents'} sidebarSlot={slot} focusConnectors={connectorsFocus > 0} focusAgent={agentFocus} onOpenMemory={agentId => { if (agentId) setMemoryFocus(f => ({ scope: `agent:${agentId}`, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/></section>
       <section className="page page-board" hidden={page !== 'board'}>{board && <TaskBoard controller={board} sidebarSlot={slot} active={page === 'board'} onOpenChat={id => { void chat?.open(id); setPage('chat'); }}/>}</section>
-      {user.role!=='guest'&&<section className="page page-approvals" hidden={page!=='approvals'}><ApprovalsWorkspace client={client} active={page==='approvals'} slot={slot} onDecision={pendingApprovals.reload} onAccount={()=>setPage('account')} pendingCount={pendingApprovals.count}/></section>}
+      {user.role!=='guest'&&<section className="page page-approvals" hidden={page!=='approvals'}><ApprovalsWorkspace client={client} active={page==='approvals'} slot={slot} onDecision={pendingApprovals.reload} onAccount={()=>openSettings('account')} pendingCount={pendingApprovals.count}/></section>}
       <section className="page page-ui mem-desk" hidden={page !== 'memory'}><MemoryWindow client={client} active={page === 'memory'} focus={memoryFocus} sidebarSlot={slot} onOpenChat={id => { void chat?.open(id); setPage('chat'); }} onOpenSettings={openMemorySettings}/></section>
       {user.role === 'owner' && <>
         <section className="page page-personalities" hidden={page !== 'personalities'}>{page==='personalities'&&<PersonalityLibrary client={client} active sidebarSlot={slot}/>}</section>
@@ -181,11 +186,10 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <section className="page page-ui mem-desk" hidden={page !== 'terminal'}><TerminalSection client={client} active={page === 'terminal'} slot={slot} onOpenTerminal={openTerminal}/></section>
       </>}
       <section className="page page-ui" hidden={page!=='code'}><p role="status" className="fine-print">Select Code in the bottom bar to open or reconnect the project editor.</p></section>
-      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} onOpen={id=>setPage(id)} onConnections={()=>setPage('mcp')} onAccountConnections={()=>{setSettingsTab('connections');setSettingsVisit(n=>n+1);setPage('settings');}} onChat={()=>setPage('chat')} onPermissions={()=>{setSettingsTab('permissions');setSettingsVisit(n=>n+1);setPage('settings');}}/></section>
+      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onConnections={()=>setPage('mcp')} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>setPage(user.role==='owner'?'approvals':'agents')}/></section>
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
-      {(page === 'settings' || page === 'about') && <section className="page page-settings"><AppSettings onOpenApps={()=>setPage('apps')} onApprovals={()=>setPage('approvals')} onBoard={()=>setPage('board')} onAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenChat={()=>setPage('chat')} onOpenTool={tool=>setPage(tool)} key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={page === 'settings' ? slot : null} active={page === 'settings'} signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => setPage('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} aboutOnly={page === 'about'}/></section>}
-      <section className="page page-scroll" hidden={page !== 'account'}><div className="page-column"><AccountPanel client={client}/></div></section>
+      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChannels={() => openApps('channels')}/></section>}
     </main>
     <footer className="statusbar">
       <span className="statusbar-group">
