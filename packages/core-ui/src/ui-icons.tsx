@@ -110,6 +110,14 @@ const shapes = {
   laptop: <><rect x="5" y="6" width="14" height="9" rx="1"/><path d="M3 18h18"/></>,
   book: <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>,
   inspector: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></>,
+  'zoom-in': <><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6M11 8v6"/></>,
+  'zoom-out': <><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6"/></>,
+  fit: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>,
+  'line-elbow': <><path d="M5 4v8h14v8"/><circle cx="5" cy="4" r="1.5"/><circle cx="19" cy="20" r="1.5"/></>,
+  'line-curved': <><path d="M5 4c0 9 14 7 14 16"/><circle cx="5" cy="4" r="1.5"/><circle cx="19" cy="20" r="1.5"/></>,
+  'line-straight': <><path d="M5 4l14 16"/><circle cx="5" cy="4" r="1.5"/><circle cx="19" cy="20" r="1.5"/></>,
+  org: <><rect x="9" y="3" width="6" height="5" rx="1"/><path d="M12 8v3M5 14v-3h14v3"/><rect x="3" y="14" width="4" height="5" rx="1"/><rect x="10" y="14" width="4" height="5" rx="1"/><rect x="17" y="14" width="4" height="5" rx="1"/></>,
+  'sub-agent': <><circle cx="6" cy="5" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M16 9.5c-4 .5-8 2.5-10 7.5"/></>,
 } as const;
 
 export type UiIconName = keyof typeof shapes;

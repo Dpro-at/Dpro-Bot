@@ -227,7 +227,9 @@ export async function teamContext(agentId: string): Promise<string> {
   const placement = placeAgents(rows);
   const me = placement.get(agentId);
   if (!me || me.placed === 'none') return '';
-  const name = (id: string | null) => { const r = rows.find(x => x.id === id); return r ? `${r.name ?? r.id}${r.role && ROLE_WORD[r.role] ? ` (${ROLE_WORD[r.role]})` : ''}` : ''; };
+  // Names are data: one line, no control characters, at most 60 characters, quoted.
+  const clean = (v: string) => JSON.stringify(v.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60));
+  const name = (id: string | null) => { const r = rows.find(x => x.id === id); return r ? `${clean(r.name ?? r.id)}${r.role && ROLE_WORD[r.role] ? ` (${ROLE_WORD[r.role]})` : ''}` : ''; };
   if (me.placed === 'sub') return `You are a sub-agent of ${name(me.manager)}. You work only on what it gives you and you cannot hand work on to anyone.`;
   const lines: string[] = [];
   lines.push(me.placed === 'main' ? 'You are the main agent: everyone in the team works under you.' : `You report to ${name(me.manager)}.`);

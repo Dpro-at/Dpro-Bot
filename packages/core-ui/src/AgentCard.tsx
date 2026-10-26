@@ -3,6 +3,7 @@ import {MemoryExplorerController} from './memory-explorer';
 import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {AgentSpecialtiesSkills} from './AgentSpecialtiesSkills';
 import {AgentPermissions,usePermissionSave} from './AgentPermissions';
+import {AgentSubAgents} from './AgentSubAgents';
 import {createPortal} from 'react-dom';
 import {Avatar,ContextMenu,IconButton,Notice,Sheet,useMenu} from './desktop-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -26,7 +27,7 @@ import { forgetFacts } from './agent-facts';
 export const AGENT_SECTIONS: {key:CardTab;label:string;icon:UiIconName}[]=[
  {key:'profile',label:'General',icon:'info'},{key:'persona',label:'Personality',icon:'smile'},
  {key:'skills',label:'Specialties and skills',icon:'layers'},{key:'memory',label:'Memory',icon:'database'},
- {key:'permissions',label:'Permissions',icon:'lock'},{key:'activity',label:'Activity',icon:'clock'}
+ {key:'permissions',label:'Permissions',icon:'lock'},{key:'activity',label:'Activity',icon:'clock'},{key:'subs',label:'Sub-agents',icon:'sub-agent'}
 ];
 export const CATEGORY: Record<string, string> = { browser: 'Use the browser', network: 'Reach the internet', message: 'Send messages', delete: 'Delete things', install: 'Install software', money: 'Spend money', settings: 'Change settings' };
 
@@ -37,17 +38,17 @@ export const CATEGORY: Record<string, string> = { browser: 'Use the browser', ne
  */
 /** Links from the agent page to the Library places (Personalities, Specialties, Skills). */
 export type LibraryLinks={onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void};
-export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone, onOpenMcp, onOpenApprovals, library }: {
+export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone, onOpenMcp, onOpenApprovals, library, onOpenAgent }: {
   client: ConstructorParameters<typeof AgentCardController>[0]; agentId: string; agents: AgentsController; personality: PersonalityController;
-  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks;
+  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks; onOpenAgent?: (agentId: string) => void;
 }) {
   const [card, setCard] = useState<AgentCardController>();
   useEffect(() => { const c = new AgentCardController(client, agentId, initialSection); setCard(c); void c.load(); void agents.select(agentId); return () => c.dispose(); }, [client, agentId, agents]);
   if (!card) return null;
-  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={library}/>;
+  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={library} onOpenAgent={onOpenAgent}/>;
 }
 
-export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone, onOpenMcp, onOpenApprovals, library }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks }) {
+export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone, onOpenMcp, onOpenApprovals, library, onOpenAgent }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks; onOpenAgent?: (agentId: string) => void }) {
   const s = useSyncExternalStore(card.subscribe, card.getSnapshot, card.getSnapshot);
   const n = useSyncExternalStore(agents ? agents.subscribe : noop, agents ? agents.getSnapshot : none, agents ? agents.getSnapshot : none);
   const p = useSyncExternalStore(personality ? personality.subscribe : noop, personality ? personality.getSnapshot : none, personality ? personality.getSnapshot : none);
@@ -70,6 +71,7 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
       {tab === 'skills' && <AgentSpecialtiesSkills key={s.agentId} client={card.client} agentId={s.agentId} onDone={onDone}/>}
       {tab === 'permissions' && <AgentPermissions card={card} onDone={onDone} onOpenMcp={onOpenMcp}/>}
       {tab === 'activity' && <ActivityPart card={card} onOpenApprovals={onOpenApprovals}/>}
+      {tab === 'subs' && agents && <AgentSubAgents key={s.agentId} client={card.client as never} agentId={s.agentId} agents={agents} onDone={onDone} onOpenAgent={onOpenAgent}/>}
       {tab === 'memory' && <MemoryPart card={card} name={name} onDone={onDone} onOpenMemory={onOpenMemory}/>}
     </>}
     </div>
