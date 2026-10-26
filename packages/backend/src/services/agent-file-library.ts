@@ -48,6 +48,13 @@ function agent(agentId: string): string {
   return agentId;
 }
 
+/** A file path inside `dir`: a bare file name only, never a folder part, and it must stay inside `dir`. */
+function within(dir: string, name: string): string {
+  if (!name || name !== path.basename(name) || name === '.' || name === '..') throw new FileLibraryError(400, 'invalid_name');
+  const base = path.resolve(dir), full = path.resolve(base, name);
+  if (!full.startsWith(base + path.sep)) throw new FileLibraryError(400, 'invalid_name');
+  return full;
+}
 async function safeDir(dir: string): Promise<string> {
   try { await fs.mkdir(dir, { mode: 0o700 }); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e; }
   const st = await fs.lstat(dir);
@@ -57,12 +64,12 @@ async function safeDir(dir: string): Promise<string> {
 async function writeAtomic(dir: string, name: string, content: string): Promise<void> {
   const temp = path.join(dir, `.${randomUUID()}.tmp`);
   const handle = await fs.open(temp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW ?? 0), 0o600);
-  try { await handle.writeFile(content, 'utf8'); await handle.sync(); await handle.close(); await fs.rename(temp, path.join(dir, name)); }
+  try { await handle.writeFile(content, 'utf8'); await handle.sync(); await handle.close(); await fs.rename(temp, within(dir, name)); }
   finally { await handle.close().catch(() => {}); await fs.unlink(temp).catch(() => {}); }
 }
 async function readText(dir: string, name: string, limit: number): Promise<string | null> {
   try {
-    const r = await readRegularFile(path.join(dir, name), limit, { root: dir });
+    const r = await readRegularFile(within(dir, name), limit, { root: dir });
     if (r.stat.nlink !== 1) throw new FileLibraryError(503, 'files_unavailable');
     return new TextDecoder('utf-8', { fatal: true }).decode(r.data);
   } catch (e) {
@@ -195,7 +202,7 @@ export async function removeFile(agentId: string, name: unknown): Promise<{ id: 
   const f = await folders(agentId);
   if ((await readText(f.knowledge, name as string, MAX_KNOWLEDGE_BYTES)) === null) throw new FileLibraryError(404, 'not_found');
   const id = `${Date.now()}-${randomUUID().slice(0, 8)}`;
-  await fs.rename(path.join(f.knowledge, name as string), path.join(f.removed, id));
+  await fs.rename(within(f.knowledge, name as string), within(f.removed, id));
   const state = await readState(f.root);
   state.removed.push({ id, name: name as string, removedAt: Date.now() });
   state.notRead = state.notRead.filter(n => n !== name);
@@ -211,7 +218,8 @@ export async function restoreFile(agentId: string, id: unknown): Promise<{ name:
   const entry = state.removed.find(r => r.id === id);
   if (!entry) throw new FileLibraryError(404, 'not_found');
   if ((await fs.readdir(f.knowledge)).some(n => n.toLowerCase() === entry.name.toLowerCase())) throw new FileLibraryError(409, 'name_taken');
-  await fs.rename(path.join(f.removed, id), path.join(f.knowledge, entry.name));
+  if (kindOf(entry.name) !== 'knowledge') throw new FileLibraryError(400, 'invalid_name');
+  await fs.rename(within(f.removed, id), within(f.knowledge, entry.name));
   state.removed = state.removed.filter(r => r.id !== id);
   await writeState(f.root, state);
   return { name: entry.name };
