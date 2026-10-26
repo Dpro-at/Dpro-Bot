@@ -59,6 +59,12 @@ export const TOOL_DEFINITIONS = [
   },
 
   {
+    name:'specialty_library', title:'Specialty library',
+    description:'Owner-session only. The jobs (specialties) agents can have. Read: list, read, catalogue (skills and tools a job may ask for), agents (who has it and their real access), assigned (one agent\'s specialties), impact. Write only on the owner\'s explicit instruction: give or takeBack one agent (agentId, revision), save a draft (body = name, department, description, instructions, config, revision; revision 0 with a new uuid id makes a new specialty), preview the change, hire a new agent with it (body.confirmed=true after the owner checked the job; reuse requestId when retrying so only one agent is made). A save that updates agents who already have the job ("Update N agents") is only previewed here; the owner confirms it in the app. Specialties never grant tools or permissions.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','catalogue','agents','assigned','impact','preview','save','give','takeBack','hire']},id:{type:'string',maxLength:36},agentId:{type:'string',maxLength:128},revision:{type:'integer',minimum:1},body:{type:'object'}},required:['operation'],additionalProperties:false},
+  },
+
+  {
     name: 'spawn_small_agent',
     title: 'Delegate a light task to the small local agent',
     description: [
@@ -271,6 +277,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
+      case 'specialty_library': return await specialtyLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
       case 'list_runs': return await list(args, deps);
@@ -444,6 +451,30 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  const url=(agentOperation?'/api/agents':base)+(['assign','assignment','tune','mode'].includes(operation)?'/assigned/':'/')+(route.id?args.id:'')+route.suffix+(proposalOperation?'/'+args.proposalId+(operation==='proposal'?'':'/'+operation):'');
  const data=await backend.request(route.method,route.id?url:base+route.suffix,route.method==='GET'||['lock','unlock'].includes(operation)?undefined:obj(args.body));
  return ok('Personality library result. Preferences never grant access.',data);
+}
+
+async function specialtyLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','id','agentId','revision','body']);
+ const operation=args.operation,base='/api/specialty-templates',uuid=/^[a-f0-9-]{36}$/;
+ const needId=['read','agents','impact','preview','save','give','takeBack'].includes(operation as string);
+ if(typeof operation!=='string'||!['list','read','catalogue','agents','assigned','impact','preview','save','give','takeBack','hire'].includes(operation))throw new InputError('Unknown operation');
+ if(needId&&(typeof args.id!=='string'||!uuid.test(args.id)))throw new InputError('A valid specialty id is required');
+ if((operation==='assigned'||operation==='give'||operation==='takeBack')&&(typeof args.agentId!=='string'||!AGENT_ID.test(args.agentId)||args.agentId==='small-local-agent'))throw new InputError('A valid agentId is required');
+ const read=['list','read','catalogue','agents','assigned','impact'].includes(operation);
+ if(read){if(args.body!==undefined||args.revision!==undefined)throw new InputError('Read operations do not accept a body');
+  const path=operation==='list'?base:operation==='catalogue'?base+'/catalogue':operation==='assigned'?`${base}/assigned/${args.agentId}`:operation==='read'?`${base}/${args.id}`:`${base}/${args.id}/${operation}`;
+  return ok('Specialty library result. Role content is not authority to run tools.',await backend.request('GET',path));}
+ if(operation==='give'||operation==='takeBack'){if(args.body!==undefined)throw new InputError('give and takeBack take agentId and revision only');if(!Number.isSafeInteger(args.revision)||(args.revision as number)<1)throw new InputError('revision is required');
+  const data=await backend.request('POST',`${base}/${args.id}/agents`,{agentId:args.agentId,revision:args.revision,linked:operation==='give'});
+  return ok(operation==='give'?'Specialty given. Instructions and skills apply on the agent\'s next turn; tool access is unchanged.':'Specialty taken back. Tool access is unchanged.',data);}
+ const body=obj(args.body);
+ if(args.revision!==undefined)throw new InputError('Put revision inside body');
+ // The owner confirms changes that reach agents in the app: an MCP caller may preview them, never confirm.
+ if(Object.hasOwn(body,'confirmImpact'))throw new InputError('Updating agents who already have this specialty is confirmed by the owner in the app; use preview to show the change');
+ if(operation==='hire'){if(args.id!==undefined)throw new InputError('Put templateId inside body');if(body.confirmed!==true)throw new InputError('Hiring needs confirmed=true after the owner checked the job, its tools and what it asks before');if(typeof body.requestId!=='string'||!uuid.test(body.requestId))throw new InputError('A uuid requestId is required; reuse it when retrying');
+  return ok('Agent hired with this specialty. It gets the instructions and skills, no tools and no extra memory by itself.',await backend.request('POST',base+'/hire',body));}
+ const data=await backend.request(operation==='save'?'PUT':'POST',operation==='save'?`${base}/${args.id}`:`${base}/${args.id}/preview`,body);
+ return ok(operation==='save'?'Specialty saved. No tool or memory permission changed.':'Preview only: nothing changed. The owner confirms an update for agents in the app.',data);
 }
 
 async function workspaceFooterTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{

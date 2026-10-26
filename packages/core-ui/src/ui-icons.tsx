@@ -101,6 +101,7 @@ const shapes = {
   mix: <path d="M4 7h4l8 10h4M4 17h4l2-2.5M14 9.5L16 7h4"/>,
   send: <path d="M4 12l16-8-6 16-3-7z"/>,
   unlink: <><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7"/><path d="M4 4l16 16"/></>,
+  inspector: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></>,
 } as const;
 
 export type UiIconName = keyof typeof shapes;

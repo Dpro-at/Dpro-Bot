@@ -8,7 +8,7 @@ const config={primarySkill:null,skills:[],tools:[],memoryRead:[],memoryWrite:[],
 const draft={name:'Accountant',department:'finance',description:'Financial reports',instructions:'# Accountant',revision:1,config};
 test('hire entry is a review destination and specialty section owns role navigation',()=>{
  const hire=renderToStaticMarkup(React.createElement(SpecialtyLibrary,{client:{},hire:true}));assert.match(hire,/Choose specialty template/);assert.doesNotMatch(hire,/aria-label="New specialty"/);assert.match(hire,/Find a specialty/);
- const library=renderToStaticMarkup(React.createElement(SpecialtyLibrary,{client:{}}));assert.match(library,/aria-label="New specialty"/);assert.match(library,/Assigned agents/);assert.doesNotMatch(library,/<textarea|Run exam|History…/);
+ const library=renderToStaticMarkup(React.createElement(SpecialtyLibrary,{client:{}}));assert.match(library,/aria-label="New specialty"/);assert.match(library,/In my team/);assert.doesNotMatch(library,/<textarea|Run exam|History…/);
 });
 test('missing requirements and draft-bound preview pass both bridge and client without expanding paths',()=>{
  for(const [method,path,body] of [['PUT',P+'/'+id,draft],['POST',P+'/'+id+'/preview',draft],['POST',P+'/'+id+'/assign',{revision:1,agentIds:['main-agent'],expectedAgentIds:[]}],['GET',P+'/assigned/main-agent'],['POST',P+'/hire',{templateId:id,revision:1,requestId:reqId,confirmed:true,confirmRisky:false,linked:true}]]){assert.equal(allowedTemplates(method,path,body),true);assert.equal(allowed(method,path,body),true);assert.equal(allowedRequest(method,path,body),true);}
