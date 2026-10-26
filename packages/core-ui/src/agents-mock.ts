@@ -30,7 +30,7 @@ export function createAgentsMock() {
   let hired = 0;
   // AGENTS-ORG-01 offline: the first agent is the main agent; everyone else reports to it unless moved.
   const reports = new Map<string, string>();
-  const withOrg = (a: Extract<PublicAgent, { name: string }>) => a.id === 'sample-main' ? { ...a, isPrimary: true, placed: 'main', manager: null, reportsTo: null, subAgentOf: null } : { ...a, placed: reports.has(a.id) ? 'set' : 'auto', manager: reports.get(a.id) ?? 'sample-main', reportsTo: reports.get(a.id) ?? null, subAgentOf: null };
+  const withOrg = (a: Extract<PublicAgent, { name: string }>) => a.id === 'sample-main' ? { ...a, placed: 'main', manager: null, reportsTo: null, subAgentOf: null } : { ...a, placed: reports.has(a.id) ? 'set' : 'auto', manager: reports.get(a.id) ?? 'sample-main', reportsTo: reports.get(a.id) ?? null, subAgentOf: null };
   const fictionalFile = (name: string) => ({ name, kind: name === 'PERSONALITY.md' ? 'who' : 'mind', content: name === 'PERSONALITY.md' ? '# Offline practice\nA fictional agent file.' : '', hash: null, managed: null, redacted: false, read: true });
   const grantsView = (id: string, withAvailable: boolean) => {
     const g = grants.get(id) ?? { version: 1, tools: [...defaultGrants] }; grants.set(id, g);
