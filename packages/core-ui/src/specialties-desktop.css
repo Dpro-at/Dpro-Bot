@@ -126,3 +126,10 @@ button.sp-chip:hover{background:var(--row-hover)}
  .sp-window[data-inline-sidebar],.sp-window[data-inline-sidebar][data-inspector=open]{grid-template-columns:170px minmax(0,1fr)}
  .sp-change>div,.sp-starts{grid-template-columns:1fr}
 }
+/* SP2 Versions */
+.sp-versions .sp-item[aria-selected=true]{background:var(--row-active)}
+.sp-version-view{display:grid;gap:8px;padding:12px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--border)}
+.sp-version-view h3{margin:0;font-size:13px;display:flex;gap:8px;align-items:baseline}
+.sp-version-view h3 small{color:var(--text-3);font-weight:400}
+.sp-version-view pre{margin:0;max-block-size:280px;overflow:auto;white-space:pre-wrap;font:inherit;font-size:12.5px;color:var(--text-2)}
+.sp-version-view button{justify-self:start}

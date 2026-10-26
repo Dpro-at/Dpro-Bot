@@ -19,6 +19,8 @@ export async function specialtyTemplateRoutes(app:FastifyInstance,options:{store
  app.get<{Params:{id:string}}>('/api/specialty-templates/:id/impact',async(request,reply)=>{try{owner(request);return await store.impact(request.params.id);}catch(e){return fail(reply,e);}});
  app.post<{Params:{id:string}}>('/api/specialty-templates/:id/assign',{bodyLimit:150000},async(request,reply)=>{try{return await store.assign(owner(request),request.params.id,request.body);}catch(e){return fail(reply,e);}});
  app.post<{Params:{id:string}}>('/api/specialty-templates/:id/agents',{bodyLimit:2048},async(request,reply)=>{try{return await store.link(owner(request),request.params.id,request.body);}catch(e){return fail(reply,e);}});
+ app.get<{Params:{id:string}}>('/api/specialty-templates/:id/versions',async(request,reply)=>{try{owner(request);return await store.versions(request.params.id);}catch(e){return fail(reply,e);}});
+ app.get<{Params:{id:string;revision:string}}>('/api/specialty-templates/:id/versions/:revision',async(request,reply)=>{try{owner(request);return await store.version(request.params.id,request.params.revision);}catch(e){return fail(reply,e);}});
  app.get<{Params:{id:string}}>('/api/specialty-templates/:id',async(request,reply)=>{try{owner(request);return await store.read(request.params.id);}catch(e){return fail(reply,e);}});
  app.put<{Params:{id:string}}>('/api/specialty-templates/:id',{bodyLimit:100000},async(request,reply)=>{try{owner(request);return await store.save(request.params.id,request.body);}catch(e){return fail(reply,e);}});
  // SP3b: the local model drafts a new specialty; nothing is saved. One draft at a time per owner.
