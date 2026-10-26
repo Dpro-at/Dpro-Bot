@@ -364,6 +364,8 @@ export interface SpawnInput {
   kind?: unknown;
   /** Owner-chosen directory `read` may use instead of the agent's workspace. */
   readDir?: unknown;
+  /** Who asked (small_agent_runs.requested_by): the owner id (coding apps), or `agent:<id>` for a Dpro agent's quick helper (AGENTS-ORG-01). */
+  requestedBy?: string;
 }
 
 export interface SpawnResult {
@@ -447,7 +449,7 @@ async function doSpawn(input: SpawnInput): Promise<SpawnResult> {
   await sql().read(runSql(`
     INSERT INTO small_agent_runs (run_id, task_id, requested_by, kind, requested_tools, granted_tools, drawers, model, warnings, read_root)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, run.id, task.id, input.ownerId, kind, JSON.stringify(tools.requested), JSON.stringify(tools.granted),
+  `, run.id, task.id, input.requestedBy ?? input.ownerId, kind, JSON.stringify(tools.requested), JSON.stringify(tools.granted),
     JSON.stringify(drawers.drawers), model, JSON.stringify(warnings), readRoot));
 
   return { run, kind, grantedTools: tools.granted, drawers: drawers.drawers, model, warnings, capacity: await smallAgentCapacity(), readRoot };

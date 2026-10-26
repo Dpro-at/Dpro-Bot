@@ -2,25 +2,35 @@ import { all, one, sql } from '../../repositories/sql-steps.js';
 import type { Tool, ToolExecutionContext, ToolResult } from '../types.js';
 import { runTeamAssignment } from '../../services/team-delegation.js';
 import { subscriptionModel } from '../../services/subscription-chat.js';
+import { mayDelegate, orgRows, type OrgRow } from '../../services/agent-org.js';
 
 type Agent = { id: string; name: string; model: string; provider: string; temperature: number; max_tokens: number };
 const fail = (): ToolResult => ({ content: [{ type: 'text', text: 'Team request could not run. Check the selected agent, configured reply source, grants and approval.' }], error: 'team_request_refused' });
 
-async function coordinator(context?: ToolExecutionContext): Promise<boolean> {
-  if (!context?.userId || !context.agentId || !context.sessionId || context.toolPolicy || context.delegatedFrom?.length || context.taskId) return false;
+/**
+ * The calling agent may coordinate at all: an owner chat, not itself a delegated child or task run,
+ * and not a sub-agent. Who it may give work to is mayDelegate (AGENTS-ORG-01): the main agent anyone
+ * but other agents' sub-agents; a manager (anyone else) the agents under it and its own sub-agents.
+ */
+async function coordinator(context?: ToolExecutionContext): Promise<OrgRow[] | null> {
+  if (!context?.userId || !context.agentId || !context.sessionId || context.toolPolicy || context.delegatedFrom?.length || context.taskId) return null;
   const owner = await sql().read(one<{ role: string }>('SELECT role FROM users WHERE id=?', context.userId));
-  if (owner?.role !== 'owner') return false;
-  const primary = await sql().read(one<{ id: string }>('SELECT id FROM agents_config ORDER BY CASE WHEN is_primary=1 THEN 0 ELSE 1 END, CASE WHEN is_primary=1 THEN id ELSE created_at END, id LIMIT 1'));
-  return primary?.id === context.agentId;
+  if (owner?.role !== 'owner') return null;
+  const rows = await orgRows();
+  const me = rows.find(r => r.id === context.agentId);
+  if (!me || (me.parent_agent_id && rows.some(r => r.id === me.parent_agent_id))) return null;
+  return rows;
 }
 
 export const teamListTool: Tool = {
   name: 'team_list',
-  description: 'List existing team agents and their configured reply sources. Only the primary agent in an owner chat can coordinate. No agents or grants are created.',
+  description: 'List the team agents you may give work to and their configured reply sources: as the main agent, the team; as a manager, the agents under you; and your own sub-agents. Only in an owner chat. No agents or grants are created.',
   input_schema: { type: 'object', properties: {} },
   async execute(_params, context) {
-    if (!await coordinator(context)) return fail();
-    const agents = await sql().read(all<Agent>('SELECT id,name,model,provider FROM agents_config WHERE id<>? ORDER BY name,id LIMIT 100', context!.agentId!));
+    const rows = await coordinator(context);
+    if (!rows) return fail();
+    const allowed = new Set(rows.filter(r => mayDelegate(context!.agentId!, r.id, rows)).map(r => r.id));
+    const agents = (await sql().read(all<Agent>('SELECT id,name,model,provider FROM agents_config WHERE id<>? ORDER BY name,id', context!.agentId!))).filter(a => allowed.has(a.id)).slice(0, 100);
     return { content: [{ type: 'text', text: JSON.stringify(agents) }], details: { count: agents.length, limit: 100 } };
   },
 };
@@ -45,14 +55,15 @@ export const teamDelegateTool: Tool = {
   name: 'team_delegate',
   execClass: true,
   requiresApproval: true,
-  description: 'Delegate one self-contained task to an existing team agent using that agent\'s own configured model, personality and specialties. Wait for its answer, review evidence, then combine results. Calls require the owner\'s approval and an explicit tool grant. Child tools are limited by both agents; recursive delegation is forbidden. A waiting approval is unfinished work.',
+  description: 'Delegate one self-contained task to an agent you may give work to (see team_list: the team for the main agent, the agents under a manager, your own sub-agents), using that agent\'s own configured model, personality and specialties. Wait for its answer, review evidence, then combine results. Calls require the owner\'s approval and an explicit tool grant. Child tools are limited by both agents; recursive delegation is forbidden. A waiting approval is unfinished work.',
   input_schema: { type: 'object', properties: {
     agent_id: { type: 'string', description: 'Exact existing agent ID from team_list.' },
     request: { type: 'string', description: 'Self-contained task, expected deliverable and acceptance criteria (maximum 12000 characters).' },
     reply_source: { type: 'string', enum: ['subscription:claude', 'subscription:codex', 'subscription:gemini'], description: 'Optional explicit subscription source for this approved task only. Omit to use the agent\'s saved model. Does not change agent settings.' },
   }, required: ['agent_id', 'request'] },
   async execute(params, context) {
-    if (!await coordinator(context) || typeof params.agent_id !== 'string' || typeof params.request !== 'string' || !params.request.trim() || params.request.length > 12000 || params.agent_id === context!.agentId) return fail();
+    const rows = await coordinator(context);
+    if (!rows || typeof params.agent_id !== 'string' || !mayDelegate(context!.agentId!, params.agent_id, rows) || typeof params.request !== 'string' || !params.request.trim() || params.request.length > 12000 || params.agent_id === context!.agentId) return fail();
     if (params.reply_source !== undefined && !['subscription:claude', 'subscription:codex', 'subscription:gemini'].includes(params.reply_source)) return fail();
     const key = context!.userId!;
     if (active.has(key)) return fail();

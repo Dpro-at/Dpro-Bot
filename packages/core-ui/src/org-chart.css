@@ -1,0 +1,93 @@
+/* Agents org chart and sub-agents (boards OC1–OC3, SA1): List | Chart switch,
+   the chart plane with cards and connector lines, drag and drop, zoom,
+   the Reports to picker, and the agent page's Sub-agents part. */
+.ag-staff .ag-toolbar h2{margin-inline-end:0}
+.oc-switch{display:inline-flex;padding:2px;border-radius:8px;background:var(--secondary);margin-inline-end:auto;margin-inline-start:6px}
+.oc-switch button{display:inline-flex;align-items:center;gap:5px;min-block-size:24px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:var(--text-2);font-size:12px;box-shadow:none}
+.oc-switch button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+
+.oc-wrap{position:relative;flex:1;min-block-size:0;display:flex;flex-direction:column}
+.oc-plane{flex:1;min-block-size:0;overflow:auto;outline:none;background:radial-gradient(color-mix(in srgb,var(--text) 9%,transparent) 1px,transparent 1px) 0 0/22px 22px}
+.oc-sizer{position:relative}
+.oc-canvas{position:absolute;inset-block-start:0;inset-inline-start:0;transform-origin:0 0}
+.oc-links{position:absolute;inset-block-start:0;inset-inline-start:0;overflow:visible;pointer-events:none}
+.oc-link{fill:none;stroke:color-mix(in srgb,var(--text) 30%,transparent);stroke-width:1.5}
+.oc-link.oc-dashed{stroke:color-mix(in srgb,#2BA59A 75%,transparent);stroke-dasharray:4 3}
+.oc-zoom-sep{inline-size:1px;margin:4px 3px;background:var(--border)}
+.oc-slot{position:absolute}
+.oc-card{display:flex!important;align-items:center;gap:9px;inline-size:100%;block-size:100%;padding:0 26px 0 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:start;cursor:default;box-shadow:0 1px 2px rgb(0 0 0/.06)}
+.oc-card:hover{background:var(--row-hover)}
+.oc-card[aria-selected="true"]{border-color:var(--accent);background:var(--row-active);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.oc-card[draggable="true"]{cursor:grab}
+.oc-main{border-color:color-mix(in srgb,#8A63E0 45%,var(--border))}
+.oc-sub{border-style:dashed;border-color:color-mix(in srgb,#2BA59A 65%,transparent);background:color-mix(in srgb,#2BA59A 6%,var(--surface))}
+.oc-match{box-shadow:0 0 0 2px var(--accent)}
+.oc-lifted{opacity:.45}
+.oc-dim{opacity:.4}
+.oc-target{border-color:var(--accent)!important;box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 22%,transparent)!important}
+.oc-text{display:grid;gap:1px;min-inline-size:0;flex:1}
+.oc-name{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden}
+.oc-name bdi{overflow:hidden;text-overflow:ellipsis}
+.oc-role{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oc-mark{color:#2BA59A;display:inline-flex}
+.oc-stack{display:inline-flex;align-items:center}
+.oc-stack>*+*{margin-inline-start:-5px}
+.oc-fold{position:absolute;inset-inline-end:4px;inset-block-start:50%;translate:0 -50%;inline-size:20px;block-size:20px;display:grid!important;place-items:center;padding:0;border:0;border-radius:5px;background:transparent;color:var(--text-3);box-shadow:none}
+.oc-fold:hover{background:var(--secondary);color:var(--text)}
+.oc-card[aria-expanded="true"]+.oc-fold svg{rotate:90deg}
+.oc-drop-tag{position:absolute;inset-block-end:calc(100% + 6px);inset-inline-start:0;padding:4px 8px;border-radius:6px;background:var(--accent);color:var(--on-accent);font-size:11.5px;white-space:nowrap;pointer-events:none;z-index:2}
+.oc-lonely{position:absolute;inset-inline:0;inset-block-start:150px;margin:0 auto;max-inline-size:360px;text-align:center;color:var(--text-2);font-size:13px;line-height:1.5}
+.oc-hint{position:absolute;inset-inline-start:16px;inset-block-end:12px;font-size:11.5px;color:var(--text-3);pointer-events:none}
+.oc-zoom{position:absolute;inset-inline-end:14px;inset-block-end:10px;display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--surface);box-shadow:0 0 0 1px var(--border),0 4px 14px rgb(0 0 0/.12)}
+.oc-effects{margin:8px 0 0;padding-inline-start:18px;font-size:12.5px;color:var(--text-2)}
+
+/* Reports to (inspector row + picker) */
+.oc-reports{display:block}
+.oc-reports>.ag-fact{inline-size:100%}
+.oc-reports .ag-fact>span>span{display:inline-flex;align-items:center;gap:4px}
+.oc-picker{display:grid;gap:6px;inline-size:240px}
+.oc-picker [role="listbox"]{display:grid;max-block-size:280px;overflow:auto}
+.oc-picker [role="option"]{display:flex!important;align-items:center;gap:8px;min-block-size:28px;padding:0 8px;border:0;border-radius:6px;background:transparent;text-align:start;font-size:12.5px;box-shadow:none}
+.oc-picker [role="option"]>.oc-pick-name{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-picker [role="option"][aria-selected="true"]{background:var(--row-active)}
+.oc-picker [role="option"]:disabled{opacity:.45}
+.oc-picker small{font-size:10.5px;color:var(--text-3)}
+
+/* Agent page › Sub-agents */
+.sa-helpers,.sa-work{display:grid;gap:4px}
+.sa-helper{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;border:1px dashed color-mix(in srgb,#2BA59A 55%,transparent);background:var(--surface)}
+.sa-helper-text{display:grid;gap:2px;flex:1;min-inline-size:0;text-align:start}
+.sa-helper-text b{font-size:13px}
+.sa-helper-text small{font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis}
+.sa-state{font-size:11.5px;color:var(--text-3);white-space:nowrap}
+.sa-quick{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;background:var(--secondary)}
+.sa-quick-icon{inline-size:30px;block-size:30px;display:grid;place-items:center;border-radius:50%;background:var(--surface);color:var(--text-2);flex:none}
+.sa-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--accent) 9%,transparent);font-size:12.5px}
+.sa-note>span{flex:1;min-inline-size:200px}
+.sa-work-row{display:flex!important;align-items:center;gap:12px;inline-size:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;text-align:start;box-shadow:none}
+.sa-work-row:hover{background:var(--row-hover)}
+.sa-work-row[aria-selected="true"]{background:var(--row-active);box-shadow:inset 2px 0 0 var(--accent)}
+.sa-work-row .sa-helper-text>span{font-size:12.5px}
+.sa-dot{inline-size:24px;block-size:24px;flex:none;display:grid;place-items:center;border-radius:50%}
+.sa-run{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.sa-wait{background:color-mix(in srgb,#E0A030 20%,transparent);color:#B07812}
+.sa-done{background:color-mix(in srgb,#3E9E61 18%,transparent);color:#2F7D4A}
+.sa-fail{background:color-mix(in srgb,var(--danger) 15%,transparent);color:var(--danger)}
+.sa-detail{display:grid;gap:6px;padding:12px 14px;border-radius:10px;background:var(--secondary);font-size:12.5px}
+.sa-detail p{margin:0;line-height:1.5}
+.sa-detail button{justify-self:start;display:inline-flex;align-items:center;gap:6px}
+.sa-sheet{display:grid;gap:10px;inline-size:min(520px,100%)}
+.sa-starts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sa-start{display:flex!important;flex-direction:column;align-items:flex-start;gap:3px;min-block-size:76px;padding:10px;border-radius:10px;background:var(--secondary);text-align:start;box-shadow:none}
+.sa-start[aria-checked="true"]{background:var(--row-active);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.sa-start small{font-size:11px;color:var(--text-3)}
+.sa-tools{display:grid;gap:2px;max-block-size:220px;overflow:auto;padding:6px;border-radius:10px;background:var(--secondary)}
+.sa-tool{display:flex!important;align-items:center;gap:9px;min-block-size:26px;padding:0 6px;font-size:12.5px}
+.sa-tool span{flex:1}
+.sa-tool small{font-size:11px;color:var(--text-3)}
+@media (max-width:820px){.sa-starts{grid-template-columns:1fr}.oc-hint{display:none}}
+.oc-card .dk-avatar,.oc-picker .dk-avatar{flex:none}
+.sa-tool,.sa-quick{flex-direction:row!important;grid-template-columns:none!important}
+.sa-tool input[type="checkbox"],.sa-quick input[type="checkbox"]{flex:none;inline-size:14px!important;block-size:14px!important;min-block-size:0!important;margin:0;padding:0}
+.sa-quick input[role="switch"]{inline-size:30px!important;block-size:18px!important}
+.sa-tool span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-inline-size:0}

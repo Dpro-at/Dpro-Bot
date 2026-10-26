@@ -1,5 +1,6 @@
 import {specialtyLibraryTool,specialtyApplyTool} from './specialties.js';
 import { teamListTool, teamDelegateTool, teamResultsTool } from './tasks/team.js';
+import { quickHelperTool, quickHelperResultTool } from './tasks/quick-helper.js';
 import {narrowProjectMemory,narrowProjectMemorySync} from './memory/project-access.js';
 /**
  * Tools System - Main Export
@@ -116,7 +117,7 @@ const extensionTools: Tool[] = [];
 
 /** Built-in tools, in registration order. */
 const CORE_TOOLS: Tool[] = [
-  teamListTool, teamDelegateTool, teamResultsTool,
+  teamListTool, teamDelegateTool, teamResultsTool, quickHelperTool, quickHelperResultTool,
   specialtyLibraryTool, specialtyApplyTool,
   execTool, readTool, writeTool, webFetchTool, executeCodeTool,
   browserNavigateTool, browserScreenshotTool, browserExtractTool, browserInteractTool,

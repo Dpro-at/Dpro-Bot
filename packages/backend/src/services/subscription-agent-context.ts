@@ -2,6 +2,7 @@ import {one,sql} from '../repositories/sql-steps.js';
 import {libraryBehavior} from './personality-library.js';
 import {linkedSpecialtyContext} from './specialty-templates.js';
 import {centralSkills} from '../skills/central-store.js';
+import {teamContext} from './agent-org.js';
 
 const CONTEXT_LIMIT = 90000;
 const REQUEST_LIMIT = 190000;
@@ -20,6 +21,7 @@ export async function subscriptionAgentContext(agentId: string): Promise<string>
     else omitted++;
   };
   append('Identity',JSON.stringify({name:agent.name}));
+  append('Team',await teamContext(agent.id).catch(()=>''));
   append('Base instructions',agent.system_prompt || '');
   const behavior = await libraryBehavior(agent.id);
   if (behavior) append('Personality',behavior.promptBlock);

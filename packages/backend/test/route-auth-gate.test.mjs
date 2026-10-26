@@ -221,6 +221,8 @@ const OWNER_ONLY = [
   ['GET', '/api/agents/:id/tool-grants'], ['PUT', '/api/agents/:id/tool-grants'],
   // CORE-PERMS-01: memory scope + off/ask/allow per agent
   ['GET', '/api/agents/:id/permissions'], ['PUT', '/api/agents/:id/permissions'],
+  // AGENTS-ORG-01: org chart and sub-agents
+  ['PUT', '/api/agents/:id/reports-to'], ['POST', '/api/agents/:id/sub-agents'], ['GET', '/api/agents/:id/sub-agent-work'], ['POST', '/api/agents/:id/sub-agent-work/:runId/stop'],
   // BOARD-01: the company task board
   ['GET', '/api/boards'], ['GET', '/api/boards/:id'], ['POST', '/api/boards/:id/cards'], ['PUT', '/api/boards/:id/cards/:cardId'],
   ['POST', '/api/boards/:id/cards/:cardId/comments'],

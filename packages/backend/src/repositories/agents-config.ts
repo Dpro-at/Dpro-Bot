@@ -55,6 +55,7 @@ import { VersionInputError, expectedVersionFrom } from '../api/concurrency.js';
 import { AGENT_ROLES, PersonalityInputError, isAgentRole, normalizeDepartment, type AgentRole } from '../services/personality.js';
 import { checkOwnerPersonalityInput, seedPersonalityForNewAgent, type SaveInput } from '../services/personality-store.js';
 import { seedNewAgentPermissionsStep } from '../tools/agent-permissions.js';
+import { releaseReportsStep } from '../services/agent-org.js';
 
 export interface AgentConfigRow {
   id: string;
@@ -75,6 +76,8 @@ export interface AgentConfigRow {
   role?: string | null;
   /** CORE-01c: normalized lowercase department, or null. */
   department?: string | null;
+  /** AGENTS-ORG-01: the agent this one reports to, or null (Dpro places it; migration 144). */
+  reports_to?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -400,7 +403,14 @@ export const agentConfigs: AgentConfigsRepository = {
     if (!existing) throw new AgentConfigError(404, NOT_FOUND);
     const totalCount = (await sql().read(one<{ cnt: number }>('SELECT COUNT(*) as cnt FROM agents_config')))!.cnt;
     if (existing.is_primary === 1 && totalCount > 1) throw new AgentConfigError(400, 'Cannot delete the primary agent. Set another agent as primary first.');
-    await removeAgentApiKey(id);
-    await sql().read(run('DELETE FROM agents_config WHERE id = ?', id));
+    // AGENTS-ORG-01: the agents that report to it move up to its manager; its sub-agents go with it.
+    // Keys first (they need the rows), as before.
+    const subs = (await sql().read(all<{ agent_id: string }>('SELECT agent_id FROM agent_grant_profiles WHERE parent_agent_id = ? AND agent_id != ?', id, id))).map(r => r.agent_id);
+    for (const gone of [id, ...subs]) await removeAgentApiKey(gone);
+    await sql().tx(function* () {
+      const { subAgents } = yield* releaseReportsStep(id);
+      for (const sub of subAgents) yield* run('DELETE FROM agents_config WHERE id = ?', sub);
+      yield* run('DELETE FROM agents_config WHERE id = ?', id);
+    });
   },
 };

@@ -44,7 +44,7 @@ export function AgentsDestination({ client, active = false, onOpenMemory, sideba
   const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} query={query} onQuery={setQuery} onTeam={() => setOpen(null)}
     department={department} onDepartment={d=>{setDepartment(d);setOpen(null);}}/>, sidebarSlot) : null;
   if (open && controller && personality && owner) return <section aria-label="Agents">
-    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory} onChat={onChat} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={{onPersonalities,onSpecialties,onSkills}} onGone={text => { setOpen(null); setNotice({ id: Date.now(), text }); void controller.list(); }}/>
+    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory} onChat={onChat} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={{onPersonalities,onSpecialties,onSkills}} onOpenAgent={id=>{setInitialSection('profile');setOpen(id);}} onGone={text => { setOpen(null); setNotice({ id: Date.now(), text }); void controller.list(); }}/>
   </section>;
   const newHire=()=>{if(hire){hire.restart();setHiring(true);}};
   const newCompany=()=>{if(company){company.restart();setBuilding(true);}};
