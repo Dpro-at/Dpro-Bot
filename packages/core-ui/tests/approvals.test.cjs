@@ -14,3 +14,11 @@ test('full review detail route is separate from recovery chat and keeps identity
  const projected=approvalResponse(path,200,{approval:row});assert.equal(projected.approval.agentId,'agent-one');assert.equal(projected.approval.requestedAt,row.requestedAt);assert.equal(projected.approval.params.document,'Trial');
 });
 test('an approval confirmed with a code passes the session and local server gates (chat recovery uses the same route)',()=>{const body={paramsHash:hash,verificationReceipt:'r'.repeat(43)};assert.ok(allowedRequest('POST',path+'/approve',body));assert.ok(allowed('POST',path+'/approve',body));});
+test('the short request view never hides or cuts data before allowing',()=>{const {paramView}=require('../src/ApprovalPage.tsx');
+ const real=paramView({token:{masked:true,fingerprint:'abcd1234'},to:'Ada'},['token']);assert.equal(real.complete,true);assert.deepEqual(real.rows[0],['Token','Hidden',true]);
+ const fake=paramView({note:{masked:true,payload:'rm -rf'}},[]);assert.equal(fake.complete,false);assert.notEqual(fake.rows[0][1],'Hidden');
+ assert.equal(paramView({token:{masked:true,fingerprint:'abcd1234'}},[]).complete,false);
+ assert.equal(paramView({body:{text:'x'.repeat(400)}}).complete,false);
+ assert.equal(paramView({userName:'a',user_name:'b'}).complete,false);
+ assert.equal(paramView(Object.fromEntries(Array.from({length:41},(_,i)=>['k'+i,i]))).complete,false);
+});

@@ -38,7 +38,7 @@ export function ApprovalPage({client,active,onDecision,sidebarSlot,filter:contro
  const allow=()=>{if(!canAllow||!detail)return;if(detail.verificationRequired)setVerificationOpen(true);else void decide('approve');};
  const step=(by:number)=>{if(busy||!shown.length)return;const at=shown.findIndex(r=>r.id===detail?.id),next=shown[Math.max(0,Math.min(shown.length-1,at<0?0:at+by))];if(next){void open(next.id);list.current?.querySelector<HTMLButtonElement>(`[data-id="${next.id}"]`)?.focus();}};
  const side=<nav className="dk-sidebar approval-sidebar" aria-label="Approval places">{approvalPlaces.map(p=><button key={p.id} className="nav-item dk-place" aria-current={filter===p.id?'page':undefined} disabled={busy} onClick={()=>changePlace(p.id)}><UiIcon name={p.icon} size={16}/><span>{p.name}</span></button>)}</nav>;
- const view=paramView(detail?.params??null);
+ const view=paramView(detail?.params??null,detail?.maskedFields);
  const selectedName=detail?.agentId?names[detail.agentId]??'Agent name unavailable':'Dpro';
  const place=approvalPlaces.find(p=>p.id===filter);
  return <section className="approvals-workspace approvals-desktop" aria-label="Approvals" onKeyDown={e=>{const typing=(e.target as HTMLElement).closest('input,textarea,select');if((e.metaKey||e.ctrlKey)&&e.key==='f'){e.preventDefault();search.current?.focus();return;}if(e.key==='Escape'&&!busy){selection.current++;setDetail(null);setReviewed(false);return;}if(typing||e.metaKey||e.ctrlKey||e.altKey)return;if(e.key==='j'){e.preventDefault();step(1);}else if(e.key==='k'){e.preventDefault();step(-1);}else if(e.key==='a'&&canAllow){e.preventDefault();allow();}else if(e.key==='r'&&pending&&!busy&&phase!=='error'&&!uncertain){e.preventDefault();void decide('deny');}}}>
@@ -62,14 +62,16 @@ export function requestTitle(tool:string,category:string|null){if(knownActions[t
 function sentence(value:string){const words=value.replace(/[_-]+/g,' ').trim();return words?words.charAt(0).toUpperCase()+words.slice(1):value;}
 /** Top-level request fields as plain rows; hidden secrets say "Hidden". `complete` is false when the
  * short view would cut, merge or leave out anything — then the full request must be shown before allowing. */
-export function paramView(params:unknown):{rows:[string,string,boolean][];complete:boolean}{
+export function paramView(params:unknown,maskedFields:readonly string[]=[]):{rows:[string,string,boolean][];complete:boolean}{
  let complete=true;
- const show=(v:unknown):[string,boolean]=>{if(v&&typeof v==='object'&&!Array.isArray(v)&&(v as {masked?:boolean}).masked===true)return ['Hidden',true];if(v===null||v===undefined)return ['None',false];if(typeof v!=='object'){const text=String(v);if(text.length>2000){complete=false;return [text.slice(0,2000)+'…',false];}return [text,false];}const text=JSON.stringify(v);if(text.length>300){complete=false;return [text.slice(0,300)+'…',false];}return [text,false];};
- if(!params||typeof params!=='object'||Array.isArray(params)){const [v,h]=show(params);return {rows:[['Value',v,h]],complete};}
+ // "Hidden" only for a field the server says it hid, in the server's exact shape; a look-alike sent by an agent shows the full request.
+ const serverMasked=(v:unknown,path:string)=>!!v&&typeof v==='object'&&!Array.isArray(v)&&maskedFields.includes(path)&&Object.keys(v).sort().join()==='fingerprint,masked'&&(v as {masked?:unknown}).masked===true&&typeof (v as {fingerprint?:unknown}).fingerprint==='string';
+ const show=(v:unknown,path:string):[string,boolean]=>{if(serverMasked(v,path))return ['Hidden',true];if(v&&typeof v==='object'&&!Array.isArray(v)&&'masked' in v)complete=false;if(v===null||v===undefined)return ['None',false];if(typeof v!=='object'){const text=String(v);if(text.length>2000){complete=false;return [text.slice(0,2000)+'…',false];}return [text,false];}const text=JSON.stringify(v);if(text.length>300){complete=false;return [text.slice(0,300)+'…',false];}return [text,false];};
+ if(!params||typeof params!=='object'||Array.isArray(params)){const [v,h]=show(params,'$');return {rows:[['Value',v,h]],complete};}
  const entries=Object.entries(params as Record<string,unknown>);if(!entries.length)return {rows:[['Value','Nothing',false]],complete};
  if(entries.length>40)complete=false;
  const seen=new Set<string>();
- const rows=entries.slice(0,40).map(([k,v]):[string,string,boolean]=>{let label=sentence(k.replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase());if(seen.has(label)){label=k;complete=false;}seen.add(label);const [text,hidden]=show(v);return [label,text,hidden];});
+ const rows=entries.slice(0,40).map(([k,v]):[string,string,boolean]=>{let label=sentence(k.replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase());if(seen.has(label)){label=k;complete=false;}seen.add(label);const [text,hidden]=show(v,k);return [label,text,hidden];});
  return {rows,complete};
 }
 export function paramRows(params:unknown){return paramView(params).rows;}
