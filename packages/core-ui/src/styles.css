@@ -1,4 +1,3 @@
-@import './visual-fixes.css';
 @import './sections-cleanup.css';
 @import './org-chart.css';
 @import './settings-desktop.css';
@@ -14,6 +13,7 @@
 @import './trading-workspace.css';
 @import './approvals-desktop.css';
 @import './footer.css';
+@import './visual-fixes.css';
 :root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; font-size: 13px; line-height: 1.5; }
 * { box-sizing: border-box; }
 body { margin: 0; }

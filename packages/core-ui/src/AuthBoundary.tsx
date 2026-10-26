@@ -72,7 +72,7 @@ function WorkspaceNotice({ notice, seconds }: { notice: keyof typeof notices; se
   useEffect(() => { if (!limited || left <= 0) return; const t = setTimeout(() => setLeft(n => n - 1), 1000); return () => clearTimeout(t); }, [limited, left]);
   if (closed || (limited && left <= 0)) return null;
   return <p className="page-notice workspace-notice" role="status">
-    <span>{limited ? `Too many requests at once. Dpro waits a moment; try again in ${left} s.` : <>{notices[notice]}{retryAfterNotice(seconds)}</>}</span>
+    <span>{limited ? `Too many requests at once. Try again in ${left} s.` : <>{notices[notice]}{retryAfterNotice(seconds)}</>}</span>
     <button type="button" className="tool" aria-label="Close this notice" title="Close" onClick={() => setClosed(true)}><UiIcon name="close" size={12}/></button>
   </p>;
 }
