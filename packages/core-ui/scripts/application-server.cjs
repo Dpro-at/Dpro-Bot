@@ -37,6 +37,7 @@ const { allowedChatSearch, chatSearchRoute, chatSearchResponse } = require('../s
 const { allowedChatExport, chatExportRoute, chatExportResponse } = require('../src/chat-export-contract.js');
 const { allowedChatSecrets, chatSecretsRoute, chatSecretsResponse } = require('../src/chat-secrets-contract.js');
 const { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } = require('../src/terminal-contract.js');
+const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-contract.js');
 const { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_STREAM_MS, RUN_IDLE_MS } = require('../src/conversation-contract.js');
 const { validDeviceToken, validLoginBody, loginContinuation } = require('../src/login-contract.js');
 const { setupStatus } = require('../src/setup-status.js');
@@ -107,6 +108,7 @@ function allowed(method, target, body) {
   if (libraryPath(target)) return allowedLibrary(method,target,body);
   if (templatePath(target)) return allowedTemplates(method,target,body);
   if (skillLibraryPath(target)) return allowedSkillLibrary(method,target,body);
+  if (footerRoute(target)) return allowedFooter(method, target, body);
   if (memoryDesktopRoute(target)) return allowedMemoryDesktop(method, target, body);
   if (memoryPagesRoute(target)) return allowedMemoryPages(method, target, body);
   if (memoryRecallRoute(target)) return allowedMemoryRecall(method, target, body);
@@ -184,6 +186,7 @@ function project(target, status, body) {
   if (conversationRoute(target)) return conversationResponse(target, status, body);
   if (cardRoute(target)) return agentCardResponse(target, status, body);
   if (terminalRoute(target)) return terminalResponse(target, status, body);
+  if (footerRoute(target)) return footerResponse(status, body);
   if (connectionsRoute(target)) return connectionsResponse(target,status,body);
   if (mcpImportPath(target)) return mcpImportResponse(target,status,body);
   if (libraryPath(target)) return libraryResponse(target,status,body);
@@ -209,6 +212,8 @@ function project(target, status, body) {
       const agents = body.agents.map(agent); if (new Set(agents.map(a => a.id)).size !== agents.length) throw Error();
       return { agents };
     }
+    // DELETE /api/agents/:id answers { success: true } without an agent.
+    if (status === 200 && body?.success === true && body.agent === undefined) return { success: true };
     if (status === 200 || (status === 409 && body?.code === 'version_conflict')) {
       const a = agent(body?.agent); if (a.id !== target.slice('/api/agents/'.length)) throw Error();
       if (status === 200) return { agent: a };

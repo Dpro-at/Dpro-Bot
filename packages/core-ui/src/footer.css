@@ -1,0 +1,19 @@
+/* SH1 + SH3: the footer the person chooses (ShellFooter.tsx). */
+.shell-footer .status-item[aria-current="page"] { color:var(--text); background:var(--row-hover); }
+.shell-footer .status-item[draggable="true"] { cursor:default; }
+.shell-footer .status-item[data-dragging] { opacity:.45; }
+.shell-footer[data-icons-only] .status-item { padding:0 7px; }
+.shell-footer .footer-badge { min-inline-size:16px; padding:0 5px; border-radius:999px; background:var(--accent); color:#fff; font-size:10px; line-height:15px; text-align:center; }
+.shell-footer .footer-notice { gap:6px; color:var(--text-2, var(--text)); }
+.dk-menu .dk-menu-check { display:inline-grid; place-items:center; inline-size:14px; color:var(--accent); }
+.footer-settings { display:flex; flex-direction:column; gap:6px; }
+.footer-settings ol { list-style:none; margin:0; padding:2px; border-radius:8px; background:var(--panel, var(--sidebar)); }
+.footer-settings li { display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:6px; font-size:13px; }
+.footer-settings li + li { border-block-start:1px solid var(--border); }
+.footer-settings li[data-off] { color:var(--text-3); }
+.footer-settings li[data-dragging] { opacity:.45; }
+.footer-settings li .grip { color:var(--text-3); cursor:grab; }
+.footer-settings li .footer-name { flex:1; }
+.footer-settings li small { color:var(--text-3); font-size:11.5px; }
+.footer-settings .footer-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; font-size:13px; }
+.dk-menu button:hover .dk-menu-check, .dk-menu button:focus-visible .dk-menu-check { color:inherit; }

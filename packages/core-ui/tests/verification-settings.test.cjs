@@ -27,5 +27,5 @@ test('cancelled late setup and expiry cannot repopulate a hidden key',async t=>{
 });
 test('active factor exposes disable only and settings entry makes no request before open',async t=>{
  const {controller,calls}=fixture(t,request=>({status:200,body:request.method==='GET'?{enabled:true}:{requiresSignIn:true}}));await controller.load();await controller.act('enroll','private-password');assert.equal(calls.length,1);await controller.act('disable','fresh-password','012345');assert.equal(calls[1].path,P+'/disable');
- const client=new SessionClient();const html=renderToStaticMarkup(React.createElement(VerificationSettings,{client}));assert.match(html,/Manage verification/);assert.doesNotMatch(html,/<dialog|Setup key/);
+ const client=new SessionClient();const html=renderToStaticMarkup(React.createElement(VerificationSettings,{client}));assert.match(html,/aria-label="Two-step sign-in"/);assert.match(html,/Turn on…/);assert.doesNotMatch(html,/<dialog|Setup key|Not supported/);
 });

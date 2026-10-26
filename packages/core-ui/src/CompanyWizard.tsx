@@ -1,5 +1,9 @@
 import {PersonalityPicker} from './PersonalityLibrary';
 import {TeamResourceReview} from './TeamResourceReview';
+import {DepartmentTile} from './StaffDirectory';
+import {IconButton} from './desktop-ui';
+import {UiIcon} from './ui-icons';
+import {departmentIcon,departmentTone,tileStyle} from './agent-look';
 import { useEffect,useRef,useState, useSyncExternalStore } from 'react';
 import { allPresets, allRoles, presetLabel, roleLabel } from './hire';
 import type { Preset, Role } from './hire';
@@ -10,7 +14,7 @@ import { rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
 const steps = [
-  { key: 'size', label: 'Number of agents' }, { key: 'departments', label: 'Departments' },
+  { key: 'size', label: 'Size' }, { key: 'departments', label: 'Departments' },
   { key: 'review', label: 'Your team' }, { key: 'hiring', label: 'Hire' },
 ] as const;
 const statusLabel: Record<PlannedHire['status'], string> = { planned: '', creating: 'Hiring…', created: 'Hired', failed: 'Not hired', unknown: 'Unknown' };
@@ -33,13 +37,13 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
   return <dialog ref={dialog} className="company-wizard" aria-label="Build your company" onCancel={e=>{e.preventDefault();if(!busy)onClose();}}><section aria-label="Company setup" className="hire company">
     <div className="hire-head">
       <h3>Build your company</h3>
-      <button type="button" disabled={busy} onClick={onClose}>Back to team</button>
+      <ol className="hire-steps ag-steps" aria-label="Steps">{steps.map((x, i) =>
+        <li key={x.key} aria-current={x.key === s.step ? 'step' : undefined} data-done={i < current ? 'true' : undefined}>
+          <span className="hire-step-n" aria-hidden="true">{i < current ? '✓' : i + 1}</span>{x.label}
+        </li>)}
+      </ol>
+      <IconButton icon="close" label="Back to team" disabled={busy} onClick={onClose}/>
     </div>
-    <ol className="hire-steps" aria-label="Steps">{steps.map((x, i) =>
-      <li key={x.key} aria-current={x.key === s.step ? 'step' : undefined} data-done={i < current ? 'true' : undefined}>
-        <span className="hire-step-n" aria-hidden="true">{i + 1}</span>{x.label}
-      </li>)}
-    </ol>
     {(s.notice || busy) && <p role="status">{s.notice ?? (s.phase === 'loading' ? 'Reading the departments…' : s.phase === 'planning' ? (bulk ? 'Splitting your team…' : 'Proposing a team…') : 'Hiring your team…')}</p>}
 
     {s.step === 'size' && <div className="hire-form">
@@ -71,7 +75,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
       <label>Suggest departments<select aria-label="Suggested company profile" disabled={busy} defaultValue="" onChange={e=>controller.chooseProfile(e.target.value)}><option value="">Choose a company profile…</option><option value="education">Education, languages and integration</option><option value="software">Software company</option><option value="creative">Creative studio</option></select></label><label>Search departments<input type="search" aria-label="Search departments" value={query} onChange={e=>setQuery(e.target.value)}/></label><p className="fine-print">{s.departments.length} selected · up to 72 per plan. Department selection does not make pending specialty packages executable.</p>
       <ul className="company-departments" aria-label="Departments">{s.catalogue.departments.filter(d=>`${d.label} ${d.summary}`.toLowerCase().includes(query.toLowerCase())).map(d => {
         const on = s.departments.includes(d.id);
-        return <li key={d.id}><button type="button" className="company-dep" aria-pressed={on} disabled={busy} onClick={() => controller.toggleDepartment(d.id)}>
+        return <li key={d.id}><button type="button" className="company-dep" aria-pressed={on} disabled={busy} onClick={() => controller.toggleDepartment(d.id)}><DepartmentTile department={d.label} size={26}/>
           <strong>{d.label}</strong><small>{d.summary}</small>
         </button></li>;
       })}</ul>
@@ -88,6 +92,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
 
     {s.step==='review'&&<TeamResourceReview client={controller.client} departments={[...s.departments]} roles={(bulk?s.shares.flatMap(x=>shareSpecialties(x).map(r=>({department:x.department,name:r.name}))):s.hires.filter(h=>h.include).map(h=>({department:h.department,name:h.title}))).filter(r=>r.name.trim()).slice(0,300)}/>}
     {(s.step==='done'||s.phase==='stopped')&&s.boardSetup&&<p role="status">{s.boardSetup==='ready'?'Company and department boards are ready. Skills and MCP permissions still need individual review.':s.boardSetup==='syncing'?'Preparing department boards…':s.boardSetup==='error'?<>Agents are kept. Board setup needs another attempt. <button onClick={()=>void controller.setupBoards()}>Retry board setup</button></>:null}</p>}
+    {bulk && s.step === 'review' && s.shares.length > 0 && <TeamPicture shares={s.shares}/>}
     {bulk && s.step === 'review' && <ShareReview shares={s.shares} busy={busy} controller={controller}/>}
     {bulk && (s.step === 'hiring' || s.step === 'done') && <BatchView batch={s.batch} shares={s.shares} phase={s.phase} busy={busy} controller={controller} onClose={onClose}/>}
 
@@ -110,6 +115,13 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
       </div>
     </div>}
   </section></dialog>;
+}
+
+/** AG4b: the team as a picture, one coloured band per department sized by its people. */
+function TeamPicture({ shares }: { shares: readonly Share[] }) {
+  const total = sharesTotal(shares);
+  return <div className="ag-team-picture" aria-label={`${total} agents over ${shares.length} departments`}>{shares.map(x => { const tone = departmentTone(x.departmentLabel);
+    return <div key={x.department} style={{ flexGrow: Math.max(1, x.count), ...tileStyle(tone) }}><span><UiIcon name={departmentIcon(x.departmentLabel)} size={14}/>{x.departmentLabel}</span><b>{x.count}</b><small>{rolesSummary(shareRoles(x))}</small></div>; })}</div>;
 }
 
 /** Ready-made company sizes, in agents (any other number is typed in). */

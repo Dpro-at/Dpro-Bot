@@ -17,7 +17,8 @@ export class HumanReviewsController{
  #publish(value:State){this.#state=freeze(value);this.#listeners.forEach(fn=>fn());}
  #begin(){this.#pending?.abort();this.#pending=new AbortController();return ++this.#generation;}
  cancel(){this.#generation++;this.#pending?.abort();this.#pending=undefined;this.#publish(initial());}
- async #read(path:string){const response=await this.client.request({method:'GET',path},this.#pending?.signal);const body=reviewerResponse(path,response.status,response.body);if(response.status!==200)throw Error(String(body.code));return body;}
+ async #read(path:string){const response=await this.client.request({method:'GET',path},this.#pending?.signal);const body=reviewerResponse(path,response.status,response.body);// The reads answer 403 only when the account is not verified.
+  if(response.status!==200)throw Error(response.status===403?'human_verification_required':String(body.code));return body;}
  async load(){
   if(this.#state.phase==='recording')return;const generation=this.#begin();this.#publish({...initial(),phase:'loading'});
   try{const body=await this.#read('/api/reviewer-requests/policies');if(generation!==this.#generation)return;this.#publish({...initial(),phase:'ready',policies:body.policies as ReviewPolicy[]});}catch(error){if(generation===this.#generation)this.#publish({...initial(),phase:'error',notice:error instanceof Error&&error.message==='human_verification_required'?'verification':'unavailable'});}
@@ -25,7 +26,7 @@ export class HumanReviewsController{
  async choosePolicy(id:string,cursor?:string){
   if(this.#state.phase==='recording'||!this.#state.policies.some(v=>v.id===id))return;
   const policies=this.#state.policies,generation=this.#begin();this.#publish({phase:'loading',policies,policyId:id,items:[],nextCursor:null});
-  try{const path='/api/reviewer-requests/'+id+(cursor?'?cursor='+encodeURIComponent(cursor):''),body=await this.#read(path);if(generation!==this.#generation)return;this.#publish({phase:'ready',policies,policyId:id,items:body.items as ReviewItem[],nextCursor:body.nextCursor as string|null});}catch{if(generation===this.#generation)this.#publish({phase:'error',policies,policyId:id,items:[],nextCursor:null,notice:'unavailable'});}
+  try{const path='/api/reviewer-requests/'+id+(cursor?'?cursor='+encodeURIComponent(cursor):''),body=await this.#read(path);if(generation!==this.#generation)return;this.#publish({phase:'ready',policies,policyId:id,items:body.items as ReviewItem[],nextCursor:body.nextCursor as string|null});}catch(error){if(generation===this.#generation)this.#publish({phase:'error',policies,policyId:id,items:[],nextCursor:null,notice:error instanceof Error&&error.message==='human_verification_required'?'verification':'unavailable'});}
  }
  async open(item:ReviewItem){
   if(this.#state.phase==='recording'||!this.#state.items.includes(item))return;

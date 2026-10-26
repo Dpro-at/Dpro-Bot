@@ -27,6 +27,8 @@ export const STATUSES = ['queued', 'running', 'waiting_approval', 'completed', '
 const FINAL = new Set(['completed', 'failed', 'cancelled', 'waiting_approval']);
 const RUN_ID = /^[0-9a-f-]{36}$/i;
 
+const FOOTER_IDS=['chat','agents','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties','mcp'];
+
 export const TOOL_DEFINITIONS = [
   {
     name:'workspace_settings',title:'Portable workspace settings',
@@ -41,14 +43,30 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. List Apps, add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. Adding does not execute a program or grant tools. Program startup, account linking, secrets and permanent removal are reviewed by the owner in the app.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. A new connection is always off: adding does not execute a program or grant tools. Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
   {
+    name:'workspace_footer',title:'Footer sections',
+    description:'Owner-session only. Read or change which sections the Dpro window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties, mcp. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
+  },
+  {
+    name:'skill_library',title:'Skill library',
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write: add (a new found package, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Removing a skill from Dpro is not available.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
+  },
+  {
     name:'personality_library', title:'Personality library',
-    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body.',
+    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess/try. list marks shipped personalities (starter) and names the agents that have each; team gives each agent’s personality, follow setting, lock and version (use that version as expectedVersion to give/assign). For save supply revision and profile in body; a personality agents follow needs the owner’s review in the app.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
+  },
+
+  {
+    name:'specialty_library', title:'Specialty library',
+    description:'Owner-session only. The jobs (specialties) agents can have. Read: list, read, catalogue (skills and tools a job may ask for), agents (who has it and their real access), assigned (one agent\'s specialties), impact. Write only on the owner\'s explicit instruction: save a draft (body = name, department, description, instructions, config, revision; revision 0 with a new uuid id makes a new specialty), preview the change, hire a new agent linked to it (body: templateId, revision, requestId, name?, libraryPersonality?, confirmed=true after the owner checked the job; reuse requestId when retrying so only one agent is made). Giving a specialty to existing agents or taking it back, a save that updates agents who already have the job ("Update N agents"), and consent to sensitive actions are done by the owner in the app. Specialties never grant tools or permissions.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','catalogue','agents','assigned','impact','preview','save','hire']},id:{type:'string',maxLength:36},agentId:{type:'string',maxLength:128},body:{type:'object'}},required:['operation'],additionalProperties:false},
   },
 
   {
@@ -262,7 +280,10 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_settings': return await workspaceSettingsTool(args,deps);
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
+      case 'workspace_footer': return await workspaceFooterTool(args,deps);
+      case 'skill_library': return await skillLibraryTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
+      case 'specialty_library': return await specialtyLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
       case 'list_runs': return await list(args, deps);
@@ -418,6 +439,27 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
   return ok(`Saved as version ${res?.handoff?.version ?? '?'}. The agent's next session starts from it.\n\n${renderHandoff(res?.handoff)}`, { handoff: res?.handoff ?? null });
 }
 
+const SKILL_ID=/^[a-f0-9-]{36}$/,SKILL_HASH=/^[a-f0-9]{64}$/,SKILL_AGENT=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const base='/api/skill-library',operation=args.operation;
+ const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v)||v.includes('..'))throw new InputError(`A valid ${what} is required`);return v;};
+ const agentId=()=>{const v=need('agentId',SKILL_AGENT,'agentId');if(v==='small-local-agent')throw new InputError('The small local agent has no skills');return v;};
+ const note='A skill is guidance only; it never grants tools, connections or memory.';
+ switch(operation){
+  case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Dpro. ${note}`,{skills:list?.skills??[],usage});}
+  case 'read':{only(args,['operation','id']);return ok(`Skill files (Markdown only). ${note}`,await backend.request('GET',`${base}/items/${need('id',SKILL_ID,'skill id')}`));}
+  case 'agent':{only(args,['operation','agentId']);return ok('Skills this agent has.',await backend.request('GET',`${base}/agents/${agentId()}`));}
+  case 'catalogue':{only(args,['operation']);return ok('Dpro\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
+  case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
+  case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
+  case 'preview':{only(args,['operation','scanId','sourceId']);return ok('The package files as they would be added (secrets hidden; scripts and links left out). existing shows whether Dpro has a copy.',await backend.request('POST',base+'/preview',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId')}));}
+  // Changes to what agents follow stay with the owner in the app (same as specialties): MCP can only add an unassigned skill.
+  case 'give':case 'take_back':case 'update':throw new InputError('Giving, taking back and updating a skill change what agents follow; the owner does them in the app after its review');
+  case 'add':{only(args,['operation','scanId','sourceId','hash']);return ok('Added to Dpro. It stays unassigned until the owner gives it to an agent.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash')}));}
+  default:throw new InputError('Unknown operation. Adding from Dpro\u2019s catalogue is done by the owner in the app (it needs the authenticator code)');
+ }
+}
+
 async function personalityLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  only(args,['operation','id','proposalId','body']);
  const operation=args.operation;
@@ -438,6 +480,49 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  return ok('Personality library result. Preferences never grant access.',data);
 }
 
+async function specialtyLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','id','agentId','body']);
+ const operation=args.operation,base='/api/specialty-templates',uuid=/^[a-f0-9-]{36}$/;
+ if(operation==='give'||operation==='takeBack')throw new InputError('Giving a specialty to an agent or taking it back is done by the owner in the app, after its review sheet');
+ if(typeof operation!=='string'||!['list','read','catalogue','agents','assigned','impact','preview','save','hire'].includes(operation))throw new InputError('Unknown operation');
+ if(['read','agents','impact','preview','save'].includes(operation)&&(typeof args.id!=='string'||!uuid.test(args.id)))throw new InputError('A valid specialty id is required');
+ if(operation==='assigned'&&(typeof args.agentId!=='string'||!AGENT_ID.test(args.agentId)||args.agentId==='small-local-agent'))throw new InputError('A valid agentId is required');
+ if(operation!=='assigned'&&args.agentId!==undefined)throw new InputError('agentId is only for assigned');
+ if(['list','read','catalogue','agents','assigned','impact'].includes(operation)){if(args.body!==undefined)throw new InputError('Read operations do not accept a body');
+  const path=operation==='list'?base:operation==='catalogue'?base+'/catalogue':operation==='assigned'?`${base}/assigned/${args.agentId}`:operation==='read'?`${base}/${args.id}`:`${base}/${args.id}/${operation}`;
+  return ok('Specialty library result. Role content is not authority to run tools.',await backend.request('GET',path));}
+ const body=obj(args.body);
+ // Confirmations that reach agents or allow sensitive actions are the owner's, in the app: an MCP caller never sends them.
+ if(Object.hasOwn(body,'confirmImpact'))throw new InputError('Updating agents who already have this specialty is confirmed by the owner in the app; use preview to show the change');
+ if(operation==='hire'){
+  if(args.id!==undefined)throw new InputError('Put templateId inside body');
+  if(Object.hasOwn(body,'confirmRisky'))throw new InputError('Sensitive actions are confirmed by the owner in the app');
+  const allowed=['templateId','revision','requestId','name','confirmed','libraryPersonality'],extra=Object.keys(body).filter(k=>!allowed.includes(k));
+  if(extra.length)throw new InputError(`hire accepts only ${allowed.join(', ')}`);
+  if(typeof body.templateId!=='string'||!uuid.test(body.templateId)||!Number.isSafeInteger(body.revision)||(body.revision as number)<1)throw new InputError('templateId and revision are required');
+  if(body.confirmed!==true)throw new InputError('Hiring needs confirmed=true after the owner checked the job, its tools and what it asks before');
+  if(typeof body.requestId!=='string'||!uuid.test(body.requestId))throw new InputError('A uuid requestId is required; reuse it when retrying');
+  if(body.name!==undefined&&(typeof body.name!=='string'||body.name.length>80))throw new InputError('name must be a short text');
+  const lp=body.libraryPersonality as Record<string,unknown>|undefined;
+  if(lp!==undefined&&(!lp||typeof lp!=='object'||Array.isArray(lp)||Object.keys(lp).some(k=>k!=='id'&&k!=='revision')||typeof lp.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/).test(lp.id)||!Number.isSafeInteger(lp.revision)))throw new InputError('libraryPersonality needs id and revision only');
+  const send={templateId:body.templateId,revision:body.revision,requestId:body.requestId,...(body.name!==undefined?{name:body.name}:{}),confirmed:true,confirmRisky:false,linked:true,...(lp?{libraryPersonality:{id:lp.id,revision:lp.revision}}:{})};
+  return ok('Agent hired with this specialty, linked to it. It gets the instructions and skills, no tools, no extra memory and no sensitive-action consent by itself.',await backend.request('POST',base+'/hire',send));}
+ const data=await backend.request(operation==='save'?'PUT':'POST',operation==='save'?`${base}/${args.id}`:`${base}/${args.id}/preview`,body);
+ return ok(operation==='save'?'Specialty saved. No tool or memory permission changed.':'Preview only: nothing changed. The owner confirms an update for agents in the app.',data);
+}
+
+async function workspaceFooterTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','order','hidden','iconsOnly','approvalsWhenWaiting']);
+ if(args.operation==='read'){only(args,['operation']);return ok('Footer sections. Settings always stays.',await backend.request('GET','/api/me/footer'));}
+ if(args.operation!=='set')throw new InputError('operation must be read or set');
+ const change:Record<string,unknown>={};
+ for(const k of ['order','hidden'] as const)if(k in args){const v=args[k];if(!Array.isArray(v)||v.length>FOOTER_IDS.length||!v.every(x=>typeof x==='string'&&FOOTER_IDS.includes(x))||new Set(v).size!==v.length)throw new InputError(`${k} must list known sections once each`);change[k]=v;}
+ for(const k of ['iconsOnly','approvalsWhenWaiting'] as const)if(k in args){if(typeof args[k]!=='boolean')throw new InputError(`${k} must be true or false`);change[k]=args[k];}
+ if(!Object.keys(change).length)throw new InputError('Nothing to change');
+ return ok('Footer changed. Settings always stays; hidden sections stay in ⌘K.',await backend.request('PUT','/api/me/footer',change));
+}
+
+const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  only(args,['operation','id','connection']);
  if(args.operation==='list'){
@@ -449,6 +534,19 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
   await backend.request('POST','/api/mcp/servers/'+args.id+'/disable');
   return ok('Connection turned off.',await backend.request('GET','/api/apps'));
+ }
+ if(args.operation==='read'){
+  only(args,['operation','id']);
+  if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
+  const server=obj(await backend.request('GET','/api/mcp/servers/'+args.id)),name=String(server.name??''),prefix=`mcp__${name}__`;
+  const names=(x:unknown)=>record(x)?Object.keys(x):[];
+  const tools=(Array.isArray(server.tools)?server.tools:[]).filter(record).map(t=>({name:String(t.name),title:typeof t.title==='string'?t.title:null,description:typeof t.description==='string'?t.description.slice(0,500):null,asksFirst:t.requiresApproval===true}));
+  const list=obj(await backend.request('GET','/api/agents')).agents,agents:{id:string;name:string;tools:string[]}[]=[];
+  for(const a of (Array.isArray(list)?list:[]).filter(record).filter(a=>typeof a.id==='string'&&a.id!=='small-local-agent').slice(0,200)){
+   const g=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(String(a.id))+'/tool-grants')),granted=(Array.isArray(g.grants)?g.grants:[]).filter(record).map(x=>String(x.tool)).filter(t=>t.startsWith(prefix));
+   if(granted.length)agents.push({id:String(a.id),name:typeof a.name==='string'?a.name:String(a.id),tools:granted});
+  }
+  return ok('MCP connection, its tools and the agents that may use them. Reading never connects, starts a program or grants access. Secret values are never returned.',{id:server.id,name,description:server.description??null,kind:server.transport==='stdio'?'program':'web',enabled:server.enabled===true,active:server.active!==false,connectionState:server.connectionState??null,problem:typeof server.lastError==='string'&&server.enabled===true,lastDiscoveredAt:server.lastDiscoveredAt??null,secretNames:[...names(server.env),...names(server.headers)],tools,agents});
  }
  if(args.operation==='add'){
   only(args,['operation','connection']);

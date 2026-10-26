@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import type {SessionClient} from './session';
 import {ReviewerProofController,type ReviewerProofTarget} from './reviewer-proof-controller';
-export function ReviewerVerificationSheet({client,target,subject,finalLabel,onClose,onConfirm}:{client:SessionClient;target:ReviewerProofTarget;subject:string;finalLabel:'Record decision'|'Activate rule'|'Withdraw rule';onClose:()=>void;onConfirm:(receipt:string)=>void}){
+export function ReviewerVerificationSheet({client,target,subject,finalLabel,onClose,onConfirm}:{client:SessionClient;target:ReviewerProofTarget;subject:string;finalLabel:'Record decision'|'Activate rule'|'Withdraw rule'|'Turn on'|'Turn off';onClose:()=>void;onConfirm:(receipt:string)=>void}){
  const controller=useMemo(()=>new ReviewerProofController(client,target),[client,target]);
  const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot),dialog=useRef<HTMLDialogElement>(null),[code,setCode]=useState('');
  useEffect(()=>{const element=dialog.current;element?.showModal();void controller.start();return()=>{controller.cancel();element?.close();};},[controller]);

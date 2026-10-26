@@ -81,7 +81,7 @@ test('connection edits do not enable or discover; tool approval updates are refl
 test('MCP page owns a quiet desktop list and sidebar without nested library tabs',()=>{
  const {McpLibrary}=require('../src/McpLibrary.tsx'),{McpSection}=require('../src/ToolSections.tsx');
  const html=renderToStaticMarkup(React.createElement(McpLibrary,{client:{},active:false}));assert.match(html,/Installed MCP connections/);assert.match(html,/Selected MCP connection/);assert.match(html,/Add a connection/);assert.doesNotMatch(html,/<textarea|role="tablist"|connector-list catalogue-grid/);
- const section=renderToStaticMarkup(React.createElement(McpSection,{client:{},active:false}));for(const label of ['All connections','Enabled','Disabled','Needs attention','Import from apps','Found in folders'])assert.ok(section.includes(label),label);assert.match(section,/MCP connections places/);
+ const section=renderToStaticMarkup(React.createElement(McpSection,{client:{},active:false}));for(const label of ['All connections','On','Off','Needs you','Add from','My coding apps','This computer','Search connections'])assert.ok(section.includes(label),label);assert.match(section,/MCP connections places/);assert.doesNotMatch(section,/Publisher sources/);
 });
 
 
@@ -91,7 +91,9 @@ test('desktop connection commands distinguish enable, reconnect and tool discove
  const base=createLoginMock(),calls=[];const server={id:ID,name:'fixture',transport:'http',url:L,enabled:true,active:true,connectionState:'disconnected',tools:[]};
  const live=async r=>{if(!r.path.startsWith('/api/mcp'))return base(r);calls.push(r);if(r.method==='GET')return {status:200,body:{servers:[server]}};assert.equal(r.path,path);return {status:200,body:{server:{...server,connectionState:'connected'},discovered:0}};};
  const client=new SessionClient({live});client.selectMode('live');await client.login('demo@example.invalid','mock-only');const c=new ConnectorsController(client);await c.load();await c.reconnect(ID);assert.equal(c.getSnapshot().servers[0].connectionState,'connected');assert.equal(calls.length,2);assert.equal(calls[1].body,undefined);assert.match(c.getSnapshot().notice,/Reconnected/);
- const {McpLibrary}=require('../src/McpLibrary.tsx');const html=renderToStaticMarkup(React.createElement(McpLibrary,{client:{},active:false}));for(const label of ['Connection controls','Turn on connection','Reconnect connection','Refresh discovered tools','Edit selected connection','Add a connection'])assert.ok(html.includes(label),label);
+ // MC1: commands live on the selected connection; its next step offers the one button that fits.
+ const {McpLibrary}=require('../src/McpLibrary.tsx');const empty=renderToStaticMarkup(React.createElement(McpLibrary,{client:{},active:false}));assert.match(empty,/Add a connection/);assert.doesNotMatch(empty,/Reconnect/);
+ const html=renderToStaticMarkup(React.createElement(McpLibrary,{client,controller:c,active:false,openId:ID}));for(const label of ['Edit connection','More actions for fixture','Its tools','Agents that may use it','Loading agents','Add a connection'])assert.ok(html.includes(label),label);assert.match(html,/<button[^>]*class="primary"[^>]*>Reconnect<\/button>|Connected\. Choose which agents/);assert.equal((html.match(/class="primary"/g)??[]).length<=1,true);
 });
 
 test('background connection status reads never start a server or overwrite a newer edit',async()=>{

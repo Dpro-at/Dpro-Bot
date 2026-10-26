@@ -39,6 +39,9 @@ export function cardPath(path) {
   if (/^\/api\/memory\/page(?:\?cursor=[A-Za-z0-9_-]{1,1024})?$/.test(path)) return { kind: 'memory-page' };
   let m = /^\/api\/agents\/([^/?#]+)\/personality\/(current|versions|lock|unlock|rollback)$/.exec(path);
   if (m) return validAgentId(m[1]) ? { kind: `persona-${m[2]}`, agent: m[1] } : null;
+  // AG1: make main agent and duplicate (owner actions on an existing agent).
+  m = /^\/api\/agents\/([^/?#]+)\/(set-primary|duplicate)$/.exec(path);
+  if (m) return validAgentId(m[1]) ? { kind: `agent-${m[2]}`, agent: m[1] } : null;
   if (path === MODELS_PATH) return { kind: 'models' };
   if (path === '/api/memory') return { kind: 'memories' };
   if (path === '/api/memory/drawers') return { kind: 'drawers' };
@@ -63,6 +66,7 @@ export function validProfileEdit(b) {
 
 export function allowedAgentCard(method, path, body) {
   const agentPut = /^\/api\/agents\/([^/?#]+)$/.exec(path);
+  if (agentPut && method === 'DELETE') return validAgentId(agentPut[1]) && body === undefined;
   if (agentPut && method === 'PUT') return validAgentId(agentPut[1]) && (validProfileEdit(body) || (record(body) && Object.keys(body).length===3 && onlyKeys(body,['expectedVersion','provider','model']) && version(body.expectedVersion) && body.provider==='subscription' && /^subscription:(claude|codex|gemini)$/.test(body.model)));
   const p = cardPath(path);
   if (!p) return false;
@@ -78,6 +82,7 @@ export function allowedAgentCard(method, path, body) {
         && (body.dialect === undefined || (typeof body.dialect === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(body.dialect)))
         && (body.note === undefined || text(body.note, 500));
     case 'persona-lock': case 'persona-unlock': return method === 'POST' && body === undefined;
+    case 'agent-set-primary': case 'agent-duplicate': return method === 'POST' && body === undefined;
     case 'persona-rollback': return method === 'POST' && record(body) && Object.keys(body).length === 1 && version(body.version);
     case 'memories': return (method === 'GET' && body === undefined)
       || (method === 'POST' && record(body) && onlyKeys(body, ['type', 'content', 'importance', 'drawer', 'topicKey']) && memoryTypes.includes(body.type) && (body.topicKey === undefined || topicKey(body.topicKey))
@@ -155,6 +160,8 @@ export function agentCardResponse(path, status, body) {
       if (Array.isArray(body.versions)) return { versions: body.versions.slice(0, 500).map(persona) };
       return persona(body);
     case 'persona-lock': case 'persona-unlock': case 'persona-rollback': return persona(body);
+    case 'agent-set-primary': return { ok: body.success === true };
+    case 'agent-duplicate': return record(body.agent) && validAgentId(body.agent.id) ? { agent: { id: body.agent.id } } : fail();
     case 'memories':
       if (Array.isArray(body.memories)) return { memories: body.memories.slice(0, 5000).map(memoryItem) };
       return { memory: memoryItem(body.memory) };

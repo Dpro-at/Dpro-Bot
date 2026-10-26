@@ -13,11 +13,10 @@ import type { SessionClient } from './session';
 import { ConnectorsSection } from './ConnectorsSection';
 import { createPortal } from 'react-dom';
 import { UiIcon } from './ui-icons';
-import { Avatar } from './desktop-ui';
-import { StaffDirectory } from './StaffDirectory';
+import { DepartmentTile, StaffDirectory } from './StaffDirectory';
 
-export function AgentsDestination({ client, active = false, onOpenMemory, focusConnectors = false, sidebarSlot,focusAgent }: { client: SessionClient; active?: boolean; onOpenMemory?: (agentId?: string) => void; focusConnectors?: boolean; sidebarSlot?: HTMLElement | null;focusAgent?:{id:string;n:number}|null }) {
-  const [department,setDepartment]=useState('all');
+export function AgentsDestination({ client, active = false, onOpenMemory, focusConnectors = false, sidebarSlot,focusAgent,onChat,onPersonalities,onSpecialties,onSkills }: { client: SessionClient; active?: boolean; onOpenMemory?: (agentId?: string) => void; focusConnectors?: boolean; sidebarSlot?: HTMLElement | null;focusAgent?:{id:string;n:number}|null;onChat?:(agentId:string)=>void;onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void }) {
+  const [department,setDepartment]=useState('all'),[query,setQuery]=useState(''),[notice,setNotice]=useState<{id:number;text:string}|null>(null);
   const [connections,setConnections]=useState(focusConnectors);
   useEffect(()=>{if(focusConnectors)setConnections(true);},[focusConnectors]);
   const [initialSection,setInitialSection]=useState<CardTab>('profile');
@@ -43,19 +42,19 @@ export function AgentsDestination({ client, active = false, onOpenMemory, focusC
   // Opening the page shows the team at once (one read the first time the page is shown).
   useEffect(() => { if (active && session.phase === 'authenticated' && controller && controller.getSnapshot().phase === 'idle' && !controller.getSnapshot().agents.length) void controller.list(); }, [active, session.phase, controller]);
   // The Agents section owns the sidebar: search, New agent and the team by department (board M28 H4).
-  const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} onOpen={id => {setInitialSection('profile');setOpen(id);}} onTeam={() => setOpen(null)}
-    department={department} onDepartment={d=>{setDepartment(d);setConnections(false);setOpen(null);}} connections={connections} onConnections={()=>{setConnections(true);setOpen(null);}}
-    onNew={owner && hire ? () => { setOpen(null); hire.restart(); setHiring(true); } : undefined}/>, sidebarSlot) : null;
+  // The Agents section owns the sidebar: search, All staff, Main agent and the departments with their icons (board AG1).
+  const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} query={query} onQuery={setQuery} onTeam={() => setOpen(null)}
+    department={department} onDepartment={d=>{setDepartment(d);setConnections(false);setOpen(null);}} connections={connections} build={owner?{onPersonalities,onSpecialties,onSkills}:undefined}/>, sidebarSlot) : null;
   if (open && controller && !owner) return <>{sidebar}<MemberAgent controller={controller} agentId={open} onBack={() => setOpen(null)}/></>;
   if (open && controller && personality) return <section aria-label="Agents">
-    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory}/>
+    <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory} onChat={onChat} onGone={text => { setOpen(null); setNotice({ id: Date.now(), text }); void controller.list(); }}/>
   </section>;
   const newHire=()=>{if(hire){hire.restart();setHiring(true);}};
   const newCompany=()=>{if(company){company.restart();setBuilding(true);}};
   return <section aria-label="Agents" className="agents-destination">{sidebar}
     {owner && company && building && <CompanyWizard controller={company} onClose={() => { setBuilding(false); void controller?.list(); }}/>}
-    {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }}/></HireSheet>}
-    {connections ? <><div className="staff-toolbar"><button title="Back to staff" aria-label="Back to staff" onClick={()=>setConnections(false)}><UiIcon name="arrow-left" size={16}/></button><h2>Agent connections</h2></div><div className="staff-connections">{owner?<ConnectorsSection client={client} active={active} focus={focusConnectors}/>:<p>Only the owner can configure connections.</p>}</div></> : controller ? <StaffDirectory controller={controller} department={department} onDepartment={setDepartment} onOpen={(id,section='profile')=>{setInitialSection(section);setOpen(id);}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined}/>:<p role="status">Loading your team…</p>}
+    {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }} onOpen={id => { setHiring(false); void controller?.list(); setInitialSection('profile'); setOpen(id); }}/></HireSheet>}
+    {connections ? <><div className="staff-toolbar"><button title="Back to staff" aria-label="Back to staff" onClick={()=>setConnections(false)}><UiIcon name="arrow-left" size={16}/></button><h2>Agent connections</h2></div><div className="staff-connections">{owner?<ConnectorsSection client={client} active={active} focus={focusConnectors}/>:<p>Only the owner can configure connections.</p>}</div></> : controller ? <StaffDirectory controller={controller} department={department} query={query} notice={notice} onDepartment={setDepartment} onOpen={(id,section='profile')=>{setInitialSection(section);setOpen(id);}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined} onChat={onChat}/>:<p role="status">Loading your team…</p>}
   </section>;
 
 }
@@ -149,17 +148,20 @@ export function AgentsReview({ controller }: { controller: AgentsController }) {
   </>;
 }
 
-/** The Agents section's sidebar: search agents, New agent, the team by department. */
-function AgentsSidebar({controller,open,onOpen,onTeam,onNew,department,onDepartment,connections,onConnections}:{controller:AgentsController;open:string|null;onOpen:(id:string)=>void;onTeam:()=>void;onNew?:()=>void;department:string;onDepartment:(value:string)=>void;connections:boolean;onConnections:()=>void}){
+/** The Agents section's sidebar (board AG1): search, All staff, Main agent, the departments with their own icon. */
+function AgentsSidebar({controller,open,query,onQuery,onTeam,department,onDepartment,connections,build}:{controller:AgentsController;open:string|null;query:string;onQuery:(q:string)=>void;onTeam:()=>void;department:string;onDepartment:(value:string)=>void;connections:boolean;build?:{onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void}}){
+ const tools=build?([['Personalities','smile',build.onPersonalities],['Specialties','layers',build.onSpecialties],['Skills','star',build.onSkills]] as const).filter(([,,run])=>!!run):[];
  const s=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
  const departments=[...new Set(s.agents.map(a=>a.department).filter((d):d is string=>!!d))].sort();
- return <nav className="dk-sidebar staff-sidebar" aria-label="Agents"><div className="dk-side-top"><p className="section-label">Workspace</p></div>
- <button className="nav-item dk-place" aria-current={!open&&!connections&&department==='all'?'page':undefined} onClick={()=>{onDepartment('all');onTeam();}}><UiIcon name="users" size={16}/><span>All staff</span></button>
- {s.agents.filter(a=>a.isPrimary).map(a=><button key={a.id} className="nav-item dk-place" aria-current={open===a.id?'page':undefined} onClick={()=>onOpen(a.id)}><UiIcon name="sparkle" size={16}/><span>Main agent</span></button>)}
+ const here=(d:string)=>!open&&!connections&&department===d?'page':undefined;
+ return <nav className="dk-sidebar ag-places" aria-label="Agent places">
+ <label className="dk-search ag-search"><UiIcon name="search" size={13}/><input id="ag-staff-search" type="search" aria-label="Search staff" placeholder="Search  ⌘F" value={query} onChange={e=>{onQuery(e.target.value);if(open)onTeam();}}/></label>
+ <button className="nav-item dk-place" aria-current={here('all')} onClick={()=>{onDepartment('all');onTeam();}}><span className="ag-tile ag-tile-plain"><UiIcon name="users" size={13}/></span><span className="dk-place-name">All staff</span></button>
+ {s.agents.some(a=>a.isPrimary)&&<button className="nav-item dk-place" aria-current={here('main')} onClick={()=>onDepartment('main')}><span className="ag-tile ag-tile-plain"><UiIcon name="sparkle" size={13}/></span><span className="dk-place-name">Main agent</span></button>}
  <p className="section-label dk-label">Departments</p>
- {departments.map(d=><button key={d} className="nav-item dk-place" aria-current={!connections&&!open&&department===d?'page':undefined} onClick={()=>onDepartment(d)}><UiIcon name="folder" size={16}/><span className="dk-place-name">{d[0].toUpperCase()+d.slice(1)}</span></button>)}
- <button className="nav-item dk-place" aria-current={!connections&&!open&&department==='none'?'page':undefined} onClick={()=>onDepartment('none')}><UiIcon name="inbox" size={16}/><span>No department</span></button>
- <p className="section-label dk-label">Setup</p><button className="nav-item dk-place" aria-current={connections?'page':undefined} onClick={onConnections}><UiIcon name="link" size={16}/><span>Agent connections</span></button>
+ {departments.map(d=><button key={d} className="nav-item dk-place" aria-current={here(d)} onClick={()=>onDepartment(d)}><DepartmentTile department={d} size={22}/><span className="dk-place-name">{d[0].toUpperCase()+d.slice(1)}</span></button>)}
+ <button className="nav-item dk-place" aria-current={here('none')} onClick={()=>onDepartment('none')}><DepartmentTile department={null} size={22}/><span className="dk-place-name">No department</span></button>
+ {tools.length>0&&<><p className="section-label dk-label">Build agents</p>{tools.map(([label,icon,run])=><button key={label} className="nav-item dk-place" onClick={run}><span className="ag-tile ag-tile-plain"><UiIcon name={icon} size={13}/></span><span className="dk-place-name">{label}</span></button>)}</>}
  </nav>;
 }
 function HireSheet({children,onClose}:{children:React.ReactNode;onClose:()=>void}){

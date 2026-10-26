@@ -98,9 +98,9 @@ test('approval component performs no reads before an explicit click, and hides c
   client.selectMode('mock'); await client.login('demo@example.invalid', 'mock-only');
   const count = calls.length;
   const html = renderToStaticMarkup(React.createElement(RecoveryApprovals, { client, conversationId: CID }));
-  assert.match(html, /Load pending tools/); assert.equal(calls.length, count);
+  assert.match(html, /Show waiting actions/); assert.equal(calls.length, count);
   const denied = { getSnapshot: () => ({ user: { role: 'user' } }) };
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(RecoveryApprovals, { client: denied, conversationId: CID })), /Load pending tools/);
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(RecoveryApprovals, { client: denied, conversationId: CID })), /Show waiting actions/);
 });
 
 test('non-owner sessions cannot dispatch approval reads or mutations', async () => {

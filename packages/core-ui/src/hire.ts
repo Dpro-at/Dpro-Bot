@@ -87,6 +87,25 @@ export function suggestedPreset(role: Role, department: string): Preset {
   return role === 'evaluator' ? 'strict-evaluator' : 'balanced-assistant';
 }
 
+/** AG4a "How careful": each choice only fills the existing memory and permission fields. */
+export type Care = 'careful' | 'normal' | 'trusted';
+export const careLevels: { key: Care; title: string; text: string }[] = [
+  { key: 'careful', title: 'Careful', text: 'Asks you before almost everything. Reads only its projects.' },
+  { key: 'normal', title: 'Normal', text: 'Uses the browser and reads; asks before sending, deleting, installing, paying.' },
+  { key: 'trusted', title: 'Trusted', text: 'Works alone on safe things; still asks before paying or deleting.' },
+];
+export const careFields: Record<Care, { modes: Record<PermissionCategory, PermissionMode>; memoryRead: DrawerKind[]; memoryWrite: DrawerKind[]; sharedMemory: boolean }> = {
+  careful: { modes: { browser: 'ask', network: 'ask', message: 'ask', delete: 'ask', install: 'ask', money: 'off', settings: 'ask' }, memoryRead: ['project', 'task'], memoryWrite: [], sharedMemory: false },
+  normal: { modes: { browser: 'allow', network: 'allow', message: 'ask', delete: 'ask', install: 'ask', money: 'ask', settings: 'ask' }, memoryRead: ['owner', 'project', 'experience', 'task', 'people'], memoryWrite: ['experience', 'task'], sharedMemory: true },
+  trusted: { modes: { browser: 'allow', network: 'allow', message: 'allow', delete: 'ask', install: 'allow', money: 'ask', settings: 'allow' }, memoryRead: ['owner', 'project', 'experience', 'task', 'people'], memoryWrite: ['project', 'experience', 'task'], sharedMemory: true },
+};
+/** Which "How careful" choice the current fields match, if any. */
+export function careOf(p?: Permissions): Care | null {
+  if (!p) return null;
+  return (Object.keys(careFields) as Care[]).find(k => { const c = careFields[k];
+    return allCategories.every(x => p.modes[x] === c.modes[x]) && p.sharedMemory === c.sharedMemory && allDrawerKinds.every(d => p.memoryRead.includes(d) === c.memoryRead.includes(d) && p.memoryWrite.includes(d) === c.memoryWrite.includes(d)); }) ?? null;
+}
+
 /** Memory tools are shown on their own step; everything else is a permission. */
 export const memoryTool = (name: string) => name.startsWith('memory_') || name.startsWith('storage_');
 
@@ -202,6 +221,14 @@ export class HireController {
     const modes = Object.freeze({ ...p.modes, [category]: mode });
     const stillRisky = allCategories.some(c => isRisky(c) && modes[c] === 'allow');
     this.#publish({ permissions: Object.freeze({ ...p, modes }), confirmRisky: stillRisky && s.confirmRisky, phase: 'editing' });
+  }
+  /** Fills the memory and permission fields from a "How careful" choice (a risky Allow still needs the confirmation). */
+  applyCare(care: Care) {
+    const s = this.#state; const p = s.permissions; const c = careFields[care];
+    if (!s.owner || !p || !c || this.#busy() || s.phase === 'done' || s.phase === 'unknown') return;
+    const modes = Object.freeze({ ...c.modes });
+    const stillRisky = allCategories.some(x => isRisky(x) && modes[x] === 'allow');
+    this.#publish({ permissions: Object.freeze({ ...p, modes, memoryRead: Object.freeze([...c.memoryRead]), memoryWrite: Object.freeze([...c.memoryWrite]), sharedMemory: c.sharedMemory }), confirmRisky: stillRisky && s.confirmRisky, phase: 'editing', notice: undefined });
   }
   setConfirmRisky(on: boolean) { if (this.#state.permissions && !this.#busy()) this.#publish({ confirmRisky: on }); }
   /** Categories set to Allow that run without approval and need the owner's confirmation. */

@@ -7,6 +7,8 @@ import type { PublicAgent } from './agents';
 import type { MemoryItem, PersonaCurrent, Persona, Traits, TraitName } from './agent-card-contract.js';
 import { permissionCategories, permissionModes, riskyCategories } from './hire-contract.js';
 
+/** A part of the agent page tells the page what it saved, and how to undo it. */
+export type PartDone = (text: string, undo?: () => void | Promise<void>) => void;
 export type CardTab = 'profile' | 'persona' | 'permissions' | 'memory' | 'skills' | 'mcp' | 'activity';
 export type Grants = { version: number; granted: readonly string[]; available: readonly { name: string; description: string; requiresApproval: boolean; allowedByServer: boolean; execClass: boolean }[] };
 export type Permissions = { memoryRead: string[]; memoryWrite: string[]; sharedMemory: boolean; modes: Record<string, string>; version: number };
@@ -185,6 +187,31 @@ export class AgentCardController {
     if (access === 'read') { if (read.includes(kind)) { read = read.filter(k => k !== kind); write = write.filter(k => k !== kind); } else read.push(kind); }
     else if (write.includes(kind)) write = write.filter(k => k !== kind); else { write.push(kind); if (!read.includes(kind)) read.push(kind); }
     this.publish({ permissionDraft: { ...d, memoryRead: read, memoryWrite: write }, saved: undefined });
+  }
+  /** AG3a: one drawer at None / Read / Read + write. */
+  setDrawer(kind: string, level: 'none' | 'read' | 'write') {
+    const d = this.#state.permissionDraft; if (!d) return;
+    const read = d.memoryRead.filter(k => k !== kind), write = d.memoryWrite.filter(k => k !== kind);
+    if (level !== 'none') read.push(kind); if (level === 'write') write.push(kind);
+    this.publish({ permissionDraft: { ...d, memoryRead: read, memoryWrite: write }, saved: undefined });
+  }
+  /** Undo: put earlier values back into the drafts (the version stays the latest one read). */
+  restorePermissions(p: Pick<Permissions, 'memoryRead' | 'memoryWrite' | 'sharedMemory' | 'modes'> | undefined, granted: readonly string[] | undefined) {
+    const d = this.#state.permissionDraft;
+    this.publish({ ...(p && d ? { permissionDraft: { ...d, memoryRead: [...p.memoryRead], memoryWrite: [...p.memoryWrite], sharedMemory: p.sharedMemory, modes: { ...p.modes } } } : {}), ...(granted ? { grantDraft: [...granted] } : {}), saved: undefined });
+  }
+  /** Risky categories this draft allows that the saved permissions do not. */
+  newlyRisky() { const p = this.#state.permissions, d = this.#state.permissionDraft; return d ? riskyCategories.filter(c => d.modes[c] === 'allow' && p?.modes[c] !== 'allow') : []; }
+  /** Read the permissions and tools again (after "changed elsewhere"). */
+  async reloadPermissions() { this.publish({ permissions: undefined, permissionDraft: undefined, grants: undefined, grantDraft: undefined, notice: undefined }); await this.loadPermissions(); }
+  /** Read the agent again after its name changed elsewhere (keeps the general draft when it was unchanged). */
+  async refreshAgent() {
+    try {
+      const r = await this.get(`/api/agents/${this.id}`);
+      if (r.status !== 200 || !record(r.body)) return;
+      const agent = r.body.agent as PublicAgent; const clean = !this.profileChanged();
+      this.publish({ agent, ...(clean ? { profile: profileOf(agent) } : {}) });
+    } catch { /* the card keeps what it shows */ }
   }
   setMode(category: string, mode: string) { const d = this.#state.permissionDraft; if (d && (permissionModes as readonly string[]).includes(mode)) this.publish({ permissionDraft: { ...d, modes: { ...d.modes, [category]: mode } }, saved: undefined }); }
   setShared(shared: boolean) { const d = this.#state.permissionDraft; if (d) this.publish({ permissionDraft: { ...d, sharedMemory: shared }, saved: undefined }); }

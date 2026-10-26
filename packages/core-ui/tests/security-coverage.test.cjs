@@ -18,6 +18,6 @@ test('coverage viewer reports catalogue scope and offers no permission mutation 
  const React=require('../node_modules/react'),{renderToStaticMarkup}=require('../node_modules/react-dom/server'),{PermissionCoverage}=require('../src/PermissionCoverage.tsx');
  const client={getSnapshot:()=>({user:{role:'owner'}})};
  const html=renderToStaticMarkup(React.createElement(PermissionCoverage,{client,active:true}));
- assert.match(html,/Workspace tool catalogue/);assert.match(html,/not the selected agent/);assert.match(html,/Find coverage tool/);assert.match(html,/Without an action switch/);assert.doesNotMatch(html,/Run now|Enable tool|Save permissions/);
+ assert.match(html,/Tools without a rule/);assert.match(html,/Find a tool/);assert.match(html,/Without a rule/);assert.match(html,/All tools/);assert.doesNotMatch(html,/Run now|Enable tool|Save permissions/);
  assert.equal(renderToStaticMarkup(React.createElement(PermissionCoverage,{client:{getSnapshot:()=>({user:{role:'user'}})},active:true})), '');
 });

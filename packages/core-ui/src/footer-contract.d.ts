@@ -1,0 +1,10 @@
+export type FooterSectionId = 'chat' | 'agents' | 'board' | 'memory' | 'approvals' | 'apps' | 'genvr' | 'terminal' | 'code' | 'skills' | 'personalities' | 'specialties' | 'mcp';
+export type FooterValue = { order: FooterSectionId[]; hidden: FooterSectionId[]; iconsOnly: boolean; approvalsWhenWaiting: boolean };
+export const FOOTER_PATH: '/api/me/footer';
+export const FOOTER_SECTIONS: readonly FooterSectionId[];
+export const DEFAULT_FOOTER: Readonly<FooterValue>;
+export function footerChangeOk(x: unknown): boolean;
+export function footerPrefs(x: unknown): FooterValue;
+export function footerRoute(path: string): boolean;
+export function allowedFooter(method: string, path: string, body?: unknown): boolean;
+export function footerResponse(status: number, body: unknown): { footer: FooterValue } | { code: string };

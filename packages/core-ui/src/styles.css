@@ -1,6 +1,14 @@
+@import './personalities-desktop.css';
+@import './mcp-desktop.css';
+@import './skills-desktop.css';
+@import './specialties-desktop.css';
+@import './agents-desktop.css';
+@import './settings-apps.css';
 @import './workspace-modes.css';
 @import "./personality-library.css";
 @import './trading-workspace.css';
+@import './approvals-desktop.css';
+@import './footer.css';
 :root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; font-size: 13px; line-height: 1.5; }
 * { box-sizing: border-box; }
 body { margin: 0; }
