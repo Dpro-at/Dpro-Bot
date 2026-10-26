@@ -43,8 +43,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. List Apps, add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. Adding does not execute a program or grant tools. Program startup, account linking, secrets and permanent removal are reviewed by the owner in the app.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. A new connection is always off: adding does not execute a program or grant tools. Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
   {
@@ -457,6 +457,7 @@ async function workspaceFooterTool(args:Record<string,unknown>,{backend}:Handler
  return ok('Footer changed. Settings always stays; hidden sections stay in ⌘K.',await backend.request('PUT','/api/me/footer',change));
 }
 
+const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  only(args,['operation','id','connection']);
  if(args.operation==='list'){
@@ -468,6 +469,19 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
   await backend.request('POST','/api/mcp/servers/'+args.id+'/disable');
   return ok('Connection turned off.',await backend.request('GET','/api/apps'));
+ }
+ if(args.operation==='read'){
+  only(args,['operation','id']);
+  if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
+  const server=obj(await backend.request('GET','/api/mcp/servers/'+args.id)),name=String(server.name??''),prefix=`mcp__${name}__`;
+  const names=(x:unknown)=>record(x)?Object.keys(x):[];
+  const tools=(Array.isArray(server.tools)?server.tools:[]).filter(record).map(t=>({name:String(t.name),title:typeof t.title==='string'?t.title:null,description:typeof t.description==='string'?t.description.slice(0,500):null,asksFirst:t.requiresApproval===true}));
+  const list=obj(await backend.request('GET','/api/agents')).agents,agents:{id:string;name:string;tools:string[]}[]=[];
+  for(const a of (Array.isArray(list)?list:[]).filter(record).filter(a=>typeof a.id==='string'&&a.id!=='small-local-agent').slice(0,200)){
+   const g=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(String(a.id))+'/tool-grants')),granted=(Array.isArray(g.grants)?g.grants:[]).filter(record).map(x=>String(x.tool)).filter(t=>t.startsWith(prefix));
+   if(granted.length)agents.push({id:String(a.id),name:typeof a.name==='string'?a.name:String(a.id),tools:granted});
+  }
+  return ok('MCP connection, its tools and the agents that may use them. Reading never connects, starts a program or grants access. Secret values are never returned.',{id:server.id,name,description:server.description??null,kind:server.transport==='stdio'?'program':'web',enabled:server.enabled===true,active:server.active!==false,connectionState:server.connectionState??null,problem:typeof server.lastError==='string'&&server.enabled===true,lastDiscoveredAt:server.lastDiscoveredAt??null,secretNames:[...names(server.env),...names(server.headers)],tools,agents});
  }
  if(args.operation==='add'){
   only(args,['operation','connection']);
