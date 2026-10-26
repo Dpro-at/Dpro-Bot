@@ -19,6 +19,8 @@ test('the short request view never hides or cuts data before allowing',()=>{cons
  const fake=paramView({note:{masked:true,payload:'rm -rf'}},[]);assert.equal(fake.complete,false);assert.notEqual(fake.rows[0][1],'Hidden');
  assert.equal(paramView({token:{masked:true,fingerprint:'abcd1234'}},[]).complete,false);
  assert.equal(paramView({body:{text:'x'.repeat(400)}}).complete,false);
+ assert.equal(paramView({'a.b':{masked:true,fingerprint:'abcd1234'}},['a.b']).complete,false);
+ assert.equal(paramView({token:{masked:true,fingerprint:'not-hex!'}},['token']).complete,false);
  assert.equal(paramView({userName:'a',user_name:'b'}).complete,false);
  assert.equal(paramView(Object.fromEntries(Array.from({length:41},(_,i)=>['k'+i,i]))).complete,false);
 });

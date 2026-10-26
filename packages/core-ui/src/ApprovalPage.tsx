@@ -65,13 +65,13 @@ function sentence(value:string){const words=value.replace(/[_-]+/g,' ').trim();r
 export function paramView(params:unknown,maskedFields:readonly string[]=[]):{rows:[string,string,boolean][];complete:boolean}{
  let complete=true;
  // "Hidden" only for a field the server says it hid, in the server's exact shape; a look-alike sent by an agent shows the full request.
- const serverMasked=(v:unknown,path:string)=>!!v&&typeof v==='object'&&!Array.isArray(v)&&maskedFields.includes(path)&&Object.keys(v).sort().join()==='fingerprint,masked'&&(v as {masked?:unknown}).masked===true&&typeof (v as {fingerprint?:unknown}).fingerprint==='string';
+ const serverMasked=(v:unknown,path:string)=>!!v&&typeof v==='object'&&!Array.isArray(v)&&maskedFields.includes(path)&&Object.keys(v).sort().join()==='fingerprint,masked'&&(v as {masked?:unknown}).masked===true&&/^[0-9a-f]{8}$/.test(String((v as {fingerprint?:unknown}).fingerprint));
  const show=(v:unknown,path:string):[string,boolean]=>{if(serverMasked(v,path))return ['Hidden',true];if(v&&typeof v==='object'&&!Array.isArray(v)&&'masked' in v)complete=false;if(v===null||v===undefined)return ['None',false];if(typeof v!=='object'){const text=String(v);if(text.length>2000){complete=false;return [text.slice(0,2000)+'…',false];}return [text,false];}const text=JSON.stringify(v);if(text.length>300){complete=false;return [text.slice(0,300)+'…',false];}return [text,false];};
  if(!params||typeof params!=='object'||Array.isArray(params)){const [v,h]=show(params,'$');return {rows:[['Value',v,h]],complete};}
  const entries=Object.entries(params as Record<string,unknown>);if(!entries.length)return {rows:[['Value','Nothing',false]],complete};
  if(entries.length>40)complete=false;
  const seen=new Set<string>();
- const rows=entries.slice(0,40).map(([k,v]):[string,string,boolean]=>{let label=sentence(k.replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase());if(seen.has(label)){label=k;complete=false;}seen.add(label);const [text,hidden]=show(v,k);return [label,text,hidden];});
+ const rows=entries.slice(0,40).map(([k,v]):[string,string,boolean]=>{if(/[.[\]]/.test(k))complete=false;let label=sentence(k.replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase());if(seen.has(label)){label=k;complete=false;}seen.add(label);const [text,hidden]=show(v,k);return [label,text,hidden];});
  return {rows,complete};
 }
 export function paramRows(params:unknown){return paramView(params).rows;}
