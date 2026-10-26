@@ -18,3 +18,9 @@ test('footer shows the usual six sections, keeps the current one and Settings',(
  for(const s of ['GenVR','Terminal','Personalities'])assert.doesNotMatch(html,new RegExp('>'+s+'<'));
  assert.match(html,/Choose what the footer shows/);
 });
+test('a hidden place lights its section instead of joining the footer',()=>{const React=require('../node_modules/react'),{renderToStaticMarkup}=require('../node_modules/react-dom/server'),{ShellFooter}=require('../src/ShellFooter.tsx'),{FooterController}=require('../src/footer-prefs.ts');
+ const c=new FooterController({request:async()=>({status:200,body:{footer:footerPrefs(null)}})}),e=(current=false,parent)=>({available:true,current,run(){},parent});
+ const entries={chat:e(),agents:e(),board:e(),memory:e(),approvals:e(),apps:e(),genvr:e(false,'apps'),terminal:e(false,'apps'),code:e(false,'apps'),skills:e(false,'agents'),personalities:e(true,'agents'),specialties:e(false,'agents'),mcp:e(false,'apps')};
+ const html=renderToStaticMarkup(React.createElement(ShellFooter,{controller:c,entries,status:null,settingsCurrent:false,onSettings(){},onCustomize(){}}));
+ assert.doesNotMatch(html,/>Personalities</);assert.match(html,/aria-current="page"[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span>Agents</);
+});
