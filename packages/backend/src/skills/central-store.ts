@@ -107,6 +107,8 @@ export class CentralSkills {
  async installFolder(directory:string,origin:string,previewHash:string,replaceHash?:string){await this.initialize();const b=await bundle(directory);if(b.hash!==previewHash)throw new SkillLibraryError('preview_changed',409);return this.store(b,origin,replaceHash);}
  /** DISCOVER-01: remove a skill from the library; refused while an agent has it. */
  async remove(id:string){await this.initialize();if(await q.one('SELECT agent_id FROM central_agent_skills WHERE skill_id=?',id))throw new SkillLibraryError('skill_in_use',409);await q.run('DELETE FROM central_skills WHERE id=?',id);}
+ /** Which agents have each skill (read only; agents without any skill are left out). */
+ async usage(){await this.initialize();const rows=await q.all<{skill_id:string;agent_id:string}>('SELECT skill_id,agent_id FROM central_agent_skills ORDER BY skill_id,agent_id');const map=new Map<string,string[]>();for(const r of rows){const list=map.get(r.skill_id)??[];list.push(r.agent_id);map.set(r.skill_id,list);}return {usage:[...map].map(([skillId,agentIds])=>({skillId,agentIds}))};}
  async assignments(agentId:string){const row=await q.one<{revision:number}>('SELECT revision FROM central_skill_assignments WHERE agent_id=?',agentId);return {revision:row?.revision??0,selected:(await q.all<{skill_id:string}>('SELECT skill_id FROM central_agent_skills WHERE agent_id=? ORDER BY skill_id',agentId)).map(r=>r.skill_id)};}
  async assign(agentId:string,ids:string[],revision:number){return sql().tx(function*():Step<{revision:number}>{
   const current=yield* one<{revision:number}>('SELECT revision FROM central_skill_assignments WHERE agent_id=?',agentId);if((current?.revision??0)!==revision)throw new SkillLibraryError('version_conflict',409);

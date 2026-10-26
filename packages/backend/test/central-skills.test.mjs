@@ -46,3 +46,11 @@ test('reviewed Markdown bundle matches actual durable object without assignment'
  assert.equal(await fs.readFile(path.join(root,'skill-library/objects',reviewed.bundle.hash,'SKILL.md'),'utf8'),reviewed.bundle.files[0].content);
  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM central_agent_skills WHERE skill_id=?').get(saved.skill.id).n,0);
 });
+test('skill usage lists which agents have each skill, owner only and read only',async()=>{
+ assert.equal((await app.inject({url:'/api/skill-library/usage'})).statusCode,401);assert.equal((await call('GET','/api/skill-library/usage',undefined,member)).statusCode,403);
+ const url='/api/skill-library/agents/main-agent',current=(await call('GET',url)).json();assert.equal((await call('PUT',url,{selected:[installed.id],revision:current.revision})).statusCode,200);
+ const response=await call('GET','/api/skill-library/usage');assert.equal(response.statusCode,200);const body=response.json();assert.deepEqual(Object.keys(body),['usage']);
+ const row=body.usage.find(u=>u.skillId===installed.id);assert.ok(row?.agentIds.includes('main-agent'));for(const u of body.usage)assert.deepEqual(Object.keys(u).sort(),['agentIds','skillId']);
+ assert.equal((await call('POST','/api/skill-library/usage',{})).statusCode,404);
+ const after=(await call('GET',url)).json();assert.equal((await call('PUT',url,{selected:[],revision:after.revision})).statusCode,200);assert.ok(!(await call('GET','/api/skill-library/usage')).json().usage.some(u=>u.skillId===installed.id&&u.agentIds.includes('main-agent')));
+});

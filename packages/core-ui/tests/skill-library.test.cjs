@@ -13,7 +13,7 @@ test('catalog and source projections discard private paths, raw secrets and inte
 });
 test('settings and agent skill views show honest unassigned loading states',()=>{
  const React=require('../node_modules/react'),{renderToStaticMarkup}=require('../node_modules/react-dom/server'),{SkillLibrary,AgentSkills}=require('../src/SkillLibrary.tsx');
- const html=renderToStaticMarkup(React.createElement(SkillLibrary,{client:{}}));assert.match(html,/Scan local skills/);assert.match(html,/Loading skills/);assert.doesNotMatch(html,/dangerouslySetInnerHTML/);
+ const html=renderToStaticMarkup(React.createElement(SkillLibrary,{client:{}}));assert.match(html,/aria-label="Installed skills"/);assert.match(html,/Loading skills/);assert.match(html,/Select a skill to see what it does/);assert.doesNotMatch(html,/dangerouslySetInnerHTML/);
  const agent=renderToStaticMarkup(React.createElement(AgentSkills,{client:{},agentId:'main-agent'}));assert.match(agent,/Assigned skills/);assert.match(agent,/Tool and MCP permissions stay separate/);assert.match(agent,/Loading skills/);
 });
 

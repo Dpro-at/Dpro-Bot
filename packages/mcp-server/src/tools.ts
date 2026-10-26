@@ -53,6 +53,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
+    name:'skill_library',title:'Skill library',
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Writes need the owner\u2019s explicit instruction: give / take_back (one skill for one agent, applies from its next turn), add (a new found package, after preview, with its hash), update (replace an installed copy: needs replaceHash from the preview and confirmed=true after the owner reads the new files). Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only; this tool cannot do it. Removing a skill from Dpro is not available.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','give','take_back','add','update']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},replaceHash:{type:'string',maxLength:64},confirmed:{type:'boolean'}},required:['operation'],additionalProperties:false},
+  },
+  {
     name:'personality_library', title:'Personality library',
     description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess/try. list marks shipped personalities (starter) and names the agents that have each; team gives each agent’s personality, follow setting, lock and version (use that version as expectedVersion to give/assign). For save supply revision and profile in body; a personality agents follow needs the owner’s review in the app.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
@@ -270,6 +275,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
+      case 'skill_library': return await skillLibraryTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
@@ -424,6 +430,38 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
   for (const k of ['done', 'left', 'next', 'questions'] as const) if (body[k] === undefined && Array.isArray(current?.[k])) body[k] = current[k];
   const res = await backend.request('PUT', handoffPath(t), body);
   return ok(`Saved as version ${res?.handoff?.version ?? '?'}. The agent's next session starts from it.\n\n${renderHandoff(res?.handoff)}`, { handoff: res?.handoff ?? null });
+}
+
+const SKILL_ID=/^[a-f0-9-]{36}$/,SKILL_HASH=/^[a-f0-9]{64}$/,SKILL_AGENT=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const base='/api/skill-library',operation=args.operation;
+ const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v)||v.includes('..'))throw new InputError(`A valid ${what} is required`);return v;};
+ const agentId=()=>{const v=need('agentId',SKILL_AGENT,'agentId');if(v==='small-local-agent')throw new InputError('The small local agent has no skills');return v;};
+ const note='A skill is guidance only; it never grants tools, connections or memory.';
+ switch(operation){
+  case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Dpro. ${note}`,{skills:list?.skills??[],usage});}
+  case 'read':{only(args,['operation','id']);return ok(`Skill files (Markdown only). ${note}`,await backend.request('GET',`${base}/items/${need('id',SKILL_ID,'skill id')}`));}
+  case 'agent':{only(args,['operation','agentId']);return ok('Skills this agent has.',await backend.request('GET',`${base}/agents/${agentId()}`));}
+  case 'catalogue':{only(args,['operation']);return ok('Dpro\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
+  case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
+  case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
+  case 'preview':{only(args,['operation','scanId','sourceId']);return ok('The package files as they would be added (secrets hidden; scripts and links left out). existing shows whether Dpro has a copy.',await backend.request('POST',base+'/preview',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId')}));}
+  case 'give':case 'take_back':{
+   only(args,['operation','id','agentId']);const skill=need('id',SKILL_ID,'skill id'),agent=agentId(),give=operation==='give';
+   const now=await backend.request('GET',`${base}/agents/${agent}`),current:string[]=Array.isArray(now?.selected)?now.selected:[];
+   const selected=give?[...new Set([...current,skill])]:current.filter(x=>x!==skill);if(selected.length>50)throw new InputError('An agent can have up to 50 skills; take one back first');
+   if(selected.length===current.length&&selected.every(x=>current.includes(x)))return ok(give?'The agent already has this skill. Nothing changed.':'The agent did not have this skill. Nothing changed.',{changed:false,selected:current});
+   const saved=await backend.request('PUT',`${base}/agents/${agent}`,{selected,revision:now?.revision});
+   return ok(`${give?'Given':'Taken back'}. It applies from the agent\u2019s next turn; its permissions do not change.`,{changed:true,selected,revision:saved?.revision});
+  }
+  case 'add':{only(args,['operation','scanId','sourceId','hash']);return ok('Added to Dpro. It stays unassigned until the owner gives it to an agent.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash')}));}
+  case 'update':{
+   only(args,['operation','scanId','sourceId','hash','replaceHash','confirmed']);
+   if(args.confirmed!==true)throw new InputError('Updating replaces the files every agent with this skill uses. Show the owner the new files (preview) and pass confirmed=true only after the owner says to update');
+   return ok('Updated. Agents that have it use the new files from their next turn; the old files are kept.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash'),replaceHash:need('replaceHash',SKILL_HASH,'replaceHash')}));
+  }
+  default:throw new InputError('Unknown operation. Adding from Dpro\u2019s catalogue is done by the owner in the app (it needs the authenticator code)');
+ }
 }
 
 async function personalityLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
