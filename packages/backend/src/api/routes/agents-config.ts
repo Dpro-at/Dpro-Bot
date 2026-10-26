@@ -31,11 +31,17 @@ import { SECRET_PLACEHOLDER } from '../../credentials/secret-mask.js';
 import { AgentNameInputError, AgentNameTakenError } from '../../services/agent-names.js';
 import { etag } from '../concurrency.js';
 import { isoUtc } from '../timestamps.js';
+import { OrgError, orgFields, orgRows, setReportsTo, subAgentWork, quickHelperRequester } from '../../services/agent-org.js';
+import { createSubAgent } from '../../services/sub-agents.js';
+import { cancelRun } from '../../services/task-runs.js';
+import { one, sql } from '../../repositories/sql-steps.js';
+import { isOwner } from '../../repositories/scope.js';
 
 const agents = () => repositories.agents;
 
 /** Map scope, naming and agent errors to the usual replies; anything else is rethrown. */
 function errorReply(err: unknown, reply: FastifyReply): FastifyReply | null {
+  if (err instanceof OrgError) return reply.status(err.code === 'version_conflict' ? 409 : err.status).send({ error: err.message, code: err.code });
   if(err instanceof LibraryError)return reply.status(err.status).send({code:err.status===409?'version_conflict':'invalid_personality',error:'Personality selection changed or is unavailable'});
   if (err instanceof ScopeError) {
     return reply.status(err.status).send(err.code === 'reserved_agent' ? { error: err.message, code: err.code } : { error: err.message });
@@ -100,7 +106,9 @@ export async function agentsConfigRoutes(fastify: FastifyInstance) {
     if (!actor) return reply;
     try {
       const rows = await agents().listConfigs(actor);
-      return reply.send({ agents: rows.map(parseAgent) });
+      // AGENTS-ORG-01: who each agent reports to (the owner's choice, else Dpro's place) and whose sub-agent it is.
+      const org = orgFields(await orgRows());
+      return reply.send({ agents: rows.map(r => ({ ...parseAgent(r), ...(org.get(r.id) ?? {}) })) });
     } catch (err: any) {
       const handled = errorReply(err, reply);
       if (handled) return handled;
@@ -200,6 +208,65 @@ export async function agentsConfigRoutes(fastify: FastifyInstance) {
       const handled = errorReply(err, reply);
       if (handled) return handled;
       return reply.status(500).send({ error: 'Failed to duplicate agent' });
+    }
+  });
+
+  // PUT /api/agents/:id/reports-to { reportsTo: id | null, expectedVersion? } — owner only (AGENTS-ORG-01).
+  //   null hands the place back to Dpro. 400 main_fixed / sub_agent / not_movable / invalid_target / circle,
+  //   404 not_found, 409 version_conflict.
+  fastify.put<{ Params: { id: string }; Body: unknown }>('/api/agents/:id/reports-to', { config: { access: 'owner' } }, async (req, reply) => {
+    const actor = admin(req, reply);
+    if (!actor) return reply;
+    if (!isOwner(actor)) return reply.status(403).send({ error: 'Only the owner changes who an agent reports to' });
+    try {
+      const res = await setReportsTo(req.params.id, req.body);
+      return reply.header('ETag', etag(res.version)).send(res);
+    } catch (err) {
+      const handled = errorReply(err, reply);
+      if (handled) return handled;
+      return reply.status(500).send({ error: 'Failed to change who the agent reports to' });
+    }
+  });
+
+  // POST /api/agents/:id/sub-agents { name?, startsAs: copy|specialty|empty, specialtyId?, description?, tools: [], model?, provider? }
+  //   owner only: a new agent that belongs to :id; its tools must be :id's (400 invalid_tools), one level only.
+  fastify.post<{ Params: { id: string }; Body: unknown }>('/api/agents/:id/sub-agents', { config: { access: 'owner' } }, async (req, reply) => {
+    const actor = admin(req, reply);
+    if (!actor) return reply;
+    try {
+      const { id } = await createSubAgent(actor, req.params.id, req.body);
+      const row = await agents().getConfig(actor, id);
+      const org = orgFields(await orgRows());
+      return reply.status(201).send({ agent: { ...parseAgent(row!), ...(org.get(id) ?? {}) } });
+    } catch (err) {
+      const handled = errorReply(err, reply);
+      if (handled) return handled;
+      fastify.log.error({ err }, '[AgentsConfig] Sub-agent error');
+      return reply.status(500).send({ error: 'Failed to add the sub-agent' });
+    }
+  });
+
+  // GET /api/agents/:id/sub-agent-work — owner only: work it gave its sub-agents and quick helpers (newest first, 30 days).
+  fastify.get<{ Params: { id: string } }>('/api/agents/:id/sub-agent-work', { config: { access: 'owner' } }, async (req, reply) => {
+    const actor = admin(req, reply);
+    if (!actor) return reply;
+    if (!isOwner(actor)) return reply.status(403).send({ error: 'Only the owner sees this' });
+    if (!(await agents().getConfig(actor, req.params.id))) return reply.status(404).send({ error: 'Agent not found' });
+    return reply.send({ work: await subAgentWork(actor.userId!, req.params.id) });
+  });
+
+  // POST /api/agents/:id/sub-agent-work/:runId/stop — owner only: stop a running quick helper this agent started.
+  fastify.post<{ Params: { id: string; runId: string } }>('/api/agents/:id/sub-agent-work/:runId/stop', { config: { access: 'owner' } }, async (req, reply) => {
+    const actor = admin(req, reply);
+    if (!actor) return reply;
+    if (!isOwner(actor)) return reply.status(403).send({ error: 'Only the owner stops work' });
+    const mine = await sql().read(one<{ run_id: string }>('SELECT run_id FROM small_agent_runs WHERE run_id = ? AND requested_by = ?', req.params.runId, quickHelperRequester(req.params.id)));
+    if (!mine) return reply.status(404).send({ error: 'Work not found' });
+    try {
+      const run = await cancelRun(req.params.runId, actor.userId!);
+      return reply.send({ id: run.id, status: run.status });
+    } catch {
+      return reply.status(409).send({ error: 'This work has already finished', code: 'finished' });
     }
   });
 
