@@ -212,6 +212,8 @@ function project(target, status, body) {
       const agents = body.agents.map(agent); if (new Set(agents.map(a => a.id)).size !== agents.length) throw Error();
       return { agents };
     }
+    // DELETE /api/agents/:id answers { success: true } without an agent.
+    if (status === 200 && body?.success === true && body.agent === undefined) return { success: true };
     if (status === 200 || (status === 409 && body?.code === 'version_conflict')) {
       const a = agent(body?.agent); if (a.id !== target.slice('/api/agents/'.length)) throw Error();
       if (status === 200) return { agent: a };

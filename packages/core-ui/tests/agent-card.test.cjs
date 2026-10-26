@@ -80,7 +80,7 @@ test('agent card: profile, persona versions, lock, rollback and permissions', as
   await c.lock(true);
   assert.equal(c.getSnapshot().persona.locked, true);
   let html = renderToStaticMarkup(React.createElement(CardView, { card: c, onBack: () => {} }));
-  assert.match(html, /Unlock persona/);
+  assert.match(html, /Unlock the personality/);
   await c.lock(false);
   await c.rollback(1);
   assert.equal(c.getSnapshot().persona.preset, 'balanced-assistant');
@@ -94,8 +94,8 @@ test('agent card: profile, persona versions, lock, rollback and permissions', as
 
   await c.openTab('memory');
   html = renderToStaticMarkup(React.createElement(CardView, { card: c, onBack: () => {} }));
-  // Agent sections keep memory browsing and its rules together; other settings have their own place.
-  for (const words of [/Saved memories from this agent/, /Memory rules/, /Save memory rules/, /Share what it learns with the team/])assert.match(html,words);
+  // AG3a: memory browsing with one line for its rules (the rules open in a sheet and save as you go).
+  for (const words of [/saved memories from this agent/, /Reads [a-z]/, /shares with the team|keeps to itself/, /Change…/])assert.match(html,words);
   for(const words of ['General','Personality','Specialties and skills','Permissions','Activity'])assert.ok(html.includes(words));
   assert.doesNotMatch(html,/Its own notes|Tools &amp; MCP/);
 });

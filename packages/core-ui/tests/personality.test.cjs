@@ -45,7 +45,7 @@ for (const action of ['approve','reject']) test(`explicit full review then ${act
   await s.c.decide(action); assert.equal(writes(s).length,0);
   const html = markup(s.c); for (const n of traitNames) assert.match(html,new RegExp(n));
   for (const value of [fixture.reason,...fixture.evidence,fixture.reviewHash,'—','+5']) assert.ok(html.includes(value), value);
-  assert.match(html,/disabled="">Approve</);
+  assert.match(html,/disabled="">Agree</);
   s.c.review(true); await s.c.decide(action);
   assert.equal(writes(s).length,1); assert.deepEqual(writes(s)[0].body,hashBody);
   assert.equal(s.c.getSnapshot().phase,action === 'approve' ? 'approved' : 'rejected');

@@ -104,7 +104,7 @@ test('full offline hire: role → persona → one create → memory → permissi
   assert.deepEqual([...s.selected].sort(), ['memory_forget', 'memory_save', 'memory_search', 'storage_search']);
   h.edit({ name: 'changed' }); assert.equal(h.getSnapshot().draft.name, '  Nora   Sales ', 'draft is frozen after hire');
   await h.create(); assert.equal(calls.filter(c => c.method === 'POST' && c.path === '/api/agents').length, 1, 'never a second create');
-  assert.match(markup(h), /Hired — choose memory and permissions/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
+  assert.match(markup(h), /Hired — choose how careful it is/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
   assert.match(markup(h), /aria-label="memory_save"/);
   h.toggle('memory_forget'); h.next(); assert.equal(h.getSnapshot().step, 'permissions');
   h.toggle('web_fetch'); h.toggle('exec');
@@ -162,9 +162,9 @@ test('not the owner: no hire controls and no requests', async t => {
   assert.doesNotMatch(page, /Hire an agent/);
 });
 
-test('markup escapes tool text and shows the four steps', async t => {
+test('markup escapes tool text and shows the three steps (Who, Personality, How careful)', async t => {
   const { h } = await fixture(t);
-  assert.match(markup(h), /aria-label="Steps"/); assert.match(markup(h), /aria-current="step"[^>]*>.*Role/);
+  assert.match(markup(h), /aria-label="Steps"/); assert.match(markup(h), /aria-current="step"[^>]*>.*Who/);
   for (const r of ['Lead', 'Manager', 'Specialist', 'Reviewer']) assert.match(markup(h), new RegExp(r));
   h.edit({ name: '<img src=x onerror=alert(1)>' }); assert.doesNotMatch(markup(h), /<img src=x/);
 });

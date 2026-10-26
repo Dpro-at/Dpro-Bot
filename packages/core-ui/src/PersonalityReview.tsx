@@ -1,51 +1,45 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { traitNames } from './personality-contract.js';
+import { labels } from './personality-library';
 import type { PersonalityController } from './personality';
 
-/** Readable status for each personality review phase. */
-const personalityLabel: Record<string, string> = {
-  idle: 'Select an agent to see its proposals', loading: 'Loading proposals…', ready: 'Ready', deciding: 'Recording your decision…',
-  denied: 'Access denied', error: 'Something went wrong', conflict: 'Changed elsewhere — reload', unknown: 'Outcome unknown — reload',
-  approved: 'Approved', rejected: 'Rejected',
-};
-const STATUS: Record<string, string> = { pending: 'Waiting for you', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled', stale: 'Out of date', expired: 'Expired' };
+const STATUS: Record<string, string> = { pending: 'Waiting for you', approved: 'Agreed', rejected: 'Declined', cancelled: 'Cancelled', stale: 'Out of date', expired: 'Expired' };
+const label = (n: string) => (labels as Record<string, string>)[n] ?? n;
 
 /**
- * Persona changes an agent suggests about itself (small trait steps). The
- * owner approves or rejects each one; approving never grants tools or
- * permissions. Loads by itself when the card opens.
+ * PL5 "Needs you": changes an agent suggests about its own personality, one
+ * question at a time. Nothing changes until the owner agrees (the decision
+ * carries the review hash it was shown); agreeing never grants tools or permissions.
  */
-export function PersonalityReview({ controller }: { controller: PersonalityController }) {
+export function PersonalityReview({ controller, agentName = 'This agent' }: { controller: PersonalityController; agentName?: string }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const p = s.detail, busy = s.phase === 'loading' || s.phase === 'deciding';
   const canDecide = s.owner && s.phase === 'ready' && p?.status === 'pending' && s.consent;
+  const pending = s.proposals.filter(x => x.status === 'pending');
   useEffect(() => { if (s.owner && s.agentId && s.phase === 'idle') void controller.list(); }, [controller, s.owner, s.agentId, s.phase]);
+  useEffect(() => { if (s.phase === 'ready' && !p && pending[0]) void controller.open(pending[0].id); }, [controller, s.phase, p, pending[0]?.id]);
   if (!s.owner) return null;
-  const changed = p ? traitNames.filter(n => p.delta[n] !== undefined && p.delta[n] !== 0) : [];
-  return <section aria-label="Suggested persona changes">
-    <h3>Suggested persona changes</h3>
-    <p className="fine-print">The agent may suggest small changes to its own traits. Nothing changes until you approve, and a persona never grants tools or permissions.</p>
-    {(s.notice || ['loading', 'error', 'denied', 'conflict', 'unknown'].includes(s.phase)) && <p role="status">{s.notice ?? personalityLabel[s.phase] ?? s.phase}
-      {['error', 'conflict', 'unknown'].includes(s.phase) && <> <button type="button" className="link-button" onClick={() => void controller.list()}>Reload</button></>}</p>}
-    {s.phase === 'ready' && !s.proposals.length && <p className="fine-print">No suggestions from this agent.</p>}
-    {s.proposals.length > 0 && <ul className="persona-suggestions">{s.proposals.map((item, i) => <li key={item.id}>
-      <button type="button" disabled={busy} aria-pressed={p?.id === item.id} onClick={() => void controller.open(item.id)}>Suggestion {s.proposals.length - i} · {STATUS[item.status] ?? item.status}</button></li>)}</ul>}
-    {p && <article aria-label="Suggested persona change">
-      <h4>Reason</h4><p className="personality-copy">{p.reason}</p>
+  if (['error', 'conflict', 'unknown', 'denied'].includes(s.phase)) return <section className="ag-needs" aria-label="Suggested persona changes"><p role="status">{s.notice ?? 'Suggestions could not be read.'} <button type="button" className="link-button" onClick={() => void controller.list()}>Read again</button></p></section>;
+  if (!p) return null;
+  const changed = traitNames.filter(n => p.delta[n] !== undefined && p.delta[n] !== 0);
+  const at = Math.max(0, pending.findIndex(x => x.id === p.id));
+  return <section className="ag-needs" aria-label="Suggested persona changes">
+    <div className="ag-head-row"><b><bdi>{agentName}</bdi> suggests a small change</b><small className="ag-muted">{p.status === 'pending' ? `${at + 1} of ${pending.length} · it changes nothing until you agree` : STATUS[p.status] ?? p.status}</small></div>
+    <p className="personality-copy" dir="auto">“{p.reason}”</p>
+    <div className="ag-delta">{changed.map(n => <span key={n} className="ag-delta-row"><span>{label(n)}</span>
+      <span className="ag-bar"><i style={{ inlineSize: `${p.baseTraits[n]}%` }}/><i data-next style={{ inlineSize: `${p.proposedTraits[n]}%` }}/></span><span className="ag-delta-n">{p.baseTraits[n]} → {p.proposedTraits[n]}</span></span>)}</div>
+    <details className="ag-details"><summary>What it noticed ({p.evidence.length}) and every trait</summary>
+      {p.evidence.length > 0 && <ul>{p.evidence.map((e, i) => <li className="personality-copy" key={i}><bdi>{e}</bdi></li>)}</ul>}
+      <p className="fine-print">Written by the agent: information only.</p>
       <table className="persona-delta"><caption>{changed.length ? `All traits (0–100); ${changed.length} would change` : 'All traits (0–100); none would change'}</caption><thead><tr><th>Trait</th><th>Now</th><th>Suggested</th><th>Change</th></tr></thead>
         <tbody>{traitNames.map(n => <tr key={n} data-changed={changed.includes(n) || undefined}><th scope="row">{n}</th><td>{p.baseTraits[n]}</td><td>{p.proposedTraits[n]}</td><td>{p.delta[n] === undefined || p.delta[n] === 0 ? '—' : `${p.delta[n]! > 0 ? '+' : ''}${p.delta[n]}`}</td></tr>)}</tbody></table>
-      {p.evidence.length > 0 && <><h4>What it noticed</h4><ul>{p.evidence.map((e, i) => <li className="personality-copy" key={i}><bdi>{e}</bdi></li>)}</ul>
-        <p className="fine-print">Written by the agent: information only.</p></>}
-      {p.status !== 'pending' && <p className="fine-print">{STATUS[p.status] ?? p.status}{p.decidedAt ? ` · ${new Date(p.decidedAt).toLocaleString()}` : ''}{p.decisionNote ? ` · ${p.decisionNote}` : ''}</p>}
-      <details className="memory-tech"><summary>Technical details</summary><dl>
-        <dt>Suggestion</dt><dd><bdi dir="ltr">{p.id}</bdi></dd><dt>From persona version</dt><dd>{p.baseVersion}</dd><dt>Source</dt><dd>{p.source}</dd>
-        <dt>Created</dt><dd>{p.createdAt ?? '—'}</dd><dt>Review hash</dt><dd className="personality-hash"><bdi dir="ltr">{p.reviewHash}</bdi></dd>
-        {p.appliedVersion !== null && p.appliedVersion !== undefined && <><dt>Applied as version</dt><dd>{p.appliedVersion}</dd></>}</dl></details>
-      {p.status === 'pending' && <>
-        <label className="memory-confirm"><input type="checkbox" checked={s.consent} disabled={s.phase !== 'ready'} onChange={e => controller.review(e.target.checked)}/>I read the change, the reason and what it noticed.</label>
-        <div className="actions"><button type="button" className="primary" disabled={!canDecide} onClick={() => void controller.decide('approve')}>Approve</button>
-          <button type="button" disabled={!canDecide} onClick={() => void controller.decide('reject')}>Reject</button></div>
-      </>}
-    </article>}
+      <dl className="ag-tech"><dt>Suggestion</dt><dd><bdi dir="ltr">{p.id}</bdi></dd><dt>From version</dt><dd>{p.baseVersion}</dd><dt>Review hash</dt><dd className="personality-hash"><bdi dir="ltr">{p.reviewHash}</bdi></dd>
+        {p.appliedVersion !== null && p.appliedVersion !== undefined && <><dt>Applied as version</dt><dd>{p.appliedVersion}</dd></>}</dl>
+    </details>
+    {p.status === 'pending' ? <div className="ag-needs-foot">
+      <label className="ag-check"><input type="checkbox" checked={s.consent} disabled={s.phase !== 'ready'} onChange={e => controller.review(e.target.checked)}/>I read the change and what it noticed</label>
+      <button type="button" disabled={!canDecide} onClick={() => void controller.decide('reject')}>No</button>
+      <button type="button" className="primary" disabled={!canDecide} onClick={() => void controller.decide('approve')}>Agree</button>
+    </div> : <p className="fine-print">{STATUS[p.status] ?? p.status}{p.decidedAt ? ` · ${new Date(p.decidedAt).toLocaleString()}` : ''}{p.decisionNote ? ` · ${p.decisionNote}` : ''}{busy ? '' : ' '}{pending.length > 0 && <button type="button" className="link-button" onClick={() => void controller.open(pending[0].id)}>Next suggestion</button>}</p>}
   </section>;
 }
