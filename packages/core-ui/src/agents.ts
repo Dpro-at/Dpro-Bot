@@ -35,6 +35,8 @@ export function agentResponse(path: string, response: WireResponse): WireRespons
   const b = response.body;
   if (response.status === 200) {
     if (!record(b)) throw Error('Invalid agent response');
+    // DELETE /api/agents/:id answers { success: true } without an agent.
+    if (path !== '/api/agents' && b.success === true && b.agent === undefined) return { status: 200, body: { success: true } };
     if (path === '/api/agents') {
       if (!Array.isArray(b.agents) || b.agents.length > 10000) throw Error('Invalid agent list');
       const agents = b.agents.map(publicAgent);
@@ -170,6 +172,31 @@ export class AgentsController {
         return;
       }
       if (ticket === this.#ticket) this.#publish({ phase: 'unknown', unknown: true, needsReview: true, notice: 'Save outcome unknown. No retry sent. Reconcile explicitly.' });
+    }
+  }
+  /** AG1 owner actions on one agent: one request each, then the team is read again. */
+  async setPrimary(id: string) { return this.#act(id, 'POST', `/api/agents/${id}/set-primary`, n => `${n} is now the main agent.`); }
+  async duplicate(id: string) { return this.#act(id, 'POST', `/api/agents/${id}/duplicate`, n => `A copy of ${n} joined the team.`); }
+  async remove(id: string) { return this.#act(id, 'DELETE', `/api/agents/${id}`, n => `${n} was removed.`); }
+  async #act(id: string, method: 'POST' | 'DELETE', path: string, done: (name: string) => string): Promise<{ ok: boolean; notice: string; id?: string }> {
+    const agent = this.#state.agents.find(a => a.id === id) ?? (this.#state.selected?.id === id ? this.#state.selected : undefined); const name = agent?.name ?? 'The agent';
+    if (!this.#state.owner || !this.#active() || !validAgentId(id) || this.#busy()) return { ok: false, notice: 'Wait until the team has loaded, then try again.' };
+    if (method === 'DELETE' && agent?.isPrimary && this.#state.agents.length > 1) return { ok: false, notice: 'Make another agent the main agent first.' };
+    try {
+      const r = await this.client.request({ method, path } as never);
+      const b = r.body as { agent?: { id?: string } } | null;
+      if (r.status !== 200 && r.status !== 201) {
+        if (r.status === 401 || r.status === 403) { this.#fail(r.status); return { ok: false, notice: 'Access denied.' }; }
+        const notice = r.status === 404 ? 'This agent no longer exists.' : method === 'DELETE' ? `${name} was not removed.` : 'Nothing was changed. Try again.';
+        this.#publish({ notice }); return { ok: false, notice };
+      }
+      const notice = done(name);
+      await this.list(); this.#publish({ notice });
+      return { ok: true, notice, ...(b?.agent?.id ? { id: b.agent.id } : {}) };
+    } catch (error) {
+      const notice = error instanceof SessionFailure && error.code === 'blocked' ? 'Nothing was sent.' : 'The result is unknown. The team is read again.';
+      if (!(error instanceof SessionFailure && error.code === 'blocked')) await this.list();
+      this.#publish({ notice }); return { ok: false, notice };
     }
   }
   #ack(a: PublicAgent) { this.#publish({ selected: a, agents: Object.freeze(this.#state.agents.map(x => x.id === a.id ? a : x)) }); }
