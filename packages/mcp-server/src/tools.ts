@@ -27,7 +27,7 @@ export const STATUSES = ['queued', 'running', 'waiting_approval', 'completed', '
 const FINAL = new Set(['completed', 'failed', 'cancelled', 'waiting_approval']);
 const RUN_ID = /^[0-9a-f-]{36}$/i;
 
-const FOOTER_IDS=['chat','agents','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties','mcp'];
+const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties'];
 
 export const TOOL_DEFINITIONS = [
   {
@@ -43,14 +43,14 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. found lists MCP servers the folder scan found on this computer (names, place and state only; read only). look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner’s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (chat channels and who may write), accounts (linked accounts such as GenVR), addons (plugins and hooks from coding apps), catalogue (Dpro\u2019s app catalogue and the coding-app catalogue); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable','found','look','preview','import','channels','accounts','addons','catalogue']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Apps in the Dpro window has two places: My apps (installed apps only: Terminal, Trading, GenVR and any app installed) and Store (Dpro\u2019s catalogue and the add-ons in coding apps). MCP connections, Channels and Accounts are places in Settings, not in Apps. list: My apps, with the MCP connections listed apart (Settings \u203a MCP connections). store: what the Store shows (catalogue and add-ons, read only); catalogue and addons read each part. MCP connections (Settings \u203a MCP connections): read one (its tools and which agents may use them), add one disabled, or turn one off; found lists MCP servers the folder scan found on this computer (names, place and state only; read only); look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner\u2019s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in Settings \u203a MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (Settings \u203a Channels: chat channels and who may write), accounts (Settings \u203a Accounts: linked accounts such as GenVR); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','store','read','add','disable','found','look','preview','import','channels','accounts','addons','catalogue']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
   {
     name:'agents',title:'Agents (read only)',
-    description:'Owner-session only, read only. list: every agent (name, role, department, specialty, model and provider name, main agent, description). read: one agent (id). permissions: what one agent may do (memory and action modes). Keys, credential ids and system prompts are never returned. Renaming, role, main agent, duplicate, hire and remove are done by the owner in the app; this tool refuses them.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions']},id:{type:'string',maxLength:128,description:'agent id'}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app; this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64}},required:['operation'],additionalProperties:false},
   },
   {
     name:'workspace_approvals',title:'Approvals (read only)',
@@ -60,7 +60,7 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_footer',title:'Footer sections',
-    description:'Owner-session only. Read or change which sections the Dpro window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties, mcp. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    description:'Owner-session only. Read or change which sections the Dpro window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
@@ -580,6 +580,8 @@ async function accountSettingsTool(args:Record<string,unknown>,{backend}:Handler
 
 const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
+/** My apps and the MCP connections apart, as the window shows them (Apps › My apps, Settings › MCP connections). */
+function splitApps(r:unknown){const items=Array.isArray(obj(r).items)?obj(r).items as unknown[]:[],mcp=(x:unknown)=>record(x)&&x.kind==='mcp';return {apps:items.filter(x=>!mcp(x)),mcpConnections:items.filter(mcp)};}
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  only(args,['operation','id','connection','scanId','sourceId','hash']);
  const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v))throw new InputError(`A valid ${what} is required`);return v;};
@@ -600,7 +602,7 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   const p=obj(await backend.request('POST','/api/mcp-import/preview',{scanId:need('scanId',MCP_SCAN,'scanId'),sourceId:need('sourceId',MCP_SCAN,'sourceId')}));
   const names=(x:unknown)=>Array.isArray(x)?x.filter(v=>typeof v==='string'):[];
   const secretNames=[...names(p.envNames),...names(p.headerNames)];
-  return ok(secretNames.length?'It has secrets, so the owner adds it in the app (MCP connections › My coding apps). Secret values are never shown.':'The connection as it would be added (off). Import it with this hash only on the owner\u2019s explicit instruction.',{name:p.name??null,kind:p.transport==='stdio'?'program':'web',command:p.command??null,args:names(p.args),url:p.url??null,secretNames,hash:p.hash??null,existingId:p.existingId??null,ownerOnly:secretNames.length>0});
+  return ok(secretNames.length?'It has secrets, so the owner adds it in the app (Settings › MCP connections › My coding apps). Secret values are never shown.':'The connection as it would be added (off). Import it with this hash only on the owner\u2019s explicit instruction.',{name:p.name??null,kind:p.transport==='stdio'?'program':'web',command:p.command??null,args:names(p.args),url:p.url??null,secretNames,hash:p.hash??null,existingId:p.existingId??null,ownerOnly:secretNames.length>0});
  }
  if(args.operation==='import'){
   only(args,['operation','scanId','sourceId','hash']);
@@ -608,9 +610,9 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   // Read it again first: the hash must still match, and a connection with secrets stays with the owner in the app.
   const p=obj(await backend.request('POST','/api/mcp-import/preview',body));
   if(p.hash!==hash)throw new InputError('It changed in that app since the preview. Look and preview it again');
-  if((Array.isArray(p.envNames)&&p.envNames.length)||(Array.isArray(p.headerNames)&&p.headerNames.length))throw new InputError('This connection has secrets; the owner adds it in the app (MCP connections › My coding apps)');
+  if((Array.isArray(p.envNames)&&p.envNames.length)||(Array.isArray(p.headerNames)&&p.headerNames.length))throw new InputError('This connection has secrets; the owner adds it in the app (Settings › MCP connections › My coding apps)');
   const r=obj(await backend.request('POST','/api/mcp-import/import',{...body,hash}));
-  return ok(r.duplicate===true?'Already in Dpro. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
+  return ok(r.duplicate===true?'Already in Dpro. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in Settings › MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
  }
  if(typeof args.operation==='string'&&APPS_OWNER_ONLY.has(args.operation))throw new InputError(APPS_REFUSED);
  if(typeof args.operation==='string'&&Object.hasOwn(APPS_READS,args.operation)){
@@ -621,13 +623,13 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
  }
  if(args.operation==='list'){
   only(args,['operation']);
-  return ok('Applications. Reading this list does not connect or grant access.',await backend.request('GET','/api/apps'));
+  return ok('My apps (installed apps). MCP connections are listed apart: they live in Settings \u203a MCP connections. Reading this list does not connect or grant access.',splitApps(await backend.request('GET','/api/apps')));
  }
  if(args.operation==='disable'){
   only(args,['operation','id']);
   if(typeof args.id!=='string'||!(/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/).test(args.id))throw new InputError('A valid connection id is required');
   await backend.request('POST','/api/mcp/servers/'+args.id+'/disable');
-  return ok('Connection turned off.',await backend.request('GET','/api/apps'));
+  return ok('Connection turned off.',splitApps(await backend.request('GET','/api/apps')));
  }
  if(args.operation==='read'){
   only(args,['operation','id']);
@@ -701,7 +703,9 @@ export function scrub(v:unknown,depth=0):unknown{
  return v;
 }
 
-const AGENTS_REFUSED='Renaming, role, main agent, duplicate, hire and remove are done by the owner in the app. This tool only reads (list, read, permissions).';
+const AGENTS_REFUSED='Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app. This tool reads (list, read, permissions, departments) and, on the owner\u2019s instruction, renames a department or moves an agent to one.';
+const DEPARTMENT=/^[a-z0-9][a-z0-9 _-]{0,63}$/;
+function departmentArg(v:unknown,name:string){if(typeof v!=='string'||!DEPARTMENT.test(v.trim().toLowerCase().replace(/\s+/g,' ')))throw new InputError(`A valid ${name} is required (lowercase letters, digits, spaces, - or _, at most 64)`);return v.trim().toLowerCase().replace(/\s+/g,' ');}
 const AGENT_WRITES=new Set(['rename','update','edit','save','role','set_role','main','set_main','set_primary','primary','duplicate','hire','create','add','remove','delete','set_permissions']);
 const text=(v:unknown,n:number)=>typeof v==='string'?v.slice(0,n):null;
 function agentView(a:unknown){
@@ -729,7 +733,26 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
   const id=agentIdArg(args.id,'agent id');
   return ok('What this agent may do. Changing it is done by the owner in the app (What agents may do).',{permissions:scrub(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/permissions'))});
  }
- throw new InputError('operation must be list, read or permissions. '+AGENTS_REFUSED);
+ // Settings › Departments: a department is the agents' own department value.
+ if(operation==='departments'){
+  only(args,['operation']);
+  const list=obj(await backend.request('GET','/api/agents')).agents,agents=(Array.isArray(list)?list:[]).map(agentView).filter((a):a is NonNullable<ReturnType<typeof agentView>>=>!!a);
+  const groups=new Map<string,{id:string|null;name:string|null}[]>();for(const a of agents)groups.set(a.department??'',[...(groups.get(a.department??'')??[]),{id:a.id,name:a.name}]);
+  return ok('Departments and their agents (the same as Settings \u203a Departments). Rename one or move an agent only on the owner\u2019s explicit instruction.',{departments:[...groups].filter(([d])=>d).sort(([a],[b])=>a.localeCompare(b)).map(([department,list])=>({department,agents:list})),noDepartment:groups.get('')??[]});
+ }
+ if(operation==='rename_department'){
+  only(args,['operation','from','to']);
+  const from=departmentArg(args.from,'from'),to=departmentArg(args.to,'to');
+  return ok('Department renamed: every agent in it moved.',await backend.request('POST','/api/agents/departments/rename',{from,to}));
+ }
+ if(operation==='set_department'){
+  only(args,['operation','id','department']);
+  const id=agentIdArg(args.id,'agent id'),department=args.department===null?null:departmentArg(args.department,'department');
+  const current=obj(obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id))).agent);
+  const saved=obj(await backend.request('PUT','/api/agents/'+encodeURIComponent(id),{expectedVersion:current.version,department}));
+  return ok(department?`Moved to ${department}.`:'Moved out of its department.',{agent:agentView(saved.agent)});
+ }
+ throw new InputError('operation must be list, read, permissions, departments, rename_department or set_department. '+AGENTS_REFUSED);
 }
 
 const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
@@ -771,8 +794,9 @@ async function workspaceApprovalsTool(args:Record<string,unknown>,{backend}:Hand
 const APPS_REFUSED='Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish are done by the owner in the app. This tool only reads them (channels, accounts, addons, catalogue).';
 const APPS_OWNER_ONLY=new Set(['channel_on','channel_off','activate','deactivate','keys','set_keys','config','configure','who_may_write','allowed','connect','link','genvr_connect','disconnect','genvr_disconnect','publish','unpublish','upload','install','uninstall','enable_addon','disable_addon']);
 const APPS_READS={
- channels:{note:'Chat channels and who may write (read only). Keys are never returned.',paths:[['channels','/api/agent-connect/catalog']]},
- accounts:{note:'Linked accounts (read only). Sign-in codes and tokens are never returned.',paths:[['accounts','/api/connections']]},
+ channels:{note:'Chat channels and who may write (Settings \u203a Channels; read only). Keys are never returned.',paths:[['channels','/api/agent-connect/catalog']]},
+ accounts:{note:'Linked accounts (Settings \u203a Accounts; read only). Sign-in codes and tokens are never returned.',paths:[['accounts','/api/connections']]},
+ store:{note:'The Store: Dpro\u2019s app catalogue, the coding-app catalogue and the add-ons in coding apps on this computer (read only). Installing is done by the owner in the app.',paths:[['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue'],['addons','/api/chat/addons']]},
  addons:{note:'Plugins and hooks from coding apps on this computer (read only).',paths:[['addons','/api/chat/addons']]},
  catalogue:{note:'Dpro\u2019s app catalogue and the coding-app catalogue (read only). Installing is done by the owner in the app.',paths:[['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue']]},
 } as const;

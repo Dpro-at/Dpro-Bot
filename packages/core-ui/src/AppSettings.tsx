@@ -12,6 +12,7 @@ import {ReviewerPoliciesSettings} from './ReviewerPoliciesSettings';
 import {ConnectionsSettings} from './ConnectionsSettings';
 import {AgentConnectSettings} from './AgentConnectSettings';
 import {UpdateSettings} from './UpdateSettings';
+import {DepartmentsSettings} from './DepartmentsSettings';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { SessionClient } from './session';
@@ -21,10 +22,11 @@ import { MemorySettings, MEMORY_PANES } from './MemorySettings';
 import type { MemorySettingsPane } from './MemorySettings';
 import { UiIcon } from './ui-icons';
 import type { UiIconName } from './ui-icons';
-type Tool='skills'|'mcp'|'personalities'|'specialties';
-type Place='general'|'account'|'replies'|'move'|'permissions'|'verification'|'approval-rules'|'keys'|'connections'|'channels'|'memory'|'schedules'|'apps'|Tool|'about';
-/** Old names ('models', 'sharing') still open their places. */
-export type SettingsTab=Place|'models'|'sharing';
+/** Places that are sections of their own; their Settings rows open them (MCP connections shows "← Settings" to come back). */
+type Tool='mcp'|'library';
+type Place='general'|'account'|'replies'|'move'|'permissions'|'verification'|'approval-rules'|'keys'|'accounts'|'channels'|'memory'|'schedules'|'departments'|'apps'|Tool|'about';
+/** Old names ('models', 'sharing', 'connections') still open their places. */
+export type SettingsTab=Place|'models'|'sharing'|'connections';
 type Row={value:Place;label:string;icon:UiIconName;words:string;note?:string;jump?:boolean};
 // Search finds settings inside the pages, not only page names.
 const ROWS:Record<Place,Row>={
@@ -36,29 +38,28 @@ const ROWS:Record<Place,Row>={
  verification:{value:'verification',label:'Verification',icon:'check',words:'sign-in methods password passkeys reviewers who can authorize two-person',note:'Sign-in methods and review responsibilities.'},
  'approval-rules':{value:'approval-rules',label:'Approval rules',icon:'shield',words:'rules people must agree quorum activate withdraw',note:'When several people must agree before an action runs.'},
  keys:{value:'keys',label:'Saved keys',icon:'key',words:'secrets tokens passwords key store older chats',note:'Keys you pasted in chats, kept encrypted on this computer.'},
- connections:{value:'connections',label:'Connections',icon:'link',words:'accounts genvr world account connect disconnect test publication',note:'Accounts connected to this workspace.'},
+ accounts:{value:'accounts',label:'Accounts',icon:'contact',words:'connections accounts genvr world account connect disconnect test publication',note:'Accounts connected to this workspace.'},
  channels:{value:'channels',label:'Channels',icon:'message',words:'messaging services telegram discord whatsapp trusted senders conversations automatic replies',note:'Messaging services and trusted senders.'},
+ mcp:{value:'mcp',label:'MCP connections',icon:'tool',words:'mcp connections connectors tools servers add import coding apps genvr-local',jump:true},
  memory:{value:'memory',label:'Memory',icon:'database',words:MEMORY_PANES.map(p=>p.label).join(' ')+' memory rules sources access',note:'Memory rules, sources and access.'},
  schedules:{value:'schedules',label:'Scheduled tasks',icon:'clock',words:'schedules cron run now pause permission code recent runs',note:'Workspace schedules and recent outcomes.'},
- apps:{value:'apps',label:'Apps',icon:'layers',words:'applications add-ons catalogue',jump:true},
- skills:{value:'skills',label:'Skills',icon:'star',words:'skill library guidance',jump:true},
- specialties:{value:'specialties',label:'Specialties',icon:'layers',words:'jobs templates',jump:true},
- personalities:{value:'personalities',label:'Personalities',icon:'smile',words:'personality library traits',jump:true},
- mcp:{value:'mcp',label:'MCP',icon:'tool',words:'mcp connections tools servers',jump:true},
+ departments:{value:'departments',label:'Departments',icon:'building',words:'departments teams groups rename move agents new department',note:'The departments of your agents.'},
+ apps:{value:'apps',label:'Apps',icon:'layers',words:'applications my apps store add-ons catalogue',jump:true},
+ library:{value:'library',label:'Library',icon:'book',words:'personalities specialties skills library',jump:true},
  about:{value:'about',label:'About and updates',icon:'info',words:'version updates check connection installation log folder',note:'Version and installation details.'},
 };
 /**
  * Settings: one window with every place of the old Settings again, grouped
- * Application / Security / Connections / Workspace / About. Places that are
- * their own section (Apps, Skills, Specialties, Personalities, MCP) are jump
- * rows that open it. Permissions, Verification, Approval rules, Connections
- * and Channels show the same components as Approvals and Apps.
+ * Application / Security / Connections / Workspace / About. Accounts, Channels,
+ * MCP connections and Departments live only here. Places that are their own
+ * section (MCP connections, Apps, Library) are jump rows that open it.
+ * Permissions, Verification and Approval rules show the same components as Approvals.
  * In the signed-in window the places are the sidebar (the shell gives a slot;
  * Memory has its own sub-places); without a slot (signed out, tests) the same
  * places sit on the left of the page.
  */
 export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents, client, aboutOnly = false, initialTab = 'general', initialMemoryPane = 'rules', sidebarSlot, active = true, onOpenMemory, onOpenChat, onOpenApps, onOpenTool, onOpenGenvr, onApprovals, onBoard, onAgent }: { signedIn: boolean; preference: ThemePreference; onTheme: (v: ThemePreference) => void; onAccount: () => void; onAgents?: () => void; client?: SessionClient; aboutOnly?: boolean; initialTab?: SettingsTab; initialMemoryPane?: MemorySettingsPane; sidebarSlot?: HTMLElement | null; active?: boolean; onOpenMemory?: () => void; onOpenChat?: () => void; onOpenApps?: () => void; onOpenTool?: (tool: Tool) => void; onOpenGenvr?: () => void; onApprovals?: () => void; onBoard?: () => void; onAgent?: (id: string) => void }) {
-  const named=(t:SettingsTab):Place=>t==='models'?'replies':t==='sharing'?'move':t;
+  const named=(t:SettingsTab):Place=>t==='models'?'replies':t==='sharing'?'move':t==='connections'?'accounts':t;
   const [query,setQuery]=useState('');const search=useRef<HTMLInputElement>(null);
   const info=useAppInfo();const [tab,setTab]=useState<Place>(named(initialTab));
   const [pane,setPane]=useState<MemorySettingsPane>(initialMemoryPane);
@@ -69,14 +70,14 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
   const groups:{name:string;keys:Place[]}[]=live?[
     {name:'Application',keys:['general','account','replies',...ownerOnly(['move'])]},
     {name:'Security',keys:[...ownerOnly(['permissions']),...(user?.role!=='guest'?['verification' as const]:[]),...ownerOnly(['approval-rules']),'keys']},
-    {name:'Connections',keys:ownerOnly(['connections','channels','memory'])},
-    {name:'Workspace',keys:[...ownerOnly(['schedules']),...(onOpenApps?['apps' as const]:[]),...(onOpenTool?ownerOnly(['skills','specialties','personalities','mcp']):[])]},
+    {name:'Connections',keys:ownerOnly(['accounts','channels',...(onOpenTool?['mcp' as const]:[]),'memory'])},
+    {name:'Workspace',keys:[...ownerOnly(['departments','schedules']),...(onOpenApps?['apps' as const]:[]),...(onOpenTool?ownerOnly(['library']):[])]},
     {name:'',keys:['about']},
   ]:[{name:'Application',keys:['general','account','replies']},{name:'',keys:['about']}];
   const allowed=groups.flatMap(g=>g.keys);
   const active_:Place=aboutOnly?'about':allowed.includes(tab)?tab:'general';
   const q=query.trim().toLowerCase(),found=(p:Row)=>!q||`${p.label} ${p.words}`.toLowerCase().includes(q);
-  const choose=(value:Place)=>{if(value==='apps'){onOpenApps?.();return;}if(value==='skills'||value==='mcp'||value==='specialties'||value==='personalities'){onOpenTool?.(value);return;}setTab(value);};
+  const choose=(value:Place)=>{if(value==='apps'){onOpenApps?.();return;}if(value==='mcp'||value==='library'){onOpenTool?.(value);return;}setTab(value);};
   // ⌘F searches inside settings while this window is open.
   useEffect(()=>{if(!active||aboutOnly)return;const onKey=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='f'&&!document.querySelector('dialog[open]')&&!e.defaultPrevented){e.preventDefault();search.current?.focus();}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);},[active,aboutOnly]);
   const sidebar=<nav className="dk-sidebar settings-sidebar" aria-label="Settings sections">
@@ -110,7 +111,8 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='verification'&&live&&<SignInAndReviewers client={client!} onApprovals={onApprovals??(()=>{})} onBoard={onBoard??(()=>{})} onAgent={onAgent??(()=>onAgents?.())} onAccount={()=>setTab('account')}/>}
       {active_==='approval-rules'&&owner&&<ReviewerPoliciesSettings client={client!} onAccount={()=>setTab('account')}/>}
       {active_==='keys'&&live&&<SavedKeys client={client!} owner={owner} page/>}
-      {active_==='connections'&&owner&&<ConnectionsSettings client={client!} onOpenGenvr={onOpenGenvr}/>}
+      {active_==='accounts'&&owner&&<ConnectionsSettings client={client!} onOpenGenvr={onOpenGenvr}/>}
+      {active_==='departments'&&owner&&<DepartmentsSettings client={client!} onAgent={onAgent}/>}
       {active_==='channels'&&owner&&<AgentConnectSettings client={client!}/>}
       {active_==='memory'&&owner&&<MemorySettings client={client!} pane={pane} onOpenMemory={onOpenMemory}/>}
       {active_==='schedules'&&owner&&<ScheduledTasks client={client!} active={active} onOpenConnections={()=>setTab('channels')}/>}

@@ -16,7 +16,7 @@ test('agents tool reads list, one agent and permissions with GET only and strips
  for(const r of [list,one,perms])assert.doesNotMatch(JSON.stringify(r),SECRET);
  for(const op of ['rename','update','set_role','set_main','set_primary','duplicate','hire','create','remove','delete'])await refused('agents',{operation:op,id:'main-agent'},calls,/owner in the app/);
  for(const input of [{operation:'read'},{operation:'read',id:'../x'},{operation:'read',id:'a/b'},{operation:'list',id:'x'},{operation:'permissions'},{operation:'nope'}])await refused('agents',input,calls);
- assert.match(TOOL_DEFINITIONS.find(t=>t.name==='agents').description,/Renaming, role, main agent, duplicate, hire and remove are done by the owner in the app/);
+ assert.match(TOOL_DEFINITIONS.find(t=>t.name==='agents').description,/Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app/);
 });
 
 test('approvals tool reads waiting, history, permissions, rules and coverage with GET only',async()=>{
@@ -74,4 +74,14 @@ test('personality_library refuses No on a suggestion like Yes, and still reads p
  assert.notEqual((await callTool('personality_library',{operation:'proposals',id:'agent-one'},{backend})).isError,true);assert.deepEqual(calls.at(-1),{method:'GET',path:'/api/agents/agent-one/personality/proposals',body:undefined});
  assert.notEqual((await callTool('personality_library',{operation:'proposal',id:'agent-one',proposalId},{backend})).isError,true);assert.deepEqual(calls.at(-1),{method:'GET',path:'/api/agents/agent-one/personality/proposals/'+proposalId,body:undefined});
  const ops=TOOL_DEFINITIONS.find(t=>t.name==='personality_library').inputSchema.properties.operation.enum;assert.ok(!ops.includes('reject')&&!ops.includes('approve'));
+});
+
+test('agents tool: departments read, rename a department and move one agent, nothing else',async()=>{
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});if(path==='/api/agents'&&method==='GET')return {agents:[agentRow,{...agentRow,id:'b',name:'Bo',isPrimary:false,department:null,api_key:'sk-live'}]};if(path==='/api/agents/b'&&method==='GET')return {agent:{...agentRow,id:'b',version:4}};if(path==='/api/agents/b'&&method==='PUT')return {agent:{...agentRow,id:'b',department:body.department}};if(path==='/api/agents/departments/rename')return {from:body.from,to:body.to,moved:1};throw Error('unexpected '+method+' '+path);}};
+ const d=await callTool('agents',{operation:'departments'},{backend});assert.notEqual(d.isError,true);
+ assert.deepEqual(d.structuredContent,{departments:[{department:'ops',agents:[{id:'main-agent',name:'Main'}]}],noDepartment:[{id:'b',name:'Bo'}]});assert.doesNotMatch(JSON.stringify(d),SECRET);
+ const r=await callTool('agents',{operation:'rename_department',from:'ops',to:' Field  Ops '},{backend});assert.notEqual(r.isError,true);assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agents/departments/rename',body:{from:'ops',to:'field ops'}});
+ const m=await callTool('agents',{operation:'set_department',id:'b',department:'sales'},{backend});assert.notEqual(m.isError,true);assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/agents/b',body:{expectedVersion:4,department:'sales'}});
+ await callTool('agents',{operation:'set_department',id:'b',department:null},{backend});assert.deepEqual(calls.at(-1).body,{expectedVersion:4,department:null});
+ for(const input of [{operation:'rename_department',from:'ops'},{operation:'rename_department',from:'ops',to:'x'.repeat(65)},{operation:'rename_department',from:'ops',to:'Ops!'},{operation:'rename_department',from:'ops',to:'a',id:'b'},{operation:'set_department',department:'a'},{operation:'set_department',id:'../x',department:'a'},{operation:'departments',id:'b'}])await refused('agents',input,calls);
 });
