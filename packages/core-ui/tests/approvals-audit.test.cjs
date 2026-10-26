@@ -89,3 +89,4 @@ test('12: approval colours come from light/dark tokens; narrow window stacks the
  const css=src('approvals-desktop.css'),body=css.split('\n').filter(l=>!/^:root,\.shell\{|^\.shell\[data-theme="dark"\]\{/.test(l)).join('\n');
  assert.doesNotMatch(body,/#[0-9A-Fa-f]{3,8}\b/);assert.match(css,/@media \(max-width:1000px\)\{\.perm-panes\{/);
 });
+test('Reviewers says plainly when account verification is off instead of "could not be read"',()=>{const src=require('node:fs').readFileSync(require('node:path').join(__dirname,'../src/HumanReviewsPage.tsx'),'utf8');assert.match(src,/'review_unavailable','verification_required','human_verification_required','owner_verification_required'\]\.includes/);assert.match(src,/People can review after you turn on account verification \(Settings › Account\)\./);});

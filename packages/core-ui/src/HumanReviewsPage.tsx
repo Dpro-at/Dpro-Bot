@@ -46,8 +46,8 @@ export function ApprovalsWorkspace({client,active,slot,onDecision,onAccount,pend
 type ReviewerRow={kind:'agent'|'person';id:string;name:string;line:string;ready:boolean;about:string;rules:string[]};
 /** Board AP6: reviewer agents and the people in rules that are on, as one quiet list with details on the right. Read only. */
 export function ReviewersPlace({client,active,onAgent}:{client:SessionClient;active:boolean;onAgent?:(id:string)=>void}){
- const [rows,setRows]=useState<ReviewerRow[]|null>(null),[peopleError,setPeopleError]=useState(false),[agentsError,setAgentsError]=useState(false),[query,setQuery]=useState(''),[selected,setSelected]=useState(''),[refresh,setRefresh]=useState(0);
- useEffect(()=>{if(!active)return;const abort=new AbortController();let stopped=false;setRows(null);setPeopleError(false);setAgentsError(false);
+ const [rows,setRows]=useState<ReviewerRow[]|null>(null),[peopleError,setPeopleError]=useState<''|'verification'|'error'>(''),[agentsError,setAgentsError]=useState(false),[query,setQuery]=useState(''),[selected,setSelected]=useState(''),[refresh,setRefresh]=useState(0);
+ useEffect(()=>{if(!active)return;const abort=new AbortController();let stopped=false;setRows(null);setPeopleError('');setAgentsError(false);
   const read=async(path:string)=>{const r=await client.request({method:'GET',path},abort.signal),body=reviewerResponse(path,r.status,r.body);if(r.status!==200)throw Error(String(body.code));return body;};
   void (async()=>{
    let agents:ReviewerRow[]=[],people:ReviewerRow[]=[];
@@ -61,14 +61,14 @@ export function ReviewersPlace({client,active,onAgent}:{client:SessionClient;act
     const wanted=new Set(rules.flatMap(r=>r.ids)),names:Record<string,string>={};cursor=null;seen.clear();
     for(let page=0;page<201&&wanted.size;page++){const path='/api/reviewer-policies/eligible-humans'+(cursor?'?cursor='+encodeURIComponent(cursor):''),list=await read(path) as {items:{id:string;name:string}[];nextCursor:string|null};for(const p of list.items)if(wanted.has(p.id))names[p.id]=p.name;if([...wanted].every(id=>names[id])||list.nextCursor===null||seen.has(list.nextCursor))break;seen.add(list.nextCursor);cursor=list.nextCursor;}
     people=[...wanted].map(id=>{const inRules=rules.filter(r=>r.ids.includes(id)).map(r=>r.name),ready=!!names[id];return {kind:'person',id,name:names[id]??'Someone in '+inRules[0],line:ready?'Person · in '+inRules.join(', '):'Person · needs two-step sign-in first',ready,about:ready?'Can answer reviews in these rules.':'This person cannot answer reviews until they turn on two-step sign-in.',rules:inRules};});
-   }catch{if(!stopped)setPeopleError(true);}
+   }catch(e){if(!stopped)setPeopleError(['review_unavailable','verification_required','human_verification_required','owner_verification_required'].includes((e as Error).message)?'verification':'error');}
    if(!stopped)setRows([...agents,...people]);
   })();
   return()=>{stopped=true;abort.abort();};
  },[client,active,refresh]);
  const shown=(rows??[]).filter(r=>(r.name+' '+r.line).toLowerCase().includes(query.toLowerCase())),row=shown.find(r=>r.kind+r.id===selected)??shown[0];
  return <section className="permission-coverage coverage-desktop reviewers-place" aria-label="Reviewers"><div className="coverage-toolbar"><label><UiIcon name="search" size={14}/><input type="search" aria-label="Find a reviewer" placeholder="Find a reviewer" value={query} onChange={e=>setQuery(e.target.value)}/></label><button className="tool" title="Read again" aria-label="Read the reviewers again" onClick={()=>setRefresh(n=>n+1)}><UiIcon name="refresh" size={15}/></button></div>
-  {agentsError&&<p role="status">Reviewer agents could not be read.</p>}{peopleError&&<p role="status">The people in your rules could not be read. Check Approval rules.</p>}
+  {agentsError&&<p role="status">Reviewer agents could not be read.</p>}{peopleError==='verification'&&<p role="status">People can review after you turn on account verification (Settings › Account).</p>}{peopleError==='error'&&<p role="status">The people in your rules could not be read. Check Approval rules.</p>}
   {!rows?<p role="status">Reading reviewers…</p>:<div className="coverage-panes"><div className="coverage-list" aria-label="Reviewers">{!shown.length?<p className="fine-print">{query?'No matching reviewers.':'No reviewer agents and no people in rules that are on.'}</p>:shown.map(r=><button key={r.kind+r.id} type="button" aria-current={row===r?'true':undefined} onClick={()=>setSelected(r.kind+r.id)}><Avatar name={r.name} size={20}/><span className="coverage-name"><bdi>{r.name}</bdi><small>{r.line}</small></span>{!r.ready&&<small className="coverage-guard" data-none>Not ready</small>}</button>)}</div>
   <div className="coverage-inspector" aria-label="Selected reviewer">{row&&<><h4><bdi>{row.name}</bdi></h4><dl><dt>Kind</dt><dd>{row.kind==='agent'?'Reviewer agent':'Person'}</dd><dt>State</dt><dd>{row.ready?'Ready':'Needs two-step sign-in'}</dd>{row.rules.length>0&&<><dt>In rules</dt><dd>{row.rules.join(', ')}</dd></>}</dl><p>{row.about}</p>{row.kind==='agent'&&onAgent&&<button type="button" className="link" onClick={()=>onAgent(row.id)}>Open reviewer profile…</button>}</>}</div></div>}
   <p className="fine-print">A reviewer's job title never gives it permissions. People must turn on two-step sign-in to review.</p>
