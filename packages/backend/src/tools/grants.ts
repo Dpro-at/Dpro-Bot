@@ -276,7 +276,7 @@ function* loadAgentGrantsStep(agentId: string, available: Available, delegatedFr
     }
     return grants;
   } catch (err: any) {
-    console.warn(`[Grants] Could not load grants for ${agentId}: ${err?.message || 'error'}`);
+    console.warn(`[Grants] Could not load grants for ${String(agentId).replace(/[\r\n\t]/g, ' ').slice(0, 128)}: ${String(err?.message || 'error').replace(/[\r\n\t]/g, ' ').slice(0, 300)}`);
     return { agentId, tools: defaultGrants().tools };
   }
 }

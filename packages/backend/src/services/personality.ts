@@ -337,7 +337,7 @@ export function traitsToBehavior(traits: Traits, dialect: Dialect): Behavior {
 
 export const EXPORT_BEGIN = '<!-- personality-settings:begin (generated from the database; edits here are ignored) -->';
 export const EXPORT_END = '<!-- personality-settings:end -->';
-const EXPORT_BLOCK = /\n*<!-- personality-settings:begin[^>]*-->[\s\S]*?<!-- personality-settings:end -->\n*/g;
+const BEGIN_MARK = '<!-- personality-settings:begin';
 
 export interface PersonalityExportInput {
   version: number;
@@ -367,7 +367,20 @@ export function renderPersonalityExport(p: PersonalityExportInput): string {
 
 /** Remove the generated block (the chat prompt uses the database values instead). */
 export function stripPersonalityExport(markdown: string): string {
-  return markdown.replace(EXPORT_BLOCK, '\n\n').trim();
+  // Plain index search (no backtracking): the text can come from a file the owner edits.
+  let out = markdown;
+  for (;;) {
+    const begin = out.indexOf(BEGIN_MARK);
+    if (begin < 0) break;
+    const close = out.indexOf('-->', begin + BEGIN_MARK.length);
+    const end = close < 0 || out.slice(begin + BEGIN_MARK.length, close).includes('>') ? -1 : out.indexOf(EXPORT_END, close + 3);
+    if (end < 0) break;
+    let from = begin, to = end + EXPORT_END.length;
+    while (from > 0 && out[from - 1] === '\n') from--;
+    while (to < out.length && out[to] === '\n') to++;
+    out = out.slice(0, from) + '\n\n' + out.slice(to);
+  }
+  return out.trim();
 }
 
 /** The generated block as it is in the file (markers included), or null. */
