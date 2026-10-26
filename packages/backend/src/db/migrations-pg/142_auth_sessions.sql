@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   id text PRIMARY KEY,
   user_id text NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   token_hash text NOT NULL UNIQUE,
+  token_version bigint NOT NULL,
   label text NOT NULL,
   created_at bigint NOT NULL,
   last_seen_at bigint NOT NULL,

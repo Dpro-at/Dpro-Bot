@@ -21,6 +21,7 @@ import { logAuthEvent } from '../../services/audit-logger.js';
 import { authorizeActiveRole, OWNER_OR_ADMIN } from '../../auth/route-guards.js';
 import { changePasswordRateLimit, loginRateLimit, registerRateLimit } from '../rate-limit-config.js';
 import { recordSession, signInLabel } from '../../auth/sessions.js';
+import { safeErrorFields } from '../../services/safe-error-log.js';
 
 /** Owner/admin actor (central rule), with this route's existing 403 wording. */
 function ownerOrAdmin(actor: Actor | null | undefined): Actor {
@@ -220,7 +221,9 @@ export async function authRoutes(fastify: FastifyInstance) {
           const newDeviceToken = await loginThrottle.succeeded(email, ipAddress, userAgent, deviceToken);
           logAuthEvent('auth.login', request, result.user.id, result.user.username, true);
           // Settings › Account lists this sign-in as a device (only a short label is kept).
-          await recordSession(result.token, signInLabel(request.headers as Record<string, unknown>));
+          // A missing device row only hides this sign-in from the list (sign out everywhere still works), so it never fails the sign-in.
+          try { await recordSession(result.token, signInLabel(request.headers as Record<string, unknown>)); }
+          catch (error) { console.warn('[Auth] device list entry not saved', safeErrorFields(error)); }
           // The token carries token_version for invalidation support (H-01).
           // deviceToken (S0-Q.20): rotated on every sign-in; the client keeps
           // it and sends it back on the next sign-in.
