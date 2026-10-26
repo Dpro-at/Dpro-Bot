@@ -1,10 +1,7 @@
-<<<<<<< HEAD
 @import './personalities-desktop.css';
 @import './mcp-desktop.css';
 @import './skills-desktop.css';
-=======
 @import './specialties-desktop.css';
->>>>>>> refs/heads/claude/ui-specialties
 @import './agents-desktop.css';
 @import './settings-apps.css';
 @import './workspace-modes.css';
