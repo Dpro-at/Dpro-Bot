@@ -49,8 +49,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'agents',title:'Agents (read only)',
-    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Dpro, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Dpro place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent, stopping work and the quick helper switch); this tool refuses them.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department','org','sub_agents','sub_agent_work','set_reports_to','add_sub_agent']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64},reportsTo:{type:['string','null'],maxLength:128},name:{type:'string',maxLength:60},startsAs:{type:'string',enum:['copy','empty']},description:{type:'string',maxLength:1000},tools:{type:'array',maxItems:100,items:{type:'string',maxLength:64}}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Dpro, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Dpro place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Files (agent page \u203a Files): files (id: its files — Who it is, What it keeps in mind, Knowledge — with which ones it reads) and file (id, name: one file; secrets hidden). Only on the owner\u2019s explicit instruction: write_file (id, name, content) creates or replaces a Knowledge file (.md .txt .csv .json, up to 1 MB); Who it is and What it keeps in mind are changed by the owner in the app. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent or a file, stopping work and the quick helper switch); this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department','org','sub_agents','sub_agent_work','set_reports_to','add_sub_agent','files','file','write_file']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64},reportsTo:{type:['string','null'],maxLength:128},name:{type:'string',maxLength:60},startsAs:{type:'string',enum:['copy','empty']},description:{type:'string',maxLength:1000},tools:{type:'array',maxItems:100,items:{type:'string',maxLength:64}},content:{type:'string',maxLength:1048576}},required:['operation'],additionalProperties:false},
   },
   {
     name:'workspace_approvals',title:'Approvals (read only)',
@@ -797,7 +797,35 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
   const res=obj(await backend.request('POST','/api/agents/'+encodeURIComponent(id)+'/sub-agents',body));
   return ok('Sub-agent added. It works only for its agent and never gets more than its agent may do. Removing it is done by the owner in the app.',{agent:agentView(res.agent)});
  }
- throw new InputError('operation must be list, read, permissions, departments, rename_department, set_department, org, sub_agents, sub_agent_work, set_reports_to or add_sub_agent. '+AGENTS_REFUSED);
+ // Agent page › Files (AGENT-FILES-01).
+ const FILE_NAME=/^[A-Za-z0-9][A-Za-z0-9 _.()-]{0,78}\.(md|txt|csv|json)$/i;
+ if(operation==='files'){
+  only(args,['operation','id']);
+  const id=agentIdArg(args.id,'agent id');
+  const res=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/library'));
+  const files=(Array.isArray(res.files)?res.files:[]).filter(record).map(f=>({name:text(f.name,90),kind:f.kind==='who'?'who it is':f.kind==='mind'?'what it keeps in mind':'knowledge',size:typeof f.size==='number'?f.size:null,read:f.read===true}));
+  return ok('Its files. Knowledge files marked read are part of its answers (as reference data). Writing a Knowledge file only on the owner\u2019s explicit instruction.',{files});
+ }
+ if(operation==='file'){
+  only(args,['operation','id','name']);
+  const id=agentIdArg(args.id,'agent id');
+  if(typeof args.name!=='string'||!(args.name==='PERSONALITY.md'||args.name==='MEMORY.md'||FILE_NAME.test(args.name)))throw new InputError('name must be PERSONALITY.md, MEMORY.md or a Knowledge file name');
+  const res=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/library/file?name='+encodeURIComponent(args.name)));
+  return ok('One file (secrets hidden).',{name:text(res.name,90),content:text(res.content,1048576),managedByPersonality:text(res.managed,20000)});
+ }
+ if(operation==='write_file'){
+  only(args,['operation','id','name','content']);
+  const id=agentIdArg(args.id,'agent id');
+  if(typeof args.name!=='string'||!FILE_NAME.test(args.name)||/^(personality|memory)\.md$/i.test(args.name))throw new InputError('Only Knowledge files (.md .txt .csv .json) can be written here; Who it is and What it keeps in mind are changed by the owner in the app');
+  if(typeof args.content!=='string')throw new InputError('content is required');
+  const list=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/library'));
+  const exists=(Array.isArray(list.files)?list.files:[]).filter(record).some(f=>f.kind==='knowledge'&&f.name===args.name);
+  if(!exists){const res=obj(await backend.request('POST','/api/agents/'+encodeURIComponent(id)+'/library/file',{name:args.name,content:args.content}));return ok(res.redacted?'Knowledge file added; values that looked like secrets were hidden.':'Knowledge file added.',{name:args.name});}
+  const cur=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/library/file?name='+encodeURIComponent(args.name)));
+  const res=obj(await backend.request('PUT','/api/agents/'+encodeURIComponent(id)+'/library/file',{name:args.name,content:args.content,expectedHash:cur.hash??null}));
+  return ok(res.redacted?'Knowledge file replaced; values that looked like secrets were hidden. The owner can bring back the earlier version in the app.':'Knowledge file replaced. The owner can bring back the earlier version in the app.',{name:args.name});
+ }
+ throw new InputError('operation must be list, read, permissions, departments, rename_department, set_department, org, sub_agents, sub_agent_work, set_reports_to, add_sub_agent, files, file or write_file. '+AGENTS_REFUSED);
 }
 
 const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
