@@ -21,6 +21,9 @@ const MESSAGES: Record<string, string> = {
 const message = (code?: string) => (code && MESSAGES[code]) || 'The request failed. Try again.';
 const CONTENT = { violence: false, blood: false, horror: false, romance: false, userChat: false, paidItems: false };
 const CONTENT_LABELS: Record<keyof typeof CONTENT, string> = { violence: 'Violence', blood: 'Blood', horror: 'Horror', romance: 'Romance', userChat: 'Visitors can chat', paidItems: 'Paid items' };
+/** "Dpro may" in plain words (AA5); a code Dpro does not know yet is shown as it is. */
+const SCOPE_WORDS: Record<string, string> = { 'worlds:read': 'See your spaces', 'worlds:write': 'Save worlds as private drafts', 'worlds:publish': 'Publish only after you agree', 'worlds:join': 'Join worlds' };
+export const scopeWords = (scope: string) => SCOPE_WORDS[scope] ?? scope;
 const date = (v: string | null) => v ? new Date(v).toLocaleString() : '';
 
 /** Apps › Accounts (AA5): online accounts linked to this Dpro, today GenVR (owner only). */
@@ -64,7 +67,7 @@ export function ConnectionsSettings({ client, onOpenGenvr }: { client: SessionCl
           <button type="button" disabled={busy} onClick={() => void act(`${GENVR}/cancel`, {})}>Cancel</button></div>
         <p className="fine-print">Waiting for your OK · the code works until {date(genvr.pending.expiresAt)}. Your GenVR password is never typed in Dpro.</p>
       </div>}
-      {linked && <><h4>Dpro may</h4><ul className="apps-may-list">{genvr.scopes.map(x => <li key={x}>{x}</li>)}</ul><dl className="apps-facts"><dt>Linked</dt><dd>{date(genvr.linkedAt)}</dd><dt>Valid until</dt><dd>{date(genvr.expiresAt)}</dd></dl></>}
+      {linked && <><h4>Dpro may</h4><ul className="apps-may-list">{genvr.scopes.map(x => <li key={x}>{scopeWords(x)}</li>)}</ul><dl className="apps-facts"><dt>Linked</dt><dd>{date(genvr.linkedAt)}</dd><dt>Valid until</dt><dd>{date(genvr.expiresAt)}</dd></dl></>}
       {genvr.error && genvr.status !== 'connecting' && <p role="alert" className="error">{message(genvr.error)}</p>}
       {confirmOff && <div className="apps-confirm" role="alertdialog" aria-label="Disconnect GenVR"><p>Disconnect GenVR? Dpro removes the link; your worlds stay on GenVR.</p><div className="connection-actions"><button type="button" onClick={() => setConfirmOff(false)}>Keep</button><button type="button" className="danger" disabled={busy} onClick={() => void act(`${GENVR}/disconnect`, { confirm: true })}>Disconnect</button></div></div>}
       <div className="apps-actions">

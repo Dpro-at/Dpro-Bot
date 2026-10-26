@@ -23,7 +23,7 @@ export function FooterSettings({client}:{client:SessionClient}){
      <span className="grip" title="Drag to reorder" aria-hidden="true"><UiIcon name="grip" size={14}/></span>
      <input type="checkbox" id={`footer-${id}`} checked={on} onChange={()=>controller.toggle(id)}/>
      <UiIcon name={s.icon} size={15}/><label className="footer-name" htmlFor={`footer-${id}`}>{s.label}</label>
-     {id==='approvals'&&on&&prefs.approvalsWhenWaiting&&<small>Comes back when something waits</small>}{!on&&<small>Hidden · still in ⌘K</small>}
+     {id==='approvals'&&on&&prefs.approvalsWhenWaiting&&<small>Comes back when something waits</small>}{!on&&<small>{id==='genvr'||id==='terminal'||id==='code'?'Hidden · still in ⌘K · can be pinned from Apps':'Hidden · still in ⌘K'}</small>}
     </li>;})}</ol>
   </div>
   <PreferenceRow title="Show" icon="sliders"><span role="radiogroup" aria-label="Footer shows" className="perm-seg"><button type="button" role="radio" aria-checked={!prefs.iconsOnly} onClick={()=>prefs.iconsOnly&&void controller.change({iconsOnly:false},'Names shown')}>Icons and names</button><button type="button" role="radio" aria-checked={prefs.iconsOnly} onClick={()=>!prefs.iconsOnly&&void controller.change({iconsOnly:true},'Icons only')}>Icons only</button></span></PreferenceRow>
