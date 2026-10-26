@@ -134,7 +134,9 @@ export async function readFile(agentId: string, name: unknown): Promise<FileView
   const text = await readText(f.knowledge, name as string, MAX_KNOWLEDGE_BYTES);
   if (text === null) throw new FileLibraryError(404, 'not_found');
   const state = await readState(f.root);
-  return { name: name as string, kind, content: text, hash: digest(text), managed: null, redacted: false, read: !state.notRead.includes(name as string) };
+  // Files saved before the guard (or put there by hand) are shown with secrets hidden too; the hash stays the stored text's.
+  const shown = redactImportText(text).text;
+  return { name: name as string, kind, content: shown, hash: digest(text), managed: null, redacted: shown !== text, read: !state.notRead.includes(name as string) };
 }
 
 /** Save over a file the caller read (expectedHash); a changed file answers 409. */
