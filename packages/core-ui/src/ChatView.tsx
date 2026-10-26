@@ -1,4 +1,5 @@
 import {ChatAgentPicker} from './ChatAgentPicker';
+import { modelDisplayName } from './model-names';
 import {ChatAddons} from './ChatAddons';
 import {DocumentEditor} from './DocumentEditor';
 import { RecoveryApprovals } from './RecoveryApprovals';
@@ -382,7 +383,7 @@ function ChatSidePanel({ controller, client, onAddConnector, memory, onOpenMemor
   const tokens = approxTokens(s.turns);
   const agent = s.agents.find(a => a.id === (conv?.agentId ?? s.agentId))?.name ?? 'Main agent';
   const who = whoAnswers(s.model, s.models);
-  const model = who.app ? who.text : s.model ? `Saved model: ${s.model}` : "Agent's own model";
+  const model = who.app ? who.text : s.model ? `Saved model: ${modelDisplayName(s.model)}` : "Agent's own model";
   const replies = s.turns.filter(t => t.role === 'assistant');
   const worked = replies.reduce((n, t) => n + (t.durationMs ?? 0), 0);
   const tools = workSummary(s.turns.flatMap(t => withoutPlan(t.parts)));

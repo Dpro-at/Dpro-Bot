@@ -1,4 +1,4 @@
-import {useEffect,useState,useSyncExternalStore} from 'react';
+import {useEffect,useLayoutEffect,useRef,useState,useSyncExternalStore} from 'react';
 import type {ReactNode} from 'react';
 import {UiIcon} from './ui-icons';
 import {ContextMenu,useMenu} from './desktop-ui';
@@ -26,6 +26,11 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
  // ⌘1–⌘9 open the footer's sections in their order; ⌘Z undoes a footer change while its notice shows.
  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey)return;const n=Number(e.key);if(n>=1&&n<=9&&numbered[n-1]){e.preventDefault();entries[numbered[n-1]].run();}else if(e.key==='z'&&undo&&notice&&!(e.target as HTMLElement)?.closest?.('input,textarea,[contenteditable]')){e.preventDefault();controller.undo();}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);});
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>controller.clearNotice(),8000);return()=>clearTimeout(t);},[notice,controller]);
+ // Too narrow for the names: show icons only until the names fit again (the person's own choice stays as it is).
+ const groupRef=useRef<HTMLSpanElement>(null),needed=useRef(0),[compact,setCompact]=useState(false),shownKey=shown.join();
+ useEffect(()=>setCompact(false),[shownKey]);
+ useLayoutEffect(()=>{const el=groupRef.current;if(!el||prefs.iconsOnly)return;const check=()=>{if(!compact){if(el.scrollWidth>el.clientWidth+1){needed.current=el.scrollWidth;setCompact(true);}}else if(el.clientWidth>=needed.current)setCompact(false);};check();const ro=new ResizeObserver(check);ro.observe(el);return()=>ro.disconnect();},[compact,shownKey,prefs.iconsOnly]);
+ const iconsOnly=prefs.iconsOnly||compact;
  const items=():MenuItem[]=>[
   ...prefs.order.filter(id=>entries[id].available).map((id):MenuItem=>{return {label:footerSections[id].label+(entries[id].current?' — you are here':''),icon:footerSections[id].icon,checked:!prefs.hidden.includes(id),disabled:entries[id].current,shortcut:keyOf(id),run:()=>controller.toggle(id)};}),
   'sep',
@@ -33,20 +38,20 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
   'sep',
   {label:'Customize footer…',icon:'gear',run:onCustomize},
  ];
- return <footer className="statusbar shell-footer" data-icons-only={prefs.iconsOnly||undefined} onContextMenu={e=>at(e,items())}>
-  <span className="statusbar-group">
+ return <footer className="statusbar shell-footer" data-icons-only={iconsOnly||undefined} onContextMenu={e=>at(e,items())}>
+  <span className="statusbar-group" ref={groupRef}>
    {status}
    {shown.map(id=>{const e=entries[id],s=footerSections[id];return <button key={id} type="button" className="status-item" draggable aria-current={lit(id)?'page':undefined} data-dragging={dragging===id||undefined}
-    title={[prefs.iconsOnly?s.label:'',keyOf(id)?`(${keyOf(id)})`:''].filter(Boolean).join(' ')||undefined} aria-label={prefs.iconsOnly?s.label+(e.badge?`, ${e.badge} waiting`:''):undefined} onClick={e.run}
+    title={s.label+(keyOf(id)?` (${keyOf(id)})`:'')} aria-label={s.label+(e.badge?`, ${e.badge} waiting`:'')} onClick={e.run}
     onDragStart={ev=>{setDragging(id);ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',id);}} onDragEnd={()=>setDragging(null)}
     onDragOver={ev=>{if(dragging&&dragging!==id){ev.preventDefault();ev.dataTransfer.dropEffect='move';}}} onDrop={ev=>{ev.preventDefault();if(dragging)controller.move(dragging,id);setDragging(null);}}>
-    <UiIcon name={s.icon} size={14}/>{!prefs.iconsOnly&&<span>{s.label}</span>}{e.badge&&<span className="footer-badge">{e.badge}</span>}</button>;})}
+    <UiIcon name={s.icon} size={14}/>{!iconsOnly&&<span>{s.label}</span>}{e.badge&&<span className="footer-badge">{e.badge}</span>}</button>;})}
   </span>
   <span className="statusbar-group">
    {notice&&<span className="status-item footer-notice" role="status">{notice}{undo&&<button type="button" className="link-button" onClick={()=>controller.undo()}>Undo</button>}</span>}
    {extra}
    <button type="button" className="status-item footer-more" aria-label="Choose what the footer shows" title="Choose what the footer shows (right-click works too)" onClick={e=>at(e,items())}><UiIcon name="more" size={14}/></button>
-   <button type="button" className="status-item" aria-current={settingsCurrent?'page':undefined} title="Settings (⌘,)" aria-label={prefs.iconsOnly?'Settings':undefined} onClick={onSettings}><UiIcon name="gear" size={14}/>{!prefs.iconsOnly&&<span>Settings</span>}</button>
+   <button type="button" className="status-item" aria-current={settingsCurrent?'page':undefined} title="Settings (⌘,)" aria-label="Settings" onClick={onSettings}><UiIcon name="gear" size={14}/>{!iconsOnly&&<span>Settings</span>}</button>
   </span>
   <ContextMenu menu={menu} onClose={close}/>
  </footer>;

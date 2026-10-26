@@ -5,7 +5,7 @@ type Props={title:string;files:EditorFile[];onChange:(id:string,text:string)=>vo
 /** Shared local-draft editor. Saving a draft never publishes it to agents. `inline` shows it inside a page instead of a window of its own. */
 export function DocumentEditor({title,files,onChange,onClose,maxLength=30000,inline=false}:Props){
  const dialog=useRef<HTMLDialogElement>(null),input=useRef<HTMLDivElement>(null),sourcePane=useRef<HTMLDivElement>(null),findInput=useRef<HTMLInputElement>(null);
- const [fileId,setFileId]=useState(files[0]?.id??''),[mode,setMode]=useState<'split'|'source'|'preview'>('split'),[finding,setFinding]=useState(false),[query,setQuery]=useState(''),[replacement,setReplacement]=useState(''),[notice,setNotice]=useState('');
+ const [fileId,setFileId]=useState(files[0]?.id??''),[mode,setMode]=useState<'split'|'source'|'preview'>(inline?'preview':'split'),[finding,setFinding]=useState(false),[query,setQuery]=useState(''),[replacement,setReplacement]=useState(''),[notice,setNotice]=useState('');
  const findPosition=useRef(-1);
  useEffect(()=>{const media=window.matchMedia('(max-width: 950px)');const changed=()=>{if(media.matches)setMode(m=>m==='split'?'source':m);};changed();media.addEventListener('change',changed);return()=>media.removeEventListener('change',changed);},[]);
  useEffect(()=>{findPosition.current=-1;},[query,fileId]);
