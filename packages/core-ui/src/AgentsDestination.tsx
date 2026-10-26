@@ -56,44 +56,6 @@ export function AgentsDestination({ client, active = false, onOpenMemory, sideba
 
 }
 
-const ROLE: Record<string, string> = { main: 'Main agent', manager: 'Manager', specialist: 'Specialist', evaluator: 'Evaluator' };
-/** The team as cards, grouped by department; a card opens the agent. */
-export function TeamGrid({ controller, onOpen }: { controller: AgentsController; onOpen: (id: string) => void }) {
-  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const [query, setQuery] = useState('');
-  if (s.phase === 'listing' && !s.agents.length) return <p className="empty-note" role="status">Loading the team…</p>;
-  if (s.phase === 'denied') return <p className="empty-note">Only the owner can manage the team here.</p>;
-  if (s.phase === 'idle' && !s.agents.length) return <p className="empty-note" role="status">Loading the team…</p>;
-  if (!s.agents.length) return <div className="empty-note"><p>{s.phase === 'error' ? 'The team could not be loaded.' : 'No agents yet. Hire your first one above.'}</p>{s.phase === 'error' && <button type="button" onClick={() => void controller.list()}>Try again</button>}</div>;
-  const q = query.trim().toLowerCase();
-  const shown = s.agents.filter(a => !q || [a.name, a.role, a.department, a.description].some(x => (x ?? '').toLowerCase().includes(q)));
-  const groups = new Map<string, typeof shown>();
-  for (const a of [...shown].sort((x, y) => Number(!!y.isPrimary) - Number(!!x.isPrimary) || (x.name ?? '').localeCompare(y.name ?? ''))) {
-    const k = a.isPrimary ? '' : a.department ?? 'other';
-    groups.set(k, [...(groups.get(k) ?? []), a]);
-  }
-  const order = [...groups.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a === 'other' ? 1 : b === 'other' ? -1 : a.localeCompare(b)));
-  return <div className="team">
-    <div className="team-tools">
-      <span className="fine-print">{s.agents.length} {s.agents.length === 1 ? 'agent' : 'agents'}</span>
-      {s.agents.length > 6 && <input type="search" className="team-filter" placeholder="Filter by name, role or department" aria-label="Filter the team" value={query} onChange={e => setQuery(e.target.value)}/>}
-      <button type="button" className="ghost" onClick={() => void controller.list()} disabled={s.phase === 'listing'}>Reload</button>
-    </div>
-    {order.map(k => <section key={k || 'main'} className="team-group" aria-label={k ? `Department ${k}` : 'Main agent'}>
-      {k && <h3 className="team-group-title">{k === 'other' ? 'No department' : k[0].toUpperCase() + k.slice(1)}</h3>}
-      <ul className="team-grid">{groups.get(k)!.map(a => <li key={a.id}>
-        <button type="button" className="team-card" onClick={() => onOpen(a.id)}>
-          <span className="team-avatar" aria-hidden="true">{(a.name ?? '?').trim().slice(0, 1).toUpperCase() || '?'}</span>
-          <span className="team-text">
-            <span className="team-name"><bdi>{a.name ?? 'Name unavailable'}</bdi>{a.isPrimary && <span className="chip accent">Main</span>}</span>
-            <span className="team-role">{[a.role ? ROLE[a.role] : null, a.department].filter(Boolean).join(' · ') || 'No role yet'}</span>
-            {a.description && <span className="team-desc" dir="auto">{a.description}</span>}
-          </span>
-        </button></li>)}</ul>
-    </section>)}
-    {shown.length === 0 && <p className="empty-note">No agent matches.</p>}
-  </div>;
-}
 /** Readable status for each controller phase (the controller keeps its own words). */
 const phaseLabel: Record<string, string> = {
   idle: 'Team not loaded yet', listing: 'Loading the team…', reading: 'Opening the agent…', ready: 'Ready',

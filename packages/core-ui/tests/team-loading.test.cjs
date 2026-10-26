@@ -6,7 +6,8 @@ const { renderToStaticMarkup } = require('../node_modules/react-dom/server');
 const { SessionClient } = require('../src/session.ts');
 const { AgentsController } = require('../src/agents.ts');
 const AgentsDestinationModule = require('../src/AgentsDestination.tsx');
-const { TeamGrid } = AgentsDestinationModule;
+const { StaffDirectory } = require('../src/StaffDirectory.tsx');
+const staff = c => renderToStaticMarkup(React.createElement(StaffDirectory, { controller: c, department: 'all', onOpen() {} }));
 async function session(t, response) {
   const calls=[];
   const client=new SessionClient({mock:async r=>{
@@ -27,14 +28,15 @@ test('ordinary member can load readable team without owner privileges',async t=>
 test('successful empty team finishes loading and renders an empty state',async t=>{
   const {c}=await session(t,{status:200,body:{agents:[]}});await c.list();
   assert.equal(c.getSnapshot().phase,'ready');
-  const html=renderToStaticMarkup(React.createElement(TeamGrid,{controller:c,onOpen(){}}));
-  assert.doesNotMatch(html,/Loading the team/);assert.match(html,/No agents yet/);
+  const html=staff(c);
+  assert.doesNotMatch(html,/Loading the team/);assert.match(html,/Hire your first agent/);
 });
 test('forbidden team read finishes with access denied instead of a spinner',async t=>{
   const {c}=await session(t,{status:403,body:null});await c.list();assert.equal(c.getSnapshot().phase,'denied');
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(TeamGrid,{controller:c,onOpen(){}})),/Loading the team/);
+  assert.doesNotMatch(staff(c),/Loading the team/);
 });
 
-test('members keep the read-only staff inspector: the old member agent page is gone (A9)',()=>{
+test('members keep the read-only staff inspector: the old member agent page and the old team grid are gone (A9)',()=>{
   assert.equal(AgentsDestinationModule.MemberAgent,undefined);
+  assert.equal(AgentsDestinationModule.TeamGrid,undefined);
 });
