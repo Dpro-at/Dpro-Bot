@@ -50,3 +50,14 @@
 .perm-seg{display:flex;padding:2px;border-radius:7px;background:var(--surface)}.perm-seg button{min-height:22px;padding:0 8px;border:0;border-radius:5px;background:transparent;font-size:11px;color:var(--muted)}.perm-seg button[aria-checked=true]{background:var(--row-active);color:var(--text)}
 .perm-note{color:var(--muted);font-size:11.5px;margin-block-start:auto}
 .perm-risky{display:flex;align-items:center;gap:10px}
+.coverage-desktop .coverage-toolbar{display:flex;align-items:center;gap:10px;margin-block-end:12px}
+.coverage-desktop .coverage-list>button{display:flex;align-items:center;gap:10px;width:100%;text-align:start;padding:8px 10px}
+.coverage-desktop .coverage-name{display:flex;flex-direction:column;flex:1;min-width:0}.coverage-desktop .coverage-name small{color:var(--muted);font-size:11px}
+.coverage-desktop .coverage-guard{font-size:11px;color:var(--muted);white-space:nowrap}.coverage-desktop .coverage-guard[data-none]{color:#F0C27A}
+/* Code sheet (AP2a): one real input under six visible boxes */
+.code-sheet{min-inline-size:380px}
+.code-boxes{position:relative;display:flex;gap:8px;justify-content:center;margin-block:14px}
+.code-boxes input{position:absolute;inset:0;opacity:0;inline-size:100%;block-size:100%;cursor:text}
+.code-box{inline-size:44px;block-size:54px;border-radius:10px;display:grid;place-items:center;font-size:22px;font-weight:600;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border)}
+.code-boxes:focus-within .code-box[data-active]{box-shadow:inset 0 0 0 2px var(--accent)}
+.code-sheet .actions{display:flex;gap:10px;justify-content:flex-end}
