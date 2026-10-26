@@ -85,3 +85,26 @@ test('agents tool: departments read, rename a department and move one agent, not
  await callTool('agents',{operation:'set_department',id:'b',department:null},{backend});assert.deepEqual(calls.at(-1).body,{expectedVersion:4,department:null});
  for(const input of [{operation:'rename_department',from:'ops'},{operation:'rename_department',from:'ops',to:'x'.repeat(65)},{operation:'rename_department',from:'ops',to:'Ops!'},{operation:'rename_department',from:'ops',to:'a',id:'b'},{operation:'set_department',department:'a'},{operation:'set_department',id:'../x',department:'a'},{operation:'departments',id:'b'}])await refused('agents',input,calls);
 });
+
+test('agents tool: org chart reads, set_reports_to and add_sub_agent with the app\u2019s gates',async()=>{
+ const sub={...agentRow,id:'helper-1',name:'Helper',isPrimary:false,manager:'b',placed:'sub',subAgentOf:'b'};
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});
+  if(path==='/api/agents'&&method==='GET')return {agents:[{...agentRow,manager:null,placed:'main',subAgentOf:null},{...agentRow,id:'b',name:'Bo',isPrimary:false,manager:'main-agent',placed:'auto',subAgentOf:null},sub,{id:'small-local-agent',name:'Small',placed:'none'}]};
+  if(path==='/api/agents/b/sub-agent-work')return {work:[{id:'w1',kind:'helper',agentId:'helper-1',status:'running',summary:null,token:'tok-1'}]};
+  if(path==='/api/agents/b/reports-to')return {id:'b',reportsTo:body.reportsTo,version:3};
+  if(path==='/api/agents/b/tool-grants')return {available:[{name:'memory_search',execClass:false,requiresApproval:false},{name:'exec',execClass:true,requiresApproval:true},{name:'memory_forget',execClass:false,requiresApproval:true}]};
+  if(path==='/api/agents/b/sub-agents')return {agent:{...sub,id:'helper-2',name:body.name??'Helper 2'}};
+  throw Error('unexpected '+method+' '+path);}};
+ const org=await callTool('agents',{operation:'org'},{backend});assert.notEqual(org.isError,true);
+ assert.deepEqual(org.structuredContent.agents.map(a=>[a.id,a.manager,a.placed,a.subAgentOf]),[['main-agent',null,'main',null],['b','main-agent','auto',null],['helper-1','b','sub','b']]);
+ assert.doesNotMatch(JSON.stringify(org),SECRET);
+ assert.deepEqual((await callTool('agents',{operation:'sub_agents',id:'b'},{backend})).structuredContent.subAgents.map(a=>a.id),['helper-1']);
+ const work=await callTool('agents',{operation:'sub_agent_work',id:'b'},{backend});assert.equal(work.structuredContent.work[0].status,'running');assert.doesNotMatch(JSON.stringify(work),SECRET);
+ await callTool('agents',{operation:'set_reports_to',id:'b',reportsTo:'main-agent'},{backend});assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/agents/b/reports-to',body:{reportsTo:'main-agent'}});
+ await callTool('agents',{operation:'set_reports_to',id:'b',reportsTo:null},{backend});assert.deepEqual(calls.at(-1).body,{reportsTo:null});
+ const added=await callTool('agents',{operation:'add_sub_agent',id:'b',name:' Checker ',tools:['memory_search']},{backend});assert.notEqual(added.isError,true,added.content[0].text);
+ assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agents/b/sub-agents',body:{startsAs:'copy',tools:['memory_search'],name:'Checker'}});
+ for(const tools of [['exec'],['memory_forget'],['unknown_tool']]){const n=calls.length;const r=await callTool('agents',{operation:'add_sub_agent',id:'b',tools},{backend});assert.equal(r.isError,true);assert.match(r.content[0].text,/owner gives it/);assert.ok(calls.slice(n).every(c=>c.method==='GET'),'nothing created');}
+ for(const input of [{operation:'set_reports_to',id:'b'},{operation:'set_reports_to',id:'b',reportsTo:'../x'},{operation:'add_sub_agent',id:'b'},{operation:'add_sub_agent',id:'b',tools:[],startsAs:'specialty'},{operation:'org',id:'b'},{operation:'sub_agents'},{operation:'sub_agent_work',id:'a/b'}])await refused('agents',input,calls);
+ for(const op of ['remove','delete'])await refused('agents',{operation:op,id:'helper-1'},calls,/owner in the app/);
+});

@@ -29,7 +29,7 @@ addUser('og-admin', 'admin');
 const { registerAuthGate } = await import(join(backendDir, 'src/auth/auth-gate.ts'));
 const { agentsConfigRoutes } = await import(join(backendDir, 'src/api/routes/agents-config.ts'));
 const { generateToken } = await import(join(backendDir, 'src/auth/jwt.ts'));
-const { placeAgents, mayDelegate } = await import(join(backendDir, 'src/services/agent-org.ts'));
+const { placeAgents, mayDelegate, teamContext } = await import(join(backendDir, 'src/services/agent-org.ts'));
 const { teamListTool } = await import(join(backendDir, 'src/tools/tasks/team.ts'));
 const { quickHelperTool, quickHelperResultTool } = await import(join(backendDir, 'src/tools/tasks/quick-helper.ts'));
 const { default: Fastify } = await import('fastify');
@@ -148,6 +148,9 @@ test('team_list shows each coordinator only whom it may give work to; quick help
   assert.equal(child.error, 'team_request_refused');
   for (const ctx of [{ userId: 'og-owner', agentId: ids.helper }, { userId: 'og-owner', agentId: ids.coder, delegatedFrom: [ids.main] }, { userId: 'og-admin', agentId: ids.coder }])
     assert.equal((await quickHelperTool.execute({ task: 'Sum up the fixture notes' }, ctx)).error, 'quick_helper_refused');
+  assert.match(await teamContext(ids.dev), /You report to Fictional Lead \(main agent\)\.\nAgents under you: .*Fictional Coder/);
+  assert.match(await teamContext(ids.coder), /Your sub-agents \(they work only for you\): Fictional Helper/);
+  assert.match(await teamContext(ids.helper), /^You are a sub-agent of Fictional Coder/);
   assert.equal((await quickHelperResultTool.execute({ run_id: 'nope' }, { userId: 'og-owner', agentId: ids.coder })).error, 'not_found');
 });
 

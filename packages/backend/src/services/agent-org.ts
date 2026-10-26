@@ -215,3 +215,26 @@ export async function subAgentWork(ownerId: string, agentId: string): Promise<Su
 
 /** small_agent_runs.requested_by for a run an agent started (a coding app's run keeps the owner id). */
 export const quickHelperRequester = (agentId: string) => `agent:${agentId}`;
+
+const ROLE_WORD: Record<string, string> = { main: 'main agent', manager: 'manager', specialist: 'specialist', evaluator: 'reviewer' };
+/**
+ * A few lines for the agent's instructions: who it reports to, who is under
+ * it and its sub-agents (names only). It grants nothing: giving work still
+ * needs the team tools, their grant and the owner's Allow.
+ */
+export async function teamContext(agentId: string): Promise<string> {
+  const rows = await orgRows();
+  const placement = placeAgents(rows);
+  const me = placement.get(agentId);
+  if (!me || me.placed === 'none') return '';
+  const name = (id: string | null) => { const r = rows.find(x => x.id === id); return r ? `${r.name ?? r.id}${r.role && ROLE_WORD[r.role] ? ` (${ROLE_WORD[r.role]})` : ''}` : ''; };
+  if (me.placed === 'sub') return `You are a sub-agent of ${name(me.manager)}. You work only on what it gives you and you cannot hand work on to anyone.`;
+  const lines: string[] = [];
+  lines.push(me.placed === 'main' ? 'You are the main agent: everyone in the team works under you.' : `You report to ${name(me.manager)}.`);
+  const direct = rows.filter(r => placement.get(r.id)?.manager === agentId && placement.get(r.id)?.placed !== 'sub').map(r => name(r.id));
+  const subs = rows.filter(r => placement.get(r.id)?.manager === agentId && placement.get(r.id)?.placed === 'sub').map(r => name(r.id));
+  if (direct.length && me.placed !== 'main') lines.push(`Agents under you: ${direct.slice(0, 20).join(', ')}${direct.length > 20 ? ` and ${direct.length - 20} more` : ''}.`);
+  if (subs.length) lines.push(`Your sub-agents (they work only for you): ${subs.join(', ')}.`);
+  if (direct.length || subs.length) lines.push('When you have the team tools, give each one clear task with what "done" means, and check its report before you tell the owner it is done.');
+  return lines.join('\n');
+}

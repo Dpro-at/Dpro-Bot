@@ -49,8 +49,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'agents',title:'Agents (read only)',
-    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app; this tool refuses them.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Dpro, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Dpro place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent, stopping work and the quick helper switch); this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department','org','sub_agents','sub_agent_work','set_reports_to','add_sub_agent']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64},reportsTo:{type:['string','null'],maxLength:128},name:{type:'string',maxLength:60},startsAs:{type:'string',enum:['copy','empty']},description:{type:'string',maxLength:1000},tools:{type:'array',maxItems:100,items:{type:'string',maxLength:64}}},required:['operation'],additionalProperties:false},
   },
   {
     name:'workspace_approvals',title:'Approvals (read only)',
@@ -703,7 +703,7 @@ export function scrub(v:unknown,depth=0):unknown{
  return v;
 }
 
-const AGENTS_REFUSED='Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app. This tool reads (list, read, permissions, departments) and, on the owner\u2019s instruction, renames a department or moves an agent to one.';
+const AGENTS_REFUSED='Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app. This tool reads (list, read, permissions, departments, org, sub_agents, sub_agent_work) and, on the owner\u2019s instruction, renames a department, moves an agent to one, changes who an agent reports to or adds a sub-agent.';
 const DEPARTMENT=/^[a-z0-9][a-z0-9 _-]{0,63}$/;
 function departmentArg(v:unknown,name:string){if(typeof v!=='string'||!DEPARTMENT.test(v.trim().toLowerCase().replace(/\s+/g,' ')))throw new InputError(`A valid ${name} is required (lowercase letters, digits, spaces, - or _, at most 64)`);return v.trim().toLowerCase().replace(/\s+/g,' ');}
 const AGENT_WRITES=new Set(['rename','update','edit','save','role','set_role','main','set_main','set_primary','primary','duplicate','hire','create','add','remove','delete','set_permissions']);
@@ -752,7 +752,52 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
   const saved=obj(await backend.request('PUT','/api/agents/'+encodeURIComponent(id),{expectedVersion:current.version,department}));
   return ok(department?`Moved to ${department}.`:'Moved out of its department.',{agent:agentView(saved.agent)});
  }
- throw new InputError('operation must be list, read, permissions, departments, rename_department or set_department. '+AGENTS_REFUSED);
+ // Org chart (AGENTS-ORG-01): the backend places every agent; this reads its answer.
+ if(operation==='org'){
+  only(args,['operation']);
+  const list=obj(await backend.request('GET','/api/agents')).agents,rows=(Array.isArray(list)?list:[]).filter(record).filter(a=>a.placed!=='none');
+  const node=(a:Record<string,unknown>)=>({...agentView(a),manager:text(a.manager,128),placed:text(a.placed,8),subAgentOf:text(a.subAgentOf,128)});
+  return ok('Who reports to whom. placed: main (on top), set (the owner chose), auto (Dpro placed it: under its department\u2019s manager, else the main agent), sub (a sub-agent of its agent). Change it only on the owner\u2019s explicit instruction (set_reports_to).',{agents:rows.map(node)});
+ }
+ if(operation==='sub_agents'){
+  only(args,['operation','id']);
+  const id=agentIdArg(args.id,'agent id');
+  const list=obj(await backend.request('GET','/api/agents')).agents;
+  return ok('Its sub-agents: they work only for it and never get more than it may do.',{subAgents:(Array.isArray(list)?list:[]).filter(record).filter(a=>a.subAgentOf===id).map(agentView)});
+ }
+ if(operation==='sub_agent_work'){
+  only(args,['operation','id']);
+  const id=agentIdArg(args.id,'agent id');
+  return ok('Work it gave its sub-agents and quick helpers (newest first). A finished answer is a report, not proof. Stopping work is done by the owner in the app.',{work:scrub(obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/sub-agent-work')).work??[])});
+ }
+ if(operation==='set_reports_to'){
+  only(args,['operation','id','reportsTo']);
+  const id=agentIdArg(args.id,'agent id');
+  if(!('reportsTo' in args))throw new InputError('reportsTo is required (an agent id, or null to let Dpro place it)');
+  const reportsTo=args.reportsTo===null?null:agentIdArg(args.reportsTo,'reportsTo');
+  const res=obj(await backend.request('PUT','/api/agents/'+encodeURIComponent(id)+'/reports-to',{reportsTo}));
+  return ok(reportsTo?'Changed: it now reports to that agent.':'Dpro places it again.',{id:text(res.id,128),reportsTo:text(res.reportsTo,128)});
+ }
+ if(operation==='add_sub_agent'){
+  only(args,['operation','id','name','startsAs','description','tools']);
+  const id=agentIdArg(args.id,'agent id');
+  const tools=Array.isArray(args.tools)?args.tools:[];
+  if(!Array.isArray(args.tools)||tools.some(t=>typeof t!=='string'||!/^[A-Za-z0-9_:.-]{1,64}$/.test(t)))throw new InputError('tools must be a list of tool names (it may also be empty)');
+  if(args.startsAs!==undefined&&args.startsAs!=='copy'&&args.startsAs!=='empty')throw new InputError('startsAs must be copy or empty');
+  if(args.name!==undefined&&(typeof args.name!=='string'||!args.name.trim()))throw new InputError('name must be text');
+  if(args.description!==undefined&&typeof args.description!=='string')throw new InputError('description must be text');
+  // Same gate as the app: tools that need approval or run commands are given by the owner there.
+  const grants=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/tool-grants'));
+  const known=new Map((Array.isArray(grants.available)?grants.available:[]).filter(record).map(t=>[String(t.name),t]));
+  const risky=tools.find(t=>{const k=known.get(t as string);return !k||k.execClass===true||k.requiresApproval===true;});
+  if(risky)throw new InputError(`"${risky}" is unknown or needs approval; the owner gives it to a sub-agent in the app (Agents \u203a the agent \u203a Sub-agents).`);
+  const body:Record<string,unknown>={startsAs:args.startsAs??'copy',tools};
+  if(typeof args.name==='string')body.name=args.name.trim();
+  if(typeof args.description==='string')body.description=args.description;
+  const res=obj(await backend.request('POST','/api/agents/'+encodeURIComponent(id)+'/sub-agents',body));
+  return ok('Sub-agent added. It works only for its agent and never gets more than its agent may do. Removing it is done by the owner in the app.',{agent:agentView(res.agent)});
+ }
+ throw new InputError('operation must be list, read, permissions, departments, rename_department, set_department, org, sub_agents, sub_agent_work, set_reports_to or add_sub_agent. '+AGENTS_REFUSED);
 }
 
 const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
