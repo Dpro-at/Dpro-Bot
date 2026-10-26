@@ -3,7 +3,7 @@ import {allowedReviewer,reviewerResponse} from './reviewers-contract.js';
 import type {ReviewerVoteReference} from './reviewer-proof-controller';
 export type ReviewPolicy=Readonly<{id:string;revision:number;name:string;requiredVotes:number;expiresAt:number}>;
 export type OwnReviewVote=Readonly<{decision:'approve'|'deny';revision:number;status:'current'|'verification_required'}>;
-export type ReviewItem=Readonly<{reference:ReviewerVoteReference;toolName:string;agentId:string;requestedAt:string;ownVote?:OwnReviewVote|null}>;
+export type ReviewItem=Readonly<{reference:ReviewerVoteReference;toolName:string;agentId:string;agentName?:string|null;requestedAt:string;ownVote?:OwnReviewVote|null;votesNeeded?:number;votesGiven?:number}>;
 export type ReviewDetail=Readonly<{reference:ReviewerVoteReference;params:unknown;maskedFields:readonly string[];runScope:unknown;ownVote?:OwnReviewVote|null}>;
 type State=Readonly<{phase:'idle'|'loading'|'ready'|'detail'|'recording'|'error';policies:readonly ReviewPolicy[];policyId?:string;items:readonly ReviewItem[];nextCursor:string|null;detail?:ReviewDetail;notice?:'unavailable'|'verification'|'changed'|'recorded'|'unknown'|'refused'|'conflict';locked?:boolean}>;
 const initial=():State=>Object.freeze({phase:'idle',policies:[],items:[],nextCursor:null});

@@ -39,8 +39,9 @@ const call = (method, who, payload) => app.inject({ method, url: '/api/me/footer
 test('footer: usual footer first, each person saves their own, unknown values refused', async () => {
   assert.equal((await call('GET')).statusCode, 401);
   const first = (await call('GET', 'ft-owner')).json().footer;
-  assert.deepEqual(first.order.slice(0, 6), ['chat', 'agents', 'board', 'memory', 'approvals', 'apps']);
-  assert.ok(first.hidden.includes('skills') && !first.hidden.includes('chat'));
+  assert.deepEqual(first.order.slice(0, 7), ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps']);
+  assert.ok(first.hidden.includes('skills') && !first.hidden.includes('chat') && !first.hidden.includes('library'));
+  assert.ok(!first.order.includes('mcp'));
   assert.equal(first.approvalsWhenWaiting, true);
   const saved = await call('PUT', 'ft-owner', { hidden: ['board'], iconsOnly: true });
   assert.equal(saved.statusCode, 200);
@@ -50,6 +51,14 @@ test('footer: usual footer first, each person saves their own, unknown values re
   const moved = (await call('PUT', 'ft-owner', { order: ['apps', 'chat'] })).json().footer;
   assert.deepEqual(moved.order.slice(0, 3), ['apps', 'chat', 'agents']);
   assert.equal(moved.order.length, 13);
-  for (const bad of [{}, { hidden: ['settings'] }, { hidden: ['chat', 'chat'] }, { order: ['nope'] }, { iconsOnly: 'yes' }, { other: true }, []])
+  for (const bad of [{}, { hidden: ['settings'] }, { hidden: ['mcp'] }, { hidden: ['chat', 'chat'] }, { order: ['nope'] }, { iconsOnly: 'yes' }, { other: true }, []])
     assert.equal((await call('PUT', 'ft-owner', bad)).statusCode, 400, JSON.stringify(bad));
+});
+
+test('footer: an older saved footer gets Library after Agents, shown, and loses MCP connections', async () => {
+  const { footerPrefs } = await import(join(backendDir, 'src/api/routes/ui-footer.ts'));
+  const old = footerPrefs({ order: ['board', 'chat', 'agents', 'memory', 'approvals', 'apps', 'mcp'], hidden: ['memory', 'mcp'] });
+  assert.deepEqual(old.order.slice(0, 4), ['board', 'chat', 'agents', 'library']);
+  assert.ok(!old.order.includes('mcp') && !old.hidden.includes('library'));
+  assert.deepEqual(old.hidden, ['memory']);
 });

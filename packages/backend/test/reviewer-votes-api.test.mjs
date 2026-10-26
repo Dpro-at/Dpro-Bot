@@ -70,7 +70,7 @@ test('HTTP rechecks account/factor and assignment revocation before a proved vot
 const getReview=(path,p)=>app.inject({url:'/api/reviewer-requests/'+path,headers:p?{authorization:'Bearer '+p.token}:{}});
 test('assigned policy list and metadata queue expose only safe assigned fields and real reviewed reference',async()=>{
  const f=await fixture(),p=f.people.a,listed=await getReview('policies',p);assert.equal(listed.statusCode,200,listed.body);assert.deepEqual(listed.json(),{policies:[{id:f.policy.id,revision:1,name:f.policyInput.name,requiredVotes:2,expiresAt:f.policyInput.expiresAt}]});
- const result=await getReview(f.policy.id,p);assert.equal(result.statusCode,200,result.body);assert.equal(result.headers['cache-control'],'no-store');const data=result.json();assert.equal(data.items.length,1);assert.equal(data.nextCursor,null);assert.deepEqual(Object.keys(data.items[0]).sort(),['agentId','ownVote','reference','requestedAt','toolName']);assert.deepEqual(data.items[0].reference,await reference(f));
+ const result=await getReview(f.policy.id,p);assert.equal(result.statusCode,200,result.body);assert.equal(result.headers['cache-control'],'no-store');const data=result.json();assert.equal(data.items.length,1);assert.equal(data.nextCursor,null);assert.deepEqual(Object.keys(data.items[0]).sort(),['agentId','agentName','ownVote','reference','requestedAt','toolName','votesGiven','votesNeeded']);assert.equal(data.items[0].agentName,'Vote fixture');assert.equal(data.items[0].votesNeeded,2);assert.equal(data.items[0].votesGiven,0);assert.deepEqual(data.items[0].reference,await reference(f));
  for(const secret of ['user_id','session_id','policy_json','reviewerIds','sealed_secret','receipt_hash','proof_session_hash','params_cipher','vote-session'])assert.ok(!result.body.includes(secret));
  assert.equal((await send('challenge',p,data.items[0].reference)).statusCode,200);
 });
@@ -196,4 +196,9 @@ test('assigned human reads only own durable vote and can explicitly renew a stal
 });
 test('matching own decline stays terminal after a new account generation and readback never changes state',async()=>{
  const f=await fixture(),p=f.people.a,v=await httpProof(f,'a','deny');assert.equal((await send('cast',p,{...v.ref,receipt:v.receipt})).statusCode,200);db.prepare('UPDATE users SET token_version=3 WHERE id=?').run(p.id);const current={...p,token:generateToken(p.id,3)},r=await getReview(detailPath(v.ref),current);assert.equal(r.statusCode,200,r.body);assert.deepEqual(r.json().ownVote,{decision:'deny',revision:1,status:'current'});assert.equal((await approvals.getApproval(f.request.id)).status,'pending');assert.equal(db.prepare('SELECT COUNT(*) AS n FROM human_reviewer_vote_events WHERE approval_id=?').get(f.request.id).n,1);
+});
+test('queue shows how many people agreed so far; a vote never changes the run gate',async()=>{
+ const f=await fixture(),v=await httpProof(f,'a'),cast=await send('cast',v.p,{...v.ref,receipt:v.receipt});assert.equal(cast.statusCode,200,cast.body);
+ const item=(await getReview(f.policy.id,f.people.b)).json().items[0];assert.equal(item.votesGiven,1);assert.equal(item.votesNeeded,2);assert.equal(item.agentName,'Vote fixture');
+ assert.equal((await approvals.getApproval(f.request.id)).status,'pending');
 });

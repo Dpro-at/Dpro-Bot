@@ -20,6 +20,8 @@ import { parseDeviceToken } from '../../auth/account-lockout.js';
 import { logAuthEvent } from '../../services/audit-logger.js';
 import { authorizeActiveRole, OWNER_OR_ADMIN } from '../../auth/route-guards.js';
 import { changePasswordRateLimit, loginRateLimit, registerRateLimit } from '../rate-limit-config.js';
+import { recordSession, signInLabel } from '../../auth/sessions.js';
+import { safeErrorFields } from '../../services/safe-error-log.js';
 
 /** Owner/admin actor (central rule), with this route's existing 403 wording. */
 function ownerOrAdmin(actor: Actor | null | undefined): Actor {
@@ -218,6 +220,10 @@ export async function authRoutes(fastify: FastifyInstance) {
           // SECURITY: Track successful login and clear failed attempts (M-02); log it (L-02)
           const newDeviceToken = await loginThrottle.succeeded(email, ipAddress, userAgent, deviceToken);
           logAuthEvent('auth.login', request, result.user.id, result.user.username, true);
+          // Settings › Account lists this sign-in as a device (only a short label is kept).
+          // Fail closed: a token is handed out only once its device row exists, so it can always be signed out on its own.
+          try { await recordSession(result.token, signInLabel(request.headers as Record<string, unknown>)); }
+          catch (error) { console.warn('[Auth] device list entry not saved; sign-in refused', safeErrorFields(error)); return reply.code(503).send({ error: 'Sign-in is not available right now', code: 'unavailable' }); }
           // The token carries token_version for invalidation support (H-01).
           // deviceToken (S0-Q.20): rotated on every sign-in; the client keeps
           // it and sends it back on the next sign-in.

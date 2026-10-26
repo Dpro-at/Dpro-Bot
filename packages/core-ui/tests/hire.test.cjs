@@ -104,7 +104,7 @@ test('full offline hire: role → persona → one create → memory → permissi
   assert.deepEqual([...s.selected].sort(), ['memory_forget', 'memory_save', 'memory_search', 'storage_search']);
   h.edit({ name: 'changed' }); assert.equal(h.getSnapshot().draft.name, '  Nora   Sales ', 'draft is frozen after hire');
   await h.create(); assert.equal(calls.filter(c => c.method === 'POST' && c.path === '/api/agents').length, 1, 'never a second create');
-  assert.match(markup(h), /Hired — choose how careful it is/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
+  assert.match(markup(h), /Hired — finish to save how careful it is/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
   assert.match(markup(h), /aria-label="memory_save"/);
   h.toggle('memory_forget'); h.next(); assert.equal(h.getSnapshot().step, 'permissions');
   h.toggle('web_fetch'); h.toggle('exec');

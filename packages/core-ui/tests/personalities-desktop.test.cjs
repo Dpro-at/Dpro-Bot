@@ -68,3 +68,10 @@ test('hiring and the company wizard pick a personality by its face, not a plain 
  const html=render(lib.PersonalityPicker,{client:{request:async()=>({status:200,body:{personalities:[]}})},onPick(){}});
  assert.match(html,/class="pl-picker"/);assert.match(html,/aria-haspopup="dialog"/);assert.doesNotMatch(html,/<select/);assert.match(html,/Choose a personality/);
 });
+
+test('seniority shows in Speaking, in the summary and in the change list (tone only)',()=>{
+ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{SpeakingPart}=require('../src/PersonalityLibrary.tsx');
+ const html=renderToStaticMarkup(React.createElement(SpeakingPart,{p:profile,onChange:()=>{}}));
+ assert.match(html,/aria-label="Sounds like"/);assert.match(html,/role="radio" aria-checked="true">Senior</);assert.match(html,/tone only, never rank or permissions/);
+ assert.deepEqual(lib.profileChanges(profile,{...profile,seniority:'lead'}).map(c=>[c.label,c.before,c.after]),[['Sounds like','Senior','Lead']]);
+});

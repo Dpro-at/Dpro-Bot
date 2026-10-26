@@ -9,10 +9,12 @@ import { actorOf } from '../../auth/auth-gate.js';
 import { actorOrReply, requireAccount } from '../../repositories/scope.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 
-export const FOOTER_SECTIONS = ['chat', 'agents', 'board', 'memory', 'approvals', 'apps', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties', 'mcp'] as const;
+// Library (Personalities, Specialties, Skills) shows by default; MCP connections live in Settings, not in the footer.
+export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'] as const;
 type Section = typeof FOOTER_SECTIONS[number];
 export interface FooterPrefs { order: Section[]; hidden: Section[]; iconsOnly: boolean; approvalsWhenWaiting: boolean }
-const DEFAULT_HIDDEN: Section[] = ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties', 'mcp'];
+const DEFAULT_HIDDEN: Section[] = ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'];
+const ADDED_AFTER: Partial<Record<Section, Section>> = { library: 'agents' };
 const KEYS = ['order', 'hidden', 'iconsOnly', 'approvalsWhenWaiting'];
 const known = (v: unknown): v is Section => typeof v === 'string' && (FOOTER_SECTIONS as readonly string[]).includes(v);
 const record = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -31,6 +33,8 @@ export function footerPrefs(x: unknown): FooterPrefs {
   const v = record(x) ? x : {};
   const listed = Array.isArray(v.order) ? v.order.filter((id, i, all): id is Section => known(id) && all.indexOf(id) === i) : [];
   const order = [...listed, ...FOOTER_SECTIONS.filter(id => !listed.includes(id))];
+  // A section added later lands next to its neighbour in an older saved order (Library after Agents).
+  for (const [id, after] of Object.entries(ADDED_AFTER) as [Section, Section][]) if (!listed.includes(id) && listed.includes(after)) { order.splice(order.indexOf(id), 1); order.splice(order.indexOf(after) + 1, 0, id); }
   const hidden = Array.isArray(v.hidden) ? FOOTER_SECTIONS.filter(id => (v.hidden as unknown[]).includes(id)) : [...DEFAULT_HIDDEN];
   return { order, hidden, iconsOnly: typeof v.iconsOnly === 'boolean' ? v.iconsOnly : false, approvalsWhenWaiting: typeof v.approvalsWhenWaiting === 'boolean' ? v.approvalsWhenWaiting : true };
 }

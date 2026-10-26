@@ -10,7 +10,7 @@ import {changePasswordRateLimit} from '../rate-limit-config.js';
  * /api/approvals is 'owner', each route declares access 'owner', and the
  * handlers check the role again.
  *
- *   GET  /api/approvals?status=pending   list (masked parameter previews)
+ *   GET  /api/approvals?status=pending   list (masked parameter previews); optional &agentId=<id> keeps one agent's requests
  *   GET  /api/approvals/:id              full view: exact parameters (secrets masked) + paramsHash
  *   POST /api/approvals/:id/approve      { paramsHash } approve once: runs exactly those parameters
  *   POST /api/approvals/:id/deny         deny: it never runs
@@ -29,6 +29,7 @@ import {
   denyApproval,
   getApprovalDetail,
   listApprovals,
+  APPROVAL_AGENT_ID,
   APPROVAL_TTL_HOURS,
 } from '../../tools/approvals.js';
 import { isoPlusHours, isoUtc } from '../timestamps.js';
@@ -109,11 +110,12 @@ export async function approvalsRoutes(fastify: FastifyInstance) {
   }
 
 
-  fastify.get<{ Querystring: { status?: string; limit?: string } }>('/api/approvals', { config }, async (request, reply) => {
+  fastify.get<{ Querystring: { status?: string; limit?: string; agentId?: string } }>('/api/approvals', { config }, async (request, reply) => {
     if (ownerOf(request, reply) === null) return reply;
-    const status = request.query?.status;
+    const status = request.query?.status, agentId = request.query?.agentId;
     if (status !== undefined && !STATUSES.has(status)) return reply.code(400).send({ error: 'Invalid status' });
-    return { approvals: (await listApprovals({ status, limit: Number(request.query?.limit) || undefined })).map(view) };
+    if (agentId !== undefined && (typeof agentId !== 'string' || !APPROVAL_AGENT_ID.test(agentId))) return reply.code(400).send({ error: 'Invalid agent id' });
+    return { approvals: (await listApprovals({ status, agentId, limit: Number(request.query?.limit) || undefined })).map(view) };
   });
 
   fastify.get<{ Params: { id: string } }>('/api/approvals/:id', { config }, async (request, reply) => {

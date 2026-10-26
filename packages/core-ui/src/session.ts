@@ -40,6 +40,10 @@ import { allowedDiscovery, discoveryRoute, discoveryResponse } from './discovery
 import { allowedMemoryDesktop, memoryDesktopRoute, memoryDesktopResponse } from './memory-desktop-contract.js';
 import { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } from './terminal-contract.js';
 import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js';
+import { allowedDepartments, departmentsRoute, departmentsResponse } from './departments-contract.js';
+import { allowedOrg, orgRoute, orgResponse } from './org-contract.js';
+import { allowedLibrary as allowedAgentLibrary, libraryRoute as agentLibraryRoute, libraryResponse as agentLibraryResponse } from './agent-library-contract.js';
+import { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute } from './account-settings-contract.js';
 import type { TerminalFrame } from './terminal-contract.js';
 import { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_IDLE_MS, RUN_STREAM_MS } from './conversation-contract.js';
 import type { RunEvent } from './conversation-contract.js';
@@ -114,6 +118,10 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (templatePath(path)) return allowedTemplates(method,path,body);
   if (skillLibraryPath(path)) return allowedSkillLibrary(method,path,body);
   if (footerRoute(path)) return allowedFooter(method, path, body);
+  if (departmentsRoute(path)) return allowedDepartments(method, path, body);
+  if (orgRoute(path)) return allowedOrg(method, path, body);
+  if (agentLibraryRoute(path)) return allowedAgentLibrary(method, path, body);
+  if (sessionsRoute(path) || updatesRoute(path)) return allowedAccountSettings(method, path, body);
   if (memoryDesktopRoute(path)) return allowedMemoryDesktop(method, path, body);
   if (memoryPagesRoute(path)) return allowedMemoryPages(method, path, body);
   if (memoryRecallRoute(path)) return allowedMemoryRecall(method, path, body);
@@ -195,6 +203,10 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (cardRoute(path)) return { status: response.status, body: agentCardResponse(path, response.status, response.body) };
   if (terminalRoute(path)) return { status: response.status, body: terminalResponse(path, response.status, response.body) };
   if (footerRoute(path)) return { status: response.status, body: footerResponse(response.status, response.body) };
+  if (departmentsRoute(path)) return { status: response.status, body: departmentsResponse(response.status, response.body) };
+  if (orgRoute(path)) return { status: response.status, body: orgResponse(path, response.status, response.body) };
+  if (agentLibraryRoute(path)) return { status: response.status, body: agentLibraryResponse(path, response.status, response.body) };
+  if (sessionsRoute(path) || updatesRoute(path)) return { status: response.status, body: accountSettingsResponse(path, response.status, response.body) };
   if (connectionsRoute(path)) return { status: response.status, body: connectionsResponse(path, response.status, response.body) };
   if (mcpImportPath(path)) return { status: response.status, body: mcpImportResponse(path,response.status,response.body) };
   if (libraryPath(path)) return {status:response.status,body:libraryResponse(path,response.status,response.body)};
@@ -498,6 +510,7 @@ export class SessionClient {
     if(scheduleDefinitionRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(scheduleAuthorizationRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(reviewerOwnerRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
+    if((updatesRoute(request.path)&&this.#state.user?.role!=='owner')||(sessionsRoute(request.path)&&this.#state.user?.role==='guest'))throw new SessionFailure('blocked');
     if (conversationPath(request.path)?.kind === 'approval' && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((conversationRoute(request.path) || chatSearchRoute(request.path) || chatExportRoute(request.path) || chatSecretsRoute(request.path)) && this.#state.user?.role === 'guest') throw new SessionFailure('blocked');
     if (request.path === CLEANUP_PATH && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
@@ -507,6 +520,8 @@ export class SessionClient {
     if (request.method === 'PUT' && !conversationRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (request.method === 'POST' && request.path.startsWith('/api/memory/') && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((personalityRoute(request.path) || cardRoute(request.path) || (request.method === 'DELETE' && !conversationRoute(request.path) && !chatSecretsRoute(request.path))) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if (orgRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if (agentLibraryRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (((request.method === 'POST' && request.path === '/api/agents') || grantsAgentId(request.path) || request.path === CATALOGUE_PATH || request.path === PLAN_PATH || request.path === DISTRIBUTION_PATH || request.path === BATCHES_PATH || batchPath(request.path) || permissionsAgentId(request.path) || request.path === BOARDS_PATH || request.path.startsWith(`${BOARDS_PATH}/`)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     const epoch = this.#state.epoch;
     const result = await this.#send(request.method, request.path, 'body' in request ? request.body : undefined, this.#token, epoch, signal);

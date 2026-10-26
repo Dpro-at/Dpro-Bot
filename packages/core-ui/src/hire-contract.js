@@ -82,9 +82,11 @@ export function grantsAgentId(path) {
 /**
  * PUT /api/agents/:id/tool-grants body: plain tool names only (no scopes from this UI).
  * keepScopes: true asks the server to keep the limits a still-granted tool already has.
+ * parentAgentId: null (only) turns a sub-agent into a normal team member.
  */
 export function validGrantsBody(b) {
-  if (!record(b) || !onlyKeys(b, ['grants', 'expectedVersion', 'keepScopes']) || !('grants' in b) || !version(b.expectedVersion) || (b.keepScopes !== undefined && b.keepScopes !== true)) return false;
+  // parentAgentId: null only — "Make a full agent…" takes a sub-agent off its agent (AGENTS-ORG-01); linking goes through POST …/sub-agents.
+  if (!record(b) || !onlyKeys(b, ['grants', 'expectedVersion', 'keepScopes', 'parentAgentId']) || !('grants' in b) || !version(b.expectedVersion) || (b.keepScopes !== undefined && b.keepScopes !== true) || (b.parentAgentId !== undefined && b.parentAgentId !== null)) return false;
   return Array.isArray(b.grants) && b.grants.length <= MAX_GRANTS && b.grants.every(toolName) && new Set(b.grants).size === b.grants.length;
 }
 

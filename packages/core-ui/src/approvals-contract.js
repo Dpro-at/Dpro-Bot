@@ -1,6 +1,9 @@
 export const APPROVALS_PATH='/api/approvals';
 const object=v=>!!v&&typeof v==='object'&&!Array.isArray(v),uuid=v=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),hex=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v),line=(v,n)=>typeof v==='string'&&v.length<=n,nullable=(v,n)=>v===null||line(v,n);
-export function approvalRoute(path){return /^\/api\/approvals\/[a-f0-9-]{36}\?view=review$/i.test(path)||path==='/api/approvals?status=pending'||/^\/api\/approvals\?limit=100$/.test(path)||/^\/api\/approvals\?status=(pending|approved|denied|executed|failed|expired)&limit=100$/.test(path)||/^\/api\/approvals\/[a-f0-9-]{36}(\/(approve|deny|verification(?:\/complete)?))?$/i.test(path);}
+/** One agent's requests, newest first (owner only on the server). Ids use the plain agent-id shape, so no escaping is needed. */
+export const AGENT_ID=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+export function agentApprovalsPath(agentId){return typeof agentId==='string'&&AGENT_ID.test(agentId)?`${APPROVALS_PATH}?agentId=${agentId}&limit=100`:null;}
+export function approvalRoute(path){return /^\/api\/approvals\?agentId=[A-Za-z0-9][A-Za-z0-9_.-]{0,99}&limit=100$/.test(path)||/^\/api\/approvals\/[a-f0-9-]{36}\?view=review$/i.test(path)||path==='/api/approvals?status=pending'||/^\/api\/approvals\?limit=100$/.test(path)||/^\/api\/approvals\?status=(pending|approved|denied|executed|failed|expired)&limit=100$/.test(path)||/^\/api\/approvals\/[a-f0-9-]{36}(\/(approve|deny|verification(?:\/complete)?))?$/i.test(path);}
 const opaque=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{43}$/.test(v);
 const exact=(body,fields)=>object(body)&&Object.keys(body).length===fields.length&&fields.every(field=>Object.hasOwn(body,field));
 export function allowedApproval(method,path,body){

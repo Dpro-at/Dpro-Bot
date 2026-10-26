@@ -63,7 +63,8 @@ async function agentDirectory(dir:string,recursive=false):Promise<void>{
   const stat=await fs.lstat(dir);
   if(!stat.isDirectory()||stat.isSymbolicLink()||(process.platform!=='win32'&&((stat.mode&0o022)!==0||stat.uid!==process.getuid?.())))throw Error('Unsafe agent directory');
 }
-async function checkedAgentDirectory(agentId:string):Promise<string>{
+/** The agent's own folder, created safely (0700, no links); used by agent-file-library.ts too. */
+export async function checkedAgentDirectory(agentId:string):Promise<string>{
   const dir=getAgentDir(agentId);
   await agentDirectory(AGENTS_DIR,true);
   await agentDirectory(dir);

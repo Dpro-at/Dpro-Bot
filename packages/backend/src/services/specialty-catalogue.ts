@@ -999,6 +999,6 @@ export const PLANNED_SPECIALTIES=(()=>{
 export const plannedSpecialty=(id:string)=>PLANNED_SPECIALTIES.find(item=>item.id===id);
 export const SPECIALTY_DEPARTMENT_GROUPS:Record<string,string>={development:'Software development',infrastructure:'Systems cloud and networks',security:'Cybersecurity',data:'Data and data science',education:'Education and training',marketing:'Marketing advertising and content',design:'Art design and animation',production:'Film and media production',wellness:'Health nutrition fitness and habits',sales:'Sales and account management',support:'Customer service and success',finance:'Finance and accounting',operations:'Operations and quality',hr:'Human resources',research:'Research knowledge and technical writing',legal:'Legal services and compliance'};
 export function extendSpecialtyList<T extends {id:string;name:string;department:string}>(existing:T[]){
- const names=new Set(existing.map(item=>key(item.name)));
- return [...existing.map(item=>{const match=PLANNED_SPECIALTIES.find(p=>key(p.name)===key(item.name));return {...item,planned:false,...(match?{groups:match.groups,kind:match.kind}:{groups:[SPECIALTY_DEPARTMENT_GROUPS[item.department]??item.department],kind:'role' as const})};}),...PLANNED_SPECIALTIES.filter(item=>!names.has(key(item.name)))];
+ const names=new Set(existing.map(item=>key(item.name))),ids=new Set(existing.map(item=>item.id));
+ return [...existing.map(item=>{const match=PLANNED_SPECIALTIES.find(p=>key(p.name)===key(item.name));return {...item,planned:false,...(match?{groups:match.groups,kind:match.kind}:{groups:[SPECIALTY_DEPARTMENT_GROUPS[item.department]??item.department],kind:'role' as const})};}),...PLANNED_SPECIALTIES.filter(item=>!names.has(key(item.name))&&!ids.has(item.id))];
 }

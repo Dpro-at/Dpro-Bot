@@ -1,0 +1,50 @@
+/* Sections cleanup: Library section, Settings › Departments, coming-soon specialty actions. */
+
+/* Library: three places, the same on the page as in its sidebar. */
+.app-shell .page-library{height:100%;min-height:0;padding:0;overflow:auto}
+.library-section{min-height:100%;color:var(--text)}
+.library-section[data-inline-sidebar]{display:grid;grid-template-columns:220px minmax(0,1fr)}
+.library-section[data-inline-sidebar]>.library-places{padding:10px 8px;border-inline-end:1px solid var(--border)}
+.library-places .dk-place>svg:last-child{margin-inline-start:auto;opacity:.5}
+.library-main{padding:22px 24px;display:grid;gap:18px;align-content:start;max-inline-size:860px}
+.library-head h2{margin:0;font-size:17px}
+.library-head p{margin:4px 0 0;color:var(--muted)}
+.library-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.library-tile{display:grid;justify-items:start;gap:6px;padding:16px;border-radius:12px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);text-align:start;color:var(--text)}
+.library-tile:hover{background:var(--subtle)}
+.library-tile-icon{display:grid;place-items:center;inline-size:44px;block-size:44px;border-radius:12px;background:var(--secondary)}
+.library-tile-name{font-weight:600;font-size:13px}
+.library-tile small{color:var(--muted);line-height:1.45}
+
+/* The agent page's links to Library. */
+.ag-parts .dk-place>svg:last-child{margin-inline-start:auto;opacity:.5}
+
+/* Settings › Departments. */
+.dept-toolbar{display:flex;justify-content:flex-end;padding:8px 12px}
+.dept-problem{margin:0;padding:6px 12px;color:var(--danger)}
+.dept-empty{padding:10px 12px;color:var(--muted);margin:0}
+.dept-list{list-style:none;margin:0;padding:0}
+.dept-item{padding:10px 12px;border-block-start:1px solid var(--border)}
+.dept-head{display:flex;align-items:center;gap:10px;min-block-size:32px}
+.dept-name{display:grid;flex:1;min-inline-size:0}
+.dept-name small{color:var(--muted)}
+.dept-rename{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.dept-rename input{flex:1;min-inline-size:140px}
+.dept-agents{list-style:none;margin:6px 0 0;padding:0 0 0 36px;display:grid;gap:4px}
+.dept-agent{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.dept-agent .link-button{display:inline-flex;gap:6px;align-items:center;min-inline-size:0}
+.dept-agent select{max-inline-size:200px}
+.dept-pick{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-block-size:260px;overflow:auto}
+.dept-pick label{display:flex;align-items:center;gap:8px}
+.dept-pick small{color:var(--muted);margin-inline-start:auto}
+
+/* A coming-soon specialty: write its instructions or let the local model describe it. */
+.sp-soon-actions{display:flex;gap:8px;flex-wrap:wrap}
+.sp-soon .sp-soon-actions button{justify-self:auto}
+.sp-soon-note{color:var(--danger)}
+
+@media (max-width:720px){
+ .library-section[data-inline-sidebar]{grid-template-columns:minmax(0,1fr)}
+ .library-section[data-inline-sidebar]>.library-places{border-inline-end:0;border-block-end:1px solid var(--border)}
+ .dept-agents{padding-inline-start:0}
+}

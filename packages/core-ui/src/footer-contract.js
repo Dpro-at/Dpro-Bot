@@ -4,9 +4,10 @@
 // Settings is not a section here: its gear always stays.
 
 export const FOOTER_PATH = '/api/me/footer';
-export const FOOTER_SECTIONS = ['chat', 'agents', 'board', 'memory', 'approvals', 'apps', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties', 'mcp'];
-/** The usual footer: six sections; the rest live as places inside Agents and Apps. */
-export const DEFAULT_FOOTER = Object.freeze({ order: FOOTER_SECTIONS, hidden: ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties', 'mcp'], iconsOnly: false, approvalsWhenWaiting: true });
+export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'];
+/** The usual footer: seven sections; the rest live as places inside Library and Apps. MCP connections live in Settings. */
+export const DEFAULT_FOOTER = Object.freeze({ order: FOOTER_SECTIONS, hidden: ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'], iconsOnly: false, approvalsWhenWaiting: true });
+const ADDED_AFTER = { library: 'agents' };
 const KEYS = ['order', 'hidden', 'iconsOnly', 'approvalsWhenWaiting'];
 const record = x => typeof x === 'object' && x !== null && !Array.isArray(x);
 const ids = x => Array.isArray(x) && x.length <= FOOTER_SECTIONS.length && x.every(v => FOOTER_SECTIONS.includes(v)) && new Set(x).size === x.length;
@@ -25,6 +26,8 @@ export function footerPrefs(x) {
   const v = record(x) ? x : {};
   const known = Array.isArray(v.order) ? v.order.filter((id, i, all) => FOOTER_SECTIONS.includes(id) && all.indexOf(id) === i) : [];
   const order = [...known, ...FOOTER_SECTIONS.filter(id => !known.includes(id))];
+  // A section added later lands next to its neighbour in an older saved order (Library after Agents).
+  for (const [id, after] of Object.entries(ADDED_AFTER)) if (!known.includes(id) && known.includes(after)) { order.splice(order.indexOf(id), 1); order.splice(order.indexOf(after) + 1, 0, id); }
   const hidden = Array.isArray(v.hidden) ? FOOTER_SECTIONS.filter(id => v.hidden.includes(id)) : [...DEFAULT_FOOTER.hidden];
   return { order, hidden, iconsOnly: typeof v.iconsOnly === 'boolean' ? v.iconsOnly : false, approvalsWhenWaiting: typeof v.approvalsWhenWaiting === 'boolean' ? v.approvalsWhenWaiting : true };
 }

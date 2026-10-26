@@ -20,7 +20,7 @@ const defaults:WorkspaceAppsSources={servers:listServers,account:genvrConnection
 export async function listWorkspaceApps(ownerId:string,sources:WorkspaceAppsSources=defaults):Promise<{items:WorkspaceApp[]}> {
   const [servers,account]=await Promise.all([sources.servers(),sources.account(ownerId)]);
   const items:WorkspaceApp[]=BUNDLED_APPS.map(x=>({...x,permissions:[...x.permissions]}));
-  items.push({id:'genvr',name:'GenVR',kind:'api',version:null,summary:'Virtual worlds with your existing GenVR account connection.',state:account.status==='error'?'attention':account.status,sourceId:'genvr',permissions:['Account access is reviewed in Connections','World publishing needs owner approval'],tools:0,removable:false});
+  items.push({id:'genvr',name:'GenVR',kind:'api',version:null,summary:'Virtual worlds with your existing GenVR account connection.',state:account.status==='error'?'attention':account.status,sourceId:'genvr',permissions:['Account access is reviewed in Apps › Accounts','World publishing needs owner approval'],tools:0,removable:false});
   const seen=new Set(items.map(x=>x.id));
   for(const server of servers){
     const id='mcp:'+server.id;

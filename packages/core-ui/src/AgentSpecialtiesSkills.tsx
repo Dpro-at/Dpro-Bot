@@ -6,6 +6,7 @@ import {ContextMenu,Sheet,useMenu} from './desktop-ui';
 import {UiIcon} from './ui-icons';
 import {departmentIcon,departmentTone,tileStyle} from './agent-look';
 import {forgetFacts} from './agent-facts';
+import {skillTitle} from './skill-display';
 
 type Specialty={id:string;name:string;description?:string;department:string;revision:number;planned?:boolean};
 type Skill={id:string;name:string;description?:string};
@@ -25,9 +26,12 @@ export function AgentSpecialtiesSkills({client,agentId,onDone}:{client:SessionCl
  const menu=useMenu();
  async function readLinked(){const b=await rpc<{templates:Specialty[]}>(client,'GET',`${P}/assigned/${agentId}`);const c=await Promise.all(b.templates.map(t=>rpc<{config?:Config}>(client,'GET',`${P}/${t.id}`).catch(()=>null)));setLinked(b.templates);setConfigs(Object.fromEntries(b.templates.map((t,i)=>[t.id,c[i]?.config??{primarySkill:null,skills:[]}])));}
  useEffect(()=>{let live=true;setPhase('loading');void Promise.all([rpc<{templates:Specialty[]}>(client,'GET',P),rpc<{skills:Skill[]}>(client,'GET',SKILLS),rpc<{selected:string[];revision:number}>(client,'GET',`${SKILLS}/agents/${agentId}`),readLinked()]).then(([all,catalog,mine])=>{if(!live)return;setReady(all.templates.filter(t=>!t.planned&&t.revision>0));setSkills(catalog.skills);setSelected(mine.selected);setRevision(mine.revision);setPhase('ready');setNotice('');}).catch(()=>{if(live)setPhase('error');});return()=>{live=false;};},[client,agentId,reload]);
- const name=(id:string)=>skills.find(x=>x.id===id)?.name??'A skill';
+ const name=(id:string)=>{const s=skills.find(x=>x.id===id);return s?skillTitle(s.name):'A skill';};
  const inherited=new Map<string,string>();for(const t of linked){const c=configs[t.id];for(const id of [...(c?.primarySkill?[c.primarySkill]:[]),...(c?.skills??[])])if(!inherited.has(id))inherited.set(id,t.name);}
  const extra=selected.filter(id=>!inherited.has(id));
+ // A skill given directly that a specialty also brings stays under its specialty, but can still be taken back (S-2).
+ const takeBackDirect=(id:string)=>void setSkills_(selected.filter(x=>x!==id),`${name(id)} taken back · it still comes from ${inherited.get(id)}`);
+ const directMenu=(id:string)=>[{label:'Take back',icon:'unlink' as const,shortcut:'⌫',disabled:phase==='saving',run:()=>takeBackDirect(id)}];
  async function link(item:Specialty,on:boolean,undo=true){
   if(phase!=='ready')return;setPhase('saving');setNotice('');
   try{await rpc(client,'POST',`${P}/${item.id}/agents`,{agentId,revision:item.revision,linked:on});await readLinked();setPhase('ready');forgetFacts(client,agentId);
@@ -56,7 +60,7 @@ export function AgentSpecialtiesSkills({client,agentId,onDone}:{client:SessionCl
   <hr/>
   <section aria-label="Skills"><div className="ag-head-row"><h3>Skills</h3><button type="button" disabled={busy||selected.length>=MAX_SKILLS} onClick={()=>setAdding(true)}>Add skills…</button></div>
    <h4>From its specialties</h4>
-   {inherited.size?<div className="ag-chips">{[...inherited].map(([id,from])=><span key={id} className="ag-chip" title={`From ${from}`}><UiIcon name="star" size={13}/>{name(id)}<UiIcon name="link" size={12}/></span>)}</div>:<p className="ag-muted">None yet.</p>}
+   {inherited.size?<div className="ag-chips">{[...inherited].map(([id,from])=>{const direct=selected.includes(id);return <span key={id} className="ag-chip" data-on={direct||undefined} title={direct?`From ${from} · also given directly`:`From ${from}`} onContextMenu={direct?e=>menu.at(e,directMenu(id)):undefined}><UiIcon name="star" size={13}/>{name(id)}<UiIcon name="link" size={12}/>{direct&&<button type="button" className="ag-chip-x" aria-label={`More for ${name(id)}`} title="Also given directly · Take back" disabled={busy} onClick={e=>menu.at(e,directMenu(id))} onKeyDown={e=>{if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();takeBackDirect(id);}}}><UiIcon name="more" size={12}/></button>}</span>;})}</div>:<p className="ag-muted">None yet.</p>}
    <h4>Extra for this agent</h4>
    {extra.length?<div className="ag-chips">{extra.map(id=><span key={id} className="ag-chip" data-on><UiIcon name="star" size={13}/>{name(id)}<button type="button" className="ag-chip-x" aria-label={`Take back ${name(id)}`} title="Take back (Delete)" disabled={busy} onClick={()=>void setSkills_(selected.filter(x=>x!==id),`${name(id)} taken back`)}><UiIcon name="close" size={12}/></button></span>)}</div>:<p className="ag-muted">None.</p>}
    <small className="ag-muted">Skills and specialties never give tools or permissions; those stay in Permissions.</small>
@@ -78,10 +82,10 @@ function GiveSpecialty({all,onPick,onClose}:{all:Specialty[];onPick:(t:Specialty
 }
 function AddSkills({skills,room,onAdd,onClose}:{skills:Skill[];room:number;onAdd:(ids:string[])=>void;onClose:()=>void}){
  const [query,setQuery]=useState(''),[chosen,setChosen]=useState<string[]>([]);const q=query.toLowerCase();
- const shown=skills.filter(s=>s.name.toLowerCase().includes(q)||s.description?.toLowerCase().includes(q));
+ const shown=skills.filter(s=>`${s.name} ${skillTitle(s.name)}`.toLowerCase().includes(q)||s.description?.toLowerCase().includes(q));
  return <Sheet title="Add skills" onClose={onClose} wide actions={<><button type="button" onClick={onClose}>Cancel</button><button type="button" className="primary" disabled={!chosen.length} onClick={()=>onAdd(chosen)}>{chosen.length>1?`Add ${chosen.length} skills`:'Add skill'}</button></>}>
   <label className="dk-search"><UiIcon name="search" size={13}/><input autoFocus type="search" aria-label="Find a skill" placeholder="Find a skill" value={query} onChange={e=>setQuery(e.target.value)}/></label>
-  <div className="ag-pick-list">{shown.slice(0,100).map(s=><label key={s.id} className="ag-pick"><input type="checkbox" checked={chosen.includes(s.id)} disabled={!chosen.includes(s.id)&&chosen.length>=room} onChange={e=>setChosen(c=>e.target.checked?[...c,s.id]:c.filter(x=>x!==s.id))}/><span><b>{s.name}</b>{s.description&&<small>{s.description}</small>}</span></label>)}
+  <div className="ag-pick-list">{shown.slice(0,100).map(s=><label key={s.id} className="ag-pick"><input type="checkbox" checked={chosen.includes(s.id)} disabled={!chosen.includes(s.id)&&chosen.length>=room} onChange={e=>setChosen(c=>e.target.checked?[...c,s.id]:c.filter(x=>x!==s.id))}/><span><b>{skillTitle(s.name)}</b>{s.description&&<small>{s.description}</small>}</span></label>)}
    {!shown.length&&<p className="ag-muted">No skill matches.</p>}{shown.length>100&&<p className="ag-muted">Showing 100. Type to narrow.</p>}</div>
  </Sheet>;
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { SessionClient } from './session';
 import { ChatController, retryNotice } from './chat';
+import { isDeveloperBuild } from './developer-build';
 export function ChatDestination({ client }: { client: SessionClient }) {
   const [controller, setController] = useState<ChatController>();
   useEffect(() => { const c = new ChatController(client); setController(c); return () => c.dispose(); }, [client]);
   return <section className="chat-destination" aria-label="Chat"><h2>Chat</h2>
-    <p>{client.getSnapshot().mode === 'mock' ? 'Offline fictional streaming exercise — no network or model calls.' : 'Authenticated chat — sends only after you press Send.'} Copy: English draft.</p>
+    <p>{client.getSnapshot().mode === 'mock' ? 'Offline fictional streaming exercise — no network or model calls.' : 'Authenticated chat — sends only after you press Send.'}{isDeveloperBuild(client) ? ' Copy: English draft.' : ''}</p>
     <p>Current sign-in conversation only; history is kept in memory and cleared on sign-out. Past server conversations are not loaded. Closing the reader does not prove server execution stopped.</p>
     {controller ? <ChatReview controller={controller}/> : <p>Chat is not connected.</p>}
   </section>;

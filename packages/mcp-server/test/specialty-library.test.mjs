@@ -7,6 +7,8 @@ test('specialty MCP operations use the owner-only specialty routes',async()=>{
  for(const [args,method,path,body] of [
   [{operation:'list'},'GET',P,undefined],[{operation:'catalogue'},'GET',P+'/catalogue',undefined],[{operation:'read',id},'GET',`${P}/${id}`,undefined],
   [{operation:'agents',id},'GET',`${P}/${id}/agents`,undefined],[{operation:'impact',id},'GET',`${P}/${id}/impact`,undefined],[{operation:'assigned',agentId:'main-agent'},'GET',`${P}/assigned/main-agent`,undefined],
+  [{operation:'versions',id},'GET',`${P}/${id}/versions`,undefined],[{operation:'version',id,revision:2},'GET',`${P}/${id}/versions/2`,undefined],
+  [{operation:'draft',body:{description:'Writes the newsletter.'}},'POST',P+'/draft',{description:'Writes the newsletter.'}],[{operation:'draft',body:{description:'Writes it.',departments:['Creative work']}},'POST',P+'/draft',{description:'Writes it.',departments:['Creative work']}],
   [{operation:'preview',id,body:draft},'POST',`${P}/${id}/preview`,draft],[{operation:'save',id,body:draft},'PUT',`${P}/${id}`,draft],
   [{operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true}},'POST',P+'/hire',{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:false,linked:true}],
   [{operation:'hire',body:{templateId:id,revision:1,requestId,name:'Lina',confirmed:true,libraryPersonality:{id:'temperament-calm',revision:2}}},'POST',P+'/hire',{templateId:id,revision:1,requestId,name:'Lina',confirmed:true,confirmRisky:false,linked:true,libraryPersonality:{id:'temperament-calm',revision:2}}]]){
@@ -28,7 +30,9 @@ test('specialty MCP tool keeps the owner gates of the page',async()=>{
   {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,libraryPersonality:{id:'calm',revision:1,extra:true}}},
   // Giving to existing agents or taking back is done in the app after its review sheet.
   {operation:'give',id,agentId:'main-agent',revision:1},{operation:'takeBack',id,agentId:'main-agent',revision:1},
-  {operation:'read',id:'../keys'},{operation:'read',id,agentId:'main-agent'},{operation:'list',body:{}},{operation:'assigned',agentId:'../x'},{operation:'remove',id},{operation:'list',extra:true}]){
+  {operation:'read',id:'../keys'},{operation:'read',id,agentId:'main-agent'},{operation:'list',body:{}},{operation:'assigned',agentId:'../x'},{operation:'remove',id},{operation:'list',extra:true},
+  {operation:'versions'},{operation:'version',id},{operation:'version',id,revision:0},{operation:'version',id,revision:'2'},{operation:'versions',id,revision:1},{operation:'read',id,revision:1},{operation:'versions',id,body:{}},
+  {operation:'draft'},{operation:'draft',body:{description:''}},{operation:'draft',id,body:{description:'x'}},{operation:'draft',body:{description:'x',model:'paid'}},{operation:'draft',body:{description:'x',departments:'one'}}]){
   const n=calls.length;assert.equal((await callTool('specialty_library',args,{backend})).isError,true,JSON.stringify(args));assert.equal(calls.length,n);
  }
 });

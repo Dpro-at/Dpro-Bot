@@ -9,7 +9,7 @@ import { permissionCategories, permissionModes, riskyCategories } from './hire-c
 
 /** A part of the agent page tells the page what it saved, and how to undo it. */
 export type PartDone = (text: string, undo?: () => void | Promise<void>) => void;
-export type CardTab = 'profile' | 'persona' | 'permissions' | 'memory' | 'skills' | 'mcp' | 'activity';
+export type CardTab = 'profile' | 'persona' | 'permissions' | 'memory' | 'skills' | 'mcp' | 'activity' | 'subs' | 'files';
 export type Grants = { version: number; granted: readonly string[]; available: readonly { name: string; description: string; requiresApproval: boolean; allowedByServer: boolean; execClass: boolean }[] };
 export type Permissions = { memoryRead: string[]; memoryWrite: string[]; sharedMemory: boolean; modes: Record<string, string>; version: number };
 export type ProfileDraft = { role: string; department: string; description: string; model: string };

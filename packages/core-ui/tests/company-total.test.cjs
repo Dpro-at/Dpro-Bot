@@ -28,8 +28,8 @@ test('role split matches the server rule', () => {
   assert.deepEqual(rolesFor(1), { manager: 1, specialist: 0, evaluator: 0 });
   assert.deepEqual(rolesFor(4), { manager: 1, specialist: 2, evaluator: 1 });
   assert.deepEqual(rolesFor(100), { manager: 5, specialist: 85, evaluator: 10 });
-  assert.equal(rolesSummary(rolesFor(100)), '5 leads · 85 specialists · 10 reviewers');
-  assert.equal(rolesSummary(rolesFor(1)), '1 lead');
+  assert.equal(rolesSummary(rolesFor(100)), '5 managers · 85 specialists · 10 reviewers');
+  assert.equal(rolesSummary(rolesFor(1)), '1 manager');
 });
 
 test('distribution, batch and run bodies: contract and boundaries (browser and bridge)', () => {
@@ -107,8 +107,8 @@ test('offline: 400 agents → departments → editable split → one batch, hire
   assert.equal(total, 400 - 133 + 10);
   const html = markup(w);
   assert.match(html, new RegExp(`Hire ${total} agents`));
-  assert.match(html, /Show the 10 agents/);
-  assert.match(html, /1 lead · 8 specialists · 1 reviewer/);
+  assert.match(html, /Support · 10 agents/); assert.match(html, /Change…/);
+  assert.match(html, /1 manager · 8 specialists · 1 reviewer/);
   await w.hireBatch();
   s = w.getSnapshot();
   assert.equal(s.phase, 'done'); assert.equal(s.step, 'done');
@@ -235,8 +235,8 @@ test('the first step offers agent numbers up to 500 or a custom number, never "p
 
 test('specialty editing blocks unbalanced allocations and sends reviewed names/counts/descriptions',async t=>{
  const {w,calls}=await fixture(t);await w.loadCatalogue();w.chooseTotal(2);w.toggleDepartment('development');await w.propose();
- w.editSpecialties('development',[{name:'Server administrator',count:1,description:'Operate fictional servers.'}]);assert.match(markup(w),/1 of 2 allocated/);await w.hireBatch();assert.equal(batchCreates(calls).length,0);assert.match(w.getSnapshot().notice,/Specialty counts/);
- const rows=[{name:'Server administrator',count:1,description:'Operate fictional servers.'},{name:'Custom data guardian',count:1,description:'Review fictional access.'}];w.editSpecialties('development',rows);assert.match(markup(w),/Add custom specialty/);assert.match(markup(w),/Custom data guardian/);await w.hireBatch();assert.deepEqual(batchCreates(calls)[0].body.departments[0].specialties,rows);
+ w.editSpecialties('development',[{name:'Server administrator',count:1,description:'Operate fictional servers.'}]);assert.match(markup(w),/Check specialties/);await w.hireBatch();assert.equal(batchCreates(calls).length,0);assert.match(w.getSnapshot().notice,/Specialty counts/);
+ const rows=[{name:'Server administrator',count:1,description:'Operate fictional servers.'},{name:'Custom data guardian',count:1,description:'Review fictional access.'}];w.editSpecialties('development',rows);assert.match(markup(w),/Server administrator × 1 · Custom data guardian × 1/);assert.doesNotMatch(markup(w),/Check specialties/);await w.hireBatch();assert.deepEqual(batchCreates(calls)[0].body.departments[0].specialties,rows);
 });
 
 test('specialty contract rejects privilege injection, duplicate names and mismatched totals',()=>{

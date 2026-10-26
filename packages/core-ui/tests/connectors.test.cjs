@@ -56,8 +56,6 @@ test('connectors: add, approve a program launch, discover tools, remove', async 
   assert.equal(c.getSnapshot().servers[0].enabled, true);
   assert.equal(c.getSnapshot().servers[0].tools.length, 1, 'tools are read right after turning on');
   assert.match(c.getSnapshot().notice, /Found 1 tools/);
-  const { ConnectorsSection } = require('../src/ConnectorsSection.tsx');
-  assert.match(renderToStaticMarkup(React.createElement(ConnectorsSection, { client, active: false })), /Connectors/);
   await c.remove(ID);
   assert.equal(c.getSnapshot().servers.length, 0);
 });

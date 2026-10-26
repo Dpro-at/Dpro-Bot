@@ -2,8 +2,11 @@ import { SessionFailure } from './session-failure';
 import { createSuggestionAdapter, validatedDisplayName } from './naming';
 import type { NamingLanguage } from './naming';
 import type { SessionClient, WireResponse } from './session';
+import { orgFields, type Placed } from './org-contract.js';
 
-export type AgentProfile = { role?: 'main' | 'manager' | 'specialist' | 'evaluator' | null; department?: string | null; description?: string; emoji?: string; isPrimary?: boolean; model?: string; provider?: string };
+export type AgentProfile = { role?: 'main' | 'manager' | 'specialist' | 'evaluator' | null; department?: string | null; description?: string; emoji?: string; isPrimary?: boolean; model?: string; provider?: string;
+  /** AGENTS-ORG-01: the owner's choice (null: Dpro places it), whose sub-agent it is, its manager in the chart and how it got there. */
+  reportsTo?: string | null; subAgentOf?: string | null; manager?: string | null; placed?: Placed };
 export type PublicAgent = Readonly<{ id: string; version: number } & AgentProfile & ({ name: string; nameUnavailable?: never } | { name?: never; nameUnavailable: true })>;
 const ROLES = ['main', 'manager', 'specialist', 'evaluator'];
 /** Profile fields shown on the team page and the agent card (all optional, bounded). */
@@ -16,6 +19,7 @@ export function agentProfile(x: Record<string, unknown>): AgentProfile {
     ...(typeof x.isPrimary === 'boolean' ? { isPrimary: x.isPrimary } : {}),
     ...(typeof x.model === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:\/-]{0,99}$/.test(x.model) ? { model: x.model } : {}),
     ...(typeof x.provider === 'string' && /^[a-z][a-z-]{0,19}$/.test(x.provider) ? { provider: x.provider } : {}),
+    ...orgFields(x),
   };
 }
 export type AgentRequest = { method: 'GET'; path: string } | { method: 'PUT'; path: string; body: { name: string; expectedVersion: number } | { expectedVersion: number; role?: string | null; department?: string | null; description?: string } };
@@ -178,6 +182,73 @@ export class AgentsController {
   async setPrimary(id: string) { return this.#act(id, 'POST', `/api/agents/${id}/set-primary`, n => `${n} is now the main agent.`); }
   async duplicate(id: string) { return this.#act(id, 'POST', `/api/agents/${id}/duplicate`, n => `A copy of ${n} joined the team.`); }
   async remove(id: string) { return this.#act(id, 'DELETE', `/api/agents/${id}`, n => `${n} was removed.`); }
+  /**
+   * OC2: who an agent reports to (null: Dpro places it). One request, then the team is read again.
+   * Returns the previous choice so the caller can offer Undo.
+   */
+  async setReportsTo(id: string, reportsTo: string | null): Promise<{ ok: boolean; notice: string; before?: string | null }> {
+    const agent = this.#state.agents.find(a => a.id === id);
+    if (!this.#state.owner || !this.#active() || !validAgentId(id) || !agent || this.#busy() || (reportsTo !== null && !validAgentId(reportsTo))) return { ok: false, notice: 'Wait until the team has loaded, then try again.' };
+    const target = reportsTo ? this.#state.agents.find(a => a.id === reportsTo) : undefined;
+    try {
+      const r = await this.client.request({ method: 'PUT', path: `/api/agents/${id}/reports-to`, body: { reportsTo, expectedVersion: agent.version } } as never);
+      if (r.status !== 200) {
+        if (r.status === 401 || r.status === 403) { this.#fail(r.status); return { ok: false, notice: 'Access denied.' }; }
+        const code = (r.body as { code?: string } | null)?.code;
+        const notice = code === 'circle' ? `${target?.name ?? 'That agent'} is under ${agent.name ?? 'this agent'}.` : code === 'main_fixed' ? 'The main agent always stays on top.'
+          : code === 'sub_agent' ? 'A sub-agent stays with the agent it belongs to.' : code === 'version_conflict' ? 'The team changed meanwhile. It was read again; try once more.' : 'Nothing was changed.';
+        await this.list(); this.#publish({ notice }); return { ok: false, notice };
+      }
+      const notice = reportsTo ? `${agent.name ?? 'The agent'} now reports to ${target?.name ?? 'that agent'}` : `Dpro places ${agent.name ?? 'the agent'} again`;
+      await this.list(); this.#publish({ notice });
+      return { ok: true, notice, before: agent.placed === 'set' ? agent.reportsTo ?? null : null };
+    } catch (error) {
+      const blocked = error instanceof SessionFailure && error.code === 'blocked';
+      if (!blocked) await this.list();
+      const notice = blocked ? 'Nothing was sent.' : 'The result is unknown. The team is read again.';
+      this.#publish({ notice }); return { ok: false, notice };
+    }
+  }
+  /** Chart › By department: move one agent to a department (null: none). Returns the old one for Undo. */
+  async setDepartment(id: string, department: string | null): Promise<{ ok: boolean; notice: string; before?: string | null }> {
+    const agent = this.#state.agents.find(a => a.id === id);
+    if (!this.#state.owner || !this.#active() || !agent || this.#busy() || (department !== null && !/^[a-z0-9][a-z0-9 _-]{0,63}$/.test(department))) return { ok: false, notice: 'Wait until the team has loaded, then try again.' };
+    const label = department ? department[0].toUpperCase() + department.slice(1) : 'No department';
+    try {
+      const path = `/api/agents/${id}`;
+      const r = agentResponse(path, await this.client.request({ method: 'PUT', path, body: { expectedVersion: agent.version, department } }));
+      if (r.status !== 200) {
+        if (r.status === 401 || r.status === 403) { this.#fail(r.status); return { ok: false, notice: 'Access denied.' }; }
+        const notice = r.status === 409 ? 'The team changed meanwhile. It was read again; try once more.' : 'Nothing was changed.';
+        await this.list(); this.#publish({ notice }); return { ok: false, notice };
+      }
+      const notice = `${agent.name ?? 'The agent'} moved to ${label}`;
+      await this.list(); this.#publish({ notice });
+      return { ok: true, notice, before: agent.department ?? null };
+    } catch (error) {
+      const blocked = error instanceof SessionFailure && error.code === 'blocked';
+      if (!blocked) await this.list();
+      const notice = blocked ? 'Nothing was sent.' : 'The result is unknown. The team is read again.';
+      this.#publish({ notice }); return { ok: false, notice };
+    }
+  }
+  /** SA1: add a sub-agent to `parent`. */
+  async addSubAgent(parent: string, body: { name?: string; startsAs: 'copy' | 'specialty' | 'empty'; specialtyId?: string; description?: string; tools: string[]; model?: string; provider?: string }): Promise<{ ok: boolean; notice: string; id?: string }> {
+    if (!this.#state.owner || !this.#active() || !validAgentId(parent)) return { ok: false, notice: 'Only the owner adds sub-agents.' };
+    try {
+      const r = await this.client.request({ method: 'POST', path: `/api/agents/${parent}/sub-agents`, body } as never);
+      const b = r.body as { agent?: { id: string; name?: string | null }; code?: string; error?: string } | null;
+      if (r.status !== 201 || !b?.agent) {
+        if (r.status === 401 || r.status === 403) return { ok: false, notice: 'Only the owner adds sub-agents.' };
+        const notice = b?.code === 'invalid_tools' ? (b.error ?? 'A sub-agent only gets tools its agent has.') : b?.code === 'one_level' ? 'A sub-agent cannot have sub-agents of its own.' : b?.code === 'not_found' ? 'That agent or specialty no longer exists.' : 'The sub-agent was not added.';
+        return { ok: false, notice };
+      }
+      await this.list();
+      return { ok: true, notice: `${b.agent.name ?? 'The sub-agent'} joined as a sub-agent`, id: b.agent.id };
+    } catch (error) {
+      return { ok: false, notice: error instanceof SessionFailure && error.code === 'blocked' ? 'Nothing was sent.' : 'The result is unknown. Read the team again before trying once more.' };
+    }
+  }
   async #act(id: string, method: 'POST' | 'DELETE', path: string, done: (name: string) => string): Promise<{ ok: boolean; notice: string; id?: string }> {
     const agent = this.#state.agents.find(a => a.id === id) ?? (this.#state.selected?.id === id ? this.#state.selected : undefined); const name = agent?.name ?? 'The agent';
     if (!this.#state.owner || !this.#active() || !validAgentId(id) || this.#busy()) return { ok: false, notice: 'Wait until the team has loaded, then try again.' };

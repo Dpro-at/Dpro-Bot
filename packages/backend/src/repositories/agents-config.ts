@@ -55,6 +55,7 @@ import { VersionInputError, expectedVersionFrom } from '../api/concurrency.js';
 import { AGENT_ROLES, PersonalityInputError, isAgentRole, normalizeDepartment, type AgentRole } from '../services/personality.js';
 import { checkOwnerPersonalityInput, seedPersonalityForNewAgent, type SaveInput } from '../services/personality-store.js';
 import { seedNewAgentPermissionsStep } from '../tools/agent-permissions.js';
+import { releaseReportsStep } from '../services/agent-org.js';
 
 export interface AgentConfigRow {
   id: string;
@@ -75,6 +76,8 @@ export interface AgentConfigRow {
   role?: string | null;
   /** CORE-01c: normalized lowercase department, or null. */
   department?: string | null;
+  /** AGENTS-ORG-01: the agent this one reports to, or null (Dpro places it; migration 144). */
+  reports_to?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -125,6 +128,7 @@ export interface AgentConfigsRepository {
   setPrimary(actor: Actor | null | undefined, id: string): Promise<void>;
   duplicateConfig(actor: Actor | null | undefined, id: string): Promise<AgentConfigRow>;
   deleteConfig(actor: Actor | null | undefined, id: string): Promise<void>;
+  renameDepartment(actor: Actor | null | undefined, input: unknown): Promise<{ from: string; to: string; moved: number }>;
 }
 
 function* rowStep(id: string): Step<AgentConfigRow | undefined> {
@@ -195,6 +199,28 @@ function roleAndDepartment(body: { role?: unknown; department?: unknown }): { ro
 }
 
 export const agentConfigs: AgentConfigsRepository = {
+  /**
+   * Settings › Departments: rename a department, so every agent in it moves to
+   * the new name (each agent's version moves on). Owner only. A department is
+   * the agents' own `department` value; there is no separate list to keep.
+   */
+  async renameDepartment(actor, input) {
+    if (!isOwner(actor)) throw new ScopeError(403, 'Only the owner can rename a department');
+    const body = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null;
+    if (!body || Object.keys(body).some(k => k !== 'from' && k !== 'to')) throw new AgentConfigInputError('from and to are required', 'invalid_input');
+    let from: string | null, to: string | null;
+    try { from = normalizeDepartment(body.from); to = normalizeDepartment(body.to); } catch { throw new AgentConfigInputError('A department is at most 64 characters', 'invalid_input'); }
+    if (!from || !to || /[\u0000-\u001f\u007f]/.test(to)) throw new AgentConfigInputError('from and to are required', 'invalid_input');
+    if (from === to) return { from, to, moved: 0 };
+    const moved = await sql().tx(function* () {
+      const d = yield* dialect();
+      const r = yield* run(`UPDATE agents_config SET department = ?, updated_at = ${nowText(d)} WHERE department = ? AND id != ?`, to, from, RESERVED_AGENT_ID);
+      return r.changes;
+    });
+    if (!moved) throw new AgentConfigError(404, 'No agent is in that department');
+    return { from, to, moved };
+  },
+
   async listConfigs(actor) {
     requireMember(actor);
     return sql().read(all<AgentConfigRow>('SELECT * FROM agents_config ORDER BY is_primary DESC, created_at ASC'));
@@ -377,7 +403,14 @@ export const agentConfigs: AgentConfigsRepository = {
     if (!existing) throw new AgentConfigError(404, NOT_FOUND);
     const totalCount = (await sql().read(one<{ cnt: number }>('SELECT COUNT(*) as cnt FROM agents_config')))!.cnt;
     if (existing.is_primary === 1 && totalCount > 1) throw new AgentConfigError(400, 'Cannot delete the primary agent. Set another agent as primary first.');
-    await removeAgentApiKey(id);
-    await sql().read(run('DELETE FROM agents_config WHERE id = ?', id));
+    // AGENTS-ORG-01: the agents that report to it move up to its manager; its sub-agents go with it.
+    // Keys first (they need the rows), as before.
+    const subs = (await sql().read(all<{ agent_id: string }>('SELECT agent_id FROM agent_grant_profiles WHERE parent_agent_id = ? AND agent_id != ?', id, id))).map(r => r.agent_id);
+    for (const gone of [id, ...subs]) await removeAgentApiKey(gone);
+    await sql().tx(function* () {
+      const { subAgents } = yield* releaseReportsStep(id);
+      for (const sub of subAgents) yield* run('DELETE FROM agents_config WHERE id = ?', sub);
+      yield* run('DELETE FROM agents_config WHERE id = ?', id);
+    });
   },
 };
