@@ -1,6 +1,6 @@
 import type {SessionClient} from './session';
 import {VERIFICATION_PATH as P,verificationResponse} from './verification-contract.js';
-type State=Readonly<{phase:'loading'|'ready'|'working'|'unavailable';enabled?:boolean;setup?:Readonly<{secret:string;expiresAt:number}>;notice?:'refused'|'limited'|'unknown'|'expired'}>;
+type State=Readonly<{phase:'loading'|'ready'|'working'|'unavailable';enabled?:boolean;recoveryLeft?:number;codes?:readonly string[];setup?:Readonly<{secret:string;expiresAt:number}>;notice?:'refused'|'limited'|'unknown'|'expired'}>;
 export class VerificationController{
  #state:State=Object.freeze({phase:'loading'});#listeners=new Set<()=>void>();#generation=0;#pending:AbortController|undefined;#expiry:ReturnType<typeof setTimeout>|undefined;
  constructor(private readonly client:Pick<SessionClient,'request'>){}
@@ -12,9 +12,23 @@ export class VerificationController{
   this.cancel();const generation=this.#generation;this.#pending=new AbortController();
   try{const result=await this.client.request({method:'GET',path:P},this.#pending.signal);if(generation!==this.#generation)return;
    const value=verificationResponse(P,result.status,result.body);
-   if(result.status!==200||!value||!('enabled'in value))throw Error();this.#publish({phase:'ready',enabled:value.enabled});
+   if(result.status!==200||!value||!('enabled'in value))throw Error();this.#publish({phase:'ready',enabled:value.enabled,recoveryLeft:'recoveryLeft'in value?value.recoveryLeft:undefined});
   }catch{if(generation===this.#generation)this.#publish({phase:'unavailable'});}
  }
+ /** New recovery codes (password + authenticator code). They stay in memory only until forgetCodes(). */
+ async newRecoveryCodes(password:string,code:string){
+  if(this.#state.phase!=='ready'||!this.#state.enabled)return;
+  const prior=this.#state,generation=this.#generation;this.#pending=new AbortController();this.#publish({...prior,phase:'working',notice:undefined,codes:undefined});
+  try{
+   const path=P+'/recovery-codes',result=await this.client.request({method:'POST',path,body:{password,code}},this.#pending.signal);
+   if(generation!==this.#generation)return;
+   const value=verificationResponse(path,result.status,result.body);
+   if(result.status===429||result.status===403){this.#publish({...prior,phase:'ready',notice:result.status===429?'limited':'refused'});return;}
+   if(result.status!==200||!value||!('recoveryCodes'in value)||'requiresSignIn'in value)throw Error();
+   this.#publish({phase:'ready',enabled:true,recoveryLeft:value.recoveryCodes.length,codes:Object.freeze([...value.recoveryCodes])});
+  }catch{if(generation===this.#generation){this.cancel();this.#publish({phase:'unavailable',notice:'unknown'});}}
+ }
+ forgetCodes(){if(this.#state.codes)this.#publish({...this.#state,codes:undefined});}
  async act(action:'enroll'|'confirm'|'disable',password:string,code?:string){
   if(this.#state.phase!=='ready'||this.#state.enabled===undefined)return;
   if((action==='enroll'&&this.#state.enabled)||(action==='confirm'&&!this.#state.setup)||(action==='disable'&&!this.#state.enabled))return;

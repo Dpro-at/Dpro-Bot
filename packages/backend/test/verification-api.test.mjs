@@ -45,7 +45,7 @@ test('confirm invalidates session and returns recovery codes once',async()=>{
  assert.equal((await app.inject({url:'/api/auth/verification',headers:headers('human')})).statusCode,401);
  assert.equal((await send('confirm',{password,code})).statusCode,401);
  const current=await app.inject({url:'/api/auth/verification',headers:{authorization:'Bearer '+generateToken('human',2)}});
- assert.deepEqual(current.json(),{enabled:true});assert.ok(!current.body.includes(setup.secret));
+ assert.deepEqual(current.json(),{enabled:true,recoveryLeft:8});assert.ok(!current.body.includes(setup.secret));
 });
 test('staged plugin rejects agent context even with a valid human bearer',async()=>{
  const isolated=Fastify();isolated.addHook('onRequest',async request=>{request.actor={kind:'agent',userId:'other',role:'owner'};});

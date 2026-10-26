@@ -142,3 +142,27 @@ export function* revokeFactorStep(token:unknown,b:VerificationBinding,code:unkno
 export async function revokeFactorWithChallenge(token:unknown,b:VerificationBinding,code:unknown,mode:'totp'|'recovery'='totp',now=Date.now()):Promise<boolean>{
  return sql().tx(()=>revokeFactorStep(token,b,code,mode,now));
 }
+/** Exact operation fingerprint for replacing the recovery codes of one factor version. */
+export function recoveryRotationOperation(userId:string,version:number):string{
+ return createHash('sha256').update(JSON.stringify(['verification-rotate-recovery-v1',userId,version])).digest('hex');
+}
+/** Unused recovery codes left for the active factor (0 when two-step sign-in is off). */
+export async function recoveryCodesLeft(userId:string):Promise<number>{
+ const row=await sql().read(one<{n:number}>('SELECT COUNT(*) AS n FROM verification_recovery_codes c JOIN verification_factors f ON f.user_id=c.user_id AND f.version=c.factor_version AND f.enabled=1 WHERE c.user_id=? AND c.consumed_at IS NULL',userId));
+ return Number(row?.n??0);
+}
+/** Replaces every recovery code after a fresh authenticator code; the old codes stop working. Sessions stay. */
+export function* rotateRecoveryStep(token:unknown,b:VerificationBinding,code:unknown,now:number):Step<string[]|null>{
+ if(b.purpose!=='rotate_recovery'||b.operationHash!==recoveryRotationOperation(b.userId,b.factorVersion))return null;
+ if(!(yield* factorChallengeStep(token,b,code,'totp',now)))return null;
+ const recoveryCodes=Array.from({length:8},()=>randomBytes(16).toString('hex'));
+ yield* run('DELETE FROM verification_recovery_codes WHERE user_id=?',b.userId);
+ for(const recoveryCode of recoveryCodes){
+  const hash=createHash('sha256').update(JSON.stringify(['verification-recovery-v1',b.userId,b.factorVersion,recoveryCode])).digest('hex');
+  yield* run('INSERT INTO verification_recovery_codes(user_id,factor_version,code_hash) VALUES(?,?,?)',b.userId,b.factorVersion,hash);
+ }
+ return recoveryCodes;
+}
+export async function rotateRecoveryCodes(token:unknown,b:VerificationBinding,code:unknown,now=Date.now()):Promise<string[]|null>{
+ return sql().tx(()=>rotateRecoveryStep(token,b,code,now));
+}

@@ -1,5 +1,6 @@
 export const VERIFICATION_PATH='/api/auth/verification';
-const routes=new Set([VERIFICATION_PATH,...['enroll','confirm','disable'].map(action=>VERIFICATION_PATH+'/'+action)]);
+const routes=new Set([VERIFICATION_PATH,...['enroll','confirm','disable','recovery-codes'].map(action=>VERIFICATION_PATH+'/'+action)]);
+const recoveryList=codes=>Array.isArray(codes)&&codes.length===8&&codes.every(code=>typeof code==='string'&&/^[a-f0-9]{32}$/.test(code))&&new Set(codes).size===8;
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 export const verificationRoute=path=>typeof path==='string'&&routes.has(path);
 export function allowedVerification(method,path,body){
@@ -16,10 +17,16 @@ export function verificationResponse(path,status,body){
  if(status===401&&body.code==='unauthenticated')return {code:'unauthenticated'};
  if(status===403&&['inactive_user','forbidden'].includes(body.code))return {code:body.code};
  if(status!==200)return [400,401,403,409,503].includes(status)&&body.code==='verification_refused'?{code:'verification_refused'}:status===429&&body.code==='rate_limited'?{code:'rate_limited'}:null;
- if(path===VERIFICATION_PATH)return typeof body.enabled==='boolean'?{enabled:body.enabled}:null;
+ if(path===VERIFICATION_PATH){
+  if(typeof body.enabled!=='boolean')return null;
+  // How many unused recovery codes are left, only while two-step sign-in is on.
+  return body.enabled&&Number.isSafeInteger(body.recoveryLeft)&&body.recoveryLeft>=0&&body.recoveryLeft<=8?{enabled:true,recoveryLeft:body.recoveryLeft}:{enabled:body.enabled};
+ }
+ // New recovery codes: the old ones stop working, every sign-in stays.
+ if(path.endsWith('/recovery-codes'))return recoveryList(body.recoveryCodes)&&!['token','user','deviceToken','requiresSignIn'].some(key=>Object.hasOwn(body,key))?{recoveryCodes:[...body.recoveryCodes]}:null;
  if(path.endsWith('/enroll'))return typeof body.secret==='string'&&/^[A-Z2-7]{32}$/.test(body.secret)&&Number.isSafeInteger(body.expiresAt)&&body.expiresAt>=0?{secret:body.secret,expiresAt:body.expiresAt}:null;
  if(body.requiresSignIn!==true||['token','user','deviceToken'].some(key=>Object.hasOwn(body,key)))return null;
  if(path.endsWith('/disable'))return {requiresSignIn:true};
- if(!Array.isArray(body.recoveryCodes)||body.recoveryCodes.length!==8||!body.recoveryCodes.every(code=>typeof code==='string'&&/^[a-f0-9]{32}$/.test(code))||new Set(body.recoveryCodes).size!==8)return null;
+ if(!recoveryList(body.recoveryCodes))return null;
  return {requiresSignIn:true,recoveryCodes:[...body.recoveryCodes]};
 }

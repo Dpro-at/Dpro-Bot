@@ -121,6 +121,7 @@ import { worldGeneratorRoutes } from './routes/world-generator.js';
 import { worldBuilderRoutes } from './routes/world-builder.js';
 import { extensionsRoutes } from './routes/extensions.js';
 import { systemRoutes } from './routes/system.js';
+import { appUpdateRoutes } from './routes/app-updates.js';
 import { registerTelephonyRoutes } from './routes/telephony.js';
 import { agentFilesRoutes } from './routes/agent-files.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
@@ -432,6 +433,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(extensionsRoutes);    // 🔌 Extensions Management (SDK-based)
   await fastify.register(marketplaceRoutes);   // 🛒 Extension Marketplace (Registry, Install, Reviews)
   await fastify.register(registerTelephonyRoutes); // ☎️ Telephony / Assistant Center (Call Center)
+  await fastify.register(appUpdateRoutes()); // Settings › About and updates (owner)
   await fastify.register(systemRoutes);        // ⚙️ System Operations (Restart, Shutdown)
   await fastify.register(agentFilesRoutes);    // 📝 Agent Files (PERSONALITY.md + MEMORY.md)
   await fastify.register(registerDashboardRoutes); // 📊 Customizable Dashboard (Widgets + Layouts)
