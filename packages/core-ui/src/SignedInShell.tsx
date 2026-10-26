@@ -29,6 +29,10 @@ import { Icon } from './icons';
 import type { IconName } from './icons';
 import { UiIcon } from './ui-icons';
 import { CommandPalette } from './CommandPalette';
+import { ShellFooter } from './ShellFooter';
+import type { FooterEntry } from './ShellFooter';
+import { footerFor } from './footer-prefs';
+import type { FooterSection } from './footer-prefs';
 import { ChatSearchController } from './chat-search';
 import type { Command } from './CommandPalette';
 
@@ -127,7 +131,11 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
   const pageTitle = page === 'code'?'Code':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
-  const openCards = boardState?.boards.reduce((a, b) => a + b.cards, 0);
+  const footer=footerFor(client);
+  const owner=user.role==='owner',go=(p:Page)=>()=>setPage(p);
+  const entry=(id:Page,available=true,run=go(id),badge?:string):FooterEntry=>({available,current:page===id,run,badge});
+  const footerEntries:Record<FooterSection,FooterEntry>={chat:entry('chat'),agents:entry('agents'),board:entry('board'),memory:entry('memory'),approvals:entry('approvals',user.role!=='guest',go('approvals'),pendingApprovals.count?(pendingApprovals.count===100?'100+':String(pendingApprovals.count)):undefined),apps:entry('apps'),genvr:entry('genvr'),
+    terminal:entry('terminal',owner),code:entry('code',owner&&nativeEditor,openCode),skills:entry('skills',owner),personalities:entry('personalities',owner),specialties:entry('specialties',owner),mcp:entry('mcp',owner)};
 
   const sidebarShown = rail && (page === 'chat' || ownSidebar);
   return <div className="shell app-shell" data-theme={theme} data-rail={sidebarShown ? 'open' : 'closed'} data-section={page} lang="en" dir="ltr">
@@ -187,26 +195,11 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {(page === 'settings' || page === 'about') && <section className="page page-settings"><AppSettings onOpenApps={()=>setPage('apps')} onApprovals={()=>setPage('approvals')} onBoard={()=>setPage('board')} onAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenChat={()=>setPage('chat')} onOpenTool={tool=>setPage(tool)} key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={page === 'settings' ? slot : null} active={page === 'settings'} signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => setPage('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} aboutOnly={page === 'about'}/></section>}
       <section className="page page-scroll" hidden={page !== 'account'}><div className="page-column"><AccountPanel client={client}/></div></section>
     </main>
-    <footer className="statusbar">
-      <span className="statusbar-group">
-        {/* A quiet dot with a tooltip; words only when it is not the normal state. */}
-        {mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
-          : <span className="status-item status-dot-only" title="Connected · this installation" aria-label="Connected · this installation" role="img"><span className={`status-dot ${mode}`} aria-hidden="true"/></span>}
-        <button type="button" className="status-item" aria-current={page === 'chat' ? 'page' : undefined} onClick={() => setPage('chat')}><Icon name="message-circle"/>Chat</button>
-        <button type="button" className="status-item" aria-current={page === 'agents' ? 'page' : undefined} onClick={() => setPage('agents')}><Icon name="user"/>Agents</button>
-        <button type="button" className="status-item" aria-current={page === 'board' ? 'page' : undefined} onClick={() => setPage('board')}>Board{typeof openCards === 'number' && boardState?.boards.length ? ` · ${openCards} cards` : ''}</button>
-        <button type="button" className="status-item" aria-current={page === 'memory' ? 'page' : undefined} onClick={() => setPage('memory')}><Icon name="database"/>Memory</button>
-        {user.role!=='guest'&&<button type="button" className="status-item" aria-current={page === 'approvals' ? 'page' : undefined} onClick={()=>setPage('approvals')}><Icon name="clock"/>{approvalLabel}</button>}
-        <button type="button" className="status-item" aria-current={page==='apps'?'page':undefined} onClick={()=>setPage('apps')}><UiIcon name="layers" size={14}/>Apps</button>
-        {tools.map(t=><button key={t.id} type="button" className="status-item" aria-current={page === t.id ? 'page' : undefined} onClick={t.run}>{t.icon}{t.label}</button>)}
-        <button type="button" className="status-item" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Icon name="settings"/>Settings</button>
-      </span>
-      <span className="statusbar-group">
-        <button type="button" className="status-item" onClick={() => setPalette(true)}>⌘K</button>
-        {client.canUse('mock') && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}
-        <span className="status-item">Dpro Agent</span>
-      </span>
-    </footer>
+    <ShellFooter controller={footer} settingsCurrent={page==='settings'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
+      status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
+        : <span className="status-item status-dot-only" title="Connected · this installation" aria-label="Connected · this installation" role="img"><span className={`status-dot ${mode}`} aria-hidden="true"/></span>}
+      extra={client.canUse('mock') && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}
+      entries={footerEntries}/>
     <CommandPalette open={palette} commands={commands} onClose={() => setPalette(false)}
       search={chat && search && user.role !== 'guest' ? { controller: search.palette, onOpen: (id, messageId) => { void chat.openAt(id, messageId); setPage('chat'); } } : undefined}/>
   </div>;

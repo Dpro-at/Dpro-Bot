@@ -6,7 +6,7 @@ import { UiIcon } from './ui-icons';
 import type { UiIconName } from './ui-icons';
 import { initial, tileColour } from './memory-desktop';
 
-export type MenuItem = { label: string; run: () => void; icon?: UiIconName; shortcut?: string; danger?: boolean; disabled?: boolean } | 'sep';
+export type MenuItem = { label: string; run: () => void; icon?: UiIconName; shortcut?: string; danger?: boolean; disabled?: boolean; checked?: boolean } | 'sep';
 export type MenuAt = { x: number; y: number; items: MenuItem[]; invoker?: HTMLElement } | null;
 
 /** Opens a menu at the pointer (right-click) or under a button (⋯). */
@@ -43,8 +43,8 @@ export function ContextMenu({ menu, onClose }: { menu: MenuAt; onClose: () => vo
     all[(i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length]?.focus();
   }
   return <div ref={ref} className="dk-menu" role="menu" style={{ left, top, inlineSize: width }} onKeyDown={move}>
-    {menu.items.map((m, i) => m === 'sep' ? <hr key={i}/> : <button key={i} type="button" role="menuitem" disabled={m.disabled} data-danger={m.danger || undefined} onClick={() => { onClose(); m.run(); }}>
-      {m.icon ? <UiIcon name={m.icon} size={14}/> : <span className="dk-menu-gap"/>}<span className="dk-menu-label">{m.label}</span>{m.shortcut && <kbd>{m.shortcut}</kbd>}
+    {menu.items.map((m, i) => m === 'sep' ? <hr key={i}/> : <button key={i} type="button" role={m.checked === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={m.checked} disabled={m.disabled} data-danger={m.danger || undefined} onClick={() => { onClose(); m.run(); }}>
+      {m.checked !== undefined && <span className="dk-menu-check">{m.checked && <UiIcon name="check" size={13}/>}</span>}{m.icon ? <UiIcon name={m.icon} size={14}/> : <span className="dk-menu-gap"/>}<span className="dk-menu-label">{m.label}</span>{m.shortcut && <kbd>{m.shortcut}</kbd>}
     </button>)}
   </div>;
 }

@@ -27,6 +27,8 @@ export const STATUSES = ['queued', 'running', 'waiting_approval', 'completed', '
 const FINAL = new Set(['completed', 'failed', 'cancelled', 'waiting_approval']);
 const RUN_ID = /^[0-9a-f-]{36}$/i;
 
+const FOOTER_IDS=['chat','agents','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties','mcp'];
+
 export const TOOL_DEFINITIONS = [
   {
     name:'workspace_settings',title:'Portable workspace settings',
@@ -45,6 +47,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
+  {
+    name:'workspace_footer',title:'Footer sections',
+    description:'Owner-session only. Read or change which sections the Dpro window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties, mcp. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
+  },
   {
     name:'personality_library', title:'Personality library',
     description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess. For save supply revision and profile in body.',
@@ -262,6 +269,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_settings': return await workspaceSettingsTool(args,deps);
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
+      case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'spawn_small_agent': return await spawn(args, deps);
       case 'get_result': return await getResult(args, deps);
@@ -436,6 +444,17 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  const url=(agentOperation?'/api/agents':base)+(['assign','assignment','tune','mode'].includes(operation)?'/assigned/':'/')+(route.id?args.id:'')+route.suffix+(proposalOperation?'/'+args.proposalId+(operation==='proposal'?'':'/'+operation):'');
  const data=await backend.request(route.method,route.id?url:base+route.suffix,route.method==='GET'||['lock','unlock'].includes(operation)?undefined:obj(args.body));
  return ok('Personality library result. Preferences never grant access.',data);
+}
+
+async function workspaceFooterTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ only(args,['operation','order','hidden','iconsOnly','approvalsWhenWaiting']);
+ if(args.operation==='read'){only(args,['operation']);return ok('Footer sections. Settings always stays.',await backend.request('GET','/api/me/footer'));}
+ if(args.operation!=='set')throw new InputError('operation must be read or set');
+ const change:Record<string,unknown>={};
+ for(const k of ['order','hidden'] as const)if(k in args){const v=args[k];if(!Array.isArray(v)||v.length>FOOTER_IDS.length||!v.every(x=>typeof x==='string'&&FOOTER_IDS.includes(x))||new Set(v).size!==v.length)throw new InputError(`${k} must list known sections once each`);change[k]=v;}
+ for(const k of ['iconsOnly','approvalsWhenWaiting'] as const)if(k in args){if(typeof args[k]!=='boolean')throw new InputError(`${k} must be true or false`);change[k]=args[k];}
+ if(!Object.keys(change).length)throw new InputError('Nothing to change');
+ return ok('Footer changed. Settings always stays; hidden sections stay in ⌘K.',await backend.request('PUT','/api/me/footer',change));
 }
 
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
