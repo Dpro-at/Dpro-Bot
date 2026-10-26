@@ -78,14 +78,14 @@ export class SpecialtyTemplates{
  }
  async agents(id:string){
   const template=await this.get(id),catalogue=await this.catalogue();
-  const agents=await q.all<{id:string;name:string;linked:number}>('SELECT a.id,a.name,CASE WHEN s.agent_id IS NULL THEN 0 ELSE 1 END AS linked FROM agents_config a LEFT JOIN agent_specialties s ON s.agent_id=a.id AND s.template_id=? WHERE a.id!=? ORDER BY a.name',id,'small-local-agent');
+  const agents=await q.all<{id:string;name:string;role:string|null;department:string|null;linked:number}>('SELECT a.id,a.name,a.role,a.department,CASE WHEN s.agent_id IS NULL THEN 0 ELSE 1 END AS linked FROM agents_config a LEFT JOIN agent_specialties s ON s.agent_id=a.id AND s.template_id=? WHERE a.id!=? ORDER BY a.name',id,'small-local-agent');
   const {loadAgentGrants}=await import('../tools/grants.js');const {loadAgentPermissions,modeFor}=await import('../tools/agent-permissions.js');
   const required=template.config.requirements??template.config.tools.map(t=>({id:t.name,name:t.name,toolName:t.name,server:catalogue.tools.find(c=>c.name===t.name)?.server??null}));
   return {agents:await Promise.all(agents.map(async a=>{const grants=await loadAgentGrants(a.id,catalogue.tools),permissions=await loadAgentPermissions(a.id);
    const access=required.map(r=>{const current=catalogue.tools.find(c=>c.name===r.toolName);const binding=template.config.tools.find(t=>t.name===r.toolName);const mode=r.toolName?modeFor(permissions,{name:r.toolName,...(current?.server?{mcp:{}}:{})}):null;
     const status=!current?'unavailable':!current.available||mode==='off'?'blocked':binding&&binding.fingerprint!==current.fingerprint?'review_required':!grants.tools.has(current.name)?'needs_grant':mode==='ask'?'ask':'allowed';
     return {id:r.id,name:r.name,toolName:r.toolName,server:r.server,status,scopes:current?grants.tools.get(current.name)?.destinations??[]:[]};});
-   return {id:a.id,name:a.name,linked:!!a.linked,missingTools:access.filter(r=>!['ask','allowed'].includes(r.status)).map(r=>r.toolName??r.name),access};}))};
+   return {id:a.id,name:a.name,role:a.role??null,department:a.department??null,linked:!!a.linked,missingTools:access.filter(r=>!['ask','allowed'].includes(r.status)).map(r=>r.toolName??r.name),access};}))};
  }
  async link(ownerId:string,id:string,input:unknown){
   if(!uuid(id)||!object(input)||!keys(input,['agentId','revision','linked'])||!text(input.agentId,100)||input.agentId==='small-local-agent'||typeof input.linked!=='boolean'||!Number.isSafeInteger(input.revision))throw new TemplateError('invalid_input');
