@@ -118,3 +118,9 @@ test('effective prompt exposes profile identity and current traits rather than s
  assert.equal(effective.traits.caution,95);assert.equal(effective.dialect,current.dialect);
  assert.match(prompt,/never grant tools or override approval policy/);
 });
+test('list tells starters from owner-made personalities and names who uses each; team carries the agent link',async()=>{
+ const cur=await store.read('temperament-balanced');await sql().tx(function*(){yield* run("INSERT INTO agents_config(id,name) VALUES(?,?)",'faces-agent','faces-agent');yield* seedLibraryPersonality('faces-agent','library-owner',{id:cur.id,revision:cur.revision});},{immediate:true});const made=await store.read('temperament-calm');const id='owner-made-faces';await store.save('library-owner',id,{revision:0,profile:{...made.profile,name:'Owner made'}});
+ const list=await store.list();assert.equal(list.find(e=>e.id==='temperament-calm').starter,true);assert.equal(list.find(e=>e.id===id).starter,false);
+ const balanced=list.find(e=>e.id==='temperament-balanced');assert.ok(balanced.agents.some(a=>a.id==='faces-agent'&&a.name==='faces-agent'));assert.equal(balanced.usedBy,balanced.agents.length);
+ const row=(await store.team()).agents.find(a=>a.id==='faces-agent');assert.equal(row.personalityId,'temperament-balanced');assert.equal(row.linked,true);assert.ok(Number.isSafeInteger(row.version)&&row.version>0);assert.equal(typeof row.locked,'boolean');
+});
