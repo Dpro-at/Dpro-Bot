@@ -38,6 +38,7 @@ const { allowedChatExport, chatExportRoute, chatExportResponse } = require('../s
 const { allowedChatSecrets, chatSecretsRoute, chatSecretsResponse } = require('../src/chat-secrets-contract.js');
 const { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } = require('../src/terminal-contract.js');
 const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-contract.js');
+const { allowedDepartments, departmentsRoute, departmentsResponse } = require('../src/departments-contract.js');
 const { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute, deviceLabel, DEVICE_LABEL_HEADER } = require('../src/account-settings-contract.js');
 const { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_STREAM_MS, RUN_IDLE_MS } = require('../src/conversation-contract.js');
 const { validDeviceToken, validLoginBody, loginContinuation } = require('../src/login-contract.js');
@@ -110,6 +111,7 @@ function allowed(method, target, body) {
   if (templatePath(target)) return allowedTemplates(method,target,body);
   if (skillLibraryPath(target)) return allowedSkillLibrary(method,target,body);
   if (footerRoute(target)) return allowedFooter(method, target, body);
+  if (departmentsRoute(target)) return allowedDepartments(method, target, body);
   if (sessionsRoute(target) || updatesRoute(target)) return allowedAccountSettings(method, target, body);
   if (memoryDesktopRoute(target)) return allowedMemoryDesktop(method, target, body);
   if (memoryPagesRoute(target)) return allowedMemoryPages(method, target, body);
@@ -189,6 +191,7 @@ function project(target, status, body) {
   if (cardRoute(target)) return agentCardResponse(target, status, body);
   if (terminalRoute(target)) return terminalResponse(target, status, body);
   if (footerRoute(target)) return footerResponse(status, body);
+  if (departmentsRoute(target)) return departmentsResponse(status, body);
   if (sessionsRoute(target) || updatesRoute(target)) return accountSettingsResponse(target, status, body);
   if (connectionsRoute(target)) return connectionsResponse(target,status,body);
   if (mcpImportPath(target)) return mcpImportResponse(target,status,body);

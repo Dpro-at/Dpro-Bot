@@ -4,22 +4,25 @@ test('Personalities stays mounted so an unsaved draft survives a section switch'
  assert.match(shell,/<PersonalityLibrary client=\{client\} active=\{page==='personalities'\}/);
  assert.doesNotMatch(shell,/\{page==='personalities'&&<PersonalityLibrary/);
 });
-test('⌘K reaches every Apps and Settings place; the approvals count stays on the footer badge',()=>{
- for(const s of ['Apps › ${label}','Apps › Trading','Settings › ${label}'])assert.ok(shell.includes(s),s);
- for(const p of ['channels','accounts','addons','catalogue','replies','keys','schedules','move','about'])assert.match(shell,new RegExp(`\\['${p}',`));
+test('⌘K reaches every Apps, Library and Settings place; the approvals count stays on the footer badge',()=>{
+ for(const s of ['Apps › ${label}','Apps › Trading','Settings › ${label}','Settings › MCP connections','Library › Personalities','Library › Specialties','Library › Skills'])assert.ok(shell.includes(s),s);
+ for(const p of ['mine','addons','catalogue','channels','accounts','departments','replies','keys','schedules','move','about'])assert.match(shell,new RegExp(`\\['${p}',`));
+ // Channels and Accounts are Settings places now, never Apps places.
+ assert.doesNotMatch(shell,/openApps\('(channels|accounts)'\)/);assert.match(shell,/onSettings=\{tab=>openSettings\(tab\)\}/);
  assert.doesNotMatch(shell,/approvalLabel/);
 });
 test('Settings opens from the footer gear and ⌘, — no extra sidebar gear or account-menu item',()=>{
  assert.doesNotMatch(shell,/sidebar-settings/);assert.doesNotMatch(shell,/>Settings<\/button>/);
  assert.match(shell,/Search or run a command<kbd>⌘K/);
 });
-test('Apps "Manage in MCP connections" opens that connection in MCP (S-10)',()=>{const {tileActions}=require('../src/WorkspaceApplications.tsx');let got;
- const items=tileActions({id:'a',kind:'mcp',name:'X'},{owner:true,busy:false,server:{id:'srv-1',enabled:true}},{open(){},onAccountConnections(){},onPermissions(){},onManageConnections:id=>{got=id;},toggle(){},edit(){},reconnect(){},remove(){}});
- items.find(i=>i&&i.label==='Manage in MCP connections').run();assert.equal(got,'srv-1');
+test('an MCP connection is not an app: Apps links open it in Settings › MCP connections (S-10)',()=>{const {tileActions}=require('../src/WorkspaceApplications.tsx');
+ assert.deepEqual(tileActions({id:'a',kind:'mcp',name:'X'},{owner:true},{open(){},onAccountConnections(){},onPermissions(){}}),[]);
+ assert.match(shell,/onConnections=\{id=>\{if\(id\)setMcpOpen\(id\);setPage\('mcp'\);\}\}/);
  assert.match(shell,/<McpSection [^>]*openId=\{mcpOpen\}/);
 });
-test('places inside Agents and Apps show the way back on top of their sidebar (board SH1)',()=>{
- assert.match(shell,/placeParent[^=]*=\s*\{ personalities: 'agents', specialties: 'agents', skills: 'agents', mcp: 'apps', terminal: 'apps' \}/);
+test('places inside Library, Apps and Settings show the way back on top of their sidebar (board SH1)',()=>{
+ assert.match(shell,/placeParent[^=]*=\s*\{ personalities: 'library', specialties: 'library', skills: 'library', mcp: 'settings', terminal: 'apps' \}/);
+ assert.match(shell,/settingsCurrent=\{page==='settings'\|\|page==='mcp'\}/);
  assert.match(shell,/className="agent-return place-return" onClick=\{\(\)=>setPage\(placeParent\[page\]!\)\}/);
  assert.match(shell,/onOpenMcp=\{\(\)=>setPage\('mcp'\)\} onOpenApprovals=\{\(\)=>setPage\('approvals'\)\}/);assert.doesNotMatch(shell,/connectorsFocus/);
 });

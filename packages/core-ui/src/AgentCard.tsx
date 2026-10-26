@@ -35,17 +35,19 @@ export const CATEGORY: Record<string, string> = { browser: 'Use the browser', ne
  * sidebar, each part saves as you go, and the last change can be undone
  * (Undo in the notice or ⌘Z). Every save still carries the version it read.
  */
-export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone, onOpenMcp, onOpenApprovals }: {
+/** Links from the agent page to the Library places (Personalities, Specialties, Skills). */
+export type LibraryLinks={onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void};
+export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone, onOpenMcp, onOpenApprovals, library }: {
   client: ConstructorParameters<typeof AgentCardController>[0]; agentId: string; agents: AgentsController; personality: PersonalityController;
-  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void;
+  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks;
 }) {
   const [card, setCard] = useState<AgentCardController>();
   useEffect(() => { const c = new AgentCardController(client, agentId, initialSection); setCard(c); void c.load(); void agents.select(agentId); return () => c.dispose(); }, [client, agentId, agents]);
   if (!card) return null;
-  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals}/>;
+  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={library}/>;
 }
 
-export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone, onOpenMcp, onOpenApprovals }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void }) {
+export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone, onOpenMcp, onOpenApprovals, library }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void; library?: LibraryLinks }) {
   const s = useSyncExternalStore(card.subscribe, card.getSnapshot, card.getSnapshot);
   const n = useSyncExternalStore(agents ? agents.subscribe : noop, agents ? agents.getSnapshot : none, agents ? agents.getSnapshot : none);
   const p = useSyncExternalStore(personality ? personality.subscribe : noop, personality ? personality.getSnapshot : none, personality ? personality.getSnapshot : none);
@@ -57,7 +59,8 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
   const name = (n?.selected?.id === s.agentId ? n.selected.name : undefined) ?? a?.name ?? 'Agent';
   const pending = p?.proposals.filter(x => x.status === 'pending').length ?? 0;
   const tab = s.tab === 'mcp' ? 'permissions' : s.tab;
-  const navigation=<nav className="agent-profile-sidebar dk-sidebar ag-parts" aria-label="Parts of this agent"><button type="button" className="agent-return" onClick={onBack}><UiIcon name="arrow-left" size={13}/>All staff</button><div className="agent-sidebar-identity"><Avatar name={name} size={36}/><span><strong><bdi>{name}</bdi></strong><small>{departmentName(a?.department)}</small></span></div>{AGENT_SECTIONS.map(t=><button className="nav-item dk-place" title={t.label} type="button" key={t.key} aria-current={tab===t.key?'page':undefined} onClick={()=>void card.openTab(t.key)}><UiIcon name={t.icon} size={15}/><span className="dk-place-name">{t.label}</span>{t.key==='persona'&&pending>0&&<span className="ag-count" aria-label={`${pending} waiting for you`}>{pending}</span>}</button>)}</nav>;
+  const libraryLinks=([['Personalities','smile',library?.onPersonalities],['Specialties','layers',library?.onSpecialties],['Skills','star',library?.onSkills]] as [string,UiIconName,(()=>void)|undefined][]).filter((x):x is [string,UiIconName,()=>void]=>!!x[2]);
+  const navigation=<nav className="agent-profile-sidebar dk-sidebar ag-parts" aria-label="Parts of this agent"><button type="button" className="agent-return" onClick={onBack}><UiIcon name="arrow-left" size={13}/>All staff</button><div className="agent-sidebar-identity"><Avatar name={name} size={36}/><span><strong><bdi>{name}</bdi></strong><small>{departmentName(a?.department)}</small></span></div>{AGENT_SECTIONS.map(t=><button className="nav-item dk-place" title={t.label} type="button" key={t.key} aria-current={tab===t.key?'page':undefined} onClick={()=>void card.openTab(t.key)}><UiIcon name={t.icon} size={15}/><span className="dk-place-name">{t.label}</span>{t.key==='persona'&&pending>0&&<span className="ag-count" aria-label={`${pending} waiting for you`}>{pending}</span>}</button>)}{libraryLinks.length>0&&<><p className="section-label dk-label">Library</p>{libraryLinks.map(([label,icon,run])=><button key={label} type="button" className="nav-item dk-place" title={`Open ${label} in Library`} onClick={run}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span><UiIcon name="chevron" size={11}/></button>)}</>}</nav>;
   return <article className="agent-card ag-card" aria-label={a?.name ? `Agent ${a.name}` : 'Agent'}>
     {sidebarSlot?createPortal(navigation,sidebarSlot):navigation}
     <div className="ag-card-body">

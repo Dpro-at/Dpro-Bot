@@ -40,6 +40,7 @@ import { allowedDiscovery, discoveryRoute, discoveryResponse } from './discovery
 import { allowedMemoryDesktop, memoryDesktopRoute, memoryDesktopResponse } from './memory-desktop-contract.js';
 import { allowedTerminal, terminalPath, terminalRoute, terminalResponse, TerminalEventParser, TERMINAL_STREAM_MS } from './terminal-contract.js';
 import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js';
+import { allowedDepartments, departmentsRoute, departmentsResponse } from './departments-contract.js';
 import { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute } from './account-settings-contract.js';
 import type { TerminalFrame } from './terminal-contract.js';
 import { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_IDLE_MS, RUN_STREAM_MS } from './conversation-contract.js';
@@ -115,6 +116,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (templatePath(path)) return allowedTemplates(method,path,body);
   if (skillLibraryPath(path)) return allowedSkillLibrary(method,path,body);
   if (footerRoute(path)) return allowedFooter(method, path, body);
+  if (departmentsRoute(path)) return allowedDepartments(method, path, body);
   if (sessionsRoute(path) || updatesRoute(path)) return allowedAccountSettings(method, path, body);
   if (memoryDesktopRoute(path)) return allowedMemoryDesktop(method, path, body);
   if (memoryPagesRoute(path)) return allowedMemoryPages(method, path, body);
@@ -197,6 +199,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (cardRoute(path)) return { status: response.status, body: agentCardResponse(path, response.status, response.body) };
   if (terminalRoute(path)) return { status: response.status, body: terminalResponse(path, response.status, response.body) };
   if (footerRoute(path)) return { status: response.status, body: footerResponse(response.status, response.body) };
+  if (departmentsRoute(path)) return { status: response.status, body: departmentsResponse(response.status, response.body) };
   if (sessionsRoute(path) || updatesRoute(path)) return { status: response.status, body: accountSettingsResponse(path, response.status, response.body) };
   if (connectionsRoute(path)) return { status: response.status, body: connectionsResponse(path, response.status, response.body) };
   if (mcpImportPath(path)) return { status: response.status, body: mcpImportResponse(path,response.status,response.body) };

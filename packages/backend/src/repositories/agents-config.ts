@@ -125,6 +125,7 @@ export interface AgentConfigsRepository {
   setPrimary(actor: Actor | null | undefined, id: string): Promise<void>;
   duplicateConfig(actor: Actor | null | undefined, id: string): Promise<AgentConfigRow>;
   deleteConfig(actor: Actor | null | undefined, id: string): Promise<void>;
+  renameDepartment(actor: Actor | null | undefined, input: unknown): Promise<{ from: string; to: string; moved: number }>;
 }
 
 function* rowStep(id: string): Step<AgentConfigRow | undefined> {
@@ -195,6 +196,28 @@ function roleAndDepartment(body: { role?: unknown; department?: unknown }): { ro
 }
 
 export const agentConfigs: AgentConfigsRepository = {
+  /**
+   * Settings › Departments: rename a department, so every agent in it moves to
+   * the new name (each agent's version moves on). Owner only. A department is
+   * the agents' own `department` value; there is no separate list to keep.
+   */
+  async renameDepartment(actor, input) {
+    if (!isOwner(actor)) throw new ScopeError(403, 'Only the owner can rename a department');
+    const body = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null;
+    if (!body || Object.keys(body).some(k => k !== 'from' && k !== 'to')) throw new AgentConfigInputError('from and to are required', 'invalid_input');
+    let from: string | null, to: string | null;
+    try { from = normalizeDepartment(body.from); to = normalizeDepartment(body.to); } catch { throw new AgentConfigInputError('A department is at most 64 characters', 'invalid_input'); }
+    if (!from || !to || /[\u0000-\u001f\u007f]/.test(to)) throw new AgentConfigInputError('from and to are required', 'invalid_input');
+    if (from === to) return { from, to, moved: 0 };
+    const moved = await sql().tx(function* () {
+      const d = yield* dialect();
+      const r = yield* run(`UPDATE agents_config SET department = ?, updated_at = ${nowText(d)} WHERE department = ? AND id != ?`, to, from, RESERVED_AGENT_ID);
+      return r.changes;
+    });
+    if (!moved) throw new AgentConfigError(404, 'No agent is in that department');
+    return { from, to, moved };
+  },
+
   async listConfigs(actor) {
     requireMember(actor);
     return sql().read(all<AgentConfigRow>('SELECT * FROM agents_config ORDER BY is_primary DESC, created_at ASC'));

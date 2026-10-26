@@ -12,16 +12,16 @@ test('A9: a plugin missing from this computer says so instead of On/Off',()=>{
  assert.equal(addonState(plugin('a',{installed:false,enabled:true})),'Not on this computer');assert.equal(addonState(plugin('a',{installed:true,enabled:true})),'On');assert.equal(addonState(plugin('a',{installed:null,enabled:false})),'Off');assert.equal(addonState(plugin('a',{installed:null,enabled:null})),'Unknown');assert.equal(addonState({kind:'hook',installed:false,enabled:null}),'Not run here');
 });
 test('A3: right-click on a tile offers the inspector actions and keeps owner gates',()=>{
- const calls=[];const h=Object.fromEntries(['open','onAccountConnections','onPermissions','onManageConnections','toggle','edit','reconnect','remove'].map(k=>[k,()=>calls.push(k)]));
+ const calls=[];const h=Object.fromEntries(['open','onAccountConnections','onPermissions'].map(k=>[k,()=>calls.push(k)]));
  const labels=items=>items.filter(x=>x!=='sep').map(x=>x.label);
  assert.deepEqual(labels(tileActions({id:'genvr',kind:'api',name:'GenVR'},{owner:true,busy:false},h)),['Open GenVR','Account connection…','Agent permissions…']);
  assert.deepEqual(labels(tileActions({id:'genvr',kind:'api',name:'GenVR'},{owner:false,busy:false},h)),['Open GenVR']);
  assert.deepEqual(labels(tileActions({id:'terminal',kind:'builtin',name:'Terminal'},{owner:true,busy:false},h)),['Open Terminal','Agent permissions…']);
- const mcp={id:'mcp:1',kind:'mcp',name:'Sample'};assert.deepEqual(tileActions(mcp,{owner:false,busy:false,server:{enabled:true}},h),[]);
- const off=tileActions(mcp,{owner:true,busy:false,server:{enabled:false}},h).filter(x=>x!=='sep');assert.deepEqual(labels(off),['Turn on','Edit connection…','Reconnect and refresh tools','Agent permissions…','Manage in MCP connections','Remove connection…']);assert.equal(off.find(x=>x.label.startsWith('Reconnect')).disabled,true);assert.equal(off.find(x=>x.label.startsWith('Remove')).danger,true);
- const busy=tileActions(mcp,{owner:true,busy:true,server:{enabled:true}},h).filter(x=>x!=='sep');assert.equal(busy[0].label,'Turn off');for(const x of busy)if(!['Agent permissions…','Manage in MCP connections'].includes(x.label))assert.equal(x.disabled,true,x.label);
- off.find(x=>x.label==='Manage in MCP connections').run();assert.deepEqual(calls,['onManageConnections']);
- assert.match(src('WorkspaceApplications.tsx'),/onContextMenu=\{e=>contextFor\(e,x\)\}/);
+ // An MCP connection is not an app: it lives in Settings › MCP connections.
+ assert.deepEqual(tileActions({id:'mcp:1',kind:'mcp',name:'Sample'},{owner:true,busy:false},h),[]);
+ const pin={label:'Show in the footer',checked:true,run(){}};assert.deepEqual(labels(tileActions({id:'terminal',kind:'builtin',name:'Terminal'},{owner:true},{...h,footer:pin})),['Open Terminal','Agent permissions…','Show in the footer']);
+ tileActions({id:'genvr',kind:'api',name:'GenVR'},{owner:true},h).find(x=>x.label==='Account connection…').run();assert.deepEqual(calls,['onAccountConnections']);
+ const w=src('WorkspaceApplications.tsx');assert.match(w,/onContextMenu=\{e=>contextFor\(e,x\)\}/);assert.match(w,/\.filter\(x=>x\.kind!=='mcp'\)/);assert.doesNotMatch(w,/Connected services|Add connection/);
 });
 test('A6: the source catalogue uses the board words and letter tiles',()=>{
  assert.deepEqual(sourceFacts({present:true}).map(x=>x[0]),['On this computer','Works in Dpro','Asks for']);assert.equal(sourceFacts({present:false})[0][1],'Not found');
@@ -37,5 +37,8 @@ test('S5: GenVR, Terminal and Code rows can be shown in or hidden from the foote
  assert.deepEqual(toggled,['genvr','terminal','code']);assert.equal(footerToolItem(prefs,'mcp',()=>{}),null);
  assert.equal(footerToolItem({...prefs,hidden:[...prefs.hidden,'genvr']},'genvr',()=>{}).checked,false);assert.equal(footerToolItem({...prefs,hidden:prefs.hidden.filter(x=>x!=='genvr')},'genvr',()=>{}).checked,true);
  assert.match(src('FooterSettings.tsx'),/can be pinned from Apps/);
- const html=renderToStaticMarkup(React.createElement(AppsWorkspace,{client:{getSnapshot:()=>({user:{id:'o',username:'Owner',email:'o@example.test',role:'owner'}})},active:true,onOpen(){},onConnections(){},onPermissions(){}}));assert.match(html,/GenVR/);
+ const html=renderToStaticMarkup(React.createElement(AppsWorkspace,{client:{getSnapshot:()=>({user:{id:'o',username:'Owner',email:'o@example.test',role:'owner'}})},active:true,onOpen(){},onConnections(){},onPermissions(){}}));
+ // Apps is apps only: My apps and Store; MCP connections, Channels, Accounts and the Tools rows are gone from its sidebar.
+ assert.match(html,/>My apps</);assert.match(html,/>Store</);for(const gone of ['MCP connections','Channels','Accounts','Tools','Find more'])assert.doesNotMatch(html,new RegExp('>'+gone+'<'),gone);
+ assert.match(src('WorkspaceApplications.tsx'),/footer:owner\?footerItem\?\.\(x\.id\):null/);
 });

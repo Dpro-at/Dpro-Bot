@@ -109,6 +109,20 @@ export async function agentsConfigRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // POST /api/agents/departments/rename { from, to } — owner only: every agent in `from` moves to `to`.
+  //   400 invalid_input, 403 not the owner, 404 when no agent is in `from`.
+  fastify.post<{ Body: unknown }>('/api/agents/departments/rename', { config: { access: 'owner' } }, async (req, reply) => {
+    const actor = admin(req, reply);
+    if (!actor) return reply;
+    try {
+      return reply.send(await agents().renameDepartment(actor, req.body));
+    } catch (err) {
+      const handled = errorReply(err, reply);
+      if (handled) return handled;
+      return reply.status(500).send({ error: 'Failed to rename the department' });
+    }
+  });
+
   // GET /api/agents/:id — get single agent
   fastify.get<{ Params: { id: string } }>('/api/agents/:id', async (req, reply) => {
     const actor = member(req, reply);

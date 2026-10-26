@@ -21,3 +21,12 @@ test('apps MCP tool reads one connection, its tools and agents without starting,
  for(const input of [{operation:'read'},{operation:'read',id:'../x'},{operation:'read',id,connection:{}},{operation:'grant',id},{operation:'enable',id}]){const n=calls.length;assert.equal((await callTool('workspace_apps',input,{backend})).isError,true);assert.equal(calls.length,n);}
  assert.match(TOOL_DEFINITIONS.find(t=>t.name==='workspace_apps').description,/always off/);
 });
+test('apps MCP tool: My apps apart from MCP connections (they live in Settings), and the Store in one read',async()=>{
+ const id='00000000-0000-0000-0000-000000000001',calls=[],items=[{id:'terminal',kind:'builtin'},{id:'genvr',kind:'api'},{id:'mcp:'+id,kind:'mcp',name:'genvr-local'}];
+ const backend={async request(method,path,body){calls.push({method,path,body});return path==='/api/apps'?{items}:{items:[],total:0,sources:[]};}};
+ const list=await callTool('workspace_apps',{operation:'list'},{backend});
+ assert.deepEqual(list.structuredContent.apps.map(x=>x.id),['terminal','genvr']);assert.deepEqual(list.structuredContent.mcpConnections.map(x=>x.name),['genvr-local']);
+ const n=calls.length;const store=await callTool('workspace_apps',{operation:'store'},{backend});assert.notEqual(store.isError,true);
+ assert.deepEqual(calls.slice(n).map(c=>[c.method,c.path]),[['GET','/api/marketplace/search?limit=100&offset=0'],['GET','/api/chat/addons/catalogue'],['GET','/api/chat/addons']]);
+ const d=TOOL_DEFINITIONS.find(t=>t.name==='workspace_apps').description;assert.match(d,/My apps/);assert.match(d,/Store/);assert.match(d,/MCP connections, Channels and Accounts are places in Settings/);
+});
