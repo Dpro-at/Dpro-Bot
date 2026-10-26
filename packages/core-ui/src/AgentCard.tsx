@@ -4,6 +4,7 @@ import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {AgentSpecialtiesSkills} from './AgentSpecialtiesSkills';
 import {AgentPermissions,usePermissionSave} from './AgentPermissions';
 import {AgentSubAgents} from './AgentSubAgents';
+import {AgentFiles} from './AgentFiles';
 import {createPortal} from 'react-dom';
 import {Avatar,ContextMenu,IconButton,Notice,Sheet,useMenu} from './desktop-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -26,7 +27,7 @@ import { forgetFacts } from './agent-facts';
 
 export const AGENT_SECTIONS: {key:CardTab;label:string;icon:UiIconName}[]=[
  {key:'profile',label:'General',icon:'info'},{key:'persona',label:'Personality',icon:'smile'},
- {key:'skills',label:'Specialties and skills',icon:'layers'},{key:'memory',label:'Memory',icon:'database'},
+ {key:'skills',label:'Specialties and skills',icon:'layers'},{key:'memory',label:'Memory',icon:'database'},{key:'files',label:'Files',icon:'file'},
  {key:'permissions',label:'Permissions',icon:'lock'},{key:'activity',label:'Activity',icon:'clock'},{key:'subs',label:'Sub-agents',icon:'sub-agent'}
 ];
 export const CATEGORY: Record<string, string> = { browser: 'Use the browser', network: 'Reach the internet', message: 'Send messages', delete: 'Delete things', install: 'Install software', money: 'Spend money', settings: 'Change settings' };
@@ -71,6 +72,7 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
       {tab === 'skills' && <AgentSpecialtiesSkills key={s.agentId} client={card.client} agentId={s.agentId} onDone={onDone}/>}
       {tab === 'permissions' && <AgentPermissions card={card} onDone={onDone} onOpenMcp={onOpenMcp}/>}
       {tab === 'activity' && <ActivityPart card={card} onOpenApprovals={onOpenApprovals}/>}
+      {tab === 'files' && <AgentFiles key={s.agentId} client={card.client as never} agentId={s.agentId} name={name} onDone={onDone} onPersonality={() => void card.openTab('persona')}/>}
       {tab === 'subs' && agents && <AgentSubAgents key={s.agentId} client={card.client as never} agentId={s.agentId} agents={agents} onDone={onDone} onOpenAgent={onOpenAgent}/>}
       {tab === 'memory' && <MemoryPart card={card} name={name} onDone={onDone} onOpenMemory={onOpenMemory}/>}
     </>}

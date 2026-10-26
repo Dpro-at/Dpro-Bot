@@ -370,6 +370,12 @@ export function stripPersonalityExport(markdown: string): string {
   return markdown.replace(EXPORT_BLOCK, '\n\n').trim();
 }
 
+/** The generated block as it is in the file (markers included), or null. */
+export function personalityExportBlock(markdown: string): string | null {
+  const m = /<!-- personality-settings:begin[^>]*-->[\s\S]*?<!-- personality-settings:end -->/.exec(markdown);
+  return m ? m[0] : null;
+}
+
 /** Replace (or append) the generated block, keeping the hand-written text. */
 export function upsertPersonalityExport(markdown: string, block: string): string {
   const rest = stripPersonalityExport(markdown);

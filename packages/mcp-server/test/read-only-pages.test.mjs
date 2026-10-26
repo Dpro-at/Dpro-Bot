@@ -108,3 +108,21 @@ test('agents tool: org chart reads, set_reports_to and add_sub_agent with the ap
  for(const input of [{operation:'set_reports_to',id:'b'},{operation:'set_reports_to',id:'b',reportsTo:'../x'},{operation:'add_sub_agent',id:'b'},{operation:'add_sub_agent',id:'b',tools:[],startsAs:'specialty'},{operation:'org',id:'b'},{operation:'sub_agents'},{operation:'sub_agent_work',id:'a/b'}])await refused('agents',input,calls);
  for(const op of ['remove','delete'])await refused('agents',{operation:op,id:'helper-1'},calls,/owner in the app/);
 });
+
+test('agents tool: agent files read, write_file only for Knowledge on a fresh version',async()=>{
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});
+  if(path==='/api/agents/b/library')return {files:[{name:'PERSONALITY.md',kind:'who',size:10,read:true},{name:'MEMORY.md',kind:'mind',size:5,read:true},{name:'notes.md',kind:'knowledge',size:3,read:false}],removed:[]};
+  if(path.startsWith('/api/agents/b/library/file?'))return {name:'notes.md',kind:'knowledge',content:'hi',hash:'a'.repeat(64),managed:null,token:'tok-1'};
+  if(path==='/api/agents/b/library/file'&&method==='PUT')return {hash:'b'.repeat(64),redacted:false};
+  if(path==='/api/agents/b/library/file'&&method==='POST')return {hash:'c'.repeat(64),redacted:true};
+  if(path==='/api/agents/b/library/read')return {name:body.name,read:body.read};
+  throw Error('unexpected '+method+' '+path);}};
+ const f=await callTool('agents',{operation:'files',id:'b'},{backend});assert.notEqual(f.isError,true);
+ assert.deepEqual(f.structuredContent.files.map(x=>[x.name,x.kind,x.read]),[['PERSONALITY.md','who it is',true],['MEMORY.md','what it keeps in mind',true],['notes.md','knowledge',false]]);
+ const one=await callTool('agents',{operation:'file',id:'b',name:'notes.md'},{backend});assert.equal(one.structuredContent.content,'hi');assert.doesNotMatch(JSON.stringify(one),SECRET);
+ await callTool('agents',{operation:'write_file',id:'b',name:'notes.md',content:'new'},{backend});assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/agents/b/library/file',body:{name:'notes.md',content:'new',expectedHash:'a'.repeat(64)}});
+ assert.deepEqual(calls.at(-2),{method:'POST',path:'/api/agents/b/library/read',body:{name:'notes.md',read:false}},'an agent-written file is off until the owner turns it on');
+ const added=await callTool('agents',{operation:'write_file',id:'b',name:'plan.md',content:'x'},{backend});assert.match(added.content[0].text,/secrets were hidden/);assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agents/b/library/file',body:{name:'plan.md',content:'x',read:false}});
+ for(const input of [{operation:'write_file',id:'b',name:'MEMORY.md',content:'x'},{operation:'write_file',id:'b',name:'personality.md',content:'x'},{operation:'write_file',id:'b',name:'run.sh',content:'x'},{operation:'write_file',id:'b',name:'../x.md',content:'x'},{operation:'file',id:'b',name:'x.exe'},{operation:'file',id:'b',name:'PERSONALITY.md'},{operation:'files'}])await refused('agents',input,calls);
+ for(const op of ['remove','delete'])await refused('agents',{operation:op,id:'b',name:'notes.md'},calls,/owner in the app/);
+});

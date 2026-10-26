@@ -180,6 +180,13 @@ export const TIER_RULES: readonly Rule[] = [
   { methods: '*', exact: '/api/agents/:id/tool-grants', access: 'owner' }, // agent permissions (S1.4)
   { methods: '*', exact: '/api/agents/:id/permissions', access: 'owner' }, // memory scope + off/ask/allow (CORE-PERMS-01)
   { methods: ['PUT'], exact: '/api/agents/:id/reports-to', access: 'owner' }, // org chart: who it reports to (AGENTS-ORG-01)
+  { methods: '*', exact: '/api/agents/:id/library', access: 'owner' }, // agent page › Files (AGENT-FILES-01)
+  { methods: '*', exact: '/api/agents/:id/library/file', access: 'owner' },
+  { methods: ['POST'], exact: '/api/agents/:id/library/remove', access: 'owner' },
+  { methods: ['POST'], exact: '/api/agents/:id/library/restore', access: 'owner' },
+  { methods: ['POST'], exact: '/api/agents/:id/library/read', access: 'owner' },
+  { methods: ['GET'], exact: '/api/agents/:id/library/versions', access: 'owner' },
+  { methods: ['GET'], exact: '/api/agents/:id/library/version', access: 'owner' },
   { methods: ['POST'], exact: '/api/agents/:id/sub-agents', access: 'owner' }, // add a sub-agent (AGENTS-ORG-01)
   { methods: ['GET'], exact: '/api/agents/:id/sub-agent-work', access: 'owner' }, // its sub-agents' work (AGENTS-ORG-01)
   { methods: ['POST'], exact: '/api/agents/:id/sub-agent-work/:runId/stop', access: 'owner' }, // stop a quick helper run (AGENTS-ORG-01)

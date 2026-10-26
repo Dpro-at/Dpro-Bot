@@ -14,14 +14,11 @@ import {
   writePersonality,
   readMemorySnapshot,
   writeMemoryCAS,
-  listKnowledgeFiles,
-  readKnowledgeFile,
-  writeKnowledgeFile,
-  deleteKnowledgeFile,
   getAgentFiles,
   initializeAgentDir
 } from '../../services/agent-files.js';
 import { sendInternalError } from '../error-handler.js';
+import { FileLibraryError, addFile, listFiles, listVersions, readFile, readVersion, removeFile, restoreFile, saveFile, setRead } from '../../services/agent-file-library.js';
 
 export async function agentFilesRoutes(fastify: FastifyInstance) {
   /**
@@ -101,106 +98,58 @@ export async function agentFilesRoutes(fastify: FastifyInstance) {
     return reply.code(409).send({code:'memory_review_required'});
   });
 
-  /**
-   * GET /api/agents/:id/knowledge - List knowledge files
-   */
-  fastify.get<{ Params: { id: string } }>(
-    '/api/agents/:id/knowledge',
-    async (request, reply) => {
-      const { id } = request.params;
-
-      try {
-        const files = await listKnowledgeFiles(id);
-        return {
-          success: true,
-          files
-        };
-      } catch (err: any) {
-        return sendInternalError(reply, '[AgentFiles] GET /api/agents/:id/knowledge', err);
-      }
-    }
-  );
-
-  /**
-   * GET /api/agents/:id/knowledge/:filename - Read knowledge file
-   */
-  fastify.get<{ Params: { id: string; filename: string } }>(
-    '/api/agents/:id/knowledge/*',
-    async (request, reply) => {
-      const { id } = request.params;
-      const filename = (request.params as any)['*'];
-
-      try {
-        const content = await readKnowledgeFile(id, filename);
-        return {
-          success: true,
-          filename,
-          content
-        };
-      } catch (err: any) {
-        return reply.code(404).send({
-          success: false,
-          error: 'File not found'
-        });
-      }
-    }
-  );
-
-  /**
-   * PUT /api/agents/:id/knowledge/:filename - Write knowledge file
-   */
-  fastify.put<{ Params: { id: string }; Body: { filename: string; content: string } }>(
-    '/api/agents/:id/knowledge',
-    async (request, reply) => {
-      const { id } = request.params;
-      const { filename, content } = request.body;
-
-      if (!filename || !content) {
-        return reply.code(400).send({
-          success: false,
-          error: 'filename and content are required'
-        });
-      }
-
-      try {
-        await writeKnowledgeFile(id, filename, content);
-        return {
-          success: true,
-          message: 'File saved'
-        };
-      } catch (err: any) {
-        return sendInternalError(reply, '[AgentFiles] PUT /api/agents/:id/knowledge', err);
-      }
-    }
-  );
-
-  /**
-   * DELETE /api/agents/:id/knowledge/:filename - Delete knowledge file
-   */
-  fastify.delete<{ Params: { id: string }; Body: { filename: string } }>(
-    '/api/agents/:id/knowledge',
-    async (request, reply) => {
-      const { id } = request.params;
-      const { filename } = request.body;
-
-      if (!filename) {
-        return reply.code(400).send({
-          success: false,
-          error: 'filename is required'
-        });
-      }
-
-      try {
-        await deleteKnowledgeFile(id, filename);
-        return {
-          success: true,
-          message: 'File deleted'
-        };
-      } catch (err: any) {
-        return sendInternalError(reply, '[AgentFiles] DELETE /api/agents/:id/knowledge', err);
-      }
-    }
-  );
+  // Agent page › Files (AGENT-FILES-01): owner only. The old unguarded /knowledge routes are gone.
+  //   GET  …/library                      { files: [{ name, kind, size, read }], removed: [{ id, name, removedAt }] }
+  //   GET  …/library/file?name=           { name, kind, content, hash, managed, redacted, read }
+  //   PUT  …/library/file                 { name, content, expectedHash } → { hash, redacted } (409 changed, 413 too_large)
+  //   POST …/library/file                 { name, content, read? } → add a Knowledge file (409 name_taken)
+  //   POST …/library/remove | /restore | /read     { name } | { id } | { name, read }
+  //   GET  …/library/versions?name=  and  …/library/version?name=&id=
+  const libraryOwner=(request:any,reply:any)=>{reply.header('Cache-Control','no-store');if(!actorOrReply(reply,actorOf(request),requireOwner))return false;if(!validAgentFileId(request.params.id)){reply.code(400).send({code:'invalid_agent'});return false;}return true;};
+  const libraryFail=(reply:any,error:unknown)=>error instanceof FileLibraryError?reply.code(error.status).send({code:error.code}):reply.code(503).send({code:'files_unavailable'});
+  const only=(body:unknown,keys:string[])=>!!body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body as object).every(k=>keys.includes(k));
+  const lib={config:{access:'owner' as const}};
+  fastify.get<{Params:{id:string}}>('/api/agents/:id/library',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    try{return await listFiles(request.params.id);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.get<{Params:{id:string};Querystring:{name?:string}}>('/api/agents/:id/library/file',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    try{return await readFile(request.params.id,request.query.name);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.put<{Params:{id:string};Body:{name?:unknown;content?:unknown;expectedHash?:unknown}}>('/api/agents/:id/library/file',{...lib,bodyLimit:3*1024*1024},async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    const b=request.body;if(!only(b,['name','content','expectedHash'])||!b||!('expectedHash' in b))return reply.code(400).send({code:'invalid_input'});
+    try{return await saveFile(request.params.id,b.name,b.content,b.expectedHash);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.post<{Params:{id:string};Body:{name?:unknown;content?:unknown;read?:unknown}}>('/api/agents/:id/library/file',{...lib,bodyLimit:3*1024*1024},async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    const b=request.body;if(!only(b,['name','content','read']))return reply.code(400).send({code:'invalid_input'});
+    try{return reply.code(201).send(await addFile(request.params.id,b.name,b.content,b.read??true));}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.post<{Params:{id:string};Body:{name?:unknown}}>('/api/agents/:id/library/remove',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    if(!only(request.body,['name']))return reply.code(400).send({code:'invalid_input'});
+    try{return await removeFile(request.params.id,request.body.name);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.post<{Params:{id:string};Body:{id?:unknown}}>('/api/agents/:id/library/restore',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    if(!only(request.body,['id']))return reply.code(400).send({code:'invalid_input'});
+    try{return await restoreFile(request.params.id,request.body.id);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.post<{Params:{id:string};Body:{name?:unknown;read?:unknown}}>('/api/agents/:id/library/read',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    if(!only(request.body,['name','read']))return reply.code(400).send({code:'invalid_input'});
+    try{return await setRead(request.params.id,request.body.name,request.body.read);}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.get<{Params:{id:string};Querystring:{name?:string}}>('/api/agents/:id/library/versions',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    try{return {versions:await listVersions(request.params.id,request.query.name)};}catch(error){return libraryFail(reply,error);}
+  });
+  fastify.get<{Params:{id:string};Querystring:{name?:string;id?:string}}>('/api/agents/:id/library/version',lib,async(request,reply)=>{
+    if(!libraryOwner(request,reply))return reply;
+    try{return await readVersion(request.params.id,request.query.name,request.query.id);}catch(error){return libraryFail(reply,error);}
+  });
 
   /**
    * GET /api/agents/:id/files - Get all agent files
