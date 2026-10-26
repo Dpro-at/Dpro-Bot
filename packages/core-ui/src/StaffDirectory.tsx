@@ -34,7 +34,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  const rows=useRef<HTMLDivElement>(null);const menu=useMenu();
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
  const q=query.trim().toLowerCase();
- const shown=s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role)].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??''));
+ const shown=s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role),a.description].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??''));
  const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client),library=useLibraryEntries(controller.client,owner);
  const agent=shown.find(a=>a.id===selected);
  const say=(text:string,undo=false)=>setToast({id:Date.now(),text,undo});
@@ -50,10 +50,12 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   ...(onMemory?[{label:'Saved memories',icon:'brain' as UiIconName,run:()=>onMemory(a.id)}]:[]),
   ...(owner?['sep' as const,{label:'Remove agent…',icon:'trash' as UiIconName,danger:true,shortcut:'⌫',disabled:busy,run:()=>setRemoving(a)}]:[])];
  function select(id:string){setSelected(id);}
+ // ⌘F and ⌘N work anywhere on the staff page while it is shown and no sheet is open (not only inside the list).
+ const page=useRef<HTMLElement>(null);
+ useEffect(()=>{const on=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey||!page.current?.offsetParent||document.querySelector('dialog[open],[role="dialog"]'))return;const k=e.key.toLowerCase();
+  if(k==='f'){e.preventDefault();document.getElementById('ag-staff-search')?.focus();}else if(k==='n'&&onHire){e.preventDefault();onHire();}};window.addEventListener('keydown',on);return()=>window.removeEventListener('keydown',on);},[onHire]);
  function key(e:ReactKeyboardEvent){
   const mod=e.metaKey||e.ctrlKey;
-  if(mod&&e.key.toLowerCase()==='f'){e.preventDefault();document.getElementById('ag-staff-search')?.focus();}
-  if(mod&&e.key.toLowerCase()==='n'&&onHire){e.preventDefault();onHire();}
   if(e.key==='Escape'&&!menu.menu)setSelected(null);
  }
  function rowKey(e:ReactKeyboardEvent<HTMLButtonElement>,a:PublicAgent){
@@ -63,7 +65,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  }
  function move(e:ReactKeyboardEvent){if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();const at=shown.findIndex(a=>a.id===selected),n=e.key==='Home'?0:e.key==='End'?shown.length-1:Math.max(0,Math.min(shown.length-1,at+(e.key==='ArrowDown'?1:-1)));if(shown[n]){select(shown[n].id);rows.current?.querySelectorAll<HTMLButtonElement>('[role=option]')[n]?.focus();}}
  const title=department==='all'?'All staff':department==='main'?'Main agent':departmentName(department==='none'?null:department);
- return <section className="ag-staff" aria-label="Staff directory" onKeyDown={key}>
+ return <section ref={page} className="ag-staff" aria-label="Staff directory" onKeyDown={key}>
  <div className="ag-list-pane">
   <header className="ag-toolbar"><h2>{title}</h2>
    <span className="ag-anchor" data-popover-anchor><IconButton icon="filter" label="Show" pressed={showing||role!=='all'||sort!=='name'} onClick={()=>setShowing(v=>!v)}/>
