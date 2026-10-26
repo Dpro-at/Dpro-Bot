@@ -28,6 +28,10 @@ export function createAgentsMock() {
   const grants = new Map<string, { version: number; tools: string[] }>();
   const permissions = new Map<string, { agentId: string; memoryRead: string[]; memoryWrite: string[]; sharedMemory: boolean; modes: Record<string, string>; version: number }>();
   let hired = 0;
+  // AGENTS-ORG-01 offline: the first agent is the main agent; everyone else reports to it unless moved.
+  const reports = new Map<string, string>();
+  const withOrg = (a: Extract<PublicAgent, { name: string }>) => a.id === 'sample-main' ? { ...a, isPrimary: true, placed: 'main', manager: null, reportsTo: null, subAgentOf: null } : { ...a, placed: reports.has(a.id) ? 'set' : 'auto', manager: reports.get(a.id) ?? 'sample-main', reportsTo: reports.get(a.id) ?? null, subAgentOf: null };
+  const fictionalFile = (name: string) => ({ name, kind: name === 'PERSONALITY.md' ? 'who' : 'mind', content: name === 'PERSONALITY.md' ? '# Offline practice\nA fictional agent file.' : '', hash: null, managed: null, redacted: false, read: true });
   const grantsView = (id: string, withAvailable: boolean) => {
     const g = grants.get(id) ?? { version: 1, tools: [...defaultGrants] }; grants.set(id, g);
     return { agentId: id, source: 'default', parentAgentId: null, version: g.version, grants: g.tools.map(tool => ({ tool, scopes: null })),
@@ -68,7 +72,24 @@ export function createAgentsMock() {
     // Test-only concurrent fictional writer, never a UI transport escape hatch.
     update,
     transport(request: WireRequest): WireResponse {
-      if (request.method === 'GET' && request.path === '/api/agents') return { status: 200, body: { agents: [...rows.values()].map(a => ({ ...a })) } };
+      if (request.method === 'GET' && request.path === '/api/agents') return { status: 200, body: { agents: [...rows.values()].map(withOrg) } };
+      const org = /^\/api\/agents\/([^/]+)\/reports-to$/.exec(request.path);
+      if (org && request.method === 'PUT') {
+        const a = rows.get(org[1]); const to = (request.body as { reportsTo?: string | null }).reportsTo ?? null;
+        if (!a) return { status: 404, body: { code: 'not_found' } };
+        if (a.id === 'sample-main') return { status: 400, body: { code: 'main_fixed' } };
+        if (to !== null && (!rows.has(to) || to === a.id)) return { status: 400, body: { code: 'invalid_target' } };
+        if (to === null) reports.delete(a.id); else reports.set(a.id, to);
+        const next = { ...a, version: a.version + 1 }; rows.set(a.id, next);
+        return { status: 200, body: { id: a.id, reportsTo: to, version: next.version } };
+      }
+      const lib = /^\/api\/agents\/([^/]+)\/library(\/file)?(\?.*)?$/.exec(request.path);
+      if (lib && request.method === 'GET' && rows.has(lib[1])) {
+        if (!lib[2]) return { status: 200, body: { files: [{ name: 'PERSONALITY.md', kind: 'who', size: 40, read: true }, { name: 'MEMORY.md', kind: 'mind', size: 0, read: true }], removed: [] } };
+        const name = new URLSearchParams((lib[3] ?? '').slice(1)).get('name') ?? '';
+        return name === 'PERSONALITY.md' || name === 'MEMORY.md' ? { status: 200, body: fictionalFile(name) } : { status: 404, body: { code: 'not_found' } };
+      }
+      if (request.path === '/api/me/agents-chart') return request.method === 'GET' ? { status: 200, body: { chart: { view: 'list', mode: 'reports', lines: 'elbow', zoom: 1, folded: [] } } } : { status: 200, body: { chart: { view: 'list', mode: 'reports', lines: 'elbow', zoom: 1, folded: [], ...(request.body as object) } } };
       if (request.method === 'POST' && request.path === '/api/agents/name-suggestion') {
         const b = request.body as { language: string; exclude: string[] }; let n = 1; let name = 'Offline candidate';
         while (registry.has(namingKey(name)) || b.exclude.some(x => namingKey(x) === namingKey(name))) name = `Offline candidate ${++n}`;
