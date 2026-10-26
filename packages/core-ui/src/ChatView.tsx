@@ -253,7 +253,7 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
           : 'Choose who replies, add a project if needed, and write your message.'}</p>
-        <details className="chat-starting-ideas"><summary>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
+        <details className="chat-starting-ideas"><summary><UiIcon name="chevron" size={12}/>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
           <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}><UiIcon name="compose" size={14}/>{t}</button>)}</div></details>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
         {s.turns.map((t, i) => t.role === 'user'

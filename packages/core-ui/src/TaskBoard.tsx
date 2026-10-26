@@ -55,7 +55,7 @@ function BoardRail({ controller, onNew, onPick, busy }: { controller: BoardContr
   const shared = s.boards.filter(b => b.kind === 'shared');
   const item = (b: BoardSummary) => <li key={b.id}>
     <button type="button" className="board-rail-item" aria-current={b.id === s.boardId ? 'page' : undefined} disabled={busy} onClick={() => onPick(b.id)} title={b.description || b.name}>
-      <span className="board-swatch small" data-color={b.color} aria-hidden="true"/><span className="board-rail-name">{b.name}</span><span className="board-count">{b.cards}</span>
+      <span className="board-swatch small" data-color={b.color} aria-hidden="true"/><span className="board-rail-name">{b.name.charAt(0).toUpperCase()+b.name.slice(1)}</span>{b.cards>0&&<span className="board-count">{b.cards}</span>}
     </button>
   </li>;
   return <nav className="board-rail" aria-label="Boards">

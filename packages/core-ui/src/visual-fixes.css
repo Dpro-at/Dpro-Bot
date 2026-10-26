@@ -102,3 +102,25 @@
 .app-shell .apps-addon-cards { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
 .app-shell .apps-addon-card li > span { flex:1; min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-shell .apps-addon-card li > small { flex:none; white-space:nowrap; }
+
+/* 14 · Board: the usual five columns share the window width (no half column at the edge); empty boards show no "0". */
+.app-shell .board-columns .board-column { flex:1 0 210px; min-inline-size:210px; max-inline-size:340px; }
+.app-shell .board-rail-item { min-inline-size:0; }
+.app-shell .board-rail-name { min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .board-rail-item .board-count { flex:none; }
+
+/* 11 · Agents › Chart: the hint and the zoom/line buttons sit in a bar under the chart, never over the last row; the fold arrow has its own room on the card. */
+.app-shell .oc-wrap { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:minmax(0,1fr) auto; }
+.app-shell .oc-wrap > .oc-plane { grid-column:1 / -1; grid-row:1; }
+.app-shell .oc-wrap > .oc-hint { position:static; grid-row:2; grid-column:1; align-self:center; padding:6px 16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .oc-wrap > .oc-zoom { position:static; grid-row:2; grid-column:2; margin:6px 14px 8px; }
+.app-shell .oc-slot:has(> .oc-fold) > .oc-card { padding-inline-end:28px; }
+
+/* 26 · Terminal › Sessions: the empty state's button is centred with its sentence. */
+.app-shell .dk-empty > button { justify-self:center; }
+
+/* 35 · Chat: "Start with a task" opens with a chevron, not a text arrow. */
+.app-shell .chat-starting-ideas > summary { list-style:none; display:inline-flex; align-items:center; gap:6px; cursor:default; }
+.app-shell .chat-starting-ideas > summary::-webkit-details-marker { display:none; }
+.app-shell .chat-starting-ideas > summary > svg { transition:rotate .12s; }
+.app-shell .chat-starting-ideas[open] > summary > svg { rotate:90deg; }
