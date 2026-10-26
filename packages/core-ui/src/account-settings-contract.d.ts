@@ -1,0 +1,11 @@
+export type DeviceSession = { id: string; label: string; createdAt: number; lastSeenAt: number; current: boolean };
+export type UpdateState = { kind: 'git' | 'installed'; version: string; branch: string | null; follows: string | null; behind: number | null; ahead: number | null; lookedAt: number | null; command: 'agent-player update' | null; looked?: boolean };
+export const SESSIONS_PATH: '/api/auth/sessions';
+export const UPDATES_PATH: '/api/system/updates';
+export const UPDATES_CHECK_PATH: '/api/system/updates/check';
+export function sessionsRoute(path: string): boolean;
+export function updatesRoute(path: string): boolean;
+export function allowedAccountSettings(method: string, path: string, body?: unknown): boolean;
+export function accountSettingsResponse(path: string, status: number, body: unknown): { sessions: DeviceSession[] } | { success: true } | UpdateState | { code: string };
+export const DEVICE_LABEL_HEADER: 'x-dpro-device-label';
+export function deviceLabel(userAgent: unknown): string;

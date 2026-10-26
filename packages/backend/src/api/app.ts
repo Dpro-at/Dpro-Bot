@@ -69,6 +69,7 @@ import { teamPlanRoutes } from './routes/team-plan.js'; // ONBOARD-TEAM-01: comp
 import { gatewayRoutes } from './routes/gateway.js';
 import { authRoutes } from './routes/auth.js';
 import { verificationRoutes } from './routes/verification.js';
+import { deviceSessionRoutes } from './routes/device-sessions.js';
 import { reviewerPolicyRoutes } from './routes/reviewer-policies.js';
 import { reviewerRequestRoutes } from './routes/reviewer-requests.js';
 import { reviewerVoteRoutes } from './routes/reviewer-votes.js';
@@ -121,6 +122,7 @@ import { worldGeneratorRoutes } from './routes/world-generator.js';
 import { worldBuilderRoutes } from './routes/world-builder.js';
 import { extensionsRoutes } from './routes/extensions.js';
 import { systemRoutes } from './routes/system.js';
+import { appUpdateRoutes } from './routes/app-updates.js';
 import { registerTelephonyRoutes } from './routes/telephony.js';
 import { agentFilesRoutes } from './routes/agent-files.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
@@ -324,6 +326,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(setupRoutes); // 🛠️ Setup Wizard (First-Time Installation)
   await fastify.register(authRoutes); // 🔐 Authentication
   await fastify.register(verificationRoutes);
+  await fastify.register(deviceSessionRoutes); // Settings › Account › Signed in
   await fastify.register(reviewerPolicyRoutes);
   await fastify.register(reviewerRequestRoutes);
   await fastify.register(reviewerVoteRoutes);
@@ -432,6 +435,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(extensionsRoutes);    // 🔌 Extensions Management (SDK-based)
   await fastify.register(marketplaceRoutes);   // 🛒 Extension Marketplace (Registry, Install, Reviews)
   await fastify.register(registerTelephonyRoutes); // ☎️ Telephony / Assistant Center (Call Center)
+  await fastify.register(appUpdateRoutes()); // Settings › About and updates (owner)
   await fastify.register(systemRoutes);        // ⚙️ System Operations (Restart, Shutdown)
   await fastify.register(agentFilesRoutes);    // 📝 Agent Files (PERSONALITY.md + MEMORY.md)
   await fastify.register(registerDashboardRoutes); // 📊 Customizable Dashboard (Widgets + Layouts)

@@ -75,7 +75,7 @@ test('mocked HTTP client wiring: fixture → explicit live login → me → read
 test('auth responses project user fields and never relay cookie or error secrets', async t => {
   const s = await setup(t);
   const login = await s.request('/api/auth/login', { method: 'POST', body: { email: 'a', password: 'b' }, headers: { Cookie: 'ignored=private', 'User-Agent': 'not-forwarded' } });
-  assert.equal(login.status, 200); assert.ok(!login.text.includes('api_key')); assert.equal(s.calls[0].headers.cookie, undefined); assert.equal(s.calls[0].headers['user-agent'], undefined);
+  assert.equal(login.status, 200); assert.ok(!login.text.includes('api_key')); assert.equal(s.calls[0].headers.cookie, undefined); assert.equal(s.calls[0].headers['user-agent'], undefined); assert.equal(s.calls[0].headers['x-dpro-device-label'], 'Unknown device');
   const me = await s.request('/api/auth/me'); assert.ok(!me.text.includes(token));
   for (const [k,v] of Object.entries(HEADERS)) assert.equal(login.headers[k.toLowerCase()], v);
 });

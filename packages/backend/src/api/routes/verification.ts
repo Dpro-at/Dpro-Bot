@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {verifyRequestTokenAsync,AuthTokenError} from '../../auth/jwt.js';
 import {sql,one} from '../../repositories/sql-steps.js';
 import {loginThrottle} from '../../repositories/index.js';
-import {beginEnrollment,activateEnrollment,revokeFactorWithChallenge,factorRevocationOperation} from '../../auth/verification/enrollment.js';
+import {beginEnrollment,activateEnrollment,revokeFactorWithChallenge,factorRevocationOperation,recoveryCodesLeft,recoveryRotationOperation,rotateRecoveryCodes} from '../../auth/verification/enrollment.js';
 import {issueChallenge} from '../../auth/verification/challenges.js';
 import {changePasswordRateLimit} from '../rate-limit-config.js';
 import {isSystemAccount} from '../../auth/default-accounts.js';
@@ -40,10 +40,11 @@ export async function verificationRoutes(app:FastifyInstance){
    if(Object.keys(request.query as object).length)return reply.code(400).send(invalid);
    const {row}=await account(request);
    const factor=await sql().read(one<{enabled:number}>('SELECT enabled FROM verification_factors WHERE user_id=?',row.id));
-   return {enabled:Number(factor?.enabled??0)===1};
+   const enabled=Number(factor?.enabled??0)===1;
+   return enabled?{enabled,recoveryLeft:await recoveryCodesLeft(row.id)}:{enabled};
   }catch(error){return reply.code(error instanceof AuthTokenError?401:503).send(invalid);}
  });
- for(const action of ['enroll','confirm','disable'] as const){
+ for(const action of ['enroll','confirm','disable','recovery-codes'] as const){
   const extra=action==='enroll'?{}:{code:{type:'string',pattern:'^[0-9]{6}$'}};
   app.post('/api/auth/verification/'+action,{config:{rateLimit:changePasswordRateLimit},preValidation:async(request,reply)=>{
    const allowed=action==='enroll'?['password']:['password','code'];
@@ -59,6 +60,12 @@ export async function verificationRoutes(app:FastifyInstance){
     }
     const factor=await sql().read(one<{enabled:number;version:number}>('SELECT enabled,version FROM verification_factors WHERE user_id=?',row.id));
     if(!factor||Number(factor.enabled)!==1)return reply.code(403).send(invalid);
+    if(action==='recovery-codes'){
+     // New recovery codes replace the old ones; the sign-in of every device stays.
+     const rotation={...binding,purpose:'rotate_recovery' as const,factorVersion:Number(factor.version),operationHash:recoveryRotationOperation(row.id,Number(factor.version))};
+     const recoveryCodes=await rotateRecoveryCodes((await issueChallenge(rotation)).token,rotation,body.code);
+     return recoveryCodes?{recoveryCodes}:reply.code(403).send(invalid);
+    }
     const context={...binding,purpose:'disable' as const,factorVersion:Number(factor.version),operationHash:factorRevocationOperation(row.id,Number(factor.version),'totp')};
     const issued=await issueChallenge(context);
     if(!(await revokeFactorWithChallenge(issued.token,context,body.code,'totp')))return reply.code(403).send(invalid);
