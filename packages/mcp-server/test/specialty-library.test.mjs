@@ -7,10 +7,9 @@ test('specialty MCP operations use the owner-only specialty routes',async()=>{
  for(const [args,method,path,body] of [
   [{operation:'list'},'GET',P,undefined],[{operation:'catalogue'},'GET',P+'/catalogue',undefined],[{operation:'read',id},'GET',`${P}/${id}`,undefined],
   [{operation:'agents',id},'GET',`${P}/${id}/agents`,undefined],[{operation:'impact',id},'GET',`${P}/${id}/impact`,undefined],[{operation:'assigned',agentId:'main-agent'},'GET',`${P}/assigned/main-agent`,undefined],
-  [{operation:'give',id,agentId:'main-agent',revision:3},'POST',`${P}/${id}/agents`,{agentId:'main-agent',revision:3,linked:true}],
-  [{operation:'takeBack',id,agentId:'main-agent',revision:3},'POST',`${P}/${id}/agents`,{agentId:'main-agent',revision:3,linked:false}],
   [{operation:'preview',id,body:draft},'POST',`${P}/${id}/preview`,draft],[{operation:'save',id,body:draft},'PUT',`${P}/${id}`,draft],
-  [{operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:false,linked:true}},'POST',P+'/hire',{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:false,linked:true}]]){
+  [{operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true}},'POST',P+'/hire',{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:false,linked:true}],
+  [{operation:'hire',body:{templateId:id,revision:1,requestId,name:'Lina',confirmed:true,libraryPersonality:{id:'temperament-calm',revision:2}}},'POST',P+'/hire',{templateId:id,revision:1,requestId,name:'Lina',confirmed:true,confirmRisky:false,linked:true,libraryPersonality:{id:'temperament-calm',revision:2}}]]){
   const out=await callTool('specialty_library',args,{backend});assert.notEqual(out.isError,true,JSON.stringify(args));assert.deepEqual(calls.at(-1),{method,path,body});
  }
  assert.ok(TOOL_DEFINITIONS.some(t=>t.name==='specialty_library'));
@@ -19,10 +18,17 @@ test('specialty MCP tool keeps the owner gates of the page',async()=>{
  const calls=[],backend={async request(method,path,body){calls.push({method,path,body});return {};}};
  for(const args of [
   {operation:'save',id,body:{...draft,confirmImpact:'a'.repeat(64)}},
-  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:false,confirmRisky:false}},
-  {operation:'hire',body:{templateId:id,revision:1,confirmed:true,confirmRisky:false}},
-  {operation:'read',id:'../keys'},{operation:'give',id,agentId:'small-local-agent',revision:1},{operation:'give',id,agentId:'main-agent'},
-  {operation:'give',id,agentId:'main-agent',revision:1,body:{linked:false}},{operation:'list',body:{}},{operation:'assigned',agentId:'../x'},{operation:'remove',id},{operation:'list',extra:true}]){
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:false}},
+  {operation:'hire',body:{templateId:id,revision:1,confirmed:true}},
+  // Sensitive-action consent and the link choice are the owner's, in the app.
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:true}},
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,confirmRisky:false}},
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,linked:false}},
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,permissions:{modes:{money:'allow'}}}},
+  {operation:'hire',body:{templateId:id,revision:1,requestId,confirmed:true,libraryPersonality:{id:'calm',revision:1,extra:true}}},
+  // Giving to existing agents or taking back is done in the app after its review sheet.
+  {operation:'give',id,agentId:'main-agent',revision:1},{operation:'takeBack',id,agentId:'main-agent',revision:1},
+  {operation:'read',id:'../keys'},{operation:'read',id,agentId:'main-agent'},{operation:'list',body:{}},{operation:'assigned',agentId:'../x'},{operation:'remove',id},{operation:'list',extra:true}]){
   const n=calls.length;assert.equal((await callTool('specialty_library',args,{backend})).isError,true,JSON.stringify(args));assert.equal(calls.length,n);
  }
 });
