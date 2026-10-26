@@ -97,3 +97,45 @@
 .oc-group-hot{box-shadow:inset 0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .oc-group-tag{inset-block-end:auto;inset-block-start:-26px;inset-inline-start:8px}
 .oc-slot[data-dept]:not([data-dept=""]) .oc-card{border-inline-start-width:3px}
+
+/* Agent page › Files (boards AF1–AF2) */
+.af-part{max-inline-size:none}
+.af-grid{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;min-block-size:520px}
+.af-list{display:flex;flex-direction:column;gap:6px;min-inline-size:0}
+.af-list [role="listbox"]{display:grid;gap:2px}
+.af-row{display:flex!important;align-items:center;gap:9px;inline-size:100%;padding:6px 8px;border:0;border-radius:8px;background:transparent;text-align:start;box-shadow:none}
+.af-row:hover{background:var(--row-hover)}
+.af-row[aria-selected="true"]{background:var(--row-active);box-shadow:inset 2px 0 0 var(--accent)}
+.af-row-text{display:grid;gap:1px;min-inline-size:0}
+.af-row-text>span{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.af-row-text small{font-size:10.5px;color:var(--text-3)}
+.af-tile{inline-size:26px;block-size:26px;flex:none;display:grid;place-items:center;border-radius:7px;background:var(--secondary);color:var(--text-2)}
+.af-who{background:color-mix(in srgb,#C4A5FF 20%,transparent);color:#8A63E0}
+.af-mind{background:color-mix(in srgb,#6FD3C7 20%,transparent);color:#1E8C80}
+.af-knowledge{background:color-mix(in srgb,#9DBBFF 20%,transparent);color:#3B6FD8}
+.af-off{opacity:.55}
+.af-empty{padding:18px 8px}
+.af-removed-row{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 43px;font-size:12px}
+.af-removed-row span{flex:1;overflow:hidden;text-overflow:ellipsis}
+.af-drop{margin:8px 0 0;padding:12px;border-radius:10px;border:1.5px dashed var(--border);color:var(--text-3);font-size:11.5px;text-align:center;line-height:1.5}
+.af-dropping .af-drop{border-color:var(--accent);color:var(--text)}
+.af-doc{display:flex;flex-direction:column;gap:10px;min-inline-size:0}
+.af-doc-head{display:flex;align-items:center;gap:6px}
+.af-doc-head>span:first-child{display:grid;gap:1px;margin-inline-end:auto}
+.af-doc-head b{font-size:14px}
+.af-doc-head small{font-size:11px;color:var(--text-3)}
+.af-managed{display:grid;gap:6px;padding:10px 12px;border-radius:10px;background:var(--secondary);color:var(--text-2);font-size:12.5px}
+.af-managed>span{display:flex;align-items:center;gap:8px}
+.af-managed>span button{margin-inline-start:auto}
+.af-managed pre{margin:0;white-space:pre-wrap;font-size:11.5px;max-block-size:120px;overflow:auto}
+.af-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--accent) 9%,transparent);font-size:12.5px}
+.af-changed button{margin-inline-start:4px}
+.af-status{display:flex;gap:10px;margin:0;font-size:11.5px;color:var(--text-3);min-block-size:16px}
+.af-status span{margin-inline-start:auto}
+.af-versions{display:grid;gap:2px;inline-size:240px;max-block-size:300px;overflow:auto}
+.af-versions button{display:flex!important;justify-content:space-between;gap:8px;padding:6px 8px;border:0;border-radius:6px;background:transparent;font-size:12px;box-shadow:none}
+.af-versions button:hover{background:var(--row-hover)}
+.af-versions small{color:var(--text-3)}
+.af-starts{grid-template-columns:1fr 1fr}
+.af-doc .document-editor.doc-inline{min-block-size:420px}
+@media (max-width:950px){.af-grid{grid-template-columns:1fr}}

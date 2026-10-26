@@ -42,6 +42,7 @@ import { allowedTerminal, terminalPath, terminalRoute, terminalResponse, Termina
 import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js';
 import { allowedDepartments, departmentsRoute, departmentsResponse } from './departments-contract.js';
 import { allowedOrg, orgRoute, orgResponse } from './org-contract.js';
+import { allowedLibrary as allowedAgentLibrary, libraryRoute as agentLibraryRoute, libraryResponse as agentLibraryResponse } from './agent-library-contract.js';
 import { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute } from './account-settings-contract.js';
 import type { TerminalFrame } from './terminal-contract.js';
 import { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_IDLE_MS, RUN_STREAM_MS } from './conversation-contract.js';
@@ -119,6 +120,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (footerRoute(path)) return allowedFooter(method, path, body);
   if (departmentsRoute(path)) return allowedDepartments(method, path, body);
   if (orgRoute(path)) return allowedOrg(method, path, body);
+  if (agentLibraryRoute(path)) return allowedAgentLibrary(method, path, body);
   if (sessionsRoute(path) || updatesRoute(path)) return allowedAccountSettings(method, path, body);
   if (memoryDesktopRoute(path)) return allowedMemoryDesktop(method, path, body);
   if (memoryPagesRoute(path)) return allowedMemoryPages(method, path, body);
@@ -203,6 +205,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (footerRoute(path)) return { status: response.status, body: footerResponse(response.status, response.body) };
   if (departmentsRoute(path)) return { status: response.status, body: departmentsResponse(response.status, response.body) };
   if (orgRoute(path)) return { status: response.status, body: orgResponse(path, response.status, response.body) };
+  if (agentLibraryRoute(path)) return { status: response.status, body: agentLibraryResponse(path, response.status, response.body) };
   if (sessionsRoute(path) || updatesRoute(path)) return { status: response.status, body: accountSettingsResponse(path, response.status, response.body) };
   if (connectionsRoute(path)) return { status: response.status, body: connectionsResponse(path, response.status, response.body) };
   if (mcpImportPath(path)) return { status: response.status, body: mcpImportResponse(path,response.status,response.body) };
@@ -518,6 +521,7 @@ export class SessionClient {
     if (request.method === 'POST' && request.path.startsWith('/api/memory/') && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if ((personalityRoute(request.path) || cardRoute(request.path) || (request.method === 'DELETE' && !conversationRoute(request.path) && !chatSecretsRoute(request.path))) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (orgRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
+    if (agentLibraryRoute(request.path) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     if (((request.method === 'POST' && request.path === '/api/agents') || grantsAgentId(request.path) || request.path === CATALOGUE_PATH || request.path === PLAN_PATH || request.path === DISTRIBUTION_PATH || request.path === BATCHES_PATH || batchPath(request.path) || permissionsAgentId(request.path) || request.path === BOARDS_PATH || request.path.startsWith(`${BOARDS_PATH}/`)) && this.#state.user?.role !== 'owner') throw new SessionFailure('blocked');
     const epoch = this.#state.epoch;
     const result = await this.#send(request.method, request.path, 'body' in request ? request.body : undefined, this.#token, epoch, signal);

@@ -40,6 +40,7 @@ const { allowedTerminal, terminalPath, terminalRoute, terminalResponse, Terminal
 const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-contract.js');
 const { allowedDepartments, departmentsRoute, departmentsResponse } = require('../src/departments-contract.js');
 const { allowedOrg, orgRoute, orgResponse, orgFields } = require('../src/org-contract.js');
+const { allowedLibrary: allowedAgentLibrary, libraryRoute: agentLibraryRoute, libraryResponse: agentLibraryResponse } = require('../src/agent-library-contract.js');
 const { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute, deviceLabel, DEVICE_LABEL_HEADER } = require('../src/account-settings-contract.js');
 const { allowedConversation, conversationPath, conversationRoute, conversationResponse, RunEventParser, RUN_STREAM_MS, RUN_IDLE_MS } = require('../src/conversation-contract.js');
 const { validDeviceToken, validLoginBody, loginContinuation } = require('../src/login-contract.js');
@@ -115,6 +116,7 @@ function allowed(method, target, body) {
   if (footerRoute(target)) return allowedFooter(method, target, body);
   if (departmentsRoute(target)) return allowedDepartments(method, target, body);
   if (orgRoute(target)) return allowedOrg(method, target, body);
+  if (agentLibraryRoute(target)) return allowedAgentLibrary(method, target, body);
   if (sessionsRoute(target) || updatesRoute(target)) return allowedAccountSettings(method, target, body);
   if (memoryDesktopRoute(target)) return allowedMemoryDesktop(method, target, body);
   if (memoryPagesRoute(target)) return allowedMemoryPages(method, target, body);
@@ -196,6 +198,7 @@ function project(target, status, body) {
   if (footerRoute(target)) return footerResponse(status, body);
   if (departmentsRoute(target)) return departmentsResponse(status, body);
   if (orgRoute(target)) return orgResponse(target, status, body);
+  if (agentLibraryRoute(target)) return agentLibraryResponse(target, status, body);
   if (sessionsRoute(target) || updatesRoute(target)) return accountSettingsResponse(target, status, body);
   if (connectionsRoute(target)) return connectionsResponse(target,status,body);
   if (mcpImportPath(target)) return mcpImportResponse(target,status,body);
@@ -339,7 +342,8 @@ function createApplicationServer({ packageRoot = root, channel, stage1ReadOnly =
     if ((login || discovery) ? auth !== undefined : typeof auth !== 'string' || auth.length > 8200 || !/^Bearer [A-Za-z0-9._~-]+$/.test(auth)) return send(401);
     const length = Number(req.headers['content-length'] || 0);
     const audio = req.method === 'POST' && raw === '/api/chat/transcribe';
-    const limit = packRoute(raw) ? 2_100_000 : genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : LIMIT;
+    // Agent files are up to 1 MB of text; JSON escaping can double it.
+    const limit = agentLibraryRoute(raw) ? 2_400_000 : packRoute(raw) ? 2_100_000 : genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : LIMIT;
     if (!Number.isSafeInteger(length) || length < 0 || length > limit) return send(413);
     if (req.headers['content-type'] && !/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'])) return send(415);
     try {
