@@ -90,6 +90,8 @@ export function SkillsSection({client,active,slot,onOpenAgents}:{client:SessionC
 export function McpSection({ client, active, slot, onOpenAgents, openId }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenAgents?:()=>void; openId?:string }) {
   // MC1: one sidebar for the section: search, connection places, then where to add from. Publisher sources open as a sheet from the ⋯ menu.
   const [place,setPlace]=useState('all'),[query,setQuery]=useState(''),search=useRef<HTMLInputElement>(null);
+  // "Manage in MCP connections" from Apps opens that connection in the full list.
+  useEffect(()=>{if(openId)setPlace('all');},[openId]);
   const [c]=useState(()=>new ConnectorsController(client)),s=useSyncExternalStore(c.subscribe,c.getSnapshot,c.getSnapshot);
   const d=useDiscovery(client,active);
   useSyncExternalStore(d?.subscribe ?? (() => () => {}), d?.getSnapshot ?? (() => null), d?.getSnapshot ?? (() => null));

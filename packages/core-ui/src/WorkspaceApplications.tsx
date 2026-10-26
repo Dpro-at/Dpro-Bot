@@ -15,10 +15,10 @@ const states:Record<WorkspaceApp['state'],string>={included:'Included',disabled:
 const icon=(app:WorkspaceApp)=>app.id==='terminal'?'terminal':app.id==='trading'?'chart':app.id==='genvr'?'globe':'link';
 // Status dot only when it says something: green connected, amber needs you.
 const dot=(app:WorkspaceApp)=>app.state==='connected'?'ready':['attention','expired','disconnected'].includes(app.state)?'warn':undefined;
-type TileHandlers={open:()=>void;onAccountConnections:()=>void;onPermissions:()=>void;onManageConnections:()=>void;toggle:()=>void;edit:()=>void;reconnect:()=>void;remove:()=>void};
+type TileHandlers={open:()=>void;onAccountConnections:()=>void;onPermissions:()=>void;onManageConnections:(id?:string)=>void;toggle:()=>void;edit:()=>void;reconnect:()=>void;remove:()=>void};
 /** Right-click on a tile (A3): the same actions as its inspector and ⋯ menu, with the same owner-only gates. */
-export function tileActions(app:Pick<WorkspaceApp,'id'|'kind'|'name'>,{owner,busy,server}:{owner:boolean;busy:boolean;server?:{enabled:boolean}},h:TileHandlers):MenuItem[]{
- if(app.kind==='mcp')return owner?[{label:server?.enabled?'Turn off':'Turn on',icon:'power',disabled:busy||!server,run:h.toggle},{label:'Edit connection…',icon:'pencil',disabled:busy||!server,run:h.edit},{label:'Reconnect and refresh tools',icon:'refresh',disabled:busy||!server?.enabled,run:h.reconnect},'sep',{label:'Agent permissions…',icon:'shield',run:h.onPermissions},{label:'Manage in MCP connections',icon:'link',run:h.onManageConnections},'sep',{label:'Remove connection…',icon:'trash',danger:true,disabled:busy||!server,run:h.remove}]:[];
+export function tileActions(app:Pick<WorkspaceApp,'id'|'kind'|'name'>,{owner,busy,server}:{owner:boolean;busy:boolean;server?:{id?:string;enabled:boolean}},h:TileHandlers):MenuItem[]{
+ if(app.kind==='mcp')return owner?[{label:server?.enabled?'Turn off':'Turn on',icon:'power',disabled:busy||!server,run:h.toggle},{label:'Edit connection…',icon:'pencil',disabled:busy||!server,run:h.edit},{label:'Reconnect and refresh tools',icon:'refresh',disabled:busy||!server?.enabled,run:h.reconnect},'sep',{label:'Agent permissions…',icon:'shield',run:h.onPermissions},{label:'Manage in MCP connections',icon:'link',run:()=>h.onManageConnections(server?.id)},'sep',{label:'Remove connection…',icon:'trash',danger:true,disabled:busy||!server,run:h.remove}]:[];
  const items:MenuItem[]=[{label:`Open ${app.name}`,icon:'open',run:h.open}];
  if(!owner)return items;
  if(app.id==='genvr')items.push({label:'Account connection…',icon:'contact',run:h.onAccountConnections});
@@ -28,7 +28,7 @@ export function tileActions(app:Pick<WorkspaceApp,'id'|'kind'|'name'>,{owner,bus
 const publicApp:WorkspaceApp={id:'genvr',name:'GenVR',kind:'api',version:null,summary:'Virtual worlds and connected experiences.',state:'included',sourceId:'genvr',permissions:[],tools:0,removable:false};
 
 /** My apps (AA1): big icons like a launcher. Uses the existing MCP lifecycle; there is no second installation store. */
-export function WorkspaceApplications({client,active,query,refresh,addRequest,onOpen,onAccountConnections,onPermissions,onManageConnections}:{client:SessionClient;active:boolean;query:string;refresh:number;addRequest:number;onOpen:(id:'terminal'|'genvr'|'trading')=>void;onAccountConnections:()=>void;onPermissions:()=>void;onManageConnections:()=>void}){
+export function WorkspaceApplications({client,active,query,refresh,addRequest,onOpen,onAccountConnections,onPermissions,onManageConnections}:{client:SessionClient;active:boolean;query:string;refresh:number;addRequest:number;onOpen:(id:'terminal'|'genvr'|'trading')=>void;onAccountConnections:()=>void;onPermissions:()=>void;onManageConnections:(id?:string)=>void}){
  const owner=useSyncExternalStore(client.subscribe,client.getSnapshot,client.getSnapshot).user?.role==='owner';
  const [c]=useState(()=>new ConnectorsController(client));
  const connection=useSyncExternalStore(c.subscribe,c.getSnapshot,c.getSnapshot);
@@ -64,7 +64,7 @@ export function WorkspaceApplications({client,active,query,refresh,addRequest,on
  {app?<><div className="apps-inspector-head"><span className="apps-tile-icon" data-app={app.id} aria-hidden="true"><UiIcon name={icon(app)} size={22}/></span><div><h3>{app.name}</h3><p className="apps-inspector-line">{kinds[app.kind]} · {app.id==='trading'?'Included preview':states[app.state]}</p></div></div><p>{app.summary}</p>
  {app.id==='trading'?<TradingInstallView client={client} active={active} onPreview={()=>onOpen('trading')} onPermissions={onPermissions}/>:app.kind==='mcp'?<>
  <div className="apps-actions"><button className="primary" disabled={busy||!server} onClick={()=>server&&void act(()=>server.enabled?c.disable(server.id):c.enable(server.id))}><UiIcon name="power" size={15}/>{server?.enabled?'Turn off':'Turn on'}</button>
- {menu([{label:'Edit connection…',disabled:busy||!server,run:()=>server&&onSetup(server)},{label:'Reconnect and refresh tools',disabled:busy||!server?.enabled,run:()=>server&&void act(()=>c.reconnect(server.id))},{label:'Agent permissions…',run:onPermissions},{label:'Manage in MCP connections',run:onManageConnections},{label:'Remove connection…',disabled:busy||!server,run:()=>server&&onRemove(server)}])}</div>
+ {menu([{label:'Edit connection…',disabled:busy||!server,run:()=>server&&onSetup(server)},{label:'Reconnect and refresh tools',disabled:busy||!server?.enabled,run:()=>server&&void act(()=>c.reconnect(server.id))},{label:'Agent permissions…',run:onPermissions},{label:'Manage in MCP connections',run:()=>onManageConnections(server?.id)},{label:'Remove connection…',disabled:busy||!server,run:()=>server&&onRemove(server)}])}</div>
  {connection.phase==='error'&&<p role="alert">Connection controls could not be loaded. <button onClick={()=>void c.load()}>Try again</button></p>}
  <p className="fine-print">{app.tools?`${app.tools} tools found. Choose which agents may use them in their permissions.`:'Turn the connection on to find its tools.'}</p>
  </>:<div className="apps-actions"><button className="primary" onClick={()=>open(app)}><UiIcon name={icon(app)} size={15}/>Open {app.name}</button>{owner&&menu([...(app.id==='genvr'?[{label:'Account connection…',run:onAccountConnections}]:[]),...(app.id==='terminal'||app.id==='genvr'?[{label:'Agent permissions…',run:onPermissions}]:[])])}</div>}

@@ -111,6 +111,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {id:'mcp',label:'MCP connections',icon:<UiIcon name="tool" size={14}/>,run:()=>setPage('mcp')},
     ]:[]),
   ];
+  const [mcpOpen,setMcpOpen]=useState<string>();
   const [agentFocus,setAgentFocus]=useState<{id:string;n:number}|null>(null);
   const [connectorsFocus, setConnectorsFocus] = useState(0);
   const [memoryFocus, setMemoryFocus] = useState<MemoryFocus | null>(null);
@@ -191,11 +192,11 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <section className="page page-personalities" hidden={page !== 'personalities'}><PersonalityLibrary client={client} active={page==='personalities'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}}/></section>
         <section className="page page-specialties" hidden={page !== 'specialties'}><SpecialtyLibrary client={client} active={page==='specialties'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenConnections={()=>setPage('mcp')}/></section>
         <section className="page page-skills mem-desk" hidden={page !== 'skills'}><SkillsSection client={client} active={page === 'skills'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
-        <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
+        <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} openId={mcpOpen} onOpenAgents={()=>setPage('agents')}/></section>
         <section className="page page-ui mem-desk" hidden={page !== 'terminal'}><TerminalSection client={client} active={page === 'terminal'} slot={slot} onOpenTerminal={openTerminal}/></section>
       </>}
       <section className="page page-ui" hidden={page!=='code'}><p role="status" className="fine-print">Select Code in the bottom bar to open or reconnect the project editor.</p></section>
-      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onConnections={()=>setPage('mcp')} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>setPage(user.role==='owner'?'approvals':'agents')}/></section>
+      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onConnections={id=>{if(id)setMcpOpen(id);setPage('mcp');}} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>setPage(user.role==='owner'?'approvals':'agents')}/></section>
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
       {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChannels={() => openApps('channels')}/></section>}

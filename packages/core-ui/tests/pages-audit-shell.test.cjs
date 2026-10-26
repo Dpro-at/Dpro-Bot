@@ -13,3 +13,8 @@ test('Settings opens from the footer gear and ⌘, — no extra sidebar gear or 
  assert.doesNotMatch(shell,/sidebar-settings/);assert.doesNotMatch(shell,/>Settings<\/button>/);
  assert.match(shell,/Search or run a command<kbd>⌘K/);
 });
+test('Apps "Manage in MCP connections" opens that connection in MCP (S-10)',()=>{const {tileActions}=require('../src/WorkspaceApplications.tsx');let got;
+ const items=tileActions({id:'a',kind:'mcp',name:'X'},{owner:true,busy:false,server:{id:'srv-1',enabled:true}},{open(){},onAccountConnections(){},onPermissions(){},onManageConnections:id=>{got=id;},toggle(){},edit(){},reconnect(){},remove(){}});
+ items.find(i=>i&&i.label==='Manage in MCP connections').run();assert.equal(got,'srv-1');
+ assert.match(shell,/<McpSection [^>]*openId=\{mcpOpen\}/);
+});
