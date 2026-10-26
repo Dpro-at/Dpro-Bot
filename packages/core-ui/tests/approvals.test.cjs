@@ -13,3 +13,4 @@ test('full review detail route is separate from recovery chat and keeps identity
  const row={id,status:'pending',agentId:'agent-one',toolName:'trial_review_document',category:'settings',paramsPreview:{document:'Trial'},truncated:false,requestedAt:'2026-10-22T10:00:00Z',expiresAt:null,decidedAt:null,executedAt:null,resultPreview:null,error:null,params:{document:'Trial'},paramsHash:'a'.repeat(64),maskedFields:[],runScope:null};
  const projected=approvalResponse(path,200,{approval:row});assert.equal(projected.approval.agentId,'agent-one');assert.equal(projected.approval.requestedAt,row.requestedAt);assert.equal(projected.approval.params.document,'Trial');
 });
+test('an approval confirmed with a code passes the session and local server gates (chat recovery uses the same route)',()=>{const body={paramsHash:hash,verificationReceipt:'r'.repeat(43)};assert.ok(allowedRequest('POST',path+'/approve',body));assert.ok(allowed('POST',path+'/approve',body));});

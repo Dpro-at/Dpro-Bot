@@ -61,3 +61,9 @@
 .code-box{inline-size:44px;block-size:54px;border-radius:10px;display:grid;place-items:center;font-size:22px;font-weight:600;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border)}
 .code-boxes:focus-within .code-box[data-active]{box-shadow:inset 0 0 0 2px var(--accent)}
 .code-sheet .actions{display:flex;gap:10px;justify-content:flex-end}
+/* Approval cards inside chat after a restart (AP2c) */
+.recovery-approvals{display:flex;flex-direction:column;gap:10px}.recovery-head{margin:0;color:#F0C27A;font-size:12.5px}
+.recovery-cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.recovery-card{border-radius:12px;background:var(--secondary);box-shadow:inset 0 0 0 1px var(--border);padding:10px 12px}
+.recovery-card-row{display:flex;align-items:center;gap:10px}.recovery-card-row strong{flex:1;font-size:13px}
+.recovery-detail{display:flex;flex-direction:column;gap:8px;margin-block-start:10px}
