@@ -73,5 +73,5 @@ test('seniority shows in Speaking, in the summary and in the change list (tone o
  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{SpeakingPart}=require('../src/PersonalityLibrary.tsx');
  const html=renderToStaticMarkup(React.createElement(SpeakingPart,{p:profile,onChange:()=>{}}));
  assert.match(html,/aria-label="Sounds like"/);assert.match(html,/role="radio" aria-checked="true">Senior</);assert.match(html,/tone only, never rank or permissions/);
- assert.deepEqual(lib.profileChanges(profile,{...profile,seniority:'lead'}).map(c=>[c.label,c.before,c.after]),[['Sounds like','senior','lead']]);
+ assert.deepEqual(lib.profileChanges(profile,{...profile,seniority:'lead'}).map(c=>[c.label,c.before,c.after]),[['Sounds like','Senior','Lead']]);
 });
