@@ -91,3 +91,9 @@
 .sa-tool input[type="checkbox"],.sa-quick input[type="checkbox"]{flex:none;inline-size:14px!important;block-size:14px!important;min-block-size:0!important;margin:0;padding:0}
 .sa-quick input[role="switch"]{inline-size:30px!important;block-size:18px!important}
 .sa-tool span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-inline-size:0}
+/* By department: one tinted column per department; its header takes a dropped card. */
+.oc-group{position:absolute;border-radius:12px;background:color-mix(in srgb,var(--text) 3%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--border) 70%,transparent)}
+.oc-group header{display:flex;align-items:center;gap:8px;padding:0 12px;font-size:12.5px;position:relative}
+.oc-group-hot{box-shadow:inset 0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.oc-group-tag{inset-block-end:auto;inset-block-start:-26px;inset-inline-start:8px}
+.oc-slot[data-dept]:not([data-dept=""]) .oc-card{border-inline-start-width:3px}

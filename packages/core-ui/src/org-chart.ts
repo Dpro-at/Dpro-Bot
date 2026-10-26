@@ -21,7 +21,11 @@ export type ChartNode = {
  * a stacked list into the card's left edge.
  */
 export type ChartLink = { from: [number, number]; to: [number, number]; kind: 'down' | 'side'; bend: number; dashed: boolean };
-export type Chart = { nodes: ChartNode[]; links: ChartLink[]; width: number; height: number };
+/** A department's column in the By department view (its band and header are a drop target). */
+export type ChartGroup = { department: string | null; x: number; y: number; w: number; h: number };
+export type Chart = { nodes: ChartNode[]; links: ChartLink[]; width: number; height: number; groups?: ChartGroup[] };
+/** How the chart is arranged: by who reports to whom, or one column per department. */
+export type ChartMode = 'reports' | 'departments';
 /** The three ways to draw the lines (OC1 Show menu): right angles, curves, straight. */
 export type LineStyle = 'elbow' | 'curved' | 'straight';
 export const LINE_STYLES: readonly LineStyle[] = ['elbow', 'curved', 'straight'];
@@ -165,4 +169,59 @@ export function chartStep(chart: Chart, id: string | null, key: string): string 
   if (key === 'ArrowLeft') return peers[Math.max(0, at - 1)]?.agent.id ?? here.agent.id;
   if (key === 'ArrowRight') return peers[Math.min(peers.length - 1, at + 1)]?.agent.id ?? here.agent.id;
   return here.agent.id;
+}
+
+export const GROUP_HEAD = 40;
+/** May `agent` move to `department` in the By department view? Sub-agents stay with their agent. */
+export function canMoveToDepartment(agent: PublicAgent | undefined, department: string | null): boolean {
+  return !!agent && agent.placed !== 'sub' && inChart(agent) && (agent.department ?? null) !== department;
+}
+
+/**
+ * By department: the main agent on top, then one column per department
+ * (No department last), managers first, each agent's sub-agents right
+ * under it on a dashed line. Columns wrap into rows that fit `maxWidth`.
+ */
+export function layoutDepartments(all: readonly PublicAgent[], query = '', maxWidth = Infinity): Chart {
+  const agents = all.filter(inChart);
+  const ids = new Set(agents.map(a => a.id));
+  const q = query.trim().toLowerCase();
+  const matches = new Set(q ? agents.filter(a => [a.name, a.department, a.description].some(x => x?.toLowerCase().includes(q))).map(a => a.id) : []);
+  const subsOf = new Map<string, PublicAgent[]>();
+  for (const a of agents) if (a.placed === 'sub' && a.subAgentOf && ids.has(a.subAgentOf)) subsOf.set(a.subAgentOf, [...(subsOf.get(a.subAgentOf) ?? []), a]);
+  const main = agents.find(a => a.placed === 'main') ?? null;
+  const members = agents.filter(a => a !== main && !(a.placed === 'sub' && a.subAgentOf && ids.has(a.subAgentOf)));
+  const byDept = new Map<string, PublicAgent[]>();
+  for (const a of members) byDept.set(a.department ?? '', [...(byDept.get(a.department ?? '') ?? []), a]);
+  const order = [...byDept.keys()].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+  const nodes: ChartNode[] = [], links: ChartLink[] = [], groups: ChartGroup[] = [];
+  const node = (a: PublicAgent, x: number, y: number, w: number, depth: number): ChartNode => {
+    const n: ChartNode = { agent: a, x, y, w, h: a.placed === 'sub' ? SUB_H : CARD_H, depth, sub: a.placed === 'sub', folded: false, hidden: [], kids: 0, match: matches.has(a.id) };
+    nodes.push(n); return n;
+  };
+  let top = PAD, width = CARD_W + PAD * 2;
+  if (main) {
+    const m = node(main, PAD, top, ROOT_W, 0);
+    let y = top + CARD_H + STEP;
+    for (const s of subsOf.get(main.id) ?? []) { const n = node(s, PAD + INDENT, y, ROOT_W - INDENT, 1); link([PAD + INDENT / 2, m.y + m.h], [n.x, y + n.h / 2], 'side', 0, true); y += n.h + STEP; }
+    top = y + 28;
+  }
+  const colW = CARD_W + INDENT + 16;
+  let x = PAD, rowTop = top, rowBottom = top;
+  for (const d of order) {
+    if (x > PAD && x + colW + PAD > maxWidth) { x = PAD; rowTop = rowBottom + 32; }
+    const list = byDept.get(d)!.sort((a, b) => Number(b.role === 'manager') - Number(a.role === 'manager') || (a.name ?? '').localeCompare(b.name ?? ''));
+    let y = rowTop + GROUP_HEAD + 8;
+    for (const a of list) {
+      const n = node(a, x + 8, y, colW - 16, 1);
+      y += n.h + STEP;
+      for (const s of subsOf.get(a.id) ?? []) { const c = node(s, x + 8 + INDENT, y, colW - 16 - INDENT, 2); link([x + 8 + INDENT / 2, n.y + n.h], [c.x, y + c.h / 2], 'side', 0, true); y += c.h + STEP; }
+    }
+    groups.push({ department: d || null, x, y: rowTop, w: colW, h: y - rowTop });
+    rowBottom = Math.max(rowBottom, y);
+    width = Math.max(width, x + colW + PAD);
+    x += colW + GAP_X / 2;
+  }
+  return { nodes, links, groups, width, height: rowBottom + PAD + 40 };
+  function link(from: [number, number], to: [number, number], kind: ChartLink['kind'], bend: number, dashed: boolean) { links.push({ from, to, kind, bend, dashed }); }
 }
