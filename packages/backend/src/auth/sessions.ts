@@ -35,11 +35,12 @@ export async function recordSession(token: string, userAgent: unknown, now = Dat
   if (!decoded || typeof decoded.jti !== 'string' || typeof decoded.userId !== 'string' || typeof decoded.exp !== 'number') return;
   const userId = decoded.userId, version = Number(decoded.tokenVersion ?? 1);
   await sql().tx(function* () {
-    yield* run('DELETE FROM auth_sessions WHERE user_id=? AND (expires_at<? OR revoked_at IS NOT NULL AND revoked_at<?)', userId, now, now - 7 * 86_400_000);
+    // A row is deleted only once its token has expired: a signed-out row must outlive its token.
+    yield* run('DELETE FROM auth_sessions WHERE user_id=? AND expires_at<?', userId, now);
     yield* run('INSERT INTO auth_sessions(id,user_id,token_hash,token_version,label,created_at,last_seen_at,expires_at) VALUES(?,?,?,?,?,?,?,?)',
       randomBytes(12).toString('hex'), userId, tokenHash(decoded.jti as string), version, deviceLabel(userAgent), now, now, Math.round((decoded.exp as number) * 1000));
-    // A long-lived install keeps the newest sign-ins only.
-    yield* run(`DELETE FROM auth_sessions WHERE user_id=? AND id NOT IN (SELECT id FROM auth_sessions WHERE user_id=? ORDER BY created_at DESC LIMIT ${KEEP_PER_USER})`, userId, userId);
+    // At most 50 devices stay signed in: older ones are signed out (never deleted before they expire).
+    yield* run(`UPDATE auth_sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND id NOT IN (SELECT id FROM auth_sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT ${KEEP_PER_USER})`, now, userId, userId);
   });
 }
 

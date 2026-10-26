@@ -52,3 +52,13 @@ test('sign out everywhere (token_version bump) empties the list; a token with no
  const list=(await app.inject({url:'/api/auth/sessions',headers:h(fresh)})).json().sessions;assert.equal(list.length,1);assert.equal(list[0].current,true);
  assert.equal((await app.inject({url:'/api/auth/sessions',headers:h(a)})).statusCode,401);
 });
+test('a signed-out row is never cleaned up before its token expires',async()=>{
+ const t=generateToken('ds-other',1);await recordSession(t,win);
+ const id=(await app.inject({url:'/api/auth/sessions',headers:h(t)})).json().sessions.find(s=>s.current).id;
+ await app.inject({method:'POST',url:`/api/auth/sessions/${id}/sign-out`,headers:h(other)});
+ let last;for(let i=0;i<55;i++){last=generateToken('ds-other',1);await recordSession(last,mac,Date.now()+i);}
+ assert.equal((await app.inject({url:'/api/auth/sessions',headers:h(t)})).statusCode,401);
+ // The oldest live devices beyond 50 are signed out, not deleted.
+ assert.equal((await app.inject({url:'/api/auth/sessions',headers:h(other)})).statusCode,401);
+ assert.equal((await app.inject({url:'/api/auth/sessions',headers:h(last)})).json().sessions.length,50);
+});
