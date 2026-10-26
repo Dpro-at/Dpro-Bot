@@ -28,3 +28,4 @@
 .approvals-places .dk-search input{flex:1;min-width:0;border:0;background:transparent;font-size:12px;padding:0}
 .approvals-places .dk-place .dk-badge{margin-inline-start:auto;min-width:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;text-align:center}
 .approvals-places .section-label{margin-block-start:16px}
+.human-review-answer{display:flex;gap:8px;margin-block:10px}.human-review-answer button{min-height:32px;padding:0 16px;border-radius:8px}.human-review-answer button[aria-checked=true][data-answer=approve]{background:var(--success-soft,#12251A);color:var(--success,#8FD6B0);box-shadow:inset 0 0 0 1.5px currentColor}.human-review-answer button[aria-checked=true][data-answer=deny]{box-shadow:inset 0 0 0 1.5px var(--accent)}
