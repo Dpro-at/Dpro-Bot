@@ -3,7 +3,7 @@ import type {DiscoveryController} from './discovery-controller';
 import {UiIcon} from './ui-icons';
 import {IconButton,Tile} from './desktop-ui';
 import {SkillTile} from './SkillsWorkspace';
-import {skillTitle} from './skill-display';
+import {blockedReason,skillFileSummary,skillTitle} from './skill-display';
 const RANK:Record<string,number>={new:0,changed:1,decision:2,imported:3,gone:4};
 const STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs your decision',imported:'in Dpro',gone:'gone from this computer'};
 /** SK3c / MC4: skills or MCP servers found on this computer by the same folder scan as Memory, one at a time (J / K).
@@ -26,9 +26,11 @@ export function SkillFoundPlace({c,active,kind='skill'}:{c:DiscoveryController;a
   {s.notice&&<p className="sk-alert" role="alert">{s.notice}</p>}
   {!item?<div className="sk-empty"><UiIcon name="folder" size={28}/><p>No {word} found yet. Allow more folders in Settings › Memory › Folders and drives, then scan.</p><button type="button" disabled={s.scanning} onClick={()=>void c.scan()}>Scan now</button></div>:<>
    <div className="sk-found-title">{mcp?<Tile name={item.name} size={34}/>:<SkillTile name={item.name} size={34}/>}<span><b>{title(item.name)}</b><small>In {where(item.rootId)} · {item.from} · {STATE[item.state]??item.state}</small></span></div>
-   <pre className="sk-found-text" dir="auto" tabIndex={0} aria-label={`${title(item.name)} text`}>{p?`${p.text.slice(0,8000)}${p.truncated||p.text.length>8000?'\n…':''}`:s.previewLoading===item.id?'Opening…':''}</pre>
+   {(()=>{const text=p?`${p.text.slice(0,8000)}${p.truncated||p.text.length>8000?'\n…':''}`:s.previewLoading===item.id?'Opening…':'',about=!mcp&&p?skillFileSummary(p.text).description:'';
+    const file=<pre className="sk-found-text" dir="auto" tabIndex={0} aria-label={`${title(item.name)} text`}>{text}</pre>;
+    return about?<><p className="sk-found-about" dir="auto">{about}</p><details className="sk-found-file"><summary>Show the skill file</summary>{file}</details></>:file;})()}
    {mcp&&p&&p.secrets.length>0&&item.state!=='imported'&&<div className="sk-found-ask"><p>It has a key. Save it in Credentials, or leave it on this computer?</p><div className="dk-segmented" role="group" aria-label="The key">{(['credentials','leave'] as const).map(v=><button key={v} type="button" aria-pressed={s.secret===v} disabled={s.busy} onClick={()=>c.setSecret(v)}>{v==='credentials'?'Credentials':'Leave it'}</button>)}</div></div>}
-   {p?.blocked&&<p className="sk-alert">{p.blocked}</p>}
+   {p?.blocked&&<p className="sk-alert">{blockedReason(p.blocked)}</p>}
    <div className="sk-insp-actions">{item.state==='imported'?<button type="button" disabled={s.busy} onClick={()=>void c.remove(item.id)}>{mcp?'Take out':'Take out of Dpro'}</button>:<button type="button" className="primary sk-main" disabled={s.busy||!p||!!p.blocked} onClick={()=>void c.importOpen()}>Add it (off)</button>}<button type="button" disabled={s.busy} onClick={()=>void c.ignore(item.id,true)}>Don’t show again</button></div>
    <p className="sk-hint">{item.state==='imported'?'Taking it out leaves the file on this computer.':mcp?'Added connections start off; you turn them on in All connections.':'Added skills start off; you give them to agents.'} Which folders are read: Settings › Memory › Folders and drives.</p>
   </>}

@@ -7,7 +7,7 @@ import {UiIcon} from './ui-icons';
 type Job={id:string;name:string;description?:string;responsibility?:string;cronExpression:string;actionType:string;enabled:boolean;lastRun:string|null;nextRun:string|null};
 type Run={success:boolean;executedAt:string|null;duration:number|null};
 const kinds:Record<string,string>={'execute-skill':'Skill','send-message':'Message delivery','api-call':'Service request','run-workflow':'Workflow','evolve-agent':'Agent review','memory-job':'Memory maintenance',custom:'Workspace job'};
-export const scheduleTitle=(job:Job)=>/^memory-weekly-summary-/.test(job.name)?'Weekly memory summary':/^memory-retention-/.test(job.name)?'Memory retention':/^agent-evolution-/.test(job.name)?'Agent review':job.name;
+export const scheduleTitle=(job:Job)=>/^memory-weekly-summary-/.test(job.name)?'Weekly memory summary':/^memory-retention-/.test(job.name)?'Memory retention':/^agent-evolution-/.test(job.name)?'Agent review':/^memory-trash-/.test(job.name)?'Empty memory Trash':job.name;
 const when=(value:string|null)=>value?new Date(value).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Not reported';
 export function scheduleLabel(expression:string){
  if(expression==='* * * * *')return 'Every minute';

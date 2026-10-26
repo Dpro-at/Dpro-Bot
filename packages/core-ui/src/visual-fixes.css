@@ -75,3 +75,30 @@
 .app-shell details.af-managed > summary small { margin-inline-start:auto; color:var(--text-3); }
 .app-shell details.af-managed[open] > summary small { display:none; }
 .app-shell details.af-managed > .link-button { justify-self:start; }
+
+/* 9, 10 · Settings › Channels and › Accounts: list + inspector use the page width as one framed pane, like the other settings lists. */
+.app-shell .preferences-page:has(.apps-panes, .channel-workspace) { max-inline-size:1200px; }
+.app-shell .channel-workspace { grid-template-columns:minmax(240px,300px) minmax(0,1fr); }
+.app-shell .channel-service-list [role="option"] strong, .app-shell .channel-service-list [role="option"] b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .apps-accounts .apps-panes { grid-template-columns:minmax(260px,340px) minmax(0,1fr); border:1px solid var(--border); border-radius:9px; overflow:hidden; background:var(--surface); min-block-size:420px; }
+.app-shell .apps-accounts .apps-inspector { border-inline-start:1px solid var(--border); }
+.app-shell .apps-accounts .connection-card { border:0; padding:0; margin:0; background:transparent; box-shadow:none; }
+
+/* 25 · A hidden file picker stays hidden (Share settings drop area). */
+.app-shell input[type="file"][hidden] { display:none !important; }
+
+/* 34 · Settings › General: each theme swatch is a small window picture, so Dark shows on a dark page too. */
+.app-shell .settings-theme-picture { box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text) 28%,transparent); }
+.app-shell [data-theme-choice=light] .settings-theme-picture { background:linear-gradient(#D7DDE8,#D7DDE8) 0 0/100% 8px no-repeat, linear-gradient(#C3CBD9,#C3CBD9) 8px 15px/30px 4px no-repeat, linear-gradient(#C3CBD9,#C3CBD9) 8px 23px/20px 4px no-repeat, #F7F9FC; }
+.app-shell [data-theme-choice=dark] .settings-theme-picture { background:linear-gradient(#2B313C,#2B313C) 0 0/100% 8px no-repeat, linear-gradient(#46505F,#46505F) 8px 15px/30px 4px no-repeat, linear-gradient(#46505F,#46505F) 8px 23px/20px 4px no-repeat, #101318; }
+.app-shell [data-theme-choice=system] .settings-theme-picture { background:linear-gradient(90deg,transparent 50%,#101318 50%), linear-gradient(#D7DDE8,#D7DDE8) 0 0/100% 8px no-repeat, #F7F9FC; }
+
+/* 23 · Library › Skills › Found on this computer: the skill's own description first; its file stays folded. */
+.app-shell .sk-found-about { margin:0; max-inline-size:72ch; font-size:13px; line-height:1.6; }
+.app-shell .sk-found-file > summary { cursor:default; color:var(--text-2, var(--muted)); font-size:12px; margin-block-end:8px; }
+
+/* 21, 22 · Apps › Store: nested places carry an icon and an indent; add-on names end in "…" and the cards share the width. */
+.app-shell .dk-sidebar .dk-place[data-nested] { padding-inline-start:26px; font-size:12px; }
+.app-shell .apps-addon-cards { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+.app-shell .apps-addon-card li > span { flex:1; min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .apps-addon-card li > small { flex:none; white-space:nowrap; }

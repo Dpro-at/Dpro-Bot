@@ -1,5 +1,6 @@
 // "Found on this computer" (DISCOVER-01, board M17): projects on the left, the
 // chosen project's items in the middle, the opened item on the right.
+import { blockedReason } from './skill-display';
 import { useEffect, useState, useSyncExternalStore, type ReactElement } from 'react';
 import { DiscoveryController, FILE_KIND_LABEL, KIND_LABEL, KIND_SHORT, STATE_LABEL } from './discovery-controller';
 import { DISCOVERY_KINDS, DISCOVERY_STATES, FILE_KINDS } from './discovery-contract.js';
@@ -161,7 +162,7 @@ export function DiscoveryView({ c, active, kinds, noFolders = false }: { c: Disc
           <span className="fine-print" dir="auto">Goes to {p.to}</span>
         </div>
         <pre className="disc-text" dir="auto">{p.text}{p.truncated ? '\n…' : ''}</pre>
-        {p.blocked && <p className="card-notice" role="alert">{p.blocked === 'skill_name_taken' ? 'Dpro already has another skill with this name. It is not replaced from here; compare them in Skills.' : `This server cannot be added here: ${p.blocked.replace(/_/g, ' ')}.`}</p>}
+        {p.blocked && <p className="card-notice" role="alert">{blockedReason(p.blocked)}</p>}
         {p.kind === 'mcp' && p.secrets.length > 0 && !p.blocked && <fieldset className="disc-secret">
           <legend>{p.secrets.length === 1 ? 'A secret was found' : `${p.secrets.length} secrets were found`} ({p.secrets.join(', ')})</legend>
           <label className="check"><input type="radio" name="disc-secret" checked={s.secret === 'credentials'} onChange={() => c.setSecret('credentials')}/>Save it in Credentials (encrypted)</label>

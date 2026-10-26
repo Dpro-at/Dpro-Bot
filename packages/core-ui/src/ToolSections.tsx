@@ -3,6 +3,7 @@ import {SkillsDesk} from './SkillsDesk';
 // L3–L5): each owns the sidebar, and each lists what the computer scan found
 // for it ("Found on this computer"): skills, MCP servers, SSH hosts. Added
 // skills and servers start off; SSH shows host names only, never keys.
+import { blockedReason } from './skill-display';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -68,7 +69,7 @@ export function FoundOnComputer({ c, kind }: { c: DiscoveryController; kind: Dis
       {kind === 'ssh' ? <p className="fine-print">Host, user and port only. Keys are never read.</p> : <pre className="dk-preview" dir="auto">{p.text.slice(0, 4000)}{p.truncated ? '\n…' : ''}</pre>}
       {kind === 'mcp' && p.secrets.length > 0 && <div className="dk-ask"><p>It has a key. Save it in Credentials, or leave it on this computer?</p>
         <div className="dk-segmented" role="group" aria-label="The key">{(['credentials', 'leave'] as const).map(v => <button key={v} type="button" aria-pressed={s.secret === v} onClick={() => c.setSecret(v)}>{v === 'credentials' ? 'Credentials' : 'Leave it'}</button>)}</div></div>}
-      {p.blocked && <p className="dk-inline-notice">{p.blocked}</p>}
+      {p.blocked && <p className="dk-inline-notice">{blockedReason(p.blocked)}</p>}
       <div className="actions">
         <button type="button" onClick={() => void c.ignore(p.id, true)}>Don't show again</button>
         {p.state === 'imported' ? <button type="button" onClick={() => void c.remove(p.id)}>Take out</button>
