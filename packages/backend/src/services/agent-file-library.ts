@@ -37,6 +37,15 @@ export class FileLibraryError extends Error {
 }
 
 const digest = (text: string | Buffer) => createHash('sha256').update(text).digest('hex');
+/**
+ * The version tag of a file as it is saved on disk (read back after the write).
+ * It is only a change check for the editor, never a stored password hash.
+ */
+async function storedVersion(dir: string, name: string): Promise<string> {
+  const saved = await readText(dir, name, MAX_KNOWLEDGE_BYTES);
+  if (saved === null) throw new FileLibraryError(503, 'files_unavailable');
+  return digest(saved);
+}
 export function kindOf(name: unknown): FileKind {
   if (name === WHO) return 'who';
   if (name === MIND) return 'mind';
@@ -175,7 +184,7 @@ export async function saveFile(agentId: string, name: unknown, content: unknown,
   if (digest(current) !== expectedHash) throw new FileLibraryError(409, 'changed');
   await keepVersion(f.versions, name as string, current);
   await writeAtomic(f.knowledge, name as string, clean);
-  return { hash: digest(clean), redacted: clean !== content };
+  return { hash: await storedVersion(f.knowledge, name as string), redacted: clean !== content };
 }
 
 /** Add a Knowledge file (409 when the name is taken). */
@@ -193,7 +202,7 @@ export async function addFile(agentId: string, name: unknown, content: unknown, 
   state.notRead = state.notRead.filter(n => n !== name);
   if (!read) state.notRead.push(name as string);
   await writeState(f.root, state);
-  return { hash: digest(clean), redacted: clean !== content };
+  return { hash: await storedVersion(f.knowledge, name as string), redacted: clean !== content };
 }
 
 /** Move a Knowledge file to Removed files (kept 30 days). */
