@@ -27,6 +27,6 @@ test('apps MCP tool: My apps apart from MCP connections (they live in Settings),
  const list=await callTool('workspace_apps',{operation:'list'},{backend});
  assert.deepEqual(list.structuredContent.apps.map(x=>x.id),['terminal','genvr']);assert.deepEqual(list.structuredContent.mcpConnections.map(x=>x.name),['genvr-local']);
  const n=calls.length;const store=await callTool('workspace_apps',{operation:'store'},{backend});assert.notEqual(store.isError,true);
- assert.deepEqual(calls.slice(n).map(c=>[c.method,c.path]),[['GET','/api/marketplace/search?limit=100&offset=0'],['GET','/api/chat/addons/catalogue'],['GET','/api/chat/addons']]);
+ assert.deepEqual(calls.slice(n).map(c=>[c.method,c.path]),[['GET','/api/apps'],['GET','/api/marketplace/search?limit=100&offset=0'],['GET','/api/chat/addons/catalogue'],['GET','/api/chat/addons']]);assert.deepEqual(store.structuredContent.included.map(x=>x.id),['terminal','genvr']);
  const d=TOOL_DEFINITIONS.find(t=>t.name==='workspace_apps').description;assert.match(d,/My apps/);assert.match(d,/Store/);assert.match(d,/MCP connections, Channels and Accounts are places in Settings/);
 });
