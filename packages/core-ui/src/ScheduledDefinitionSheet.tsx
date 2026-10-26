@@ -27,26 +27,25 @@ export function ScheduledDefinitionSheet({client,jobId,creating=false,onClose,on
  const update=<K extends keyof ScheduleDraft>(key:K,value:ScheduleDraft[K])=>{setDraft(current=>({...current,[key]:value}));setNotice('');};
  function submit(){if(!ready)return;try{const changes=scheduleDraftChanges(jobId,draft,review);if(!Object.keys(changes).length){setNotice('No changes to save.');return;}setNotice('');void controller.save(changes);}catch(error){setNotice(error instanceof Error?error.message:'Check the changed fields.');}}
  if(!owner)return null;
- return <dialog ref={dialog} className="verification-sheet schedule-editor-sheet" aria-labelledby={title} onCancel={event=>{event.preventDefault();close();}} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();submit();}}}>
-  <header><UiIcon name="clock" size={20}/><h3 id={title}>{creating?'New scheduled task':'Edit scheduled task'}</h3></header>
-  <p className="fine-print">Save paused. Review permission before enabling.</p>
+ return <dialog ref={dialog} className="verification-sheet st-sheet schedule-editor-sheet" aria-labelledby={title} onCancel={event=>{event.preventDefault();close();}} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();submit();}}}>
+  <h3 id={title}>{creating?'New schedule':'Edit schedule'}</h3>
   <div className="schedule-editor-content">
    {['closed','loading'].includes(state.phase)&&<p role="status">Loading task…</p>}
    {['ready','saving','conflict'].includes(state.phase)&&<form id={form} onSubmit={event=>{event.preventDefault();submit();}}><fieldset disabled={!ready}>
     <label>Name<input ref={name} required maxLength={200} value={draft.name} onChange={event=>update('name',event.target.value)}/></label>
-    <label>Action<select value={draft.actionType} onChange={event=>{const actionType=event.target.value as ScheduleDraft['actionType'];setDraft(current=>({...current,...blankAction,actionType,replaceAction:true}));setNotice('');}}><option value="api-call">Send a service request</option><option value="send-message">Send a message</option></select></label>
-    <div className="schedule-editor-pair"><label>Repeat<select value={draft.recurrence} onChange={event=>update('recurrence',event.target.value as ScheduleDraft['recurrence'])}>{review&&<option value="unchanged">Keep current schedule</option>}<option value="daily">Every day</option><option value="weekly">Every week</option><option value="custom">Custom schedule</option></select></label>
+    <div className="st-field"><span>What it does</span><div className="st-kinds" role="radiogroup" aria-label="What it does">{([['send-message','Send a message','Telegram, Slack, email…','send'],['api-call','Call a service','A web address you trust','globe']] as const).map(([value,label,text,icon])=><label key={value} className="st-kind" data-on={draft.actionType===value||undefined}><input type="radio" name={form+'-kind'} checked={draft.actionType===value} onChange={()=>{setDraft(current=>({...current,...blankAction,actionType:value,replaceAction:true}));setNotice('');}}/><UiIcon name={icon} size={16}/><span><strong>{label}</strong><small>{text}</small></span></label>)}</div></div>
+    <div className="schedule-editor-pair"><div className="st-field"><span>How often</span><div className="st-seg" role="radiogroup" aria-label="Repeat">{([...(review?[['unchanged','As now']]:[]),['daily','Every day'],['weekly','Every week'],['custom','Custom']] as [ScheduleDraft['recurrence'],string][]).map(([value,label])=><label key={value} data-on={draft.recurrence===value||undefined}><input type="radio" name={form+'-repeat'} checked={draft.recurrence===value} onChange={()=>update('recurrence',value)}/>{label}</label>)}</div></div>
      {['daily','weekly'].includes(draft.recurrence)&&<label>Time<input type="time" required value={draft.time} onChange={event=>update('time',event.target.value)}/></label>}</div>
     {draft.recurrence==='weekly'&&<label>Day<select value={draft.weekday} onChange={event=>update('weekday',event.target.value)}>{['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day,index)=><option value={index} key={day}>{day}</option>)}</select></label>}
-    <p className="fine-print">{review?`Application server time: ${review.timeZone}`:'Uses application server time.'}</p>
+    <p className="fine-print">{review?`Server time: ${review.timeZone}`:'Uses the server’s time.'}</p>
     {review&&!full&&<div className="schedule-editor-existing"><p className="fine-print">Current destination: {String(review.actionType==='api-call'?review.action.url:review.action.to).replace(/%5Bhidden%5D/gi,'Hidden').replace(/\[REDACTED:[a-z_]+\]/gi,'Hidden')}</p><label className="schedule-editor-toggle"><input type="checkbox" checked={draft.replaceAction} onChange={event=>setDraft(current=>scheduleDeliveryReplacement(current,event.target.checked))}/>Replace destination and delivery</label><p className="fine-print">Unchanged delivery details and hidden values are kept.</p></div>}
     {replacing&&(draft.actionType==='api-call'?<label>Destination<input type="url" required autoComplete="off" maxLength={2048} value={draft.url} placeholder="Service address" onChange={event=>update('url',event.target.value)}/></label>:<>
-     <label>Integration<select required value={draft.channelId} onChange={event=>update('channelId',event.target.value)}><option value="">{catalog==='loading'?'Loading connections…':catalog==='unavailable'?'Connections unavailable':'Choose a configured integration'}</option>{channels.map(channel=><option key={channel.id} value={channel.id}>{channel.label}</option>)}</select></label>
-     {catalog==='ready'&&!channels.length&&<div><p role="status">Configure an integration in Connections before creating a message task.</p>{onOpenConnections&&<button type="button" onClick={()=>{close();onOpenConnections();}}>Open connections</button>}</div>}
-     <label>Recipient<input required maxLength={500} autoComplete="off" value={draft.to} onChange={event=>update('to',event.target.value)}/></label>
+     <label>Send with<select required value={draft.channelId} onChange={event=>update('channelId',event.target.value)}><option value="">{catalog==='loading'?'Loading channels…':catalog==='unavailable'?'Channels could not be read':'Choose a channel'}</option>{channels.map(channel=><option key={channel.id} value={channel.id}>{channel.label}</option>)}</select></label>
+     {catalog==='ready'&&!channels.length&&<div><p role="status">Set up a channel in Apps › Channels first.</p>{onOpenConnections&&<button type="button" onClick={()=>{close();onOpenConnections();}}>Open Channels</button>}</div>}
+     <label>To<input required maxLength={500} autoComplete="off" value={draft.to} onChange={event=>update('to',event.target.value)}/></label>
      <label>Message<textarea required maxLength={20000} rows={4} value={draft.content} onChange={event=>update('content',event.target.value)}/></label>
     </>)}
-    <details open={draft.recurrence==='custom'?true:undefined}><summary>Advanced</summary><div className="schedule-editor-advanced">
+    <details open={draft.recurrence==='custom'?true:undefined}><summary>Advanced: description, exact schedule pattern, service request details</summary><div className="schedule-editor-advanced">
      <label>Description<textarea rows={2} maxLength={2000} value={draft.description} onChange={event=>update('description',event.target.value)}/></label>
      {draft.recurrence==='custom'&&<label>Schedule pattern<input required maxLength={200} value={draft.cron} onChange={event=>update('cron',event.target.value)}/></label>}
      {draft.actionType==='api-call'?<>
@@ -59,13 +58,13 @@ export function ScheduledDefinitionSheet({client,jobId,creating=false,onClose,on
      <p className="fine-print">Replacement fields start empty. Enter the complete new value; other fields stay unchanged.</p>
     </div></details>
    </fieldset></form>}
-   {state.phase==='saving'&&<p role="status">Saving paused task…</p>}
+   {state.phase==='saving'&&<p role="status">Saving…</p>}
    {(notice||state.notice)&&<p role="alert">{notice||(state.notice==='limited'?'Wait before trying to save again.':'Check the changed fields. The task was not confirmed saved.')}</p>}
    {state.phase==='conflict'&&<div role="alert"><p>This task changed elsewhere. Your unsaved text is still shown. Reloading discards it.</p><button type="button" onClick={()=>void controller.load()}>Reload latest</button></div>}
-   {state.phase==='saved'&&<p role="status">Saved paused. Permission is required before enabling.</p>}
+   {state.phase==='saved'&&<p role="status">Saved paused. Running it needs your OK once.</p>}
    {state.phase==='unknown'&&<p role="alert">Unable to confirm save. Close this window and refresh the task before editing again. Do not repeat this save.</p>}
    {state.phase==='unavailable'&&<p role="alert">Task unavailable. Close this window and refresh the task.</p>}
   </div>
-  <div className="actions"><button ref={dismiss} type="button" onClick={close}>{['saved','unknown','unavailable'].includes(state.phase)?'Close':'Cancel'}</button>{(ready||state.phase==='saving')&&<button type="submit" form={form} className="primary" disabled={!ready}>Save paused</button>}</div>
+  <div className="actions st-sheet-actions"><span className="fine-print">Saved paused. Running it needs your OK once.</span><button ref={dismiss} type="button" onClick={close}>{['saved','unknown','unavailable'].includes(state.phase)?'Close':'Cancel'}</button>{(ready||state.phase==='saving')&&<button type="submit" form={form} className="primary" disabled={!ready}>Save</button>}</div>
  </dialog>;
 }

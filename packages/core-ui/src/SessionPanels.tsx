@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { bindMemorySession, displayName } from './session';
+import { bindMemorySession } from './session';
 import type { SessionClient } from './session';
 import { createMemoryAdapter, MemoryController, validDrawer } from './memory';
 import { AgentsController } from './agents';
@@ -8,46 +8,6 @@ import { MemoryBulkReview } from './MemoryBulkReview';
 import { BulkReviewController } from './memory';
 import { Markdown } from './markdown';
 
-const roleName: Record<string, string> = { owner: 'Owner', admin: 'Admin', user: 'Member', guest: 'Guest' };
-const roleHelp: Record<string, string> = {
-  owner: 'Full control: hires agents, sets their permissions and approves memory changes.',
-  admin: 'Manages agents and settings, but cannot change permissions or approve memory.',
-  user: 'Works with the agents; cannot change the team.',
-  guest: 'Read-only access.',
-};
-/** Profile, this session, and sign-out on all devices behind an explicit confirmation. */
-export function AccountPanel({ client, compact=false }: { client: SessionClient; compact?: boolean }) {
-  const state = client.getSnapshot();
-  const user = state.user!;
-  const [confirm, setConfirm] = useState(false);
-  const DangerContainer=compact?'details':'section';
-  return <section className="panel account-page" aria-label="Account"><h2>Account</h2>
-    <div className="account-card">
-      <span className="team-avatar account-avatar" aria-hidden="true">{displayName(user).trim().slice(0, 1).toUpperCase() || '?'}</span>
-      <div className="account-who">
-        <p className="account-name">Signed in as <bdi>{displayName(user)}</bdi></p>
-        <p className="fine-print"><bdi>{user.email}</bdi></p>
-      </div>
-      <span className="badge">{roleName[user.role] ?? user.role}</span>
-    </div>
-    <p className="fine-print">{roleHelp[user.role] ?? ''}</p>
-
-    <section className="account-section" aria-label="This session">
-      <h3>This session</h3>
-      <dl>
-        <dt>Connection</dt><dd>{state.mode === 'live' ? 'This installation' : state.mode === 'mock' ? 'Offline practice (fictional data)' : 'Preview'}</dd>
-        <dt>Device</dt><dd>This browser only; the sign-in is not stored on disk.</dd>
-      </dl>
-    </section>
-
-    <DangerContainer className="account-section account-danger" aria-label="Sign out everywhere">{compact&&<summary>Sign out on all devices</summary>}
-      {!compact&&<h3>Sign out everywhere</h3>}
-      <p>Ends every session of this account, on all devices. You will need to sign in again here too.</p>
-      <label className="check"><input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)}/>I understand: this revokes every session for this account.</label>
-      <div className="hire-actions"><button className="danger" disabled={!confirm} onClick={() => void client.logoutAllDevices()}>Sign out on all devices</button></div>
-    </DangerContainer>
-  </section>;
-}
 /** Readable status for each memory review phase. */
 const memoryLabel: Record<string, string> = {
   idle: 'Choose an agent and drawer, then read', loading: 'Reading memory…', ready: 'Ready', deciding: 'Recording your decision…',
