@@ -29,6 +29,7 @@
  *    the call's destination must be in the list.
  */
 
+import { safeErrorFields } from '../services/safe-error-log.js';
 import { all, atomic, dialect, one, run, sql, sqliteSync, type Step } from '../repositories/sql-steps.js';
 import { forUpdate, nowText } from '../db/pg/dialect.js';
 import type { Tool, ToolResult } from './types.js';
@@ -276,7 +277,7 @@ function* loadAgentGrantsStep(agentId: string, available: Available, delegatedFr
     }
     return grants;
   } catch (err: any) {
-    console.warn(`[Grants] Could not load grants for ${String(agentId).replace(/[\r\n\t]/g, ' ').slice(0, 128)}: ${String(err?.message || 'error').replace(/[\r\n\t]/g, ' ').slice(0, 300)}`);
+    console.warn('[Grants] Could not load grants for an agent; using the defaults', safeErrorFields(err));
     return { agentId, tools: defaultGrants().tools };
   }
 }
