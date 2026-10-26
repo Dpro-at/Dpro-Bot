@@ -97,6 +97,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [terminalRequest,setTerminalRequest]=useState(0);
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
+  const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
   // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
   useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');},[page]);
   const openTerminal=()=>{if(user.role!=='owner')return;setTerminalRequest(n=>n+1);setPage('chat');};
