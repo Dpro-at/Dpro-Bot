@@ -3,7 +3,7 @@ import {ApprovalVerificationSheet} from './ApprovalVerificationSheet';
 import type { SessionClient } from './session';
 import type { RecoveryApproval } from './recovery-approvals-contract.js';
 import { UiIcon } from './ui-icons';
-import { paramRows, requestTitle } from './ApprovalPage';
+import { paramView, requestTitle } from './ApprovalPage';
 
 /** Explicit reads and per-call decisions. Never retries a mutation. */
 export function RecoveryApprovals({ client, conversationId }: { client: SessionClient; conversationId: string }) {
@@ -54,7 +54,8 @@ export function RecoveryApprovals({ client, conversationId }: { client: SessionC
         <button type="button" disabled={busy || verificationOpen} onClick={() => void send(`/api/approvals/${a.id}/deny`, 'POST')}>Reject</button>
         {open&&detail&&<button ref={approvalButton} type="button" className="primary" disabled={busy || verificationOpen || !reviewed || !detail.paramsHash || detail.params === null || detail.status !== 'pending'} onClick={()=>allow(detail)}>Allow once</button>}</div>
       {open&&detail&&<div className="recovery-detail">
-        {detail.params===null?<p>The full request is unavailable, so it cannot be allowed.</p>:<dl className="approval-plain">{paramRows(detail.params).map(([k,v,hidden])=><div key={k}><dt>{k}</dt><dd data-hidden={hidden||undefined}>{v}</dd></div>)}</dl>}
+        {detail.params===null?<p>The full request is unavailable, so it cannot be allowed.</p>:(()=>{const view=paramView(detail.params);return <>{view.complete&&<dl className="approval-plain">{view.rows.map(([k,v,hidden])=><div key={k}><dt>{k}</dt><dd data-hidden={hidden||undefined}>{v}</dd></div>)}</dl>}<details className="approval-scope" open={!view.complete}><summary>{view.complete?'Show the exact request':'This request is long; here it is in full'}</summary><pre dir="auto" tabIndex={0}>{JSON.stringify(detail.params, null, 2)}</pre></details></>;})()}
+        {!!detail.maskedFields?.length&&<p className="approval-masked">Some values are hidden. Allowing uses the exact saved values.</p>}
         <label className="check"><input type="checkbox" checked={reviewed} disabled={busy || verificationOpen || detail.status !== 'pending'} onChange={e => setReviewed(e.target.checked)}/>I checked it is safe to run after the interruption.</label>
         {detail.verificationRequired&&<small>Allow once asks for your code first.</small>}
       </div>}
