@@ -159,6 +159,29 @@ test('only the owner may list, approve or deny', async () => {
   assert.equal(found.paramsEncrypted, undefined);
 });
 
+test('agentId filter keeps one agent\'s requests, refuses a bad id and stays owner-only', async () => {
+  const id = await requestSend('chat-agent-filter');
+  const res = await quietly(() => registry().execute('demo_send', { to: 'x', text: 'y' }));
+  assert.match(res.content[0].text, /Approvals › Waiting for me; you never approve it yourself/);
+  const mine = await app.inject({ method: 'GET', url: '/api/approvals?agentId=ap-agent&limit=100', headers: auth('ap-owner') });
+  assert.equal(mine.statusCode, 200, mine.body);
+  assert.ok(mine.json().approvals.some((a) => a.id === id));
+  assert.ok(mine.json().approvals.every((a) => a.agentId === 'ap-agent'));
+  const other = await app.inject({ method: 'GET', url: '/api/approvals?agentId=someone-else', headers: auth('ap-owner') });
+  assert.equal(other.statusCode, 200);
+  assert.deepEqual(other.json().approvals, []);
+  const both = await app.inject({ method: 'GET', url: '/api/approvals?status=pending&agentId=ap-agent', headers: auth('ap-owner') });
+  assert.ok(both.json().approvals.every((a) => a.status === 'pending' && a.agentId === 'ap-agent'));
+  for (const bad of ['', '..%2Fkeys', "x'%20OR%201%3D1", '-lead', 'a'.repeat(129)]) {
+    const r = await app.inject({ method: 'GET', url: '/api/approvals?agentId=' + bad, headers: auth('ap-owner') });
+    assert.equal(r.statusCode, 400, `agentId ${bad}`);
+  }
+  assert.equal((await app.inject({ method: 'GET', url: '/api/approvals?agentId=ap-agent&agentId=x', headers: auth('ap-owner') })).statusCode, 400);
+  await assert.rejects(() => approvals.listApprovals({ agentId: 'bad id' }));
+  assert.equal((await app.inject({ method: 'GET', url: '/api/approvals?agentId=ap-agent' })).statusCode, 401);
+  for (const who of ['ap-admin', 'ap-user']) assert.equal((await app.inject({ method: 'GET', url: '/api/approvals?agentId=ap-agent', headers: auth(who) })).statusCode, 403);
+});
+
 test('approve runs the call exactly once; a second approval is refused', async () => {
   sent.length = 0;
   const id = await requestSend('chat-2', 'once');

@@ -16,6 +16,7 @@ import type { DrawerKind } from './hire';
 import { AgentMemoryController, handoffLine } from './agent-memory';
 import { validatedDisplayName } from './naming';
 import { UiIcon } from './ui-icons';
+import { agentApprovals, approvalActivity, mergeTimeline, type ApprovalActivity } from './approvals-actions';
 import type { UiIconName } from './ui-icons';
 import { DocumentEditor } from './DocumentEditor';
 import { DepartmentTile } from './StaffDirectory';
@@ -34,17 +35,17 @@ export const CATEGORY: Record<string, string> = { browser: 'Use the browser', ne
  * sidebar, each part saves as you go, and the last change can be undone
  * (Undo in the notice or ⌘Z). Every save still carries the version it read.
  */
-export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone }: {
+export function AgentCard({ client, agentId, agents, personality, onBack, onOpenMemory, sidebarSlot, initialSection = 'profile', onChat, onGone, onOpenMcp, onOpenApprovals }: {
   client: ConstructorParameters<typeof AgentCardController>[0]; agentId: string; agents: AgentsController; personality: PersonalityController;
-  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void;
+  initialSection?:CardTab; onBack: () => void; onOpenMemory?: (agentId?: string) => void; sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void;
 }) {
   const [card, setCard] = useState<AgentCardController>();
   useEffect(() => { const c = new AgentCardController(client, agentId, initialSection); setCard(c); void c.load(); void agents.select(agentId); return () => c.dispose(); }, [client, agentId, agents]);
   if (!card) return null;
-  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone}/>;
+  return <CardView card={card} agents={agents} personality={personality} onBack={onBack} onOpenMemory={onOpenMemory} sidebarSlot={sidebarSlot} onChat={onChat} onGone={onGone} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals}/>;
 }
 
-export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void }) {
+export function CardView({ card, agents, personality, onBack, onOpenMemory, sidebarSlot, onChat, onGone, onOpenMcp, onOpenApprovals }: { card: AgentCardController; agents?: AgentsController; personality?: PersonalityController; onBack: () => void; onOpenMemory?: (agentId?: string) => void;sidebarSlot?:HTMLElement|null; onChat?: (agentId: string) => void; onGone?: (notice: string) => void; onOpenMcp?: () => void; onOpenApprovals?: () => void }) {
   const s = useSyncExternalStore(card.subscribe, card.getSnapshot, card.getSnapshot);
   const n = useSyncExternalStore(agents ? agents.subscribe : noop, agents ? agents.getSnapshot : none, agents ? agents.getSnapshot : none);
   const p = useSyncExternalStore(personality ? personality.subscribe : noop, personality ? personality.getSnapshot : none, personality ? personality.getSnapshot : none);
@@ -64,8 +65,8 @@ export function CardView({ card, agents, personality, onBack, onOpenMemory, side
       {tab === 'profile' && <GeneralPart card={card} agents={agents} onDone={onDone} onChat={onChat} onGone={onGone}/>}
       {tab === 'persona' && (s.persona ? <AgentPersonalityLibrary card={card} personality={personality} onDone={onDone}/> : <p className="ag-muted" role="status">{s.phase === 'loading' ? 'Reading the personality…' : 'The personality could not be read.'}</p>)}
       {tab === 'skills' && <AgentSpecialtiesSkills key={s.agentId} client={card.client} agentId={s.agentId} onDone={onDone}/>}
-      {tab === 'permissions' && <AgentPermissions card={card} onDone={onDone}/>}
-      {tab === 'activity' && <ActivityPart card={card}/>}
+      {tab === 'permissions' && <AgentPermissions card={card} onDone={onDone} onOpenMcp={onOpenMcp}/>}
+      {tab === 'activity' && <ActivityPart card={card} onOpenApprovals={onOpenApprovals}/>}
       {tab === 'memory' && <MemoryPart card={card} name={name} onDone={onDone} onOpenMemory={onOpenMemory}/>}
     </>}
     </div>
@@ -200,18 +201,22 @@ function MemoryRules({card,onDone,onClose}:{card:AgentCardController;onDone:Part
 const when=(iso?:string|null)=>{if(!iso)return '';const t=new Date(iso);if(Number.isNaN(t.getTime()))return '';const today=new Date();const day=(x:Date)=>Math.floor((x.getTime()-x.getTimezoneOffset()*6e4)/864e5);const diff=day(today)-day(t);
  return diff===0?`Today ${t.toTimeString().slice(0,5)}`:diff===1?'Yesterday':t.toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
 /** AG3b: one timeline of what the agent did and what changed about it. */
-function ActivityPart({card}:{card:AgentCardController}){
+function ActivityPart({card,onOpenApprovals}:{card:AgentCardController;onOpenApprovals?:()=>void}){
  const s=useSyncExternalStore(card.subscribe,card.getSnapshot,card.getSnapshot),[mem,setMem]=useState<AgentMemoryController>();
  useEffect(()=>{const c=new AgentMemoryController(card.client as never,s.agentId);setMem(c);void c.load();return()=>c.dispose();},[card,s.agentId]);
  const m=useSyncExternalStore(mem?.subscribe??noop,mem?.getSnapshot??none,mem?.getSnapshot??none);
- type Item={key:string;at:string;icon:UiIconName;tone:string;title:string;text:string};
- const items:Item[]=[...(m?.handoffs??[]).map(h=>({key:`h${h.id}`,at:h.createdAt,icon:(h.kind==='conversation'?'note':'board') as UiIconName,tone:h.kind==='conversation'?'blue':'teal',title:`Work note · ${h.kind==='conversation'?'chat':'board task'}`,text:handoffLine(h)||'No summary recorded.'})),
-  ...(s.versions??[]).map(v=>({key:`v${v.version}`,at:v.createdAt??'',icon:'smile' as UiIconName,tone:'purple',title:`Personality version ${v.version}${v.version===s.persona?.version?' · now':''}`,text:v.note||(v.source==='seed'?'First version':'Personality saved')}))].sort((x,y)=>y.at.localeCompare(x.at));
+ // Approval requests this agent sent (owner only; the server checks again). A failed read only leaves them out.
+ const owner=card.client.getSnapshot().user?.role==='owner',[asked,setAsked]=useState<ApprovalActivity[]|null>(null);
+ useEffect(()=>{if(!owner){setAsked([]);return;}const abort=new AbortController();setAsked(null);agentApprovals(card.client as never,s.agentId,abort.signal).then(list=>{if(!abort.signal.aborted)setAsked(approvalActivity(list));},()=>{if(!abort.signal.aborted)setAsked([]);});return()=>abort.abort();},[card,s.agentId,owner]);
+ type Item={key:string;at:string;icon:UiIconName;tone:string;title:string;text:string;approvalId?:string};
+ const items:Item[]=mergeTimeline<Item>((m?.handoffs??[]).map(h=>({key:`h${h.id}`,at:h.createdAt,icon:(h.kind==='conversation'?'note':'board') as UiIconName,tone:h.kind==='conversation'?'blue':'teal',title:`Work note · ${h.kind==='conversation'?'chat':'board task'}`,text:handoffLine(h)||'No summary recorded.'})),
+  (s.versions??[]).map(v=>({key:`v${v.version}`,at:v.createdAt??'',icon:'smile' as UiIconName,tone:'purple',title:`Personality version ${v.version}${v.version===s.persona?.version?' · now':''}`,text:v.note||(v.source==='seed'?'First version':'Personality saved')})),asked??[]);
  const reading=!m||m.phase==='loading'||m.phase==='idle';
+ const body=(i:Item)=><span><span>{i.title}</span><small dir="auto">{i.text}</small></span>;
  return <div className="ag-part ag-activity"><h3>Activity</h3>
   {m&&m.handoffs===null&&!reading&&<p role="status">Work notes could not be read. <button type="button" className="link-button" onClick={()=>void mem?.load()}>Try again</button></p>}
   {!s.versions&&<p role="status">Personality changes could not be read. <button type="button" className="link-button" onClick={()=>void card.openTab('activity')}>Try again</button></p>}
-  {items.length?<ol className="ag-timeline">{items.map(i=><li key={i.key}><span className="ag-when">{when(i.at)}</span><span className="ag-dot" data-tone={i.tone}><UiIcon name={i.icon} size={14}/></span><span><span>{i.title}</span><small dir="auto">{i.text}</small></span></li>)}</ol>:<p className="ag-muted" role="status">{reading?'Reading activity…':'Nothing has happened with this agent yet.'}</p>}
+  {items.length?<ol className="ag-timeline">{items.map(i=><li key={i.key}><span className="ag-when">{when(i.at)}</span><span className="ag-dot" data-tone={i.tone}><UiIcon name={i.icon} size={14}/></span>{i.approvalId&&onOpenApprovals?<button type="button" className="link-button ag-activity-open" title="Open in Approvals" onClick={onOpenApprovals}>{body(i)}</button>:body(i)}</li>)}</ol>:<p className="ag-muted" role="status">{reading?'Reading activity…':'Nothing has happened with this agent yet.'}</p>}
  </div>;
 }
 

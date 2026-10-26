@@ -45,7 +45,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   if(r.ok&&controller.client)forgetFacts(controller.client,a.id);
   if(r.ok&&kind==='copy'&&r.id)setSelected(r.id);if(r.ok&&kind==='remove')setSelected(null);
  }
- const items=(a:PublicAgent):MenuItem[]=>[{label:'Open',icon:'contact',shortcut:'Enter',run:()=>onOpen(a.id)},...(onChat?[{label:'Chat',icon:'message' as UiIconName,run:()=>onChat(a.id)}]:[]),
+ const items=(a:PublicAgent):MenuItem[]=>[...(owner?[{label:'Open',icon:'contact' as UiIconName,shortcut:'Enter',run:()=>onOpen(a.id)}]:[]),...(onChat?[{label:'Chat',icon:'message' as UiIconName,run:()=>onChat(a.id)}]:[]),
   ...(owner?['sep' as const,{label:'Make main agent',icon:'sparkle' as UiIconName,disabled:!!a.isPrimary||busy,run:()=>void act('main',a)},{label:'Duplicate',icon:'copy' as UiIconName,disabled:busy,run:()=>void act('copy',a)}]:[]),
   ...(onMemory?[{label:'Saved memories',icon:'brain' as UiIconName,run:()=>onMemory(a.id)}]:[]),
   ...(owner?['sep' as const,{label:'Remove agent…',icon:'trash' as UiIconName,danger:true,shortcut:'⌫',disabled:busy,run:()=>setRemoving(a)}]:[])];
@@ -101,7 +101,7 @@ function Inspector({controller,agent,owner,onOpen,onChat,onMenu,onClose}:{contro
  ]:[];
  return <div className="ag-insp">
   <div className="ag-insp-head"><span className="ag-insp-back"><IconButton icon="arrow-left" label="Back to the list" onClick={onClose}/></span><Avatar name={agent.name??'?'} size={52}/><span><b><bdi>{agent.name??'Agent'}</bdi></b><small>{roleWord(agent.role)} · {departmentName(agent.department)}</small></span></div>
-  <div className="ag-insp-actions"><button type="button" onClick={()=>onOpen(agent.id)}>Open</button>{onChat&&<button type="button" onClick={()=>onChat(agent.id)}>Chat</button>}<IconButton icon="more" label="More for this agent" onClick={onMenu}/></div>
+  <div className="ag-insp-actions">{owner&&<button type="button" onClick={()=>onOpen(agent.id)}>Open</button>}{onChat&&<button type="button" onClick={()=>onChat(agent.id)}>Chat</button>}<IconButton icon="more" label="More for this agent" onClick={onMenu}/></div>
   <p className="ag-insp-text" dir="auto">{agent.description||'No responsibilities yet.'}</p>
   <hr/>
   {!owner?<p className="ag-muted">Only the owner sees and changes how this agent works.</p>:facts===undefined?<p className="ag-muted" role="status">Reading what makes it…</p>:facts===null?<p className="ag-muted" role="status">What makes it could not be read. <button type="button" className="link-button" onClick={()=>retryFacts(controller.client,agent.id)}>Try again</button></p>:

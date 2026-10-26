@@ -3,9 +3,13 @@ import {ApprovalVerificationSheet} from './ApprovalVerificationSheet';
 import type { SessionClient } from './session';
 import type { RecoveryApproval } from './recovery-approvals-contract.js';
 import { UiIcon } from './ui-icons';
-import { paramView, requestTitle } from './ApprovalPage';
+import { paramView, requestIcon, requestTitle } from './ApprovalPage';
 
-/** Explicit reads and per-call decisions. Never retries a mutation. */
+const LIST = '/api/approvals?status=pending';
+/** The category comes from the owner approval list when present; older answers have none. */
+const categoryOf = (a: RecoveryApproval) => { const c = (a as { category?: unknown }).category; return typeof c === 'string' ? c : null; };
+
+/** Reads the waiting list once when shown (a read, so nothing is retried) and decides per call. Never retries a mutation. */
 export function RecoveryApprovals({ client, conversationId }: { client: SessionClient; conversationId: string }) {
   const [items, setItems] = useState<RecoveryApproval[]>([]);
   const [detail, setDetail] = useState<RecoveryApproval>();
@@ -14,10 +18,14 @@ export function RecoveryApprovals({ client, conversationId }: { client: SessionC
   const [verificationOpen,setVerificationOpen]=useState(false);
   const approvalButton=useRef<HTMLButtonElement>(null),wasVerificationOpen=useRef(false);
   const [notice, setNotice] = useState('');
+  const [listState, setListState] = useState<'loading'|'ready'|'failed'>('loading');
   const epoch = client.getSnapshot().epoch;
   const serial = useRef(0);
   const busyRef = useRef(false);
-  useEffect(() => { serial.current++; busyRef.current = false; setItems([]); setDetail(undefined); setReviewed(false); setNotice(''); setBusy(false); setVerificationOpen(false); return () => { serial.current++; }; }, [client, conversationId, epoch]);
+  useEffect(() => { serial.current++; busyRef.current = false; setItems([]); setDetail(undefined); setReviewed(false); setNotice(''); setBusy(false); setVerificationOpen(false); setListState('loading'); return () => { serial.current++; }; }, [client, conversationId, epoch]);
+  // One read on show, so the cards appear at once; "Show waiting actions" stays only to try again after a failed read.
+  const sendRef = useRef<(path: string) => Promise<void>>(undefined);
+  useEffect(() => { void sendRef.current?.(LIST); }, [client, conversationId, epoch]);
   useEffect(()=>{if(wasVerificationOpen.current&&!verificationOpen&&!approvalButton.current?.disabled)approvalButton.current?.focus();wasVerificationOpen.current=verificationOpen;},[verificationOpen]);
   if (client.getSnapshot().user?.role !== 'owner') return <p>Only the owner can review tools.</p>;
   const send = async (path: string, method: 'GET' | 'POST' = 'GET', body?: unknown) => {
@@ -32,6 +40,7 @@ export function RecoveryApprovals({ client, conversationId }: { client: SessionC
       const refusal=(response.body as {code?:string})?.code;
       if(response.status===403&&refusal&&['reviewer_quorum_required','reviewer_denied','reviewer_policy_unavailable'].includes(refusal)){setNotice(refusal==='reviewer_denied'?'A reviewer declined this action. Nothing was run.':refusal==='reviewer_quorum_required'?'Waiting for the people this rule needs. Nothing was run.':'The required review policy is unavailable. Nothing was run. Ask the owner to review the policy.');return;}
       if(response.status===403&&(response.body as {code?:string})?.code==='verification_required'){if(detail)setDetail({...detail,verificationRequired:true});setNotice('Your code is needed. Check the action again, then choose Allow once.');return;}
+      if (path === LIST) setListState(response.status === 200 && !!response.body ? 'ready' : 'failed');
       if (response.status !== 200 || !response.body) { setDetail(undefined); setNotice(method === 'POST' ? 'Decision not confirmed. Reload pending tools and review before deciding again.' : 'Tools could not be loaded. Try again.'); return; }
       const result = response.body as { approvals?: RecoveryApproval[]; approval?: RecoveryApproval };
       if (result.approvals) { const mine = result.approvals.filter(a => a.sessionId === conversationId); setItems(mine); setDetail(undefined); if (!mine.length) setNotice('Nothing from this chat is waiting.'); }
@@ -41,15 +50,17 @@ export function RecoveryApprovals({ client, conversationId }: { client: SessionC
         else { setItems(items.filter(a => a.id !== result.approval!.id)); setDetail(undefined); setNotice(result.approval.status === 'executed' ? 'Done. Continue the chat to use its result.' : result.approval.status === 'denied' ? 'Rejected. It did not run.' : `Saved: ${result.approval.status}.`); }
       }
     } catch {
-      if (current()) { setDetail(undefined); setNotice(method === 'POST' ? 'Outcome unknown. Reload pending tools before another decision; nothing was retried.' : 'Tools could not be loaded.'); }
+      if (current()) { if (path === LIST) setListState('failed'); setDetail(undefined); setNotice(method === 'POST' ? 'Outcome unknown. Reload pending tools before another decision; nothing was retried.' : 'Tools could not be loaded.'); }
     } finally { if (current()) { busyRef.current = false; setBusy(false); } }
   };
+  sendRef.current = path => send(path);
   const allow=(d:RecoveryApproval)=>d.verificationRequired?setVerificationOpen(true):void send(`/api/approvals/${d.id}/approve`,'POST',{paramsHash:d.paramsHash});
   return <section className="panel recovery-approvals" aria-label="Waiting actions after restart">
     <p className="recovery-head">Some actions of this chat are waiting for you. Nothing runs again by itself.</p>
-    {!items.length&&!detail&&<button type="button" disabled={busy || verificationOpen} onClick={() => void send('/api/approvals?status=pending')}>Show waiting actions</button>}
+    {listState==='loading'&&!items.length&&<p role="status">Reading waiting actions…</p>}
+    {listState==='failed'&&!items.length&&!detail&&<button type="button" disabled={busy || verificationOpen} onClick={() => void send(LIST)}>Show waiting actions</button>}
     <ul className="recovery-cards">{items.map(a => { const open=detail?.id===a.id; return <li key={a.id} className="recovery-card" data-open={open||undefined}>
-      <div className="recovery-card-row"><span className="approval-category"><UiIcon name="tool" size={15}/></span><strong>{requestTitle(a.toolName,null)}</strong>
+      <div className="recovery-card-row"><span className="approval-category" data-category={categoryOf(a)??'other'}><UiIcon name={requestIcon(categoryOf(a))} size={15}/></span><strong>{requestTitle(a.toolName,categoryOf(a))}</strong>
         {!open&&<button type="button" className="link" disabled={busy || verificationOpen} onClick={() => void send(`/api/approvals/${a.id}`)}>Details</button>}
         <button type="button" disabled={busy || verificationOpen} onClick={() => void send(`/api/approvals/${a.id}/deny`, 'POST')}>Reject</button>
         {open&&detail&&<button ref={approvalButton} type="button" className="primary" disabled={busy || verificationOpen || !reviewed || !detail.paramsHash || detail.params === null || detail.status !== 'pending'} onClick={()=>allow(detail)}>Allow once</button>}</div>

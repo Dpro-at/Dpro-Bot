@@ -18,3 +18,9 @@ test('Apps "Manage in MCP connections" opens that connection in MCP (S-10)',()=>
  items.find(i=>i&&i.label==='Manage in MCP connections').run();assert.equal(got,'srv-1');
  assert.match(shell,/<McpSection [^>]*openId=\{mcpOpen\}/);
 });
+test('places inside Agents and Apps show the way back on top of their sidebar (board SH1)',()=>{
+ assert.match(shell,/placeParent[^=]*=\s*\{ personalities: 'agents', specialties: 'agents', skills: 'agents', mcp: 'apps', terminal: 'apps' \}/);
+ assert.match(shell,/className="agent-return place-return" onClick=\{\(\)=>setPage\(placeParent\[page\]!\)\}/);
+ assert.match(shell,/onOpenMcp=\{\(\)=>setPage\('mcp'\)\} onOpenApprovals=\{\(\)=>setPage\('approvals'\)\}/);assert.doesNotMatch(shell,/connectorsFocus/);
+});
+test('Apps "Agent permissions…" opens Approvals › What agents may do (A4)',()=>{assert.match(shell,/setApprovalsPlace\(r=>\(\{place:'perms'/);assert.match(shell,/<ApprovalsWorkspace [^>]*placeRequest=\{approvalsPlace\}/);});

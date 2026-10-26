@@ -92,15 +92,21 @@ test('owner approvals share the strict browser and bridge contract without chang
   assert.equal(approvalResponse(path, 500, { error: 'sensitive backend text' }), null);
 });
 
-test('approval component performs no reads before an explicit click, and hides controls for non-owners', async () => {
+test('approval cards read the waiting list once on show (no read while rendering), retry only after a failed read, and hide controls for non-owners', async () => {
   const base = createLoginMock(), calls = [];
   const client = new SessionClient({ mock: r => { calls.push(r); return base(r); } });
   client.selectMode('mock'); await client.login('demo@example.invalid', 'mock-only');
   const count = calls.length;
   const html = renderToStaticMarkup(React.createElement(RecoveryApprovals, { client, conversationId: CID }));
-  assert.match(html, /Show waiting actions/); assert.equal(calls.length, count);
+  assert.match(html, /Reading waiting actions/); assert.doesNotMatch(html, /Show waiting actions/); assert.equal(calls.length, count);
+  const source = require('node:fs').readFileSync(require.resolve('../src/RecoveryApprovals.tsx'), 'utf8');
+  // The one automatic call is the read; decisions stay explicit clicks and the retry button shows only after a failed read.
+  assert.match(source, /useEffect\(\(\) => \{ void sendRef\.current\?\.\(LIST\); \}/);
+  assert.match(source, /listState==='failed'&&!items\.length&&!detail&&<button[^>]*onClick=\{\(\) => void send\(LIST\)\}>Show waiting actions/);
+  assert.match(source, /requestIcon\(categoryOf\(a\)\)/);
   const denied = { getSnapshot: () => ({ user: { role: 'user' } }) };
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(RecoveryApprovals, { client: denied, conversationId: CID })), /Show waiting actions/);
+  const other = renderToStaticMarkup(React.createElement(RecoveryApprovals, { client: denied, conversationId: CID }));
+  assert.doesNotMatch(other, /Show waiting actions|Reading waiting actions/); assert.match(other, /Only the owner/);
 });
 
 test('non-owner sessions cannot dispatch approval reads or mutations', async () => {
