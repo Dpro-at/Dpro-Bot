@@ -124,3 +124,23 @@
 .app-shell .chat-starting-ideas > summary::-webkit-details-marker { display:none; }
 .app-shell .chat-starting-ideas > summary > svg { transition:rotate .12s; }
 .app-shell .chat-starting-ideas[open] > summary > svg { rotate:90deg; }
+
+/* 37 · Agent › Personality: the green "Now" label passes 4.5:1 in light. */
+.shell:not([data-theme="dark"]) .ag-ok { color:#1B7346 !important; }
+.app-shell label.check.mem-rule { justify-content:flex-start; align-items:center; }
+
+/* 36 · The account chip keeps its role on one line ("Owner of this workspace" ends in "…" when narrow). */
+.app-shell .user-chip .user-name { min-inline-size:0; }
+.app-shell .user-chip .user-name > bdi, .app-shell .user-chip .user-name > small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* 40 · Approvals › Tools without a rule: the name in code and the extra note stay folded. */
+.app-shell .coverage-more > summary { cursor:default; font-size:12px; color:var(--muted); margin-block:8px 4px; }
+
+/* 38 · Library › Personalities below 1100 px: while there is room the inspector sits beside the list instead of over it. */
+.app-shell :has(> .pl-panes) { container-type:inline-size; }
+@media (max-width:1100px) {
+  @container (min-width:560px) {
+    .app-shell .pl-panes[data-inspector] { grid-template-columns:minmax(0,1fr) 270px; }
+    .app-shell .pl-panes[data-inspector] > .pl-insp { position:static; inline-size:auto; box-shadow:none; border-inline-start:1px solid var(--border); }
+  }
+}

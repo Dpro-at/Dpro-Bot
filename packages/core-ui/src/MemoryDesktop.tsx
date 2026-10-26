@@ -3,6 +3,7 @@
 // an inspector for the selected memory, one main button (Remember), a ⋯ menu
 // and right-click menus for everything else, sheets for short tasks, and Undo
 // (⌘Z and the notice) for every reversible change.
+import { skillTitle } from './skill-display';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { DragEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -328,8 +329,8 @@ function MemorySidebar({ k, waiting, searchRef, onRemember, menu, projectMenu, o
   };
   const projectRow = (p: TreeProject, nested: boolean) => <button key={p.slug} type="button" className="nav-item dk-place" data-nested={nested || undefined} data-drop={drop === `p:${p.slug}` || undefined}
     aria-current={ds.place === `project:${p.slug}` && !ds.extra ? 'page' : undefined} draggable onDragStart={e => dragStart(e, p.slug)} onDragOver={e => dragOver(e, `p:${p.slug}`)} onDragLeave={() => setDrop(null)} onDrop={e => dropOn(e, { project: p.slug })}
-    onClick={() => go(`project:${p.slug}`)} onContextMenu={e => menu.at(e, projectMenu(p))} title={drop === `p:${p.slug}` ? `Drop on ${p.name}: make a group` : undefined}>
-    <Tile name={p.name}/><span className="dk-place-name">{p.name}</span>{p.pinned && <UiIcon name="pin" size={11}/>}{p.pendingReviews ? <span className="dk-count">{p.pendingReviews}</span> : null}
+    onClick={() => go(`project:${p.slug}`)} onContextMenu={e => menu.at(e, projectMenu(p))} title={drop === `p:${p.slug}` ? `Drop on ${p.name}: make a group` : `Folder: ${p.name}`}>
+    <Tile name={p.name}/><span className="dk-place-name">{skillTitle(p.name)}</span>{p.pinned && <UiIcon name="pin" size={11}/>}{p.pendingReviews ? <span className="dk-count">{p.pendingReviews}</span> : null}
   </button>;
   return <nav className="dk-sidebar" aria-label="Memory places">
     <div className="dk-side-top">

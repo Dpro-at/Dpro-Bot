@@ -29,11 +29,11 @@ export type HealthState = Readonly<{
 export const CHECKS: ReadonlyArray<{ kinds: DoctorKind[]; label: string; note: string }> = [
   { kinds: ['duplicate'], label: 'Duplicate copies', note: 'same topic, almost the same words' },
   { kinds: ['expired'], label: 'Expired working items', note: 'working / experience items past their expiry' },
-  { kinds: ['embedding-missing', 'embedding-stale'], label: 'Meaning index', note: 'memories without a current meaning index' },
-  { kinds: ['orphan-versions'], label: 'Loose history', note: 'history of a memory that no longer exists' },
-  { kinds: ['broken-drawer'], label: 'Broken drawer', note: 'project renamed or deleted' },
-  { kinds: ['topic-key-invalid'], label: 'Topic key not in standard form', note: 'a topic key that is not valid' },
-  { kinds: ['graph-orphan'], label: 'Map leftovers', note: 'map links and entities no memory mentions' },
+  { kinds: ['embedding-missing', 'embedding-stale'], label: 'Search index out of date', note: 'memories search cannot find by meaning yet' },
+  { kinds: ['orphan-versions'], label: 'History without its memory', note: 'old versions of a memory that was deleted' },
+  { kinds: ['broken-drawer'], label: 'Missing project', note: 'memories of a project that was renamed or deleted' },
+  { kinds: ['topic-key-invalid'], label: 'Badly named topics', note: 'topic names Dpro cannot sort' },
+  { kinds: ['graph-orphan'], label: 'Unused map links', note: 'links and names on the map no memory mentions' },
 ];
 const draftOf = (r: ScopeRules): RulesDraft => ({ routine: r.own.routine ?? 'inherit', important: r.own.important ?? 'inherit', contradiction: r.own.contradiction ?? 'inherit', weeklyDay: r.effective.weekly.day, weeklyHour: r.effective.weekly.hour });
 

@@ -6,3 +6,8 @@
 .app-shell .disc-place .disc-count { flex:none; margin-inline-start:auto; }
 .app-shell .disc-place { gap:8px; padding-inline-end:6px; }
 .app-shell .disc-folders > button, .app-shell .disc-folders > .disc-add { margin-block-start:4px; justify-self:start; }
+
+/* 35 · Chat sidebar at narrow widths: the project filter keeps its words; "General chat" becomes its icon. */
+.app-shell .sidebar { container-type:inline-size; }
+.app-shell .project-picker select { flex:1 1 auto; min-inline-size:0; }
+@container (max-width:220px) { .app-shell .project-picker .project-general { font-size:0; gap:0; padding-inline:6px; } }

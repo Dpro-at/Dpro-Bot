@@ -11,9 +11,9 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const scopeName = (x: string) => (x === 'default' ? 'default' : x === 'company' ? 'company' : x.startsWith('department:') ? `department ${x.slice(11)}` : drawerName(x));
 
 /** Speed: cache hit rates as bars, then the numbers (Health › cache and a reply's details, board M15). */
-export function SpeedCard({ m, title = 'Speed: cache and context' }: { m: CacheMetrics | null; title?: string }) {
+export function SpeedCard({ m, title = 'Speed' }: { m: CacheMetrics | null; title?: string }) {
   const rate = (x: number | null | undefined) => (x === null || x === undefined ? null : Math.round(x * 100));
-  const bars: Array<[string, number | null]> = [['Context pack', rate(m?.recent.packHitRate ?? m?.process.caches.pack.hitRate)], ['Recall', rate(m?.process.caches.recall.hitRate)], ['Meaning index', rate(m?.process.caches.embedding.hitRate)]];
+  const bars: Array<[string, number | null]> = [['Context pack', rate(m?.recent.packHitRate ?? m?.process.caches.pack.hitRate)], ['Recall', rate(m?.process.caches.recall.hitRate)], ['Search by meaning', rate(m?.process.caches.embedding.hitRate)]];
   const sec = (ms: number | null | undefined) => (ms === null || ms === undefined ? '—' : `${(ms / 1000).toFixed(1)} s`);
   const chars = m?.recent.avgPackChars ?? m?.process.packChars.avg;
   return <section className="mem-card mem-speed" aria-label="Cache and context">
@@ -45,7 +45,7 @@ export function HealthView({ c, conflicts, onReview, onFiles, part }: { c: Memor
       {part !== 'rules' && <section className="mem-card" aria-label="Health check">
         <div className="mem-card-head"><h3>Health check</h3><span className="fine-print">{r ? `checked ${ago(r.checkedAt) === 'now' ? 'just now' : `${ago(r.checkedAt)} ago`} · ${r.total} memories` : 'not checked'}</span></div>
         {CHECKS.map(ch => { const n = c.count(ch.kinds);
-          return <div key={ch.label} className="mem-check"><span className="mem-dot" data-health={n ? 'attention' : 'ok'}/><span className="mem-check-label">{ch.label}<small className="fine-print">{ch.kinds.includes('embedding-missing') && r?.embeddingModel ? `every memory indexed with ${r.embeddingModel}` : ch.note}</small></span><span className="mem-check-count">{n}</span></div>; })}
+          return <div key={ch.label} className="mem-check"><span className="mem-dot" data-health={n ? 'attention' : 'ok'}/><span className="mem-check-label">{ch.label}<small className="fine-print"><span title={ch.kinds.includes('embedding-missing') && r?.embeddingModel ? `Indexed with ${r.embeddingModel}` : undefined}>{ch.note}</span></small></span><span className="mem-check-count">{n}</span></div>; })}
         <div className="mem-check"><span className="mem-dot" data-health={conflicts ? 'problem' : 'ok'}/><span className="mem-check-label">Open conflicts<small className="fine-print">waiting in Review</small></span><button type="button" className="link-button mem-check-count" onClick={onReview}>{conflicts ?? '…'}</button></div>
         {!s.fixing && <div className="actions mem-push-down">
           <button type="button" disabled={s.busy} onClick={() => void c.check()}>Check again</button>
@@ -63,7 +63,7 @@ export function HealthView({ c, conflicts, onReview, onFiles, part }: { c: Memor
         </>}
         {rd && <>
           <label className="check mem-rule"><input type="checkbox" checked={rd.enabled} onChange={e => c.editRetention({ enabled: e.target.checked })}/>Apply the keeping rules below</label>
-          <label className="mem-rule-field">Keep Tasks drawer items<select value={rd.taskTtlDays} onChange={e => c.editRetention({ taskTtlDays: Number(e.target.value) })}>{[...new Set([...TTL, rd.taskTtlDays])].sort((a, b) => a - b).map(d => <option key={d} value={d}>{d} days, then forget</option>)}</select></label>
+          <label className="mem-rule-field">Keep task notes<select value={rd.taskTtlDays} onChange={e => c.editRetention({ taskTtlDays: Number(e.target.value) })}>{[...new Set([...TTL, rd.taskTtlDays])].sort((a, b) => a - b).map(d => <option key={d} value={d}>{d} days, then forget</option>)}</select></label>
           <label className="mem-rule-field">Summarise lessons older than<select value={rd.experienceAfterDays} onChange={e => c.editRetention({ experienceAfterDays: Number(e.target.value) })}>{[...new Set([...TTL, rd.experienceAfterDays])].sort((a, b) => a - b).map(d => <option key={d} value={d}>{d} days</option>)}</select></label>
         </>}
         {id && part !== 'rules' && <label className="mem-rule-field">Import from other agents<select value={id.enabled ? id.intervalMinutes : 0} onChange={e => { const v = Number(e.target.value); c.editImport(v ? { enabled: true, intervalMinutes: v as 15 | 30 | 60 } : { enabled: false }); }}>
