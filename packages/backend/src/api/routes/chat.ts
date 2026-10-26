@@ -1,5 +1,6 @@
 import {subscriptionToolLoop} from '../../services/subscription-tool-loop.js';
 import { teamContext } from '../../services/agent-org.js';
+import { knowledgeContext } from '../../services/agent-file-library.js';
 import {libraryBehavior} from '../../services/personality-library.js';
 import {frameUntrustedMemory} from '../../services/untrusted-memory-context.js';
 import {narrowProjectMemory} from '../../tools/memory/project-access.js';
@@ -547,6 +548,10 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
     // Add MEMORY.md content if exists
     if (memoryFileContent) {
       resolvedSystemPrompt += frameUntrustedMemory(memoryFileContent,'agent');
+    }
+    // AGENT-FILES-01: the Knowledge files the owner marked "It reads this file" (reference data; same gate as MEMORY.md).
+    if (includeAgentMemory && agentConfig?.id && agentConfig.id !== 'small-local-agent') {
+      resolvedSystemPrompt += await knowledgeContext(agentConfig.id).catch(() => '');
     }
 
     // MEM-CACHE-01: the context pack (this persona text + the scope's pinned facts,

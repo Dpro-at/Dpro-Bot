@@ -3,6 +3,7 @@ import {libraryBehavior} from './personality-library.js';
 import {linkedSpecialtyContext} from './specialty-templates.js';
 import {centralSkills} from '../skills/central-store.js';
 import {teamContext} from './agent-org.js';
+import {knowledgeContext} from './agent-file-library.js';
 
 const CONTEXT_LIMIT = 90000;
 const REQUEST_LIMIT = 190000;
@@ -25,6 +26,7 @@ export async function subscriptionAgentContext(agentId: string): Promise<string>
   append('Base instructions',agent.system_prompt || '');
   const behavior = await libraryBehavior(agent.id);
   if (behavior) append('Personality',behavior.promptBlock);
+  append('Knowledge files',(await knowledgeContext(agent.id).catch(()=>'')).trim());
   const linked = await linkedSpecialtyContext(agent.id);
   append('Specialties',linked.prompt);
   const skills = centralSkills();
