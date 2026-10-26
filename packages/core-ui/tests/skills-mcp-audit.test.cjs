@@ -10,7 +10,7 @@ test('S-3 coding-apps place keeps the old source filter and sort (filter popover
 });
 test('S-8 "Where connections come from…" is a sheet, not a hidden place with no way back',()=>{
  const html=renderToStaticMarkup(React.createElement(WhereConnectionsComeFrom,{onClose(){}}));
- assert.match(html,/role="dialog"/);assert.match(html,/Where connections come from/);assert.match(html,/Official MCP Registry/);assert.match(html,/Done/);assert.doesNotMatch(html,/Anthropic Skills/);
+ assert.match(html,/role="dialog"/);assert.match(html,/Where connections come from/);assert.match(html,/Official MCP Registry/);assert.match(html,/Done/);assert.doesNotMatch(html,/Where skills come from/);
  const tools=src('ToolSections.tsx');assert.doesNotMatch(tools,/place==='sources'|PublisherSources kind|setPlace\('sources'\)/);
  assert.match(src('McpWorkspace.tsx'),/Where connections come from…',icon:'globe',run:onShowSources\?\?\(\(\)=>setWhere\(true\)\)/);
 });
