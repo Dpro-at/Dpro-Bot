@@ -139,3 +139,7 @@
 .af-starts{grid-template-columns:1fr 1fr}
 .af-doc .document-editor.doc-inline{min-block-size:420px}
 @media (max-width:950px){.af-grid{grid-template-columns:1fr}}
+
+/* Brand marks of services and channels (Apps › Channels, MCP connections) */
+.service-logo{display:block;flex:none;color:var(--text)}
+.service-tile{display:inline-grid;place-items:center;flex:none;border-radius:9px;background:var(--secondary)}
