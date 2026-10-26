@@ -69,6 +69,7 @@ import { teamPlanRoutes } from './routes/team-plan.js'; // ONBOARD-TEAM-01: comp
 import { gatewayRoutes } from './routes/gateway.js';
 import { authRoutes } from './routes/auth.js';
 import { verificationRoutes } from './routes/verification.js';
+import { deviceSessionRoutes } from './routes/device-sessions.js';
 import { reviewerPolicyRoutes } from './routes/reviewer-policies.js';
 import { reviewerRequestRoutes } from './routes/reviewer-requests.js';
 import { reviewerVoteRoutes } from './routes/reviewer-votes.js';
@@ -325,6 +326,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(setupRoutes); // 🛠️ Setup Wizard (First-Time Installation)
   await fastify.register(authRoutes); // 🔐 Authentication
   await fastify.register(verificationRoutes);
+  await fastify.register(deviceSessionRoutes); // Settings › Account › Signed in
   await fastify.register(reviewerPolicyRoutes);
   await fastify.register(reviewerRequestRoutes);
   await fastify.register(reviewerVoteRoutes);

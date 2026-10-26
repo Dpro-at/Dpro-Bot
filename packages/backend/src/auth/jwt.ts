@@ -9,11 +9,13 @@ import type { FastifyRequest } from 'fastify';
 import { getRepositories } from '../db/index.js';
 import { dbDriver } from '../db/pg/config.js';
 import { pgOne } from '../db/pg/pool.js';
+import { sessionRevoked, sessionRevokedSync } from './sessions.js';
 
 // SECURITY: JWT payload schema validation (M-13)
 const JwtPayloadSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
     tokenVersion: z.number().int().positive().optional(),
+    jti: z.string().max(100).optional(), // device sign-in id (auth/sessions.ts)
     iat: z.number().optional(), // Issued at
     exp: z.number().optional(), // Expiration
 });
@@ -123,6 +125,8 @@ export async function verifyRequestTokenAsync(
     const decoded = decodeRequestToken(request);
     const user = await findTokenUser(decoded.userId);
     checkTokenUser(decoded, user, opts.requireActive !== false);
+    // A device signed out on its own (Settings › Account) cannot use its token.
+    if (await sessionRevoked(decoded.jti)) throw new AuthTokenError('Unauthorized: Signed out on this device');
     return { userId: decoded.userId, user: user! };
 }
 
@@ -161,6 +165,7 @@ export function verifyRequestToken(
     }
     const user = getRepositories().users.findById(decoded.userId) as TokenUser | undefined;
     checkTokenUser(decoded, user, opts.requireActive !== false);
+    if (sessionRevokedSync(decoded.jti)) throw new AuthTokenError('Unauthorized: Signed out on this device');
     return decoded.userId;
 }
 
