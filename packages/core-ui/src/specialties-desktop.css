@@ -97,7 +97,7 @@ button.sp-chip:hover{background:var(--row-hover)}
 .sp-changes{display:grid;gap:6px;padding:12px;border-radius:10px;background:var(--secondary);font-size:12px}
 .sp-changes span{display:flex;align-items:flex-start;gap:8px;color:var(--text-2);line-height:1.5}
 .sp-changes span[data-warn]{color:color-mix(in srgb,#F0C27A 70%,var(--text))}
-.sp-starts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sp-starts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .sp-starts button{display:grid;justify-items:start;gap:4px;padding:12px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);text-align:start}
 .sp-starts button[aria-checked=true]{background:var(--row-active);box-shadow:inset 0 0 0 1.5px var(--accent)}
 .sp-starts small{color:var(--text-3)}
