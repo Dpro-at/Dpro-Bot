@@ -61,7 +61,7 @@ test('specialty tools retain owner-turn and outsider gates',async()=>{
 });
 
 
-test('approved planning catalogue is readable but cannot grant, assign, hire or save placeholder content',async()=>{
+test('approved planning catalogue is readable but cannot grant, assign or hire before the owner writes it',async()=>{
  const {SPECIALTY_GROUPS,PLANNED_SPECIALTIES}=await import('../src/services/specialty-catalogue.ts');
  assert.equal(SPECIALTY_GROUPS.length,72);assert.equal(SPECIALTY_GROUPS.reduce((n,g)=>n+g.entries.length,0),553);
  assert.equal(new Set(PLANNED_SPECIALTIES.map(t=>t.id)).size,PLANNED_SPECIALTIES.length);
@@ -73,9 +73,23 @@ test('approved planning catalogue is readable but cannot grant, assign, hire or 
  const before=db.prepare('SELECT count(*) n FROM agents_config').get().n,links=db.prepare('SELECT count(*) n FROM agent_specialties').get().n;
  assert.notEqual((await call('POST',base+'/hire',{templateId:planned.id,revision:1,requestId:randomUUID(),confirmed:true,confirmRisky:false,linked:true})).statusCode,200);
  assert.notEqual((await call('POST',base+'/'+planned.id+'/assign',{revision:1,agentIds:[created],expectedAgentIds:[]})).statusCode,200);
- const {id,...body}=template;const saved=await call('PUT',base+'/'+planned.id,{...body,revision:0});assert.equal(saved.statusCode,409);assert.equal(saved.json().code,'content_not_ready');
+ const {id,...body}=template;const blank=await call('PUT',base+'/'+planned.id,{...body,instructions:'  ',revision:0});assert.equal(blank.statusCode,400);assert.equal(blank.json().code,'invalid_input');
+ assert.equal((await call('PUT',base+'/'+planned.id,{...body,revision:1})).statusCode,409);
  assert.equal(db.prepare('SELECT count(*) n FROM agents_config').get().n,before);assert.equal(db.prepare('SELECT count(*) n FROM agent_specialties').get().n,links);
  assert.equal(db.prepare('SELECT id FROM specialty_templates WHERE id=?').get(planned.id),undefined);
+});
+
+test('owner fills a coming-soon specialty: saving its instructions makes it a normal, ready one',async()=>{
+ const list=(await call('GET',base)).json().templates,planned=list.find(t=>t.planned&&t.name==='Poet');assert.ok(planned);
+ assert.equal((await call('PUT',base+'/'+planned.id,{name:planned.name,department:planned.department,description:'Writes poems.',instructions:'# How you work\nWrite poems.',config:template.config,revision:0},member)).statusCode,403);
+ const saved=await call('PUT',base+'/'+planned.id,{name:planned.name,department:planned.department,description:'Writes poems.',instructions:'# How you work\nWrite poems.',config:template.config,revision:0});
+ assert.equal(saved.statusCode,200,saved.body);assert.equal(saved.json().revision,1);assert.equal(saved.json().planned,undefined);
+ const after=(await call('GET',base)).json().templates.filter(t=>t.id===planned.id);assert.equal(after.length,1);assert.equal(after[0].planned,false);
+ const read=(await call('GET',base+'/'+planned.id)).json();assert.match(read.instructions,/Write poems/);
+ assert.equal((await call('PUT',base+'/'+planned.id,{name:planned.name,department:planned.department,description:'Writes poems.',instructions:'again',config:template.config,revision:0})).statusCode,409);
+ // Renamed on its next save, it still shows once.
+ const renamed=await call('PUT',base+'/'+planned.id,{name:'Poet in residence',department:planned.department,description:'Writes poems.',instructions:'# How you work\nWrite poems.',config:read.config,revision:1});assert.equal(renamed.statusCode,200,renamed.body);
+ assert.equal((await call('GET',base)).json().templates.filter(t=>t.id===planned.id).length,1);
 });
 
 test('template storage refuses symlink content and writable shared object directories',async()=>{

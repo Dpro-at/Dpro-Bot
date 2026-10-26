@@ -112,7 +112,7 @@ export class SpecialtyTemplates{
   },{immediate:true});return this.agents(id);
  }
  async save(id:string,raw:unknown){
-  if(plannedSpecialty(id))throw new TemplateError('content_not_ready',409);
+  // A coming-soon specialty is saved like a new one (revision 0) once the owner writes its instructions; then it is a normal, ready specialty.
   this.validateDraft(raw);
   const config=await this.config(raw.config),content=await this.content(raw.instructions);
   if(!uuid(id))throw new TemplateError('invalid_input');
