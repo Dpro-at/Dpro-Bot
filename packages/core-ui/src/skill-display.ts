@@ -80,7 +80,7 @@ export function folderTitle(path:string){const parts=path.split('/');return part
 
 /** A marketplace or plugin id as words: "claude-plugins-official" → "Official Claude Code plugins". */
 export function publisherName(id:string){
- const known:Record<string,string>={'claude-plugins-official':'Official Claude Code plugins','anthropic-agent-skills':'Agent skills by Anthropic'};
+ const known:Record<string,string>={'claude-plugins-official':'Official Claude Code plugins'};
  return known[id]??skillTitle(id);
 }
 /** "name@marketplace" (a coding-app plugin) as its own name, without the marketplace id. */
