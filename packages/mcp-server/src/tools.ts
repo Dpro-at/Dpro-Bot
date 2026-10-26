@@ -43,8 +43,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. A new connection is always off: adding does not execute a program or grant tools. Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. found lists MCP servers the folder scan found on this computer (names, place and state only; read only). look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner’s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable','found','look','preview','import']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
   {
@@ -54,8 +54,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'skill_library',title:'Skill library',
-    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write: add (a new found package, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Removing a skill from Dpro is not available.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), found (skills the folder scan found on this computer: names, place and state only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write only on the owner\u2019s explicit instruction: add (a new package from look, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Adding what the folder scan found is done by the owner in the app. Removing a skill from Dpro is not available.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','found','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
   },
   {
     name:'personality_library', title:'Personality library',
@@ -439,6 +439,17 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
   return ok(`Saved as version ${res?.handoff?.version ?? '?'}. The agent's next session starts from it.\n\n${renderHandoff(res?.handoff)}`, { handoff: res?.handoff ?? null });
 }
 
+/** "Found on this computer" (the same folder scan as Memory), read only: names, place and state.
+ *  File paths, file text and secret values are left out; adding what was found stays with the owner in the app. */
+const FOUND_STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs the owner\u2019s decision',imported:'in Dpro',gone:'gone from this computer'};
+const FOUND_REFUSED='Adding what the folder scan found is done by the owner in the app (Found on this computer / This computer); it may ask where a key goes. This tool only lists it (operation found).';
+async function foundOnComputer(backend:BackendClient,kind:'skill'|'mcp'){
+ const view=obj(await backend.request('GET','/api/memory/import/discovery'));
+ const roots=(Array.isArray(view.roots)?view.roots:[]).filter(record);
+ const place=(id:unknown)=>{const r=roots.find(x=>x.id===id);return typeof r?.name==='string'&&r.name?r.name.slice(0,120):'This computer';};
+ const items=(Array.isArray(view.items)?view.items:[]).filter(record).filter(i=>i.kind===kind&&i.state!=='ignored'&&Object.hasOwn(FOUND_STATE,String(i.state))).slice(0,500).map(i=>({name:String(i.name??'').slice(0,200),place:place(i.rootId),state:FOUND_STATE[String(i.state)]}));
+ return {items,scannedAt:typeof view.scannedAt==='string'?view.scannedAt:null};
+}
 const SKILL_ID=/^[a-f0-9-]{36}$/,SKILL_HASH=/^[a-f0-9]{64}$/,SKILL_AGENT=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  const base='/api/skill-library',operation=args.operation;
@@ -449,6 +460,8 @@ async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDep
   case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Dpro. ${note}`,{skills:list?.skills??[],usage});}
   case 'read':{only(args,['operation','id']);return ok(`Skill files (Markdown only). ${note}`,await backend.request('GET',`${base}/items/${need('id',SKILL_ID,'skill id')}`));}
   case 'agent':{only(args,['operation','agentId']);return ok('Skills this agent has.',await backend.request('GET',`${base}/agents/${agentId()}`));}
+  case 'found':{only(args,['operation']);return ok('Skills the folder scan found on this computer (read only; names, place and state). The owner adds them in the app.',await foundOnComputer(backend,'skill'));}
+  case 'add_found':case 'import_found':throw new InputError(FOUND_REFUSED);
   case 'catalogue':{only(args,['operation']);return ok('Dpro\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
   case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
   case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
@@ -523,8 +536,39 @@ async function workspaceFooterTool(args:Record<string,unknown>,{backend}:Handler
 }
 
 const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
- only(args,['operation','id','connection']);
+ only(args,['operation','id','connection','scanId','sourceId','hash']);
+ const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v))throw new InputError(`A valid ${what} is required`);return v;};
+ if(args.operation==='add_found'||args.operation==='import_found')throw new InputError(FOUND_REFUSED);
+ if(args.operation==='found'){
+  only(args,['operation']);
+  return ok('MCP servers the folder scan found on this computer (read only; names, place and state). The owner adds them in the app, where it asks where a key goes.',await foundOnComputer(backend,'mcp'));
+ }
+ // "My coding apps": look, preview, import. Import is bound to the previewed hash and always lands off.
+ if(args.operation==='look'){
+  only(args,['operation']);
+  const scan=obj(await backend.request('POST','/api/mcp-import/scan',{}));
+  const sources=(Array.isArray(scan.sources)?scan.sources:[]).filter(record).map(x=>({id:String(x.id),name:String(x.name??''),origin:String(x.origin??''),supported:x.supported===true,issue:typeof x.issue==='string'?x.issue:null}));
+  return ok('Connections set up in coding apps on this computer. Nothing there changes. Call preview with scanId and sourceId.',{id:scan.id??null,skipped:typeof scan.skipped==='number'?scan.skipped:0,sources});
+ }
+ if(args.operation==='preview'){
+  only(args,['operation','scanId','sourceId']);
+  const p=obj(await backend.request('POST','/api/mcp-import/preview',{scanId:need('scanId',MCP_SCAN,'scanId'),sourceId:need('sourceId',MCP_SCAN,'sourceId')}));
+  const names=(x:unknown)=>Array.isArray(x)?x.filter(v=>typeof v==='string'):[];
+  const secretNames=[...names(p.envNames),...names(p.headerNames)];
+  return ok(secretNames.length?'It has secrets, so the owner adds it in the app (MCP connections › My coding apps). Secret values are never shown.':'The connection as it would be added (off). Import it with this hash only on the owner\u2019s explicit instruction.',{name:p.name??null,kind:p.transport==='stdio'?'program':'web',command:p.command??null,args:names(p.args),url:p.url??null,secretNames,hash:p.hash??null,existingId:p.existingId??null,ownerOnly:secretNames.length>0});
+ }
+ if(args.operation==='import'){
+  only(args,['operation','scanId','sourceId','hash']);
+  const body={scanId:need('scanId',MCP_SCAN,'scanId'),sourceId:need('sourceId',MCP_SCAN,'sourceId')},hash=need('hash',MCP_HASH,'hash (from preview)');
+  // Read it again first: the hash must still match, and a connection with secrets stays with the owner in the app.
+  const p=obj(await backend.request('POST','/api/mcp-import/preview',body));
+  if(p.hash!==hash)throw new InputError('It changed in that app since the preview. Look and preview it again');
+  if((Array.isArray(p.envNames)&&p.envNames.length)||(Array.isArray(p.headerNames)&&p.headerNames.length))throw new InputError('This connection has secrets; the owner adds it in the app (MCP connections › My coding apps)');
+  const r=obj(await backend.request('POST','/api/mcp-import/import',{...body,hash}));
+  return ok(r.duplicate===true?'Already in Dpro. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
+ }
  if(args.operation==='list'){
   only(args,['operation']);
   return ok('Applications. Reading this list does not connect or grant access.',await backend.request('GET','/api/apps'));

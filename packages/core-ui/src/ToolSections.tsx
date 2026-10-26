@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import type { SessionClient } from './session';
 import { DiscoveryController, STATE_LABEL } from './discovery-controller';
 import type { DiscoveryKind } from './discovery-contract.js';
-import {PublisherSources} from './PublisherSources';
+import {SkillFoundPlace} from './SkillFoundPlace';
 import { McpLibrary } from './McpLibrary';
 import { useRef } from 'react';
 import { ConnectorsController } from './connectors';
@@ -88,7 +88,7 @@ export function SkillsSection({client,active,slot,onOpenAgents}:{client:SessionC
  return <SkillsDesk client={client} active={active} slot={slot} onOpenAgents={onOpenAgents}/>;
 }
 export function McpSection({ client, active, slot, onOpenAgents, openId }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenAgents?:()=>void; openId?:string }) {
-  // MC1: one sidebar for the section: search, connection places, then where to add from. Publisher sources sit in the ⋯ menu.
+  // MC1: one sidebar for the section: search, connection places, then where to add from. Publisher sources open as a sheet from the ⋯ menu.
   const [place,setPlace]=useState('all'),[query,setQuery]=useState(''),search=useRef<HTMLInputElement>(null);
   const [c]=useState(()=>new ConnectorsController(client)),s=useSyncExternalStore(c.subscribe,c.getSnapshot,c.getSnapshot);
   const d=useDiscovery(client,active);
@@ -103,7 +103,7 @@ export function McpSection({ client, active, slot, onOpenAgents, openId }: { cli
     {([{key:'import',icon:'code',label:'My coding apps'},{key:'found',icon:'folder',label:'This computer',badge:fresh(d,'mcp')}] as Place[]).map(row)}
   </nav>;
   return <Section slot={slot} active={active} label="MCP connections" sidebar={sidebar}>
-    {place==='sources'?<PublisherSources kind="mcp"/>:place==='found'?<><Toolbar title="This computer" sub="Connections found in allowed folders"/><div className="dk-body">{d?<FoundOnComputer c={d} kind="mcp"/>:null}</div></>:<McpLibrary client={client} active={active} controller={c} query={query} searchRef={search} openId={openId} filter={(['on','off','problem'].includes(place)?place:'all') as McpFilter} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents} onShowSources={()=>setPlace('sources')}/>}
+    {place==='found'?(d?<SkillFoundPlace c={d} active={active} kind="mcp"/>:null):<McpLibrary client={client} active={active} controller={c} query={query} searchRef={search} openId={openId} filter={(['on','off','problem'].includes(place)?place:'all') as McpFilter} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents}/>}
   </Section>;
 }
 export function TerminalSection({ client, active, slot, onOpenTerminal }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenTerminal: () => void }) {
