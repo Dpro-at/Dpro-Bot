@@ -21,11 +21,13 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
  const shown=prefs.order.filter(id=>{const e=entries[id];return e.available&&(!prefs.hidden.includes(id)||(e.current&&!e.parent)||(id==='approvals'&&prefs.approvalsWhenWaiting&&!!e.badge));});
  // A hidden place lights up its section instead (Personalities → Agents).
  const lit=(id:FooterSection)=>entries[id].current||prefs.order.some(c=>entries[c].current&&entries[c].parent===id&&!shown.includes(c));
+ // Each section keeps its ⌘ number from the footer order, shown or not (board SH3: hiding one never shifts the others).
+ const numbered=prefs.order.filter(id=>entries[id].available),keyOf=(id:FooterSection)=>{const n=numbered.indexOf(id);return n>=0&&n<9?`⌘${n+1}`:undefined;};
  // ⌘1–⌘9 open the footer's sections in their order; ⌘Z undoes a footer change while its notice shows.
- useEffect(()=>{const key=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey)return;const n=Number(e.key);if(n>=1&&n<=9&&shown[n-1]){e.preventDefault();entries[shown[n-1]].run();}else if(e.key==='z'&&undo&&notice&&!(e.target as HTMLElement)?.closest?.('input,textarea,[contenteditable]')){e.preventDefault();controller.undo();}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);});
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey)return;const n=Number(e.key);if(n>=1&&n<=9&&numbered[n-1]){e.preventDefault();entries[numbered[n-1]].run();}else if(e.key==='z'&&undo&&notice&&!(e.target as HTMLElement)?.closest?.('input,textarea,[contenteditable]')){e.preventDefault();controller.undo();}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);});
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>controller.clearNotice(),8000);return()=>clearTimeout(t);},[notice,controller]);
  const items=():MenuItem[]=>[
-  ...prefs.order.filter(id=>entries[id].available).map((id):MenuItem=>{const pos=shown.indexOf(id);return {label:footerSections[id].label+(entries[id].current?' — you are here':''),icon:footerSections[id].icon,checked:!prefs.hidden.includes(id),disabled:entries[id].current,shortcut:pos>=0&&pos<9?`⌘${pos+1}`:undefined,run:()=>controller.toggle(id)};}),
+  ...prefs.order.filter(id=>entries[id].available).map((id):MenuItem=>{return {label:footerSections[id].label+(entries[id].current?' — you are here':''),icon:footerSections[id].icon,checked:!prefs.hidden.includes(id),disabled:entries[id].current,shortcut:keyOf(id),run:()=>controller.toggle(id)};}),
   'sep',
   {label:'Icons only',checked:prefs.iconsOnly,run:()=>void controller.change({iconsOnly:!prefs.iconsOnly},prefs.iconsOnly?'Names shown':'Icons only')},
   'sep',
@@ -35,7 +37,7 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
   <span className="statusbar-group">
    {status}
    {shown.map(id=>{const e=entries[id],s=footerSections[id];return <button key={id} type="button" className="status-item" draggable aria-current={lit(id)?'page':undefined} data-dragging={dragging===id||undefined}
-    title={prefs.iconsOnly?s.label:undefined} aria-label={prefs.iconsOnly?s.label+(e.badge?`, ${e.badge} waiting`:''):undefined} onClick={e.run}
+    title={[prefs.iconsOnly?s.label:'',keyOf(id)?`(${keyOf(id)})`:''].filter(Boolean).join(' ')||undefined} aria-label={prefs.iconsOnly?s.label+(e.badge?`, ${e.badge} waiting`:''):undefined} onClick={e.run}
     onDragStart={ev=>{setDragging(id);ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',id);}} onDragEnd={()=>setDragging(null)}
     onDragOver={ev=>{if(dragging&&dragging!==id){ev.preventDefault();ev.dataTransfer.dropEffect='move';}}} onDrop={ev=>{ev.preventDefault();if(dragging)controller.move(dragging,id);setDragging(null);}}>
     <UiIcon name={s.icon} size={14}/>{!prefs.iconsOnly&&<span>{s.label}</span>}{e.badge&&<span className="footer-badge">{e.badge}</span>}</button>;})}

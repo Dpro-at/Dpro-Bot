@@ -24,3 +24,9 @@ test('a hidden place lights its section instead of joining the footer',()=>{cons
  const html=renderToStaticMarkup(React.createElement(ShellFooter,{controller:c,entries,status:null,settingsCurrent:false,onSettings(){},onCustomize(){}}));
  assert.doesNotMatch(html,/>Personalities</);assert.match(html,/aria-current="page"[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span>Agents</);
 });
+test('hiding a section never shifts the others’ ⌘ numbers (board SH3)',async()=>{const React=require('../node_modules/react'),{renderToStaticMarkup}=require('../node_modules/react-dom/server'),{ShellFooter}=require('../src/ShellFooter.tsx'),{FooterController}=require('../src/footer-prefs.ts');
+ const c=new FooterController({request:async()=>({status:200,body:{footer:footerPrefs({hidden:[...DEFAULT_FOOTER.hidden,'board']})}})});await c.load();
+ const e=()=>({available:true,current:false,run(){}}),entries=Object.fromEntries(DEFAULT_FOOTER.order.map(id=>[id,e()]));
+ const html=renderToStaticMarkup(React.createElement(ShellFooter,{controller:c,entries,status:null,settingsCurrent:false,onSettings(){},onCustomize(){}}));
+ assert.doesNotMatch(html,/>Board</);assert.match(html,new RegExp(`title="\\(⌘${DEFAULT_FOOTER.order.indexOf('memory')+1}\\)"[^>]*>(?:<svg[\\s\\S]*?</svg>)?<span>Memory<`));
+});

@@ -83,7 +83,6 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     chat ? chat.getSnapshot : nullSnapshot);
   const user = state.user!;
   const pendingApprovals=usePendingApprovalCount(client,user.role==='owner');
-  const approvalLabel=pendingApprovals.count?`Approvals · ${pendingApprovals.count===100?'100+':pendingApprovals.count}`:'Approvals';
   const mode = state.mode === 'mock' ? 'mock' : 'live';
   const [rail, setRail] = useState(true);
   const [palette, setPalette] = useState(false);
@@ -126,9 +125,12 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   }, []);
   const newChat = () => {setChoosingChat(true);setPage('chat');};
   const commands: Command[] = [
-    ...pages.filter(p=>p.key!=='genvr'&&(p.key!=='approvals'||user.role!=='guest')).map(p => ({ id: `go-${p.key}`, group: 'Go to', label: p.key==='approvals'?approvalLabel:p.label, icon:p.icon==='board'?<UiIcon name="board" size={14}/>:<Icon name={p.icon}/>, run: () => setPage(p.key) })),
+    ...pages.filter(p=>p.key!=='genvr'&&(p.key!=='approvals'||user.role!=='guest')).map(p => ({ id: `go-${p.key}`, group: 'Go to', label: p.label, icon:p.icon==='board'?<UiIcon name="board" size={14}/>:<Icon name={p.icon}/>, run: () => setPage(p.key) })),
     ...tools.map(t=>({...t,id:'tool-'+t.id,group:'Tools',keywords:t.id==='specialties'?'agent templates':t.id==='skills'?'skill abilities':t.id==='terminal'?'console shell':t.id==='genvr'?'spaces worlds':'connectors'})),
     ...(user.role==='owner'?[{id:'scheduled-tasks',group:'Settings',label:'Scheduled tasks',keywords:'schedule cron automation paused active',icon:<UiIcon name="clock" size={14}/>,run:()=>openSettings('schedules')}]:[]),
+    ...(user.role!=='guest'?([['mine','My apps'],['channels','Channels'],['accounts','Accounts'],['addons','Add-ons in my coding apps'],['catalogue','Catalogue']] as const).map(([place,label])=>({id:`apps-${place}`,group:'Apps',label:`Apps › ${label}`,keywords:'apps connections',icon:<UiIcon name="puzzle" size={14}/>,run:()=>openApps(place)})):[]),
+    ...(user.role==='owner'?[{id:'go-trading',group:'Apps',label:'Apps › Trading',keywords:'paper practice stocks',icon:<UiIcon name="chart" size={14}/>,run:()=>setPage('trading')}]:[]),
+    ...([['general','General'],['replies','Replies'],['account','Account'],['keys','Saved keys'],['memory','Memory'],['schedules','Schedules'],['move','Move to another computer'],['about','About and updates']] as const).filter(([tab])=>user.role==='owner'||!['keys','memory','schedules','move'].includes(tab)).map(([tab,label])=>({id:`settings-${tab}`,group:'Settings',label:`Settings › ${label}`,icon:<UiIcon name="gear" size={14}/>,run:()=>openSettings(tab)})),
     { id: 'new-chat', group: 'Actions', icon:<UiIcon name="compose" size={14}/>, label: 'New chat', run: newChat },
     ...(chatState?.conversations ?? []).slice(0, 30).map(c => ({ id: `chat-${c.id}`, group: 'Conversations', icon:<Icon name="message-circle"/>, label: c.title || c.preview || 'New chat', run: () => { void chat?.open(c.id); setPage('chat'); } })),
     { id: 'theme', group: 'Actions', icon:<UiIcon name={theme==='dark'?'sun':'moon'} size={14}/>, label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', run: toggleTheme },
@@ -153,7 +155,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       </div>
       <p className="titlebar-title">{pageTitle}</p>
       <div className="titlebar-tools end">
-        <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Commands (⌘K)"><UiIcon name="search" size={13}/>Commands<kbd>⌘K</kbd></button>
+        <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Search or run a command (⌘K)"><UiIcon name="search" size={13}/>Search or run a command<kbd>⌘K</kbd></button>
         <button type="button" className="tool" onClick={toggleTheme} aria-label="Switch theme" title="Switch theme"><UiIcon name={theme === 'dark' ? 'sun' : 'moon'} size={14}/></button>
       </div>
     </header>
@@ -171,8 +173,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <details className="account-menu"><summary className="user-chip" title="Account">
           <span className="avatar" aria-hidden="true">{(displayName(user) || '?').slice(0, 1).toUpperCase()}</span>
           <span className="user-name"><bdi>{displayName(user)}</bdi><small>{user.role}</small></span>
-        </summary><div><button onClick={() => openSettings('account')}>Account</button><button onClick={() => setPage('settings')}>Settings</button><button onClick={() => client.cancel()}>Sign out on this device</button></div></details>
-        <button type="button" className="tool sidebar-settings" aria-label="Settings" title="Settings" onClick={() => setPage('settings')}><Icon name="settings"/></button>
+        </summary><div><button onClick={() => openSettings('account')}>Account</button><button onClick={() => client.cancel()}>Sign out on this device</button></div></details>
       </div>
     </aside>
     <main id="content" className="page-area">
@@ -187,7 +188,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {user.role!=='guest'&&<section className="page page-approvals" hidden={page!=='approvals'}><ApprovalsWorkspace client={client} active={page==='approvals'} slot={slot} onDecision={pendingApprovals.reload} onAccount={()=>openSettings('account')} pendingCount={pendingApprovals.count} onAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}}/></section>}
       <section className="page page-ui mem-desk" hidden={page !== 'memory'}><MemoryWindow client={client} active={page === 'memory'} focus={memoryFocus} sidebarSlot={slot} onOpenChat={id => { void chat?.open(id); setPage('chat'); }} onOpenSettings={openMemorySettings}/></section>
       {user.role === 'owner' && <>
-        <section className="page page-personalities" hidden={page !== 'personalities'}>{page==='personalities'&&<PersonalityLibrary client={client} active sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}}/>}</section>
+        <section className="page page-personalities" hidden={page !== 'personalities'}><PersonalityLibrary client={client} active={page==='personalities'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}}/></section>
         <section className="page page-specialties" hidden={page !== 'specialties'}><SpecialtyLibrary client={client} active={page==='specialties'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenConnections={()=>setPage('mcp')}/></section>
         <section className="page page-skills mem-desk" hidden={page !== 'skills'}><SkillsSection client={client} active={page === 'skills'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
         <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
