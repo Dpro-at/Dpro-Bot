@@ -1,0 +1,30 @@
+/* Approvals as a desktop window (boards AP1–AP3): quiet rows, plain request, one filled button. */
+.approvals-desktop .approval-toolbar{min-height:48px;padding:10px 18px;gap:10px}
+.approvals-desktop .approval-toolbar h2{margin:0}
+.approvals-desktop .approval-live{margin-inline-end:auto;font-size:11px;color:var(--muted)}
+.approvals-desktop .approval-list{padding:0}
+.approvals-desktop .approval-row{align-items:center;border-radius:0;border:0;border-block-end:1px solid var(--border);padding:10px 16px;gap:12px}
+.approvals-desktop .approval-row[aria-pressed=true]{box-shadow:inset 2px 0 0 var(--accent)}
+.approvals-desktop .approval-row-copy>strong{font-size:13px}
+.approvals-desktop .approval-requester{margin-block-start:3px}
+.approvals-desktop .approval-requester small{font-size:11px;color:var(--muted);margin:0}
+.approvals-desktop .approval-category{width:32px;height:32px;border-radius:9px}
+.approvals-desktop [data-category=message]{color:#9DBBFF}
+.approvals-desktop [data-category=delete]{color:#F29BC0}
+.approvals-desktop [data-category=money]{color:#F0C27A}
+.approvals-desktop [data-category=network],.approvals-desktop [data-category=browser]{color:#6FD3C7}
+.approvals-desktop .approval-asker{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:5px 0 0}
+.approvals-desktop .approval-plain{display:flex;flex-direction:column;gap:8px;margin:0;padding:12px;border-radius:10px;background:var(--surface);border:1px solid var(--border)}
+.approvals-desktop .approval-plain>div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;font-size:12.5px}
+.approvals-desktop .approval-plain dt{color:var(--muted)}
+.approvals-desktop .approval-plain dd{margin:0;overflow-wrap:anywhere;line-height:1.5}
+.approvals-desktop .approval-plain dd[data-hidden]{color:var(--muted);font-style:italic}
+.approvals-desktop .approval-unavailable{display:flex;gap:7px;align-items:center;color:var(--danger);font-size:12px}
+.approvals-desktop .approval-scope summary{color:var(--accent)}
+.approvals-desktop .approval-decision>div{justify-content:flex-start}
+.approvals-desktop .approval-decision>p{margin:10px 0 0}
+.approvals-desktop .approval-empty small{font-size:11px;color:var(--muted)}
+.approvals-places .dk-search{display:flex;align-items:center;gap:6px;margin:0 2px 8px;padding:0 8px;height:28px;border-radius:6px;background:var(--secondary);color:var(--muted)}
+.approvals-places .dk-search input{flex:1;min-width:0;border:0;background:transparent;font-size:12px;padding:0}
+.approvals-places .dk-place .dk-badge{margin-inline-start:auto;min-width:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;text-align:center}
+.approvals-places .section-label{margin-block-start:16px}

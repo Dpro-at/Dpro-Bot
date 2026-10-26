@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {createPortal} from 'react-dom';
 import type {SessionClient} from './session';
-import {ApprovalPage} from './ApprovalPage';
+import {ApprovalPage,approvalPlaces} from './ApprovalPage';
 import {HumanReviewsController} from './human-reviews-controller';
 import {ReviewerVerificationSheet} from './ReviewerVerificationSheet';
 import type {ReviewerProofTarget} from './reviewer-proof-controller';
@@ -15,10 +15,13 @@ function ReviewValue({value,depth=0}:{value:unknown;depth?:number}){
  if(depth>6)return <details><summary>More details</summary><pre tabIndex={0}>{JSON.stringify(value,null,2)}</pre></details>;
  return Array.isArray(value)?<ol>{value.map((v,i)=><li key={i}><ReviewValue value={v} depth={depth+1}/></li>)}</ol>:<dl>{Object.entries(value).map(([key,v])=><div key={key}><dt>{key.replaceAll('_',' ').replace(/([a-z])([A-Z])/g,'$1 $2')}</dt><dd><ReviewValue value={v} depth={depth+1}/></dd></div>)}</dl>;
 }
-export function ApprovalsWorkspace({client,active,slot,onDecision,onAccount}:{client:SessionClient;active:boolean;slot:HTMLElement|null;onDecision:()=>void;onAccount:()=>void}){
- const owner=client.getSnapshot().user?.role==='owner';const [place,setPlace]=useState<'execution'|'reviews'>(owner?'execution':'reviews');
- const sidebar=<nav className="dk-sidebar" aria-label="Approvals places"><p className="section-label dk-label">Approvals</p>{owner&&<button type="button" className="nav-item dk-place" aria-current={place==='execution'?'page':undefined} onClick={()=>setPlace('execution')}><UiIcon name="clock" size={15}/>Execution requests</button>}<button type="button" className="nav-item dk-place" aria-current={place==='reviews'?'page':undefined} onClick={()=>setPlace('reviews')}><UiIcon name="shield" size={15}/>My reviews</button></nav>;
- return <>{slot?(active?createPortal(sidebar,slot):null):sidebar}{owner&&<div hidden={place!=='execution'}><ApprovalPage client={client} active={active&&place==='execution'} onDecision={onDecision}/></div>}<div hidden={place!=='reviews'}><HumanReviewsPage client={client} active={active&&place==='reviews'} onAccount={onAccount}/></div></>;
+/** One Approvals sidebar (board AP1): search, what waits for me, reviews asked of me, then history places. */
+export function ApprovalsWorkspace({client,active,slot,onDecision,onAccount,pendingCount}:{client:SessionClient;active:boolean;slot:HTMLElement|null;onDecision:()=>void;onAccount:()=>void;pendingCount?:number|null}){
+ const owner=client.getSnapshot().user?.role==='owner';const [place,setPlace]=useState<string>(owner?'pending':'reviews');const [query,setQuery]=useState('');const search=useRef<HTMLInputElement>(null);
+ const execution=place!=='reviews';const choose=(id:string)=>{setQuery('');setPlace(id);};
+ const placeButton=(id:string,name:string,icon:Parameters<typeof UiIcon>[0]['name'],badge?:number|null)=><button key={id} type="button" className="nav-item dk-place" aria-current={place===id?'page':undefined} onClick={()=>choose(id)}><UiIcon name={icon} size={15}/><span>{name}</span>{badge?<span className="dk-badge" aria-label={`${badge} waiting`}>{badge>=100?'99+':badge}</span>:null}</button>;
+ const sidebar=<nav className="dk-sidebar approvals-places" aria-label="Approvals places">{owner&&execution&&<label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search requests" placeholder="Search  ⌘F" value={query} onChange={e=>setQuery(e.target.value)}/></label>}{owner&&placeButton('pending','Waiting for me','inbox',pendingCount)}{placeButton('reviews','Reviews asked of me','shield')}{owner&&<><p className="section-label dk-label">History</p>{approvalPlaces.filter(p=>p.history).map(p=>placeButton(p.id,p.name,p.icon))}</>}</nav>;
+ return <>{slot?(active?createPortal(sidebar,slot):null):sidebar}{owner&&<div hidden={!execution}><ApprovalPage client={client} active={active&&execution} onDecision={onDecision} filter={execution?place:'pending'} query={query} searchRef={search}/></div>}<div hidden={execution}><HumanReviewsPage client={client} active={active&&!execution} onAccount={onAccount}/></div></>;
 }
 export function HumanReviewsPage({client,active,onAccount}:{client:SessionClient;active:boolean;onAccount?:()=>void}){
  const controller=useMemo(()=>new HumanReviewsController(client),[client]),state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
