@@ -104,7 +104,7 @@ button.sp-chip:hover{background:var(--row-hover)}
 .sp-changes{display:grid;gap:6px;padding:12px;border-radius:10px;background:var(--secondary);font-size:12px}
 .sp-changes span{display:flex;align-items:flex-start;gap:8px;color:var(--text-2);line-height:1.5}
 .sp-changes span[data-warn]{color:color-mix(in srgb,#F0C27A 70%,var(--text))}
-.sp-starts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sp-starts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .sp-starts button{display:grid;justify-items:start;gap:4px;padding:12px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border);text-align:start}
 .sp-starts button[aria-checked=true]{background:var(--row-active);box-shadow:inset 0 0 0 1.5px var(--accent)}
 .sp-starts small{color:var(--text-3)}
@@ -133,3 +133,10 @@ button.sp-chip:hover{background:var(--row-hover)}
  .sp-window[data-inline-sidebar],.sp-window[data-inline-sidebar][data-inspector=open]{grid-template-columns:170px minmax(0,1fr)}
  .sp-change>div,.sp-starts{grid-template-columns:1fr}
 }
+/* SP2 Versions */
+.sp-versions .sp-item[aria-selected=true]{background:var(--row-active)}
+.sp-version-view{display:grid;gap:8px;padding:12px;border-radius:10px;box-shadow:inset 0 0 0 1px var(--border)}
+.sp-version-view h3{margin:0;font-size:13px;display:flex;gap:8px;align-items:baseline}
+.sp-version-view h3 small{color:var(--text-3);font-weight:400}
+.sp-version-view pre{margin:0;max-block-size:280px;overflow:auto;white-space:pre-wrap;font:inherit;font-size:12.5px;color:var(--text-2)}
+.sp-version-view button{justify-self:start}

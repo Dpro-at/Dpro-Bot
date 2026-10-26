@@ -107,6 +107,17 @@ export class CentralSkills {
  async installFolder(directory:string,origin:string,previewHash:string,replaceHash?:string){await this.initialize();const b=await bundle(directory);if(b.hash!==previewHash)throw new SkillLibraryError('preview_changed',409);return this.store(b,origin,replaceHash);}
  /** DISCOVER-01: remove a skill from the library; refused while an agent has it. */
  async remove(id:string){await this.initialize();if(await q.one('SELECT agent_id FROM central_agent_skills WHERE skill_id=?',id))throw new SkillLibraryError('skill_in_use',409);await q.run('DELETE FROM central_skills WHERE id=?',id);}
+ /**
+  * Remove a skill from Dpro (owner, in the app only): refused while any agent
+  * has it or any specialty asks for it, and when it changed since the owner
+  * looked (revision). One transaction, so a skill given meanwhile is never lost.
+  */
+ async removeUnused(id:string,revision:number){await this.initialize();const used=await sql().tx(function*():Step<{agents:number;specialties:number}|null>{
+  const row=yield* one<{revision:number}>('SELECT revision FROM central_skills WHERE id=?',id);if(!row)throw new SkillLibraryError('not_found',404);if(row.revision!==revision)throw new SkillLibraryError('version_conflict',409);
+  const agents=(yield* one<{n:number}>('SELECT COUNT(*) n FROM central_agent_skills WHERE skill_id=?',id))!.n,specialties=(yield* one<{n:number}>("SELECT COUNT(*) n FROM specialty_templates WHERE config_json LIKE ?",'%"'+id+'"%'))!.n;
+  if(Number(agents)||Number(specialties))return {agents:Number(agents),specialties:Number(specialties)};
+  yield* run('DELETE FROM central_skills WHERE id=?',id);return null;},{immediate:true});
+  if(used)throw Object.assign(new SkillLibraryError('skill_in_use',409),{used});return {removed:true};}
  /** Which agents have each skill (read only; agents without any skill are left out). */
  async usage(){await this.initialize();const rows=await q.all<{skill_id:string;agent_id:string}>('SELECT skill_id,agent_id FROM central_agent_skills ORDER BY skill_id,agent_id');const map=new Map<string,string[]>();for(const r of rows){const list=map.get(r.skill_id)??[];list.push(r.agent_id);map.set(r.skill_id,list);}return {usage:[...map].map(([skillId,agentIds])=>({skillId,agentIds}))};}
  async assignments(agentId:string){const row=await q.one<{revision:number}>('SELECT revision FROM central_skill_assignments WHERE agent_id=?',agentId);return {revision:row?.revision??0,selected:(await q.all<{skill_id:string}>('SELECT skill_id FROM central_agent_skills WHERE agent_id=? ORDER BY skill_id',agentId)).map(r=>r.skill_id)};}
