@@ -8,7 +8,7 @@ const { allowedRequest } = require('../src/session.ts');
 const { allowed, project } = require('../scripts/application-server.cjs');
 const { agentResponse } = require('../src/agents.ts');
 const { orgResponse, orgFields } = require('../src/org-contract.js');
-const { layoutChart, canMoveUnder, underOf, chartStep, linkPath } = require('../src/org-chart.ts');
+const { layoutChart, layoutDepartments, canMoveToDepartment, canMoveUnder, underOf, chartStep, linkPath } = require('../src/org-chart.ts');
 const { OrgChart } = require('../src/OrgChart.tsx');
 const { toolWords } = require('../src/AgentSubAgents.tsx');
 
@@ -91,6 +91,25 @@ test('a wide team wraps into rows that fit the window, joined by a trunk', () =>
   assert.equal(new Set(wide.nodes.filter(n => n.depth === 1).map(n => n.y)).size, 1, 'one row without a width');
 });
 
+test('by department: main agent on top, one column per department (No department last), sub-agents stay with their agent', () => {
+  const c = layoutDepartments(team);
+  assert.deepEqual(c.groups.map(g => g.department), ['development', 'research']);
+  const at = id => c.nodes.find(n => n.agent.id === id);
+  assert.equal(at('lead').depth, 0);
+  const dev = c.groups[0];
+  for (const id of ['dev', 'coder', 'tester', 'helper']) assert.ok(at(id).x >= dev.x && at(id).x < dev.x + dev.w, id + ' in Development');
+  assert.ok(at('dev').y < at('coder').y, 'the manager first');
+  assert.ok(at('helper').y > at('coder').y && at('helper').x > at('coder').x, 'the sub-agent right under its agent');
+  assert.equal(c.links.length, 1); assert.ok(c.links[0].dashed);
+  const none = layoutDepartments([...team, A('loner', { department: null })]);
+  assert.equal(none.groups.at(-1).department, null);
+  assert.ok(layoutDepartments(team, '', 500).groups[1].y > layoutDepartments(team, '', 500).groups[0].y, 'columns wrap');
+  const by = id => team.find(a => a.id === id);
+  assert.equal(canMoveToDepartment(by('writer'), 'development'), true);
+  assert.equal(canMoveToDepartment(by('writer'), 'research'), false, 'already there');
+  assert.equal(canMoveToDepartment(by('helper'), 'research'), false, 'a sub-agent stays with its agent');
+});
+
 test('moves: no circles, the main agent and sub-agents stay put, keyboard walks the chart', () => {
   const by = id => team.find(a => a.id === id);
   assert.equal(canMoveUnder(by('writer'), by('dev'), team), true);
@@ -113,6 +132,7 @@ test('the chart renders cards as a tree with levels, the main tag and the sub-ag
   assert.match(html, /Sub-agent of Coder/);
   assert.match(html, /aria-label="Zoom out"/);
   assert.match(html, /aria-label="Curved lines"/);
+  assert.match(html, /aria-label="By department"/);
   assert.match(html, /aria-label="Coder, specialist"|aria-label="Coder, Specialist"/);
   assert.match(html, /Drag a card onto another agent/);
   assert.doesNotMatch(html, /small-local-agent/);

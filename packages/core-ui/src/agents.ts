@@ -209,6 +209,29 @@ export class AgentsController {
       this.#publish({ notice }); return { ok: false, notice };
     }
   }
+  /** Chart › By department: move one agent to a department (null: none). Returns the old one for Undo. */
+  async setDepartment(id: string, department: string | null): Promise<{ ok: boolean; notice: string; before?: string | null }> {
+    const agent = this.#state.agents.find(a => a.id === id);
+    if (!this.#state.owner || !this.#active() || !agent || this.#busy() || (department !== null && !/^[a-z0-9][a-z0-9 _-]{0,63}$/.test(department))) return { ok: false, notice: 'Wait until the team has loaded, then try again.' };
+    const label = department ? department[0].toUpperCase() + department.slice(1) : 'No department';
+    try {
+      const path = `/api/agents/${id}`;
+      const r = agentResponse(path, await this.client.request({ method: 'PUT', path, body: { expectedVersion: agent.version, department } }));
+      if (r.status !== 200) {
+        if (r.status === 401 || r.status === 403) { this.#fail(r.status); return { ok: false, notice: 'Access denied.' }; }
+        const notice = r.status === 409 ? 'The team changed meanwhile. It was read again; try once more.' : 'Nothing was changed.';
+        await this.list(); this.#publish({ notice }); return { ok: false, notice };
+      }
+      const notice = `${agent.name ?? 'The agent'} moved to ${label}`;
+      await this.list(); this.#publish({ notice });
+      return { ok: true, notice, before: agent.department ?? null };
+    } catch (error) {
+      const blocked = error instanceof SessionFailure && error.code === 'blocked';
+      if (!blocked) await this.list();
+      const notice = blocked ? 'Nothing was sent.' : 'The result is unknown. The team is read again.';
+      this.#publish({ notice }); return { ok: false, notice };
+    }
+  }
   /** SA1: add a sub-agent to `parent`. */
   async addSubAgent(parent: string, body: { name?: string; startsAs: 'copy' | 'specialty' | 'empty'; specialtyId?: string; description?: string; tools: string[]; model?: string; provider?: string }): Promise<{ ok: boolean; notice: string; id?: string }> {
     if (!this.#state.owner || !this.#active() || !validAgentId(parent)) return { ok: false, notice: 'Only the owner adds sub-agents.' };

@@ -59,6 +59,11 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   if(busy)return;setBusy(true);const r=await controller.setReportsTo(id,target);setBusy(false);
   if(r.ok)say(r.notice,async()=>{const back=await controller.setReportsTo(id,r.before??null);setToast({id:Date.now(),text:back.ok?'Change undone':back.notice,undo:false});});else say(r.notice);
  }
+ /** Chart › By department: move to another department, with Undo. */
+ async function moveToDepartment(id:string,department:string|null){
+  if(busy)return;setBusy(true);const r=await controller.setDepartment(id,department);setBusy(false);
+  if(r.ok)say(r.notice,async()=>{const back=await controller.setDepartment(id,r.before??null);setToast({id:Date.now(),text:back.ok?'Change undone':back.notice,undo:false});});else say(r.notice);
+ }
  // ⌘Z undoes the last move while the staff page is shown (not inside a text field or sheet).
  useEffect(()=>{const on=(e:KeyboardEvent)=>{const t=e.target as HTMLElement|null;if(!(e.metaKey||e.ctrlKey)||e.shiftKey||e.key.toLowerCase()!=='z'||!undo.current||!page.current?.offsetParent)return;if(t&&(t.closest('textarea,[contenteditable="true"],dialog')||(t instanceof HTMLInputElement&&!['radio','checkbox','button'].includes(t.type))))return;e.preventDefault();runUndo();};window.addEventListener('keydown',on);return()=>window.removeEventListener('keydown',on);},[]);
  async function act(kind:'main'|'copy'|'remove',a:PublicAgent){
@@ -103,7 +108,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
    {onHire&&<button type="button" className="primary ag-main-button" title="Hire an agent (⌘N)" onClick={onHire}><UiIcon name="plus" size={14}/>Hire agent</button>}
   </header>
   {view==='chart'&&s.agents.length>0?<OrgChart agents={s.agents.filter(a=>department==='all'||department==='main'||(department==='none'?!a.department:a.department===department)||a.placed==='main')} selected={selected} query={query} owner={owner} folded={folded} onFold={fold}
-    onSelect={select} onOpen={id=>onOpen(id)} onMenu={(e,a)=>menu.at(e as never,items(a))} onMove={(id,target)=>void moveUnder(id,target)}/>:
+    onSelect={select} onOpen={id=>onOpen(id)} onMenu={(e,a)=>menu.at(e as never,items(a))} onMove={(id,target)=>void moveUnder(id,target)} onDepartment={(id,d)=>void moveToDepartment(id,d)}/>:
   <div className="ag-rows" ref={rows} role="listbox" aria-label="Staff" onKeyDown={move}>
    {shown.map(a=><button type="button" key={a.id} role="option" aria-selected={selected===a.id} tabIndex={selected===a.id||!agent&&shown[0]?.id===a.id?0:-1} className="ag-row" onClick={()=>select(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>rowKey(e,a)} onContextMenu={(e:ReactMouseEvent)=>{select(a.id);menu.at(e,items(a));}}>
     <AgentFace agent={a} face={owner?faces[a.id]:undefined} profile={owner&&faces[a.id]?library?.find(e=>e.profile.name===faces[a.id])?.profile:undefined}/>
