@@ -12,6 +12,7 @@ import { devQuickLoginAccounts } from './dev-quick-login';
 import { localSessionKeep } from './local-session-keep';
 import { setupCodeFromFragment } from './owner-setup-contract.js';
 import type { OwnerSetupCode } from './owner-setup-contract.js';
+import { isDeveloperBuild } from './developer-build';
 
 const notices = {
   recovered:'Authenticator reset. Sign in again, then set up two-step verification in Settings.',
@@ -50,7 +51,7 @@ export function AuthBoundary({ client: supplied, children, initialPage }: { clie
   // Signed in: the workspace's own status bar carries the mode and the way out.
   const signedIn = state.mode !== 'fixture' && state.phase === 'authenticated';
   return <div className={`auth-boundary${signedIn ? ' signed-in' : ''}`}>
-    {!signedIn && !liveOnly && <section className="auth-controls" aria-label="Session mode" lang="en" dir="ltr">
+    {!signedIn && isDeveloperBuild(client) && <section className="auth-controls" aria-label="Session mode" lang="en" dir="ltr">
       <strong>{state.mode === 'fixture' ? 'Fixture workspace — fictional data' : state.mode === 'mock' ? 'Offline login mock — fictional identity, no network' : 'Live session — explicitly enabled deployment'}</strong>
       {state.mode === 'fixture' ? <>
         {client.canUse('mock') && <button onClick={() => client.selectMode('mock')}>Open offline login mock</button>}

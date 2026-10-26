@@ -35,6 +35,7 @@ import { footerFor } from './footer-prefs';
 import type { FooterSection } from './footer-prefs';
 import { ChatSearchController } from './chat-search';
 import type { Command } from './CommandPalette';
+import { accountRoleLabel, isDeveloperBuild } from './developer-build';
 
 type Page = 'code' | 'trading' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
 /** Sections that own the sidebar with their own places (the chat list shows only in Chat). */
@@ -170,7 +171,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <div className="sidebar-footer">
         <details className="account-menu"><summary className="user-chip" title="Account">
           <span className="avatar" aria-hidden="true">{(displayName(user) || '?').slice(0, 1).toUpperCase()}</span>
-          <span className="user-name"><bdi>{displayName(user)}</bdi><small>{user.role}</small></span>
+          <span className="user-name"><bdi>{displayName(user)}</bdi>{accountRoleLabel(user.role)&&<small>{accountRoleLabel(user.role)}</small>}</span>
         </summary><div><button onClick={() => openSettings('account')}>Account</button><button onClick={() => setPage('settings')}>Settings</button><button onClick={() => client.cancel()}>Sign out on this device</button></div></details>
         <button type="button" className="tool sidebar-settings" aria-label="Settings" title="Settings" onClick={() => setPage('settings')}><Icon name="settings"/></button>
       </div>
@@ -202,7 +203,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <ShellFooter controller={footer} settingsCurrent={page==='settings'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
       status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
         : <span className="status-item status-dot-only" title="Connected · this installation" aria-label="Connected · this installation" role="img"><span className={`status-dot ${mode}`} aria-hidden="true"/></span>}
-      extra={client.canUse('mock') && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}
+      extra={isDeveloperBuild(client) && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}
       entries={footerEntries}/>
     <CommandPalette open={palette} commands={commands} onClose={() => setPalette(false)}
       search={chat && search && user.role !== 'guest' ? { controller: search.palette, onOpen: (id, messageId) => { void chat.openAt(id, messageId); setPage('chat'); } } : undefined}/>
