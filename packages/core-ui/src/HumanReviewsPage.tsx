@@ -2,6 +2,10 @@ import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {createPortal} from 'react-dom';
 import type {SessionClient} from './session';
 import {ApprovalPage,approvalPlaces,requestTitle} from './ApprovalPage';
+import {AgentPermissionsGrid} from './AgentPermissionsGrid';
+import {ReviewerPoliciesSettings} from './ReviewerPoliciesSettings';
+import {ReviewerDirectory} from './SecuritySettings';
+import {PermissionCoverage} from './PermissionCoverage';
 import {HumanReviewsController} from './human-reviews-controller';
 import {ReviewerVerificationSheet} from './ReviewerVerificationSheet';
 import type {ReviewerProofTarget} from './reviewer-proof-controller';
@@ -16,12 +20,12 @@ function ReviewValue({value,depth=0}:{value:unknown;depth?:number}){
  return Array.isArray(value)?<ol>{value.map((v,i)=><li key={i}><ReviewValue value={v} depth={depth+1}/></li>)}</ol>:<dl>{Object.entries(value).map(([key,v])=><div key={key}><dt>{key.replaceAll('_',' ').replace(/([a-z])([A-Z])/g,'$1 $2')}</dt><dd><ReviewValue value={v} depth={depth+1}/></dd></div>)}</dl>;
 }
 /** One Approvals sidebar (board AP1): search, what waits for me, reviews asked of me, then history places. */
-export function ApprovalsWorkspace({client,active,slot,onDecision,onAccount,pendingCount}:{client:SessionClient;active:boolean;slot:HTMLElement|null;onDecision:()=>void;onAccount:()=>void;pendingCount?:number|null}){
+export function ApprovalsWorkspace({client,active,slot,onDecision,onAccount,pendingCount,onAgent}:{client:SessionClient;active:boolean;slot:HTMLElement|null;onDecision:()=>void;onAccount:()=>void;pendingCount?:number|null;onAgent?:(id:string)=>void}){
  const owner=client.getSnapshot().user?.role==='owner';const [place,setPlace]=useState<string>(owner?'pending':'reviews');const [query,setQuery]=useState('');const search=useRef<HTMLInputElement>(null);
- const execution=place!=='reviews';const choose=(id:string)=>{setQuery('');setPlace(id);};
+ const rulePlaces=['rules','perms','reviewers','coverage'];const execution=place!=='reviews'&&!rulePlaces.includes(place);const choose=(id:string)=>{setQuery('');setPlace(id);};
  const placeButton=(id:string,name:string,icon:Parameters<typeof UiIcon>[0]['name'],badge?:number|null)=><button key={id} type="button" className="nav-item dk-place" aria-current={place===id?'page':undefined} onClick={()=>choose(id)}><UiIcon name={icon} size={15}/><span>{name}</span>{badge?<span className="dk-badge" aria-label={`${badge} waiting`}>{badge>=100?'99+':badge}</span>:null}</button>;
- const sidebar=<nav className="dk-sidebar approvals-places" aria-label="Approvals places">{owner&&execution&&<label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search requests" placeholder="Search  ⌘F" value={query} onChange={e=>setQuery(e.target.value)}/></label>}{owner&&placeButton('pending','Waiting for me','inbox',pendingCount)}{placeButton('reviews','Reviews asked of me','shield')}{owner&&<><p className="section-label dk-label">History</p>{approvalPlaces.filter(p=>p.history).map(p=>placeButton(p.id,p.name,p.icon))}</>}</nav>;
- return <>{slot?(active?createPortal(sidebar,slot):null):sidebar}{owner&&<div hidden={!execution}><ApprovalPage client={client} active={active&&execution} onDecision={onDecision} filter={execution?place:'pending'} query={query} searchRef={search}/></div>}<div hidden={execution}><HumanReviewsPage client={client} active={active&&!execution} onAccount={onAccount}/></div></>;
+ const sidebar=<nav className="dk-sidebar approvals-places" aria-label="Approvals places">{owner&&execution&&<label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search requests" placeholder="Search  ⌘F" value={query} onChange={e=>setQuery(e.target.value)}/></label>}{owner&&placeButton('pending','Waiting for me','inbox',pendingCount)}{placeButton('reviews','Reviews asked of me','shield')}{owner&&<><p className="section-label dk-label">History</p>{approvalPlaces.filter(p=>p.history).map(p=>placeButton(p.id,p.name,p.icon))}<p className="section-label dk-label">Rules</p>{placeButton('rules','Approval rules','note')}{placeButton('perms','What agents may do','sliders')}{placeButton('reviewers','Reviewers','eye')}{placeButton('coverage','Tools without a rule','tool')}</>}</nav>;
+ return <>{slot?(active?createPortal(sidebar,slot):null):sidebar}{owner&&<div hidden={!execution}><ApprovalPage client={client} active={active&&execution} onDecision={onDecision} filter={execution?place:'pending'} query={query} searchRef={search}/></div>}<div hidden={place!=='reviews'}><HumanReviewsPage client={client} active={active&&place==='reviews'} onAccount={onAccount}/></div>{owner&&<>{place==='rules'&&<div className="approvals-rule-place"><ReviewerPoliciesSettings client={client} onAccount={onAccount}/></div>}{place==='perms'&&<AgentPermissionsGrid client={client} active={active} onAgent={onAgent}/>}{place==='reviewers'&&<div className="approvals-rule-place"><h2>Reviewers</h2><ReviewerDirectory client={client} onAgent={id=>onAgent?.(id)}/></div>}{place==='coverage'&&<div className="approvals-rule-place"><h2>Tools without a rule</h2><PermissionCoverage client={client} active={active}/></div>}</>}</>;
 }
 export function HumanReviewsPage({client,active,onAccount}:{client:SessionClient;active:boolean;onAccount?:()=>void}){
  const controller=useMemo(()=>new HumanReviewsController(client),[client]),state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
