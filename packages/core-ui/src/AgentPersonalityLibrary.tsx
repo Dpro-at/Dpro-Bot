@@ -1,21 +1,15 @@
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import type {SessionClient} from './session';
-import {ProfileEditor} from './PersonalityLibrary';
-import {libraryRpc as rpc,P,type Entry,type Profile} from './personality-library';
+import {characterKeys,GuidelinesPart,PersonalityMark,PersonalitySheet,Slider,sliderValue,SpeakingPart} from './PersonalityLibrary';
+import {libraryRpc as rpc,P,useLibraryEntries,type Entry,type Profile} from './personality-library';
 import type {AgentCardController,PartDone} from './agent-card';
 import type {PersonalityController} from './personality';
 import {PersonalityReview} from './PersonalityReview';
 import {Sheet} from './desktop-ui';
 import {UiIcon} from './ui-icons';
-import {personalityColour} from './agent-look';
 import {forgetFacts} from './agent-facts';
 
 type Assignment={id:string;revision:number;linked:boolean;profile:Profile}|null;
-/** A personality's face: the smile on its own colour. */
-export function PersonalityFace({name,size=46}:{name?:string|null;size?:number}){
- const c=personalityColour(name);
- return <span className="ag-pface" aria-hidden="true" style={{inlineSize:size,blockSize:size,color:c,background:`${c}22`,boxShadow:`inset 0 0 0 1.5px ${c}66`}}><UiIcon name="smile" size={Math.round(size*.52)}/></span>;
-}
 
 /**
  * PL5: which personality the agent has, whether it follows library changes,
@@ -25,7 +19,8 @@ export function PersonalityFace({name,size=46}:{name?:string|null;size?:number})
 export function AgentPersonalityLibrary({card,personality,onDone}:{card:AgentCardController;personality?:PersonalityController;onDone:PartDone}){
  const s=useSyncExternalStore(card.subscribe,card.getSnapshot,card.getSnapshot);
  const client=card.client as SessionClient,agentId=s.agentId,version=s.persona?.version??0,locked=!!s.persona?.locked;
- const [assignment,setAssignment]=useState<Assignment|undefined>(undefined),[draft,setDraft]=useState<Profile|null>(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[choosing,setChoosing]=useState(false);
+ const [assignment,setAssignment]=useState<Assignment|undefined>(undefined),[draft,setDraft]=useState<Profile|null>(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[choosing,setChoosing]=useState(false),[speaking,setSpeaking]=useState(false);
+ const library=useLibraryEntries(client);
  const timer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const saved=useRef<Profile|null>(null);
  useEffect(()=>{let live=true;void rpc<{assignment:Assignment}>(client,'GET',`${P}/assigned/${agentId}`).then(r=>{if(live){setAssignment(r.assignment);setDraft(r.assignment?structuredClone(r.assignment.profile):null);saved.current=r.assignment?structuredClone(r.assignment.profile):null;}}).catch(()=>{if(live){setAssignment(null);setNotice('Could not read the assigned personality.');}});return()=>{live=false;};},[client,agentId,version]);
  useEffect(()=>()=>clearTimeout(timer.current),[]);
@@ -48,10 +43,13 @@ export function AgentPersonalityLibrary({card,personality,onDone}:{card:AgentCar
  }
  async function lock(){const next=!locked;await card.lock(next);if(card.getSnapshot().saved)onDone(next?'Personality locked':'Personality unlocked',()=>void card.lock(!next));}
  const off=locked||busy||s.phase==='saving';
- const name=assignment?.profile.name;
+ const name=assignment?.profile.name,from=assignment?library?.find(e=>e.id===assignment.id)?.profile:undefined;
+ // ⌘L locks or unlocks, as the lock button's tooltip says.
+ const lockRef=useRef(lock);lockRef.current=lock;const canLock=!busy&&s.phase!=='saving'&&!choosing&&!speaking;
+ useEffect(()=>{if(!canLock)return;const key=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='l'){e.preventDefault();void lockRef.current();}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[canLock]);
  return <div className="ag-persona">
   <div className="ag-part">
-   <div className="ag-pcard"><PersonalityFace name={name}/>
+   <div className="ag-pcard"><PersonalityMark profile={from??assignment?.profile} size={46}/>
     <span className="ag-pcard-text"><b>{assignment===undefined?'Reading…':name??'Its own settings'}</b><small dir="auto">{assignment?.profile.description||(assignment===null?'Not from the library. Pick one to start from.':'')}</small></span>
     {assignment&&<label className="ag-switch-label" title={`When ${name} changes in the library, this agent gets it after your review`}><button type="button" role="switch" className="ag-switch" aria-checked={assignment.linked} aria-label="Follows library changes" disabled={off} onClick={()=>void follow(!assignment.linked)}><i/></button>Follows library changes</label>}
     <button type="button" disabled={off} onClick={()=>setChoosing(true)}>Change…</button>
@@ -60,8 +58,11 @@ export function AgentPersonalityLibrary({card,personality,onDone}:{card:AgentCar
    {locked&&<p className="ag-muted"><UiIcon name="lock" size={13}/> Locked: nothing changes until you unlock it.</p>}
    {notice&&<p className="ag-alert" role="status">{notice}</p>}
    {personality&&<PersonalityReview controller={personality} agentName={s.agent?.name??'This agent'}/>}
-   {draft&&assignment&&<section aria-label="Its own adjustments" className="ag-own"><div className="ag-head-row"><b>Its own adjustments</b><small className="ag-muted">only this agent · saved as you go</small></div>
-    <fieldset disabled={off}><ProfileEditor value={draft} onChange={adjust}/></fieldset></section>}
+   {draft&&assignment&&<section aria-label="Its own adjustments" className="ag-own"><div className="ag-head-row"><b>Its own adjustments</b><small className="ag-muted">only this agent · saved as you go{from?` · the small mark is ${from.name}’s value`:''}</small></div>
+    <fieldset disabled={off}><div className="pl-sliders">{characterKeys.map(k=><Slider key={k} k={k} p={draft} mark={from?sliderValue(from,k):undefined} markName={from?.name} onChange={adjust}/>)}</div>
+     <button type="button" className="link-button ag-own-more" onClick={()=>setSpeaking(true)}>Speaking, language and guidelines…</button></fieldset></section>}
+   {speaking&&draft&&<PersonalitySheet title="Speaking, language and guidelines" onClose={()=>setSpeaking(false)} footer={<button type="button" className="primary" onClick={()=>setSpeaking(false)}>Done</button>}>
+    <fieldset className="ag-own-sheet" disabled={off}><SpeakingPart p={draft} onChange={adjust}/><GuidelinesPart p={draft} onChange={adjust}/></fieldset><p className="fine-print">Only this agent · saved as you go. A personality changes how it talks, never its skills or permissions.</p></PersonalitySheet>}
   </div>
   <aside className="ag-versions" aria-label="Versions"><small className="ag-label">Versions</small>
    {s.versions?s.versions.map(v=>{const now=v.version===version;return <div key={v.version} className="ag-version" data-current={now||undefined}><span><span>Version {v.version}{v.note?` · ${v.note}`:''}</span><small>{v.source==='seed'?'first version':(v.createdAt??'').slice(0,16).replace('T',' ')}</small></span>
@@ -78,7 +79,7 @@ export function PersonalityFaces({client,value,onPick,disabled,autoPick}:{client
  useEffect(()=>{let live=true;setFailed(false);void rpc<{personalities:Entry[]}>(client,'GET',P).then(r=>{if(!live)return;const all=r.personalities.filter(e=>!e.archived);setEntries(all);const first=autoPick&&!value&&all.find(e=>e.id===autoPick);if(first)onPick(first);}).catch(()=>{if(live)setFailed(true);});return()=>{live=false;};},[client,retry]);
  if(failed)return <p role="status">The personality library could not be read. <button type="button" className="link-button" onClick={()=>setRetry(n=>n+1)}>Try again</button></p>;
  if(!entries)return <p className="ag-muted" role="status">Reading personalities…</p>;
- return <div className="ag-faces" role="radiogroup" aria-label="Personality">{entries.map(e=><button type="button" role="radio" aria-checked={value===e.id} key={e.id} className="ag-face-card" disabled={disabled} onClick={()=>onPick(e)}><PersonalityFace name={e.profile.name} size={34}/><b>{e.profile.name}</b><small dir="auto">{e.profile.description}</small></button>)}</div>;
+ return <div className="ag-faces" role="radiogroup" aria-label="Personality">{entries.map(e=><button type="button" role="radio" aria-checked={value===e.id} key={e.id} className="ag-face-card" disabled={disabled} onClick={()=>onPick(e)}><PersonalityMark profile={e.profile} size={34}/><b>{e.profile.name}</b><small dir="auto">{e.profile.description}</small></button>)}</div>;
 }
 function ChoosePersonality({client,current,onPick,onClose}:{client:SessionClient;current?:string;onPick:(e:Entry)=>void;onClose:()=>void}){
  return <Sheet title="Choose a personality" wide onClose={onClose} actions={<button type="button" onClick={onClose}>Cancel</button>}><PersonalityFaces client={client} value={current} onPick={onPick}/><p className="fine-print">Edit the library's personalities in Personalities.</p></Sheet>;

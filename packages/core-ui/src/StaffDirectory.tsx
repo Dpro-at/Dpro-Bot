@@ -8,16 +8,18 @@ import {UiIcon} from './ui-icons';
 import type {UiIconName} from './ui-icons';
 import {departmentIcon,departmentName,departmentTone,personalityColour,ROLE_CARDS,roleWord,tileStyle} from './agent-look';
 import {permissionLine,useAgentFacts,useFaces,forgetFacts,retryFacts} from './agent-facts';
+import {PersonalityMark} from './PersonalityLibrary';
+import {useLibraryEntries,type Profile} from './personality-library';
 
 type Toast={id:number;text:string;undo:boolean}|null;
 /** A department's icon on its colour tile (sidebar, list, pickers). */
 export function DepartmentTile({department,size=18}:{department?:string|null;size?:number}){
  return <span className="ag-tile" aria-hidden="true" style={{...tileStyle(departmentTone(department)),inlineSize:size,blockSize:size}}><UiIcon name={departmentIcon(department)} size={Math.round(size*.62)}/></span>;
 }
-/** An agent's round avatar with the small face of its personality. */
-export function AgentFace({agent,face,size=30}:{agent:Pick<PublicAgent,'name'>;face?:string|null;size?:number}){
+/** An agent's round avatar with the small face of its personality (the same face the library draws). */
+export function AgentFace({agent,face,profile,size=30}:{agent:Pick<PublicAgent,'name'>;face?:string|null;profile?:Profile;size?:number}){
  const colour=personalityColour(face);
- return <span className="ag-face"><Avatar name={agent.name??'?'} size={size}/>{face!==undefined&&<span className="ag-face-mark" title={face??'No personality from the library'} style={{color:colour,boxShadow:`0 0 0 1px ${colour}88`}}><UiIcon name="smile" size={10}/></span>}</span>;
+ return <span className="ag-face"><Avatar name={agent.name??'?'} size={size}/>{face!==undefined&&(profile?<span className="ag-face-mark" title={face??undefined}><PersonalityMark profile={profile} size={15}/></span>:<span className="ag-face-mark" title={face??'No personality from the library'} style={{color:colour,boxShadow:`0 0 0 1px ${colour}88`}}><UiIcon name="smile" size={10}/></span>)}</span>;
 }
 
 /**
@@ -33,7 +35,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
  const q=query.trim().toLowerCase();
  const shown=s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role)].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??''));
- const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client);
+ const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client),library=useLibraryEntries(controller.client,owner);
  const agent=shown.find(a=>a.id===selected);
  const say=(text:string,undo=false)=>setToast({id:Date.now(),text,undo});
  async function act(kind:'main'|'copy'|'remove',a:PublicAgent){
@@ -71,7 +73,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   </header>
   <div className="ag-rows" ref={rows} role="listbox" aria-label="Staff" onKeyDown={move}>
    {shown.map(a=><button type="button" key={a.id} role="option" aria-selected={selected===a.id} tabIndex={selected===a.id||!agent&&shown[0]?.id===a.id?0:-1} className="ag-row" onClick={()=>select(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>rowKey(e,a)} onContextMenu={(e:ReactMouseEvent)=>{select(a.id);menu.at(e,items(a));}}>
-    <AgentFace agent={a} face={owner?faces[a.id]:undefined}/>
+    <AgentFace agent={a} face={owner?faces[a.id]:undefined} profile={owner&&faces[a.id]?library?.find(e=>e.profile.name===faces[a.id])?.profile:undefined}/>
     <span className="ag-row-text"><span className="ag-row-name"><bdi>{a.name??'Name unavailable'}</bdi>{a.isPrimary&&<span className="ag-tag">Main agent</span>}</span><span className="ag-row-sub">{a.isPrimary?'Talks to you first':roleWord(a.role)}</span></span>
     <span className="ag-row-dept"><DepartmentTile department={a.department}/>{departmentName(a.department)}</span>
    </button>)}

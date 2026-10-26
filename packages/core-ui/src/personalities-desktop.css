@@ -142,3 +142,17 @@
 .pl-picker-faces button:hover{background:var(--row-hover,var(--subtle))}
 .pl-picker-faces button[aria-checked=true]{background:var(--row-active,var(--subtle));box-shadow:inset 0 0 0 1.5px var(--accent)}
 .pl-picker-button>svg:last-child{transform:rotate(90deg);opacity:.6}
+/* Library mark on an agent's own sliders (PL5) */
+.pl-track{position:relative;display:block}
+.pl-mark{position:absolute;inset-block:-3px;inline-size:2px;margin-inline-start:-1px;border-radius:1px;background:var(--muted);opacity:.8;pointer-events:none}
+.ag-own .pl-sliders{margin-block:4px 10px}
+.ag-own-more{justify-self:start}
+.ag-own-sheet{border:0;padding:0;margin:0;min-inline-size:0;display:grid;gap:8px}.ag-own-sheet .pl-part{padding:0}
+/* Earlier personality suggestions */
+.ag-earlier ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ag-earlier li{display:grid;gap:2px;font-size:12px}.ag-earlier li small{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-earlier li button[aria-pressed=true]{font-weight:600}
+.ag-earlier-box{padding:4px 0}
+/* Team balance: drag an agent onto a personality in the sidebar */
+.pl-col li[draggable=true]{cursor:grab}
+.pl-drop[data-over]{background:var(--row-active,var(--subtle));box-shadow:inset 0 0 0 1.5px var(--accent)}
