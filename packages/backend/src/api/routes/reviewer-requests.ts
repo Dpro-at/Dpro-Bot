@@ -63,14 +63,18 @@ export async function reviewerRequestRoutes(app:FastifyInstance){
    const candidates=await sql().read(all<QuorumApprovalRow>(
     `SELECT id,status,params_hash,tool_name,agent_id,user_id,session_id,category,origin,delegated_from,run_scope,requested_at FROM tool_approvals WHERE status='pending' AND id>? AND agent_id IN (${agents.map(()=>'?').join(',')}) AND tool_name IN (${tools.map(()=>'?').join(',')})${policy.allowInitiatorVote?'':' AND (user_id IS NULL OR user_id<>?)'} ORDER BY id LIMIT 51`,
     query.cursor??'',...agents,...tools,...(policy.allowInitiatorVote?[]:[context.userId])));
-   const items=[];
+   const items=[];const names=new Map<string,string|null>();
+   // Display only: names for agent ids and agreeing answers so far. The quorum check at run time stays the only gate.
+   const agentName=async(id:string)=>{if(!names.has(id)){const hit=await sql().read(one<{name:string|null}>('SELECT name FROM agents_config WHERE id=?',id));names.set(id,typeof hit?.name==='string'&&hit.name.trim()&&hit.name.length<=200&&!/[\x00-\x1f\x7f]/.test(hit.name)?hit.name.trim():null);}return names.get(id)??null;};
    for(const candidate of candidates.slice(0,50)){
     try{
      const operation=await reviewerVoteTarget(context,actor,row.id,Number(row.version),candidate.id,candidate.params_hash??'','approve');
      if(operation.requestHash!==quorumRequestHash(candidate))continue;
      const {kind:_kind,policyVersion:_generation,...reference}=operation;
      const ownVote=await readReviewerVote(context,actor,reference);
-     items.push({reference,toolName:candidate.tool_name,agentId:candidate.agent_id,requestedAt:candidate.requested_at,ownVote});
+     const agreed=await sql().read(all<{user_id:string}>("SELECT DISTINCT user_id FROM human_reviewer_votes WHERE policy_id=? AND policy_version=? AND approval_id=? AND decision='approve' AND actor_kind='user' AND request_hash=? AND policy_hash=?",row.id,Number(row.version),candidate.id,reference.requestHash,reference.policyHash));
+     const votesGiven=Math.min(policy.requiredVotes,agreed.filter(v=>policy.reviewerIds.includes(v.user_id)&&(policy.allowInitiatorVote||v.user_id!==candidate.user_id)).length);
+     items.push({reference,toolName:candidate.tool_name,agentId:candidate.agent_id,agentName:candidate.agent_id?await agentName(candidate.agent_id):null,requestedAt:candidate.requested_at,ownVote,votesNeeded:policy.requiredVotes,votesGiven});
     }catch(error){
      if(!(error instanceof ReviewerVoteError))throw error;
      if(error.code==='forbidden')return reply.code(404).send(unavailable);

@@ -1,16 +1,18 @@
 import {PersonalityPicker} from './PersonalityLibrary';
 import {TeamResourceReview} from './TeamResourceReview';
 import {DepartmentTile} from './StaffDirectory';
-import {IconButton} from './desktop-ui';
+import {IconButton,Sheet} from './desktop-ui';
+import {libraryRpc,P,type Entry} from './personality-library';
 import {UiIcon} from './ui-icons';
 import {departmentIcon,departmentTone,tileStyle} from './agent-look';
-import { useEffect,useRef,useState, useSyncExternalStore } from 'react';
+import { Fragment,useEffect,useRef,useState, useSyncExternalStore } from 'react';
+import type { PointerEvent as PointerEv, KeyboardEvent as KeyEv } from 'react';
 import { allPresets, allRoles, presetLabel, roleLabel } from './hire';
 import type { Preset, Role } from './hire';
 import { shareRoles, sharesTotal, shareSpecialties } from './company';
 import { validSpecialties } from './hire-contract.js';
 import type { Specialty, SpecialtyChoice, BatchProgress, CompanyController, PlannedHire, Share } from './company';
-import { rolesSummary } from './team-split';
+import { movePeople, rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
 const steps = [
@@ -47,7 +49,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
     {(s.notice || busy) && <p role="status">{s.notice ?? (s.phase === 'loading' ? 'Reading the departments…' : s.phase === 'planning' ? (bulk ? 'Splitting your team…' : 'Proposing a team…') : 'Hiring your team…')}</p>}
 
     {s.step === 'size' && <div className="hire-form">
-      <p>How many agents do you want in your company? Pick a number or type your own. Dpro Agent splits them over the departments you choose, and you review the split before any agent is hired.</p>
+      <p>How many agents do you want in your company? Pick a number or type your own. Dpro splits them over the departments you choose, and you review the split before any agent is hired.</p>
       {!s.catalogue
         ? <div className="hire-actions"><button type="button" className="primary" disabled={busy || !s.owner} onClick={() => void controller.loadCatalogue()}>Start</button></div>
         : <>
@@ -71,7 +73,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
     </div>}
 
     {s.step === 'departments' && s.catalogue && <div className="hire-form">
-      <p>{s.total !== undefined ? `Choose the departments for your ${s.total} ${s.total === 1 ? 'agent' : 'agents'}. Dpro Agent splits them by the size each department usually needs; you can change every count.` : 'Choose the departments you want. Each one gets its own small team.'}</p>
+      <p>{s.total !== undefined ? `Choose the departments for your ${s.total} ${s.total === 1 ? 'agent' : 'agents'}. Dpro splits them by the size each department usually needs; you can change every count.` : 'Choose the departments you want. Each one gets its own small team.'}</p>
       <label>Suggest departments<select aria-label="Suggested company profile" disabled={busy} defaultValue="" onChange={e=>controller.chooseProfile(e.target.value)}><option value="">Choose a company profile…</option><option value="education">Education, languages and integration</option><option value="software">Software company</option><option value="creative">Creative studio</option></select></label><label>Search departments<input type="search" aria-label="Search departments" value={query} onChange={e=>setQuery(e.target.value)}/></label><p className="fine-print">{s.departments.length} selected · up to 72 per plan. Department selection does not make pending specialty packages executable.</p>
       <ul className="company-departments" aria-label="Departments">{s.catalogue.departments.filter(d=>`${d.label} ${d.summary}`.toLowerCase().includes(query.toLowerCase())).map(d => {
         const on = s.departments.includes(d.id);
@@ -79,7 +81,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
           <strong>{d.label}</strong><small>{d.summary}</small>
         </button></li>;
       })}</ul>
-      {customs.length > 0 && <p className="fine-print">Your own departments: {customs.map(c => <span key={c} className="badge company-custom">{c} <button type="button" aria-label={`Remove ${c}`} onClick={() => controller.toggleDepartment(c)}>×</button></span>)}</p>}
+      {customs.length > 0 && <p className="fine-print">Your own departments: {customs.map(c => <span key={c} className="badge company-custom">{c} <button type="button" aria-label={`Remove ${c}`} title={`Remove ${c}`} onClick={() => controller.toggleDepartment(c)}><UiIcon name="close" size={12}/></button></span>)}</p>}
       <form className="company-add" onSubmit={e => { e.preventDefault(); if (controller.addCustom(custom)) setCustom(''); }}>
         <label>Add your own department<input value={custom} maxLength={64} placeholder="e.g. podcast studio" disabled={busy} onChange={e => setCustom(e.target.value)}/></label>
         <button type="submit" disabled={busy || !custom.trim()}>Add</button>
@@ -92,12 +94,11 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
 
     {s.step==='review'&&<TeamResourceReview client={controller.client} departments={[...s.departments]} roles={(bulk?s.shares.flatMap(x=>shareSpecialties(x).map(r=>({department:x.department,name:r.name}))):s.hires.filter(h=>h.include).map(h=>({department:h.department,name:h.title}))).filter(r=>r.name.trim()).slice(0,300)}/>}
     {(s.step==='done'||s.phase==='stopped')&&s.boardSetup&&<p role="status">{s.boardSetup==='ready'?'Company and department boards are ready. Skills and MCP permissions still need individual review.':s.boardSetup==='syncing'?'Preparing department boards…':s.boardSetup==='error'?<>Agents are kept. Board setup needs another attempt. <button onClick={()=>void controller.setupBoards()}>Retry board setup</button></>:null}</p>}
-    {bulk && s.step === 'review' && s.shares.length > 0 && <TeamPicture shares={s.shares}/>}
-    {bulk && s.step === 'review' && <ShareReview shares={s.shares} busy={busy} controller={controller}/>}
+    {bulk && s.step === 'review' && <TeamEditor shares={s.shares} busy={busy} controller={controller}/>}
     {bulk && (s.step === 'hiring' || s.step === 'done') && <BatchView batch={s.batch} shares={s.shares} phase={s.phase} busy={busy} controller={controller} onClose={onClose}/>}
 
     {!bulk && (s.step === 'review' || s.step === 'hiring' || s.step === 'done') && <div className="hire-form">
-      {s.step === 'review' && <p>Here is the proposed team. Rename anyone, change their role or persona, or untick agents you don't need. Each hire starts with memory tools only; give more permissions on the agent later.</p>}
+      {s.step === 'review' && <p>Here is the proposed team. Rename anyone, change their role or personality, or untick agents you don't need. Each hire starts with memory tools only; give more permissions on the agent later.</p>}
       {s.step === 'done' && <p>{chosen.length} new {chosen.length === 1 ? 'agent has' : 'agents have'} joined your team.</p>}
       {groups.map(dep => {
         const list = s.hires.filter(h => h.department === dep);
@@ -117,11 +118,33 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
   </section></dialog>;
 }
 
-/** AG4b: the team as a picture, one coloured band per department sized by its people. */
-function TeamPicture({ shares }: { shares: readonly Share[] }) {
+/** AG4b: the team as a picture, one coloured band per department sized by its people. Drag (or arrow keys on) the line between two bands to move people; click a band to change it. */
+export function TeamPicture({ shares, busy = false, onOpen, onMove }: { shares: readonly Share[]; busy?: boolean; onOpen?: (department: string) => void; onMove?: (left: Share, right: Share, counts: [number, number]) => void }) {
   const total = sharesTotal(shares);
-  return <div className="ag-team-picture" aria-label={`${total} agents over ${shares.length} departments`}>{shares.map(x => { const tone = departmentTone(x.departmentLabel);
-    return <div key={x.department} style={{ flexGrow: Math.max(1, x.count), ...tileStyle(tone) }}><span><UiIcon name={departmentIcon(x.departmentLabel)} size={14}/>{x.departmentLabel}</span><b>{x.count}</b><small>{rolesSummary(shareRoles(x))}</small></div>; })}</div>;
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; left: number; right: number; last: number } | null>(null);
+  const down = (i: number) => (e: PointerEv<HTMLSpanElement>) => {
+    if (busy || !onMove) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, left: shares[i].count, right: shares[i + 1].count, last: 0 };
+  };
+  const move = (i: number) => (e: PointerEv<HTMLSpanElement>) => {
+    const d = drag.current, width = box.current?.clientWidth ?? 0; if (!d || !width || !onMove) return;
+    const people = Math.round((e.clientX - d.x) * total / width); if (people === d.last) return;
+    d.last = people; onMove(shares[i], shares[i + 1], movePeople(d.left, d.right, people));
+  };
+  const key = (i: number) => (e: KeyEv<HTMLSpanElement>) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!step || busy || !onMove) return;
+    e.preventDefault(); onMove(shares[i], shares[i + 1], movePeople(shares[i].count, shares[i + 1].count, step));
+  };
+  return <div ref={box} className="ag-team-picture" aria-label={`${total} agents over ${shares.length} departments`}>{shares.map((x, i) => { const tone = departmentTone(x.departmentLabel);
+    return <Fragment key={x.department}>
+      <button type="button" className="ag-band" disabled={!onOpen} style={{ flexGrow: Math.max(1, x.count), ...tileStyle(tone) }} aria-label={`${x.departmentLabel}: ${x.count} ${x.count === 1 ? 'agent' : 'agents'}. Change…`} onClick={() => onOpen?.(x.department)}>
+        <span><UiIcon name={departmentIcon(x.departmentLabel)} size={14}/>{x.departmentLabel}</span><b>{x.count}</b><small>{rolesSummary(shareRoles(x))}</small>
+      </button>
+      {onMove && i < shares.length - 1 && <span className="ag-band-line" role="separator" tabIndex={busy ? -1 : 0} aria-orientation="vertical" aria-label={`Move people between ${x.departmentLabel} and ${shares[i + 1].departmentLabel}`}
+        aria-valuemin={1} aria-valuemax={x.count + shares[i + 1].count - 1} aria-valuenow={x.count} title="Drag to move people" data-busy={busy || undefined}
+        onPointerDown={down(i)} onPointerMove={move(i)} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onKeyDown={key(i)}/>}
+    </Fragment>; })}</div>;
 }
 
 /** Ready-made company sizes, in agents (any other number is typed in). */
@@ -138,7 +161,7 @@ function HireRow({ hire, locked, controller }: { hire: PlannedHire; locked: bool
     <select aria-label={`Role for ${hire.title}`} value={hire.role} disabled={locked} onChange={e => controller.edit(hire.key, { role: e.target.value as Role })}>
       {allRoles.map(r => <option key={r} value={r}>{roleLabel[r]}</option>)}
     </select>
-    <select aria-label={`Persona for ${hire.title}`} value={hire.preset} disabled={locked} onChange={e => controller.edit(hire.key, { preset: e.target.value as Preset })}>
+    <select aria-label={`Personality for ${hire.title}`} title="Personality" value={hire.preset} disabled={locked} onChange={e => controller.edit(hire.key, { preset: e.target.value as Preset })}>
       {allPresets.map(p => <option key={p} value={p}>{presetLabel[p]}</option>)}
     </select>
     <span className="company-status">{hire.status === 'planned' ? '' : <span className="badge">{statusLabel[hire.status]}{hire.note ? ` · ${hire.note}` : ''}</span>}</span>
@@ -146,37 +169,66 @@ function HireRow({ hire, locked, controller }: { hire: PlannedHire; locked: bool
 }
 
 const teamRoleOrder: readonly TeamRole[] = ['manager', 'specialist', 'evaluator'];
-const teamRoleLabel: Record<TeamRole, string> = { manager: 'Leads', specialist: 'Specialists', evaluator: 'Reviewers' };
+export const teamRoleLabel: Record<TeamRole, string> = { manager: 'Managers', specialist: 'Specialists', evaluator: 'Reviewers' };
 
-/** Review of a total headcount: one row per department with its count and personas; agents are listed on demand. */
-function ShareReview({ shares, busy, controller }: { shares: readonly Share[]; busy: boolean; controller: CompanyController }) {
+/** The library personalities for the split; a role without one gets the balanced default (as the picker did). */
+function useLibrary(client: CompanyController['client'], shares: readonly Share[], busy: boolean, controller: CompanyController) {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  useEffect(() => { let live = true; void libraryRpc<{ personalities: Entry[] }>(client, 'GET', P).then(r => { if (live) setEntries(r.personalities.filter(e => !e.archived)); }).catch(() => {}); return () => { live = false; }; }, [client]);
+  useEffect(() => {
+    const fallback = entries.find(e => e.id === 'temperament-balanced'); if (!fallback || busy) return;
+    for (const x of shares) { const roles = shareRoles(x); for (const r of teamRoleOrder) if (roles[r] > 0 && !x.personalities?.[r]) controller.editShare(x.department, { role: r, personality: { id: fallback.id, revision: fallback.revision } }); }
+  }, [entries, shares, busy, controller]);
+  return entries;
+}
+
+/** One line of personalities per role: "Managers: Balanced · Specialists: Calm". */
+export function personalityLine(share: Share, entries: readonly Pick<Entry, 'id' | 'profile'>[]) {
+  const roles = shareRoles(share);
+  return teamRoleOrder.filter(r => roles[r] > 0).map(r => `${teamRoleLabel[r]}: ${entries.find(e => e.id === share.personalities?.[r]?.id)?.profile.name ?? presetLabel[share.presets[r]]}`).join(' · ');
+}
+
+/** AG4b "Your team": the picture is the editor; each department's count, personalities and specialties change in its "Change…" sheet. */
+function TeamEditor({ shares, busy, controller }: { shares: readonly Share[]; busy: boolean; controller: CompanyController }) {
   const total = sharesTotal(shares);
+  const [open, setOpen] = useState<string | null>(null);
+  const entries = useLibrary(controller.client, shares, busy, controller);
+  const share = shares.find(x => x.department === open);
   return <div className="hire-form">
-    <p>Here is how your {total} agents are split. Change any department's count or the persona of its leads, specialists and reviewers. Names are picked when each agent is hired. Each hire starts with memory tools only; give more permissions on the agent later.</p>
-    <ul className="company-shares" aria-label="Departments and headcount">{shares.map(x => {
-      const roles = shareRoles(x);
-      return <li key={x.department} className="company-share">
-        <div className="company-share-head">
-          <strong>{x.departmentLabel}</strong>
-          <label className="company-count">Agents<input type="number" inputMode="numeric" min={1} max={1000} step={1} aria-label={`Agents in ${x.departmentLabel}`} value={x.count} disabled={busy}
-            onChange={e => { const n = Number(e.target.value); if (Number.isSafeInteger(n) && n >= 1) controller.editShare(x.department, { count: n }); }}/></label>
-          <small>{rolesSummary(roles)}</small>
-        </div>
-        <div className="company-share-personas">{teamRoleOrder.filter(r => roles[r] > 0).map(r =>
-          <div key={r}><strong>{teamRoleLabel[r]}</strong><PersonalityPicker client={controller.client} value={x.personalities?.[r]} defaultId="temperament-balanced" disabled={busy} onPick={entry=>controller.editShare(x.department,{role:r,personality:{id:entry.id,revision:entry.revision}})}/></div>)}
-        </div>
-        <SpecialtyEditor share={x} busy={busy} controller={controller}/>
-        <details className="company-people"><summary>Show the {x.count} {x.count === 1 ? 'agent' : 'agents'}</summary>
-          <ul>{teamRoleOrder.filter(r => roles[r] > 0).map(r => <li key={r}>{roles[r]} × {x.titles[r]} · {presetLabel[x.presets[r]]}</li>)}</ul>
-        </details>
-      </li>;
-    })}</ul>
+    <p>{total} {total === 1 ? 'agent' : 'agents'} over {shares.length} {shares.length === 1 ? 'department' : 'departments'}. Drag the line between two departments to move people; click a department to set its specialties and personalities. Names are picked when each agent is hired, and each starts with memory tools only.</p>
+    {shares.length > 0 && <TeamPicture shares={shares} busy={busy} onOpen={setOpen} onMove={(a, b, [left, right]) => { controller.editShare(a.department, { count: left }); controller.editShare(b.department, { count: right }); }}/>}
+    <ul className="company-shares ag-share-lines" aria-label="Departments and headcount">{shares.map(x =>
+      <li key={x.department} className="ag-share-line"><DepartmentTile department={x.departmentLabel} size={22}/>
+        <span><strong>{x.departmentLabel} · {x.count} {x.count === 1 ? 'agent' : 'agents'}</strong><small>{shareSpecialties(x).filter(r => r.count > 0).map(r => `${r.name} × ${r.count}`).join(' · ') || rolesSummary(shareRoles(x))}</small><small>{personalityLine(x, entries)}</small></span>
+        {!validSpecialties(x.specialties, x.count) && <span className="badge">Check specialties</span>}
+        <button type="button" disabled={busy} onClick={() => setOpen(x.department)}>Change…</button>
+      </li>)}</ul>
     <p className="company-total-line"><strong>{total}</strong> {total === 1 ? 'agent' : 'agents'} in total</p>
     <div className="hire-actions">
       <button type="button" disabled={busy} onClick={() => controller.back()}>Back</button>
       <button type="button" className="primary" disabled={busy || !total || shares.some(x=>!validSpecialties(x.specialties,x.count))} onClick={() => void controller.hireBatch()}>Hire {total} {total === 1 ? 'agent' : 'agents'}</button>
     </div>
+    {share && <ShareSheet share={share} busy={busy} controller={controller} entries={entries} onClose={() => setOpen(null)}/>}
   </div>;
+}
+
+/** "Change…" for one department: its count, the personality per role, its specialties and the agents it will get. */
+function ShareSheet({ share: x, busy, controller, entries, onClose }: { share: Share; busy: boolean; controller: CompanyController; entries: readonly Entry[]; onClose: () => void }) {
+  const roles = shareRoles(x);
+  return <Sheet wide title={`Change ${x.departmentLabel}`} onClose={onClose} actions={<button type="button" className="primary" onClick={onClose}>Done</button>}>
+    <div className="company-share-head">
+      <label className="company-count">Agents<input type="number" inputMode="numeric" min={1} max={1000} step={1} aria-label={`Agents in ${x.departmentLabel}`} value={x.count} disabled={busy}
+        onChange={e => { const n = Number(e.target.value); if (Number.isSafeInteger(n) && n >= 1) controller.editShare(x.department, { count: n }); }}/></label>
+      <small>{rolesSummary(roles)}</small>
+    </div>
+    <div className="company-share-personas">{teamRoleOrder.filter(r => roles[r] > 0).map(r =>
+      <div key={r}><strong>{teamRoleLabel[r]}</strong><PersonalityPicker client={controller.client} value={x.personalities?.[r]} defaultId="temperament-balanced" disabled={busy} onPick={entry=>controller.editShare(x.department,{role:r,personality:{id:entry.id,revision:entry.revision}})}/></div>)}
+    </div>
+    <SpecialtyEditor share={x} busy={busy} controller={controller}/>
+    <details className="company-people"><summary>Show the {x.count} {x.count === 1 ? 'agent' : 'agents'}</summary>
+      <ul>{teamRoleOrder.filter(r => roles[r] > 0).map(r => <li key={r}>{roles[r]} × {x.titles[r]} · {entries.find(e => e.id === x.personalities?.[r]?.id)?.profile.name ?? presetLabel[x.presets[r]]}</li>)}</ul>
+    </details>
+  </Sheet>;
 }
 
 function SpecialtyEditor({share,busy,controller}:{share:Share;busy:boolean;controller:CompanyController}){

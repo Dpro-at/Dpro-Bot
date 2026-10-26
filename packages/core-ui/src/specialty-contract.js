@@ -33,7 +33,7 @@ export function templatesResponse(path,status,body){
   if(!identities(body.agents))throw Error('protocol');
   if(['impact','preview'].includes(p[1])){if(!version(body.revision)||!digest(body.confirmation)||!Array.isArray(body.changes)||body.changes.length>5||!body.changes.every(c=>object(c)&&['name','department','description','instructions','config'].includes(c.field)&&line(c.before,100000)&&line(c.after,100000)))throw Error('protocol');return {revision:body.revision,confirmation:body.confirmation,agents:body.agents.map(a=>({id:a.id,name:a.name})),changes:body.changes.map(c=>({field:c.field,before:c.before,after:c.after}))};}
   if(!body.agents.every(a=>typeof a.linked==='boolean'&&Array.isArray(a.missingTools)&&a.missingTools.length<=500&&a.missingTools.every(t=>line(t,200))))throw Error('protocol');
-  return {agents:body.agents.map(a=>({id:a.id,name:a.name,linked:a.linked,missingTools:a.missingTools,...(a.access!==undefined?{access:projectAccess(a.access)}:{})}))};
+  return {agents:body.agents.map(a=>({id:a.id,name:a.name,linked:a.linked,missingTools:a.missingTools,...(line(a.role,40)?{role:a.role}:{}),...(line(a.department,64)?{department:a.department}:{}),...(a.access!==undefined?{access:projectAccess(a.access)}:{})}))};
  }
  if(path===TEMPLATES_PATH){if(!Array.isArray(body.templates)||body.templates.length>10000)throw Error('protocol');return {templates:body.templates.map(summary)};}
  if(path===TEMPLATES_PATH+'/hire'){if(!validAgentId(body.id)||typeof body.duplicate!=='boolean')throw Error('protocol');return {id:body.id,duplicate:body.duplicate};}

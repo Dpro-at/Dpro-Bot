@@ -1,0 +1,15 @@
+/* Gap fixes from the pages audit (boards AG3a and others). */
+.ag-mem { display:grid; gap:10px; min-block-size:0; }
+.ag-mem-search { display:flex; align-items:center; gap:8px; padding:0 10px; min-block-size:30px; border-radius:7px; background:color-mix(in srgb,var(--text) 5%,transparent); max-inline-size:360px; color:var(--text-3); }
+.ag-mem-search input { flex:1; border:0; background:none; min-block-size:28px; padding:0; color:var(--text); outline:none; }
+.ag-mem-split { display:grid; grid-template-columns:minmax(0,1fr); border:1px solid var(--border); border-radius:10px; min-block-size:260px; max-block-size:calc(100vh - 260px); overflow:hidden; }
+.ag-mem-split[data-open] { grid-template-columns:minmax(0,1fr) clamp(240px,38%,340px); }
+.ag-mem-split > .dk-list { min-block-size:0; }
+.ag-mem-insp { border-inline-start:1px solid var(--border); overflow:auto; min-block-size:0; }
+.ag-mem-ask { display:grid; gap:8px; padding:10px; border-radius:8px; background:color-mix(in srgb,var(--text) 5%,transparent); }
+.ag-mem-ask p { margin:0; font-size:12.5px; }
+.ag-mem-history { list-style:none; margin:0; padding:0; display:grid; gap:6px; font-size:12px; }
+.ag-mem-history li { display:grid; gap:2px; }
+/* "‹ Agents" / "‹ Apps" on top of a place's sidebar (board SH1). */
+.sidebar > .place-return { display:flex; align-items:center; justify-content:flex-start; gap:6px; margin:8px 8px 0; padding:4px 8px; border:0; border-radius:6px; background:transparent; color:var(--text-2); font-size:12px; cursor:default; }
+.sidebar > .place-return:hover { background:var(--row-hover); color:var(--text); }

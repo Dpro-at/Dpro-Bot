@@ -185,3 +185,8 @@
  .settings-workspace[data-inline-sidebar=true]>.settings-sidebar,.apps-workspace[data-inline-sidebar]>.apps-places{border-inline-end:0;border-block-end:1px solid var(--border)}
  .st-kinds{grid-template-columns:minmax(0,1fr)}
 }
+/* Letter tiles in the catalogue lists and inspector (AA2b). */
+.apps-row .dk-tile{border-radius:9px;flex:none;font-weight:700}
+.apps-inspector-head .dk-tile{border-radius:12px;flex:none;font-weight:700}
+/* A plugin listed in its app's settings but not found on disk (A9). */
+.apps-addon-card li>small[data-state=missing]{color:var(--mem-warn,var(--muted))}

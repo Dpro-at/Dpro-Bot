@@ -364,18 +364,23 @@ export async function requestApproval(
       type: 'text',
       text: `Waiting for owner approval: "${tool.name}" was NOT run. Approval request ${id} is pending; ` +
         `the owner must approve it once before it runs. Do not call this tool again for the same action; ` +
-        `tell the user it is waiting for approval.`,
+        `tell the user it is waiting for approval. It shows in Approvals › Waiting for me; you never approve it yourself.`,
     }],
     details: { status: 'pending_approval', approvalId: id, tool: tool.name, category },
   };
 }
 
-export async function listApprovals(filter: { status?: string; limit?: number } = {}): Promise<ApprovalRecord[]> {
+/** Agent ids accepted by the optional `agentId` filter (same shape as agent ids elsewhere). */
+export const APPROVAL_AGENT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+
+export async function listApprovals(filter: { status?: string; limit?: number; agentId?: string } = {}): Promise<ApprovalRecord[]> {
   await expireOld();
   const limit = Math.min(Math.max(Number(filter.limit) || 100, 1), 500);
-  const rows = filter.status
-    ? await sql().read(all(`SELECT * FROM tool_approvals WHERE status = ? ORDER BY requested_at DESC LIMIT ?`, filter.status, limit))
-    : await sql().read(all(`SELECT * FROM tool_approvals ORDER BY requested_at DESC LIMIT ?`, limit));
+  if (filter.agentId !== undefined && !APPROVAL_AGENT_ID.test(filter.agentId)) throw new Error('Invalid agent id');
+  const where: string[] = [], args: string[] = [];
+  if (filter.status) { where.push('status = ?'); args.push(filter.status); }
+  if (filter.agentId !== undefined) { where.push('agent_id = ?'); args.push(filter.agentId); }
+  const rows = await sql().read(all(`SELECT * FROM tool_approvals${where.length ? ' WHERE ' + where.join(' AND ') : ''} ORDER BY requested_at DESC LIMIT ?`, ...args, limit));
   return rows.map(toRecord);
 }
 

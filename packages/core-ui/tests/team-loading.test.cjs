@@ -5,7 +5,8 @@ const React = require('../node_modules/react');
 const { renderToStaticMarkup } = require('../node_modules/react-dom/server');
 const { SessionClient } = require('../src/session.ts');
 const { AgentsController } = require('../src/agents.ts');
-const { TeamGrid, MemberAgent } = require('../src/AgentsDestination.tsx');
+const AgentsDestinationModule = require('../src/AgentsDestination.tsx');
+const { TeamGrid } = AgentsDestinationModule;
 async function session(t, response) {
   const calls=[];
   const client=new SessionClient({mock:async r=>{
@@ -34,8 +35,6 @@ test('forbidden team read finishes with access denied instead of a spinner',asyn
   assert.doesNotMatch(renderToStaticMarkup(React.createElement(TeamGrid,{controller:c,onOpen(){}})),/Loading the team/);
 });
 
-test('member agent overview never mounts privileged tool editors or requests their data',async t=>{
-  const {c,calls}=await session(t,{status:200,body:{agents:[{id:'sample-main',name:'Main agent',version:1}]}});await c.list();const before=calls.length;
-  const html=renderToStaticMarkup(React.createElement(MemberAgent,{controller:c,agentId:'sample-main',onBack(){}}));
-  assert.match(html,/Main agent/);assert.match(html,/Only the workspace owner/);assert.doesNotMatch(html,/Turn all on|Save permissions/);assert.equal(calls.length,before);
+test('members keep the read-only staff inspector: the old member agent page is gone (A9)',()=>{
+  assert.equal(AgentsDestinationModule.MemberAgent,undefined);
 });

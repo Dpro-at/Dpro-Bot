@@ -8,16 +8,18 @@ import {UiIcon} from './ui-icons';
 import type {UiIconName} from './ui-icons';
 import {departmentIcon,departmentName,departmentTone,personalityColour,ROLE_CARDS,roleWord,tileStyle} from './agent-look';
 import {permissionLine,useAgentFacts,useFaces,forgetFacts,retryFacts} from './agent-facts';
+import {PersonalityMark} from './PersonalityLibrary';
+import {useLibraryEntries,type Profile} from './personality-library';
 
 type Toast={id:number;text:string;undo:boolean}|null;
 /** A department's icon on its colour tile (sidebar, list, pickers). */
 export function DepartmentTile({department,size=18}:{department?:string|null;size?:number}){
  return <span className="ag-tile" aria-hidden="true" style={{...tileStyle(departmentTone(department)),inlineSize:size,blockSize:size}}><UiIcon name={departmentIcon(department)} size={Math.round(size*.62)}/></span>;
 }
-/** An agent's round avatar with the small face of its personality. */
-export function AgentFace({agent,face,size=30}:{agent:Pick<PublicAgent,'name'>;face?:string|null;size?:number}){
+/** An agent's round avatar with the small face of its personality (the same face the library draws). */
+export function AgentFace({agent,face,profile,size=30}:{agent:Pick<PublicAgent,'name'>;face?:string|null;profile?:Profile;size?:number}){
  const colour=personalityColour(face);
- return <span className="ag-face"><Avatar name={agent.name??'?'} size={size}/>{face!==undefined&&<span className="ag-face-mark" title={face??'No personality from the library'} style={{color:colour,boxShadow:`0 0 0 1px ${colour}88`}}><UiIcon name="smile" size={10}/></span>}</span>;
+ return <span className="ag-face"><Avatar name={agent.name??'?'} size={size}/>{face!==undefined&&(profile?<span className="ag-face-mark" title={face??undefined}><PersonalityMark profile={profile} size={15}/></span>:<span className="ag-face-mark" title={face??'No personality from the library'} style={{color:colour,boxShadow:`0 0 0 1px ${colour}88`}}><UiIcon name="smile" size={10}/></span>)}</span>;
 }
 
 /**
@@ -32,8 +34,8 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  const rows=useRef<HTMLDivElement>(null);const menu=useMenu();
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
  const q=query.trim().toLowerCase();
- const shown=s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role)].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??''));
- const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client);
+ const shown=s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role),a.description].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??''));
+ const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client),library=useLibraryEntries(controller.client,owner);
  const agent=shown.find(a=>a.id===selected);
  const say=(text:string,undo=false)=>setToast({id:Date.now(),text,undo});
  async function act(kind:'main'|'copy'|'remove',a:PublicAgent){
@@ -43,15 +45,17 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   if(r.ok&&controller.client)forgetFacts(controller.client,a.id);
   if(r.ok&&kind==='copy'&&r.id)setSelected(r.id);if(r.ok&&kind==='remove')setSelected(null);
  }
- const items=(a:PublicAgent):MenuItem[]=>[{label:'Open',icon:'contact',shortcut:'Enter',run:()=>onOpen(a.id)},...(onChat?[{label:'Chat',icon:'message' as UiIconName,run:()=>onChat(a.id)}]:[]),
+ const items=(a:PublicAgent):MenuItem[]=>[...(owner?[{label:'Open',icon:'contact' as UiIconName,shortcut:'Enter',run:()=>onOpen(a.id)}]:[]),...(onChat?[{label:'Chat',icon:'message' as UiIconName,run:()=>onChat(a.id)}]:[]),
   ...(owner?['sep' as const,{label:'Make main agent',icon:'sparkle' as UiIconName,disabled:!!a.isPrimary||busy,run:()=>void act('main',a)},{label:'Duplicate',icon:'copy' as UiIconName,disabled:busy,run:()=>void act('copy',a)}]:[]),
   ...(onMemory?[{label:'Saved memories',icon:'brain' as UiIconName,run:()=>onMemory(a.id)}]:[]),
   ...(owner?['sep' as const,{label:'Remove agent…',icon:'trash' as UiIconName,danger:true,shortcut:'⌫',disabled:busy,run:()=>setRemoving(a)}]:[])];
  function select(id:string){setSelected(id);}
+ // ⌘F and ⌘N work anywhere on the staff page while it is shown and no sheet is open (not only inside the list).
+ const page=useRef<HTMLElement>(null);
+ useEffect(()=>{const on=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey||!page.current?.offsetParent||document.querySelector('dialog[open],[role="dialog"]'))return;const k=e.key.toLowerCase();
+  if(k==='f'){e.preventDefault();document.getElementById('ag-staff-search')?.focus();}else if(k==='n'&&onHire){e.preventDefault();onHire();}};window.addEventListener('keydown',on);return()=>window.removeEventListener('keydown',on);},[onHire]);
  function key(e:ReactKeyboardEvent){
   const mod=e.metaKey||e.ctrlKey;
-  if(mod&&e.key.toLowerCase()==='f'){e.preventDefault();document.getElementById('ag-staff-search')?.focus();}
-  if(mod&&e.key.toLowerCase()==='n'&&onHire){e.preventDefault();onHire();}
   if(e.key==='Escape'&&!menu.menu)setSelected(null);
  }
  function rowKey(e:ReactKeyboardEvent<HTMLButtonElement>,a:PublicAgent){
@@ -61,7 +65,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  }
  function move(e:ReactKeyboardEvent){if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();const at=shown.findIndex(a=>a.id===selected),n=e.key==='Home'?0:e.key==='End'?shown.length-1:Math.max(0,Math.min(shown.length-1,at+(e.key==='ArrowDown'?1:-1)));if(shown[n]){select(shown[n].id);rows.current?.querySelectorAll<HTMLButtonElement>('[role=option]')[n]?.focus();}}
  const title=department==='all'?'All staff':department==='main'?'Main agent':departmentName(department==='none'?null:department);
- return <section className="ag-staff" aria-label="Staff directory" onKeyDown={key}>
+ return <section ref={page} className="ag-staff" aria-label="Staff directory" onKeyDown={key}>
  <div className="ag-list-pane">
   <header className="ag-toolbar"><h2>{title}</h2>
    <span className="ag-anchor" data-popover-anchor><IconButton icon="filter" label="Show" pressed={showing||role!=='all'||sort!=='name'} onClick={()=>setShowing(v=>!v)}/>
@@ -71,7 +75,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
   </header>
   <div className="ag-rows" ref={rows} role="listbox" aria-label="Staff" onKeyDown={move}>
    {shown.map(a=><button type="button" key={a.id} role="option" aria-selected={selected===a.id} tabIndex={selected===a.id||!agent&&shown[0]?.id===a.id?0:-1} className="ag-row" onClick={()=>select(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>rowKey(e,a)} onContextMenu={(e:ReactMouseEvent)=>{select(a.id);menu.at(e,items(a));}}>
-    <AgentFace agent={a} face={owner?faces[a.id]:undefined}/>
+    <AgentFace agent={a} face={owner?faces[a.id]:undefined} profile={owner&&faces[a.id]?library?.find(e=>e.profile.name===faces[a.id])?.profile:undefined}/>
     <span className="ag-row-text"><span className="ag-row-name"><bdi>{a.name??'Name unavailable'}</bdi>{a.isPrimary&&<span className="ag-tag">Main agent</span>}</span><span className="ag-row-sub">{a.isPrimary?'Talks to you first':roleWord(a.role)}</span></span>
     <span className="ag-row-dept"><DepartmentTile department={a.department}/>{departmentName(a.department)}</span>
    </button>)}
@@ -97,7 +101,7 @@ function Inspector({controller,agent,owner,onOpen,onChat,onMenu,onClose}:{contro
  ]:[];
  return <div className="ag-insp">
   <div className="ag-insp-head"><span className="ag-insp-back"><IconButton icon="arrow-left" label="Back to the list" onClick={onClose}/></span><Avatar name={agent.name??'?'} size={52}/><span><b><bdi>{agent.name??'Agent'}</bdi></b><small>{roleWord(agent.role)} · {departmentName(agent.department)}</small></span></div>
-  <div className="ag-insp-actions"><button type="button" onClick={()=>onOpen(agent.id)}>Open</button>{onChat&&<button type="button" onClick={()=>onChat(agent.id)}>Chat</button>}<IconButton icon="more" label="More for this agent" onClick={onMenu}/></div>
+  <div className="ag-insp-actions">{owner&&<button type="button" onClick={()=>onOpen(agent.id)}>Open</button>}{onChat&&<button type="button" onClick={()=>onChat(agent.id)}>Chat</button>}<IconButton icon="more" label="More for this agent" onClick={onMenu}/></div>
   <p className="ag-insp-text" dir="auto">{agent.description||'No responsibilities yet.'}</p>
   <hr/>
   {!owner?<p className="ag-muted">Only the owner sees and changes how this agent works.</p>:facts===undefined?<p className="ag-muted" role="status">Reading what makes it…</p>:facts===null?<p className="ag-muted" role="status">What makes it could not be read. <button type="button" className="link-button" onClick={()=>retryFacts(controller.client,agent.id)}>Try again</button></p>:

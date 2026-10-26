@@ -36,7 +36,7 @@ export const isRisky = (c: PermissionCategory) => (riskyCategories as readonly s
 
 export type Tool = Readonly<{ name: string; description: string; requiresApproval: boolean; allowedByServer: boolean; execClass: boolean }>;
 export type Draft = Readonly<{ name: string; role: Role; department: string; description: string; preset: Preset; presetChosen: boolean; libraryPersonality?:{id:string;revision:number}; dialect: Dialect | ''; traits: Readonly<Partial<Record<TraitName, number>>> }>;
-export type Step = 'role' | 'persona' | 'memory' | 'permissions' | 'done';
+export type Step = 'role' | 'persona' | 'care' | 'memory' | 'permissions' | 'done';
 export type HireState = Readonly<{
   step: Step; draft: Draft; owner: boolean;
   phase: 'editing' | 'creating' | 'loading' | 'saving' | 'done' | 'error' | 'unknown' | 'denied';
@@ -99,6 +99,11 @@ export const careFields: Record<Care, { modes: Record<PermissionCategory, Permis
   normal: { modes: { browser: 'allow', network: 'allow', message: 'ask', delete: 'ask', install: 'ask', money: 'ask', settings: 'ask' }, memoryRead: ['owner', 'project', 'experience', 'task', 'people'], memoryWrite: ['experience', 'task'], sharedMemory: true },
   trusted: { modes: { browser: 'allow', network: 'allow', message: 'allow', delete: 'ask', install: 'allow', money: 'ask', settings: 'allow' }, memoryRead: ['owner', 'project', 'experience', 'task', 'people'], memoryWrite: ['project', 'experience', 'task'], sharedMemory: true },
 };
+/** The memory and permission fields of one "How careful" choice. */
+export function careDraft(care: Care): Omit<Permissions, 'version'> {
+  const c = careFields[care];
+  return { modes: Object.freeze({ ...c.modes }), memoryRead: Object.freeze([...c.memoryRead]), memoryWrite: Object.freeze([...c.memoryWrite]), sharedMemory: c.sharedMemory };
+}
 /** Which "How careful" choice the current fields match, if any. */
 export function careOf(p?: Permissions): Care | null {
   if (!p) return null;
@@ -131,6 +136,8 @@ export class HireController {
   #state: HireState = Object.freeze({ step: 'role', draft: emptyDraft, owner: false, phase: 'denied', tools: [], selected: [], scoped: false, confirmRisky: false });
   #listeners = new Set<() => void>();
   #disposed = false; #ticket = 0; #abort?: AbortController; #identity = ''; #unsubscribe: () => void;
+  /** AG4a: the "How careful" choices made before the agent exists; laid over the stored permissions once it is hired. */
+  #plan?: { p: Permissions; confirm: boolean };
   constructor(readonly client: SessionClient) { this.#unsubscribe = client.subscribe(this.#sync); this.#sync(); }
   getSnapshot = () => this.#state;
   subscribe = (fn: () => void) => { this.#listeners.add(fn); return () => { this.#listeners.delete(fn); }; };
@@ -138,7 +145,7 @@ export class HireController {
   #sync = () => {
     const s = this.client.getSnapshot(); const identity = `${s.mode}:${s.epoch}:${s.phase}:${s.user?.id ?? ''}:${s.user?.role ?? ''}`;
     if (identity === this.#identity) return;
-    this.#identity = identity; this.#invalidate();
+    this.#identity = identity; this.#invalidate(); this.#plan = undefined;
     const owner = s.phase === 'authenticated' && s.user?.role === 'owner';
     this.#publish({ step: 'role', draft: emptyDraft, owner, phase: owner ? 'editing' : 'denied', agent: undefined, tools: [], selected: [], grantsVersion: undefined, scoped: false, permissions: undefined, confirmRisky: false,
       notice: s.phase === 'authenticated' && !owner ? 'Only the owner can hire agents.' : undefined });
@@ -158,7 +165,7 @@ export class HireController {
   /** Start over with an empty form (after a hire, or to discard the draft). */
   restart() {
     if (!this.#state.owner || this.#busy()) return;
-    this.#invalidate();
+    this.#invalidate(); this.#plan = undefined;
     this.#publish({ step: 'role', draft: emptyDraft, phase: 'editing', agent: undefined, tools: [], selected: [], grantsVersion: undefined, scoped: false, permissions: undefined, confirmRisky: false, notice: undefined });
   }
   edit(patch: Partial<Omit<Draft, 'traits' | 'presetChosen'>>) {
@@ -176,13 +183,15 @@ export class HireController {
     const traits = { ...this.#state.draft.traits }; if (value === undefined) delete traits[name]; else traits[name] = value;
     this.#publish({ draft: Object.freeze({ ...this.#state.draft, traits: Object.freeze(traits) }) });
   }
-  go(step: 'role' | 'persona') {
+  go(step: 'role' | 'persona' | 'care') {
     if (!this.#state.owner || this.#state.agent || this.#busy()) return;
-    if (step === 'persona') {
+    if (step !== 'role') {
       const name = normalizedName(this.#state.draft.name), dep = normalizedDepartment(this.#state.draft.department);
       if (name && !displayName(name)) return this.#publish({ notice: 'Name: up to 60 characters, no hidden characters.' });
       if (dep && !validDepartment(dep)) return this.#publish({ notice: 'Department: up to 64 letters, numbers, spaces, - or _.' });
     }
+    // Nothing exists yet: "How careful" starts from Careful as a local draft (version 0), sent only by hire().
+    if (step === 'care' && !this.#state.permissions) return this.#publish({ step, notice: undefined, confirmRisky: false, permissions: Object.freeze({ ...careDraft('careful'), version: 0 }) });
     this.#publish({ step, notice: undefined });
   }
   next() { if (this.#state.step === 'memory' && !this.#busy()) this.#publish({ step: 'permissions', notice: undefined }); }
@@ -234,6 +243,24 @@ export class HireController {
   /** Categories set to Allow that run without approval and need the owner's confirmation. */
   riskyAllowed(): PermissionCategory[] { const p = this.#state.permissions; return p ? allCategories.filter(c => isRisky(c) && p.modes[c] === 'allow') : []; }
 
+  /**
+   * AG4a "Hire <name>": the only step that creates the agent. One create, then the
+   * "How careful" draft is laid over the stored permissions and saved. Closing the
+   * sheet before this creates nothing; a risky Allow is confirmed before anything is sent.
+   */
+  async hire() {
+    const s = this.#state;
+    if (!s.owner || this.#busy() || s.phase === 'unknown' || s.phase === 'done' || this.#disposed) return;
+    if (this.riskyAllowed().length && !s.confirmRisky) return this.#publish({ notice: 'Confirm that the risky tools may run without asking you, or set them to Ask me first.' });
+    if (!s.agent) {
+      if (s.permissions) this.#plan = { p: s.permissions, confirm: s.confirmRisky };
+      await this.create();
+      const after = this.#state;
+      if (!after.agent || after.grantsVersion === undefined || after.phase !== 'editing') return;
+    }
+    await this.save();
+  }
+
   /** One deliberate create; an unknown outcome is never retried automatically. */
   async create() {
     const s = this.#state;
@@ -275,8 +302,9 @@ export class HireController {
       if (ticket !== this.#ticket) return;
       if (this.#denied(pr.status, pr.body)) return;
       if (pr.status !== 200 || !record(pr.body)) throw Error();
-      const permissions = Object.freeze({ ...(pr.body as Permissions) });
-      this.#publish({ tools, selected: Object.freeze(grants.map(g => g.tool)), grantsVersion: b.version as number, scoped, permissions, confirmRisky: false, phase: 'editing',
+      const stored = pr.body as Permissions, plan = this.#plan; this.#plan = undefined;
+      const permissions = Object.freeze(plan ? { ...stored, memoryRead: plan.p.memoryRead, memoryWrite: plan.p.memoryWrite, sharedMemory: plan.p.sharedMemory, modes: plan.p.modes } : { ...stored });
+      this.#publish({ tools, selected: Object.freeze(grants.map(g => g.tool)), grantsVersion: b.version as number, scoped, permissions, confirmRisky: !!plan?.confirm, phase: 'editing',
         notice: scoped ? 'Some tools have limits (for example only certain chats). Saving keeps those limits.' : undefined });
     } catch {
       if (ticket === this.#ticket) this.#publish({ phase: 'error', notice: 'The agent was hired, but its permissions could not be read. Try again.' });

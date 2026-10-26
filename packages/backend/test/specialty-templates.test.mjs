@@ -15,6 +15,8 @@ test('custom templates start without grants; invalid names do not create agents'
 
 test('linked specialty assignments are owner-only, atomic and preserve agent authority',async()=>{
  const view=await call('GET',base+'/'+template.id+'/agents');assert.equal(view.statusCode,200,view.body);
+ // The Give sheet shows each agent's role and department as its second line.
+ const row=db.prepare('SELECT role,department FROM agents_config WHERE id=?').get(created),seen=view.json().agents.find(a=>a.id===created);assert.equal(seen.role,row.role??null);assert.equal(seen.department,row.department??null);
  const before=db.prepare('SELECT * FROM agents_config WHERE id=?').get(created),permissions=db.prepare('SELECT * FROM agent_permissions WHERE agent_id=?').get(created),grants=db.prepare('SELECT * FROM agent_tool_grants WHERE agent_id=? ORDER BY tool_name').all(created);
  const input={revision:template.revision,agentIds:[created],expectedAgentIds:[]};
  assert.equal((await call('POST',base+'/'+template.id+'/assign',input,member)).statusCode,403);

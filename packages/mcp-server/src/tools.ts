@@ -43,8 +43,19 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. Writes require the owner’s explicit instruction. A new connection is always off: adding does not execute a program or grant tools. Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable']},id:{type:'string',maxLength:36},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. List Apps, read one MCP connection (its tools and which agents may use them), add an MCP connection disabled, or turn one off. found lists MCP servers the folder scan found on this computer (names, place and state only; read only). look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner’s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (chat channels and who may write), accounts (linked accounts such as GenVR), addons (plugins and hooks from coding apps), catalogue (Dpro\u2019s app catalogue and the coding-app catalogue); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','add','disable','found','look','preview','import','channels','accounts','addons','catalogue']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
+  },
+
+  {
+    name:'agents',title:'Agents (read only)',
+    description:'Owner-session only, read only. list: every agent (name, role, department, specialty, model and provider name, main agent, description). read: one agent (id). permissions: what one agent may do (memory and action modes). Keys, credential ids and system prompts are never returned. Renaming, role, main agent, duplicate, hire and remove are done by the owner in the app; this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions']},id:{type:'string',maxLength:128,description:'agent id'}},required:['operation'],additionalProperties:false},
+  },
+  {
+    name:'workspace_approvals',title:'Approvals (read only)',
+    description:'Owner-session only, read only. waiting: requests waiting for the owner. history: past requests (optional status or agentId). permissions: What agents may do (all agents, or one with agentId). rules: approval rules (reviewer policies; optional cursor). coverage: tools and whether a rule or approval covers them. Codes, hashes and secrets are never returned. Approving, allowing, rejecting, voting, changing or turning off rules and changing permissions are done by the owner in the app; this tool refuses them.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['waiting','history','permissions','rules','coverage']},status:{type:'string',enum:['pending','approved','denied','executed','failed','expired']},agentId:{type:'string',maxLength:100},cursor:{type:'string',maxLength:36}},required:['operation'],additionalProperties:false},
   },
 
   {
@@ -59,13 +70,13 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'skill_library',title:'Skill library',
-    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write: add (a new found package, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Removing a skill from Dpro is not available.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), found (skills the folder scan found on this computer: names, place and state only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write only on the owner\u2019s explicit instruction: add (a new package from look, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Adding what the folder scan found is done by the owner in the app. Removing a skill from Dpro is not available.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','found','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
   },
   {
     name:'personality_library', title:'Personality library',
-    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift and unlocking are owner-only in the app. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess/try. list marks shipped personalities (starter) and names the agents that have each; team gives each agent’s personality, follow setting, lock and version (use that version as expectedVersion to give/assign). For save supply revision and profile in body; a personality agents follow needs the owner’s review in the app.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read profiles, team balance, versions and manual exams; create or edit, preview linked changes, assign, archive or mix personalities. A write requires the owner’s explicit instruction. A linked change (one that updates other agents) can only be previewed here; the owner confirms it in the app. Approving drift, approving or declining (Yes/No) an agent\u2019s suggestion and unlocking are owner-only in the app; proposals/proposal read the suggestions. Personality grants no tools or permissions. Use operation read/list/team/versions/exams/save/preview/assign/archive/blend/assess/try. list marks shipped personalities (starter) and names the agents that have each; team gives each agent’s personality, follow setting, lock and version (use that version as expectedVersion to give/assign). For save supply revision and profile in body; a personality agents follow needs the owner’s review in the app.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','team','versions','exams','save','preview','assign','archive','blend','assess','try','assignment','tune','mode','agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal']},id:{type:'string',maxLength:128},proposalId:{type:'string',maxLength:36},body:{type:'object'}},required:['operation'],additionalProperties:false},
   },
 
   {
@@ -285,6 +296,8 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_settings': return await workspaceSettingsTool(args,deps);
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
+      case 'agents': return await agentsTool(args,deps);
+      case 'workspace_approvals': return await workspaceApprovalsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'account_settings': return await accountSettingsTool(args,deps);
       case 'skill_library': return await skillLibraryTool(args,deps);
@@ -445,6 +458,17 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
   return ok(`Saved as version ${res?.handoff?.version ?? '?'}. The agent's next session starts from it.\n\n${renderHandoff(res?.handoff)}`, { handoff: res?.handoff ?? null });
 }
 
+/** "Found on this computer" (the same folder scan as Memory), read only: names, place and state.
+ *  File paths, file text and secret values are left out; adding what was found stays with the owner in the app. */
+const FOUND_STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs the owner\u2019s decision',imported:'in Dpro',gone:'gone from this computer'};
+const FOUND_REFUSED='Adding what the folder scan found is done by the owner in the app (Found on this computer / This computer); it may ask where a key goes. This tool only lists it (operation found).';
+async function foundOnComputer(backend:BackendClient,kind:'skill'|'mcp'){
+ const view=obj(await backend.request('GET','/api/memory/import/discovery'));
+ const roots=(Array.isArray(view.roots)?view.roots:[]).filter(record);
+ const place=(id:unknown)=>{const r=roots.find(x=>x.id===id);return typeof r?.name==='string'&&r.name?r.name.slice(0,120):'This computer';};
+ const items=(Array.isArray(view.items)?view.items:[]).filter(record).filter(i=>i.kind===kind&&i.state!=='ignored'&&Object.hasOwn(FOUND_STATE,String(i.state))).slice(0,500).map(i=>({name:String(i.name??'').slice(0,200),place:place(i.rootId),state:FOUND_STATE[String(i.state)]}));
+ return {items,scannedAt:typeof view.scannedAt==='string'?view.scannedAt:null};
+}
 const SKILL_ID=/^[a-f0-9-]{36}$/,SKILL_HASH=/^[a-f0-9]{64}$/,SKILL_AGENT=/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  const base='/api/skill-library',operation=args.operation;
@@ -455,6 +479,8 @@ async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDep
   case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Dpro. ${note}`,{skills:list?.skills??[],usage});}
   case 'read':{only(args,['operation','id']);return ok(`Skill files (Markdown only). ${note}`,await backend.request('GET',`${base}/items/${need('id',SKILL_ID,'skill id')}`));}
   case 'agent':{only(args,['operation','agentId']);return ok('Skills this agent has.',await backend.request('GET',`${base}/agents/${agentId()}`));}
+  case 'found':{only(args,['operation']);return ok('Skills the folder scan found on this computer (read only; names, place and state). The owner adds them in the app.',await foundOnComputer(backend,'skill'));}
+  case 'add_found':case 'import_found':throw new InputError(FOUND_REFUSED);
   case 'catalogue':{only(args,['operation']);return ok('Dpro\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
   case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
   case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
@@ -476,7 +502,8 @@ async function personalityLibraryTool(args:Record<string,unknown>,{backend}:Hand
  if(route.id&&(typeof args.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/).test(args.id)))throw new InputError('Valid id required');
  if(route.method==='GET'&&args.body!==undefined)throw new InputError('Read operations do not accept a body');
  // Owner review stays in the app: an MCP caller may preview a linked change but never confirm it, approve drift or lift a lock.
- if(operation==='approve'||operation==='unlock')throw new InputError('Approving drift and unlocking are done by the owner in the app');
+ if(operation==='approve'||operation==='reject')throw new InputError('Approving or declining a suggestion is done by the owner in the app');
+ if(operation==='unlock')throw new InputError('Approving drift and unlocking are done by the owner in the app');
  if(args.body&&typeof args.body==='object'&&Object.hasOwn(args.body,'confirmation'))throw new InputError('Linked changes are confirmed by the owner in the app; use preview to show the impact');
  const agentOperation=['agentCurrent','agentVersions','lock','unlock','restore','proposals','proposal','approve','reject'].includes(operation);
  const proposalOperation=['proposal','approve','reject'].includes(operation);
@@ -544,8 +571,46 @@ async function accountSettingsTool(args:Record<string,unknown>,{backend}:Handler
 }
 
 const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
- only(args,['operation','id','connection']);
+ only(args,['operation','id','connection','scanId','sourceId','hash']);
+ const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v))throw new InputError(`A valid ${what} is required`);return v;};
+ if(args.operation==='add_found'||args.operation==='import_found')throw new InputError(FOUND_REFUSED);
+ if(args.operation==='found'){
+  only(args,['operation']);
+  return ok('MCP servers the folder scan found on this computer (read only; names, place and state). The owner adds them in the app, where it asks where a key goes.',await foundOnComputer(backend,'mcp'));
+ }
+ // "My coding apps": look, preview, import. Import is bound to the previewed hash and always lands off.
+ if(args.operation==='look'){
+  only(args,['operation']);
+  const scan=obj(await backend.request('POST','/api/mcp-import/scan',{}));
+  const sources=(Array.isArray(scan.sources)?scan.sources:[]).filter(record).map(x=>({id:String(x.id),name:String(x.name??''),origin:String(x.origin??''),supported:x.supported===true,issue:typeof x.issue==='string'?x.issue:null}));
+  return ok('Connections set up in coding apps on this computer. Nothing there changes. Call preview with scanId and sourceId.',{id:scan.id??null,skipped:typeof scan.skipped==='number'?scan.skipped:0,sources});
+ }
+ if(args.operation==='preview'){
+  only(args,['operation','scanId','sourceId']);
+  const p=obj(await backend.request('POST','/api/mcp-import/preview',{scanId:need('scanId',MCP_SCAN,'scanId'),sourceId:need('sourceId',MCP_SCAN,'sourceId')}));
+  const names=(x:unknown)=>Array.isArray(x)?x.filter(v=>typeof v==='string'):[];
+  const secretNames=[...names(p.envNames),...names(p.headerNames)];
+  return ok(secretNames.length?'It has secrets, so the owner adds it in the app (MCP connections › My coding apps). Secret values are never shown.':'The connection as it would be added (off). Import it with this hash only on the owner\u2019s explicit instruction.',{name:p.name??null,kind:p.transport==='stdio'?'program':'web',command:p.command??null,args:names(p.args),url:p.url??null,secretNames,hash:p.hash??null,existingId:p.existingId??null,ownerOnly:secretNames.length>0});
+ }
+ if(args.operation==='import'){
+  only(args,['operation','scanId','sourceId','hash']);
+  const body={scanId:need('scanId',MCP_SCAN,'scanId'),sourceId:need('sourceId',MCP_SCAN,'sourceId')},hash=need('hash',MCP_HASH,'hash (from preview)');
+  // Read it again first: the hash must still match, and a connection with secrets stays with the owner in the app.
+  const p=obj(await backend.request('POST','/api/mcp-import/preview',body));
+  if(p.hash!==hash)throw new InputError('It changed in that app since the preview. Look and preview it again');
+  if((Array.isArray(p.envNames)&&p.envNames.length)||(Array.isArray(p.headerNames)&&p.headerNames.length))throw new InputError('This connection has secrets; the owner adds it in the app (MCP connections › My coding apps)');
+  const r=obj(await backend.request('POST','/api/mcp-import/import',{...body,hash}));
+  return ok(r.duplicate===true?'Already in Dpro. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
+ }
+ if(typeof args.operation==='string'&&APPS_OWNER_ONLY.has(args.operation))throw new InputError(APPS_REFUSED);
+ if(typeof args.operation==='string'&&Object.hasOwn(APPS_READS,args.operation)){
+  only(args,['operation']);
+  const r=APPS_READS[args.operation as keyof typeof APPS_READS],data:Record<string,unknown>={};
+  for(const [field,path] of r.paths)data[field]=scrub(await backend.request('GET',path));
+  return ok(r.note,data);
+ }
  if(args.operation==='list'){
   only(args,['operation']);
   return ok('Applications. Reading this list does not connect or grant access.',await backend.request('GET','/api/apps'));
@@ -614,3 +679,92 @@ async function tradingPracticeTool(args:Record<string,unknown>,{backend}:Handler
  const suffix=operation==='order'?'/orders':operation==='step'?'/step':operation==='stop'?'/stop-bot':'/end';
  return ok('Fictional practice result. Saved paper accounts and live trading are separate.',await backend.request('POST',base+suffix,Object.fromEntries(fields.map(k=>[k,args[k]]))));
 }
+
+// ---------------------------------------------------------------------------
+// Read-only views of pages (agents, approvals, apps). Writes stay with the owner in the app.
+// ---------------------------------------------------------------------------
+
+/** Field names that may carry a secret, a code or a fingerprint; dropped at any depth (yes/no flags such as hasSecrets stay). */
+const KEY_LIKE=/key|secret|token|password|passwd|credential|code|fingerprint|hash|cookie|authorization|signature|receipt|challenge|system_?prompt|^env$|environment|headers|private/i;
+export function scrub(v:unknown,depth=0):unknown{
+ if(depth>24)return null;
+ if(Array.isArray(v))return v.slice(0,2000).map(x=>scrub(x,depth+1));
+ if(record(v))return Object.fromEntries(Object.entries(v).filter(([k,x])=>!(KEY_LIKE.test(k)&&typeof x!=='boolean')).map(([k,x])=>[k,scrub(x,depth+1)]));
+ return v;
+}
+
+const AGENTS_REFUSED='Renaming, role, main agent, duplicate, hire and remove are done by the owner in the app. This tool only reads (list, read, permissions).';
+const AGENT_WRITES=new Set(['rename','update','edit','save','role','set_role','main','set_main','set_primary','primary','duplicate','hire','create','add','remove','delete','set_permissions']);
+const text=(v:unknown,n:number)=>typeof v==='string'?v.slice(0,n):null;
+function agentView(a:unknown){
+ if(!record(a))return null;
+ return {id:text(a.id,128),name:text(a.name,200),emoji:text(a.emoji,16),role:text(a.role,40),department:text(a.department,64),specialty:text(a.specialty,200)??text(a.specialtyName,200),model:text(a.model,200),provider:text(a.provider,100),isMainAgent:a.isPrimary===true||a.is_primary===1,description:text(a.description,1000)};
+}
+function agentIdArg(v:unknown,name:string){if(typeof v!=='string'||!AGENT_ID.test(v)||v.includes('..'))throw new InputError(`A valid ${name} is required`);return v;}
+async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const operation=args.operation;
+ if(typeof operation==='string'&&AGENT_WRITES.has(operation))throw new InputError(AGENTS_REFUSED);
+ if(operation==='list'){
+  only(args,['operation']);
+  const res=obj(await backend.request('GET','/api/agents'));
+  const agents=(Array.isArray(res.agents)?res.agents:[]).map(agentView).filter(Boolean);
+  return ok(`${agents.length} agent(s). ${AGENTS_REFUSED}`,{agents});
+ }
+ if(operation==='read'){
+  only(args,['operation','id']);
+  const id=agentIdArg(args.id,'agent id');
+  const res=obj(await backend.request('GET','/api/agents/'+encodeURIComponent(id)));
+  return ok(`Agent. ${AGENTS_REFUSED}`,{agent:agentView(res.agent)});
+ }
+ if(operation==='permissions'){
+  only(args,['operation','id']);
+  const id=agentIdArg(args.id,'agent id');
+  return ok('What this agent may do. Changing it is done by the owner in the app (What agents may do).',{permissions:scrub(await backend.request('GET','/api/agents/'+encodeURIComponent(id)+'/permissions'))});
+ }
+ throw new InputError('operation must be list, read or permissions. '+AGENTS_REFUSED);
+}
+
+const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
+const APPROVAL_WRITES=new Set(['approve','allow','allow_always','deny','reject','decline','vote','cast','verify','rule_save','save_rule','add_rule','rule_add','rule_change','edit_rule','activate','revoke','rule_off','turn_off','disable_rule','delete_rule','set_permissions','change_permissions','permissions_set','set']);
+const APPROVAL_STATUSES=['pending','approved','denied','executed','failed','expired'];
+async function workspaceApprovalsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const operation=args.operation;
+ if(typeof operation==='string'&&APPROVAL_WRITES.has(operation))throw new InputError(APPROVALS_REFUSED);
+ switch(operation){
+  case 'waiting':{only(args,['operation']);return ok(`Requests waiting for the owner. ${APPROVALS_REFUSED}`,{approvals:scrub(obj(await backend.request('GET','/api/approvals?status=pending')).approvals??[])});}
+  case 'history':{
+   only(args,['operation','status','agentId']);
+   if(args.status!==undefined&&args.agentId!==undefined)throw new InputError('Use status or agentId, not both');
+   if(args.status!==undefined&&!APPROVAL_STATUSES.includes(String(args.status)))throw new InputError(`status must be one of ${APPROVAL_STATUSES.join(', ')}`);
+   const path=args.status!==undefined?`/api/approvals?status=${args.status}&limit=100`:args.agentId!==undefined?`/api/approvals?agentId=${agentIdArg(args.agentId,'agentId')}&limit=100`:'/api/approvals?limit=100';
+   return ok('Approval history (newest first, up to 100).',{approvals:scrub(obj(await backend.request('GET',path)).approvals??[])});
+  }
+  case 'permissions':{
+   only(args,['operation','agentId']);
+   const one=args.agentId!==undefined?agentIdArg(args.agentId,'agentId'):null;
+   let list:unknown[]=[{id:one}];
+   if(!one){const all=obj(await backend.request('GET','/api/agents')).agents;list=Array.isArray(all)?all:[];}
+   const agents=[];
+   for(const a of list.filter(record).filter(a=>typeof a.id==='string'&&a.id!=='small-local-agent'&&AGENT_ID.test(a.id)).slice(0,200)){
+    agents.push({id:a.id,name:text(a.name,200),role:text(a.role,40),department:text(a.department,64),permissions:scrub(await backend.request('GET','/api/agents/'+encodeURIComponent(String(a.id))+'/permissions'))});
+   }
+   return ok(`What agents may do. ${APPROVALS_REFUSED}`,{agents});
+  }
+  case 'rules':{
+   only(args,['operation','cursor']);
+   if(args.cursor!==undefined&&(typeof args.cursor!=='string'||!/^[a-f0-9-]{36}$/.test(args.cursor)))throw new InputError('cursor must be the nextCursor of a previous page');
+   return ok(`Approval rules. ${APPROVALS_REFUSED}`,scrub(await backend.request('GET','/api/reviewer-policies'+(args.cursor?`?cursor=${args.cursor}`:''))) as Record<string,unknown>);
+  }
+  case 'coverage':{only(args,['operation']);return ok('Tools and whether an approval or rule covers them (read only).',scrub(await backend.request('GET','/api/security/coverage')) as Record<string,unknown>);}
+  default:throw new InputError('operation must be waiting, history, permissions, rules or coverage. '+APPROVALS_REFUSED);
+ }
+}
+
+const APPS_REFUSED='Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish are done by the owner in the app. This tool only reads them (channels, accounts, addons, catalogue).';
+const APPS_OWNER_ONLY=new Set(['channel_on','channel_off','activate','deactivate','keys','set_keys','config','configure','who_may_write','allowed','connect','link','genvr_connect','disconnect','genvr_disconnect','publish','unpublish','upload','install','uninstall','enable_addon','disable_addon']);
+const APPS_READS={
+ channels:{note:'Chat channels and who may write (read only). Keys are never returned.',paths:[['channels','/api/agent-connect/catalog']]},
+ accounts:{note:'Linked accounts (read only). Sign-in codes and tokens are never returned.',paths:[['accounts','/api/connections']]},
+ addons:{note:'Plugins and hooks from coding apps on this computer (read only).',paths:[['addons','/api/chat/addons']]},
+ catalogue:{note:'Dpro\u2019s app catalogue and the coding-app catalogue (read only). Installing is done by the owner in the app.',paths:[['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue']]},
+} as const;
