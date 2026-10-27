@@ -20,7 +20,7 @@ export type Turn = Readonly<{
   /** CHAT-PRO-02 I: the agent that wrote this reply (absent = the conversation's agent). */
   agentId?: string;
   /** CHAT-BUILD-01 stage 5: files this reply changed (Undo / Redo). */
-  changes?: Readonly<{ files: number; undone: boolean }>;
+  changes?: Readonly<{ files: number; undone: boolean; unavailable?: boolean }>;
   /** CHAT-BUILD-01 stage 5: what the reply has written so far, shown live until its checked events arrive. */
   preview?: string;
   /** The tool it runs right now (live). */

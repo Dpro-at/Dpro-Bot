@@ -69,6 +69,13 @@ function openExternal(url) {
 }
 
 function createMainWindow() {
+  const win = createAppWindow();
+  win.on('closed', () => { mainWindow = null; });
+  return win;
+}
+
+// Every window shows only the app's own origin; other links open in the normal browser.
+function createAppWindow() {
   const win = new BrowserWindow({
     width: 1280, height: 860, minWidth: 900, minHeight: 600,
     title: 'Girru', show: false, backgroundColor: '#111111',
@@ -84,12 +91,27 @@ function createMainWindow() {
     if (origin !== appOrigin) { event.preventDefault(); openExternal(url); }
   });
   win.webContents.on('will-attach-webview', event => event.preventDefault());
-  win.on('closed', () => { mainWindow = null; });
   return win;
 }
 
+// A chat in a window of its own (⌘O), asked for by a window of the app on the app's origin.
+const chatWindows = new Set();
+ipcMain.handle('dpro:open-chat-window', async (event, id) => {
+  const sender = BrowserWindow.fromWebContents(event.sender);
+  if (!appOrigin || !sender || (sender !== mainWindow && !chatWindows.has(sender)) || event.senderFrame !== sender.webContents.mainFrame) return false;
+  let origin = null;
+  try { origin = new URL(event.senderFrame.url).origin; } catch { /* invalid */ }
+  if (origin !== appOrigin || typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/.test(id) || chatWindows.size >= 8) return false;
+  const win = createAppWindow();
+  chatWindows.add(win);
+  win.on('closed', () => chatWindows.delete(win));
+  await win.loadURL(`${appOrigin}/#chat=${id}`);
+  return true;
+});
+
 function showPage(name, query = {}) {
   appOrigin = null;
+  for (const win of chatWindows) win.close();
   return mainWindow.loadFile(path.join(PAGES, name), { query });
 }
 

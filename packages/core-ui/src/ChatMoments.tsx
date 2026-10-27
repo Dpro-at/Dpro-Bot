@@ -117,6 +117,7 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
   const [undone, setUndone] = useState(turn.changes?.undone ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  if (turn.changes?.unavailable) return <p className="moment-line changes"><UiIcon name="lock" size={12}/>Undo not available for this folder: its git settings could run a program, so no snapshot was kept.</p>;
   if (!turn.changes?.files || !client || !conversationId) return null;
   const go = async (redo: boolean) => {
     setBusy(true); setError('');

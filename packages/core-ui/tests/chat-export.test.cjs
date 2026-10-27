@@ -102,7 +102,7 @@ test('the chat top bar shows Export for an open conversation; a failed export sh
   assert.ok(!renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock', client })).includes('chat-export-button'), 'no Export on an empty chat');
   c.edit('Hello there'); await c.send(); await until(() => !c.getSnapshot().runId);
   const html = renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock', client }));
-  assert.match(html, /chat-export-button/); assert.match(html, /<span>Export<\/span>/);
+  assert.match(html, /chat-export-button/); assert.match(html, /aria-label="Export" title="Export as Markdown"/);
   const r = await c.exportMarkdown('conv-99999999');
   assert.equal(r.ok, false); assert.equal(c.getSnapshot().notice, 'This conversation no longer exists.');
 });

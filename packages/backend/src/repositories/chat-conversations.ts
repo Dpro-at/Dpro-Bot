@@ -69,7 +69,7 @@ export interface ConversationMessage {
   /** CHAT-PRO-02 I: the agent that wrote an assistant reply (null = the conversation's agent). */
   agentId?: string | null;
   /** CHAT-BUILD-01 stage 5: files this reply changed in the project folder, and whether they were undone. */
-  changes?: { files: number; undone: boolean };
+  changes?: { files: number; undone: boolean; unavailable?: boolean };
 }
 
 interface SessionRow { mode?: string | null; thinking?: string | null; queued?: string | null; archived_at?: string | null; parent_id?: string | null; model?: string; id: string; user_id: string; title: string | null; agent_id: string | null; project_id?: string | null; pinned: number; created_at: string; updated_at: string; preview?: string | null }
@@ -99,7 +99,7 @@ function toMessage(r: MessageRow): ConversationMessage {
   return {
     id: r.id, role: r.role, content: r.content, parts: parseParts(r.parts), status: r.status ?? 'complete',
     runId: r.run_id, durationMs: r.duration_ms, createdAt: r.created_at, agentId: r.agent_id ?? null, ...(r.error_code === 'run_interrupted' ? { code: 'run_interrupted' as const } : {}),
-    ...(r.checkpoint_files ? { changes: { files: Number(r.checkpoint_files), undone: !!r.checkpoint_undone } } : {}),
+    ...(Number(r.checkpoint_files) > 0 ? { changes: { files: Number(r.checkpoint_files), undone: !!r.checkpoint_undone } } : Number(r.checkpoint_files) === -1 ? { changes: { files: 0, undone: false, unavailable: true } } : {}),
   };
 }
 

@@ -8,6 +8,7 @@ import { SearchResults } from './ChatSearch';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, Notice, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
+import { ContinueElsewhere, openChatWindow } from './chat-actions';
 import { CHAT_SECTIONS, DEFAULT_PREFS, moveSection, shortTime } from './chat-sidebar-prefs';
 import type { ChatSection, SidebarPrefs } from './chat-sidebar-prefs';
 
@@ -47,6 +48,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [projectForm, setProjectForm] = useState<{ id: string | null } | null>(null);
+  const [continueFrom, setContinueFrom] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string; undo: boolean; chat: string } | null>(null);
   const searchBox = useRef<HTMLInputElement>(null);
   const menu = useMenu();
@@ -78,6 +80,8 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   };
   const rowItems = (c: Chat): MenuItem[] => [
     { label: 'Open', icon: 'message', run: () => open(c) },
+    { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(c.id) },
+    ...(s.access !== 'denied' ? [{ label: 'Continue in another folder…', icon: 'folder' as const, run: () => setContinueFrom(c.id) }] : []),
     { label: 'Rename', icon: 'pencil', run: () => setRenaming(c.id) },
     { label: c.pinned ? 'Unpin' : 'Pin', icon: 'pin', run: () => void controller.pin(c.id, !c.pinned) },
     ...(s.projects.length ? ['sep' as const, ...[{ id: '', name: 'No project' }, ...s.projects].map(p => ({ label: p.id ? `Move to ${p.name}` : 'Move out of the project', icon: 'folder' as const, checked: (c.projectId ?? '') === p.id, run: () => void controller.moveToProject(c.id, p.id) }))] : []),
@@ -156,6 +160,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   </div>;
   return <div className="conversations chat-sidebar">
     {header}
+    {continueFrom && <ContinueElsewhere controller={controller} chatId={continueFrom} onDone={() => { setContinueFrom(null); onOpen(); }}/>}
     {projectForm && <ProjectSheet controller={controller} id={projectForm.id} onClose={() => setProjectForm(null)}/>}
     {editing ? <SidebarEditor prefs={prefs} onDone={p => { setPrefs(p); setEditing(false); }} onCancel={() => setEditing(false)}/>
       : searching ? <SearchResults state={found} projectName={projectName} onOpen={openHit}/>

@@ -36,6 +36,9 @@ import { ContextCard, HandoffCard, RecallChip, RecallPanel, SpeedDetails } from 
 import { MemoryMoveController } from './memory-move';
 import { MoveDialog } from './MemoryDialogs';
 import { exportConversation, exportNote } from './chat-export';
+import { ContextMenu, Sheet, useMenu } from './desktop-ui';
+import type { MenuItem } from './desktop-ui';
+import { ContinueElsewhere, openChatWindow } from './chat-actions';
 import { secretLabel, splitSecrets } from './chat-secrets';
 import { SavedKeys } from './SavedKeys';
 import type { Part, ToolCall, ToolKind, Turn } from './turns';
@@ -293,6 +296,43 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     ...(panes ? [{ name: 'changes' as const, icon: 'diff' as const, label: 'Changes' }, { name: 'files' as const, icon: 'folder' as const, label: 'Files' }] : []),
   ];
   const previewFile=s.attachments.find(f=>f.name===attachmentPreview);
+  // CHAT-BUILD-01 follow-up (CH5): ⋯ "More for this chat" — the rest of the chat's actions live here.
+  const moreMenu = useMenu();
+  const [exportKey, setExportKey] = useState(0);
+  const [chatSheet, setChatSheet] = useState<'rename' | 'delete' | 'continue' | null>(null);
+  const canBoard = owner && !!cardsCtl && !!s.activeId;
+  const rememberAll = () => {
+    const last = [...s.turns].reverse().find(t => t.role === 'assistant' && t.status === 'complete');
+    if (!last) return;
+    openRemember(last, s.turns.filter(t => t.content.trim()).map(t => `${t.role === 'user' ? 'You' : nameOf(t.agentId ?? convAgentId)}: ${t.content.trim()}`).join('\n\n'));
+  };
+  const moreItems = (): MenuItem[] => {
+    if (!s.activeId || !activeConv) return [];
+    const id = s.activeId;
+    return [
+      { label: 'Rename', icon: 'pencil', run: () => setChatSheet('rename') },
+      { label: activeConv.pinned ? 'Unpin' : 'Pin', icon: 'pin', run: () => void controller.pin(id, !activeConv.pinned) },
+      ...(s.projects.length ? ['sep' as const, ...[{ id: '', name: 'No project' }, ...s.projects].map(p => ({ label: p.id ? `Move to ${p.name}` : 'Move out of the project', icon: 'folder' as const, checked: (activeConv.projectId ?? '') === p.id, run: () => void controller.moveToProject(id, p.id) }))] : []),
+      'sep',
+      { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(id) },
+      { label: 'Continue in another folder…', icon: 'folder', run: () => setChatSheet('continue') },
+      { label: 'Export…', icon: 'download', run: () => setExportKey(Date.now()) },
+      ...(canRemember ? [{ label: 'Remember the whole chat', icon: 'brain' as const, disabled: !s.turns.some(t => t.role === 'assistant' && t.status === 'complete'), run: rememberAll }] : []),
+      'sep',
+      { label: 'Delete…', icon: 'trash', danger: true, run: () => setChatSheet('delete') },
+    ];
+  };
+  useEffect(() => {
+    if (!active) return;
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (e.target instanceof HTMLElement && e.target.closest('[contenteditable="true"], .document-editor')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'o' && s.activeId) { e.preventDefault(); openChatWindow(s.activeId); }
+      else if (k === 'b' && canBoard) { e.preventDefault(); if (cardForm) setCardForm(null); else openCardForm(); }
+    };
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  });
   // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
   const moments = { client, conversationId: s.activeId, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
@@ -301,9 +341,11 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
     <div className="chat-topbar">
       {project ? <ProjectBar name={project.name} folder={project.folder} repoUrl={project.repoUrl} git={s.git}/> : <span className="project-bar-item" aria-label="Chat context">General chat · no project folder</span>}
-      {client && s.activeId && s.threadPhase !== 'loading' && <ExportMenu key={s.activeId} client={client} conversationId={s.activeId} disabled={running}/>}
-      {owner && cardsCtl && s.activeId && <button type="button" className="tool chat-to-board" onClick={() => cardForm ? setCardForm(null) : openCardForm()} aria-pressed={!!cardForm} title="Put this task on a board, with the agents it needs">
-        <UiIcon name="board" size={14}/><span>Add to board</span></button>}
+      {client && s.activeId && s.threadPhase !== 'loading' && <ExportMenu key={s.activeId} client={client} conversationId={s.activeId} disabled={running} openKey={exportKey}/>}
+      {canBoard && <button type="button" className="tool chat-to-board" onClick={() => cardForm ? setCardForm(null) : openCardForm()} aria-pressed={!!cardForm} aria-label="Add to board" title="Add to board (⌘B)">
+        <UiIcon name="board" size={14}/></button>}
+      {s.activeId && activeConv && <button type="button" className="tool chat-more" aria-label="More for this chat" title="More for this chat" aria-haspopup="menu"
+        onClick={e => moreMenu.at(e, moreItems())}><UiIcon name="more" size={14}/></button>}
       {mode === 'live' && <button type="button" className="tool chat-avatar-toggle" aria-label="Avatar" aria-pressed={avatarOn} onClick={toggleAvatar} title={avatarOn ? 'Hide the avatar' : 'Show the agent as an avatar that speaks its replies'}><UiIcon name="avatar" size={14}/></button>}
       <span className="pane-bar" role="toolbar" aria-label="Side panes">{terminal && owner && <button type="button" className="tool" aria-pressed={termOpen} aria-label="Terminal" title={termOpen ? 'Hide the terminal (⌃`)' : 'Terminal (⌃`)'} onClick={() => setTermOpen(v => !v)}><UiIcon name="terminal" size={14}/></button>}{paneButtons.map(b =>
         <button key={b.name} type="button" className="tool" aria-pressed={pane === b.name} aria-label={b.label} title={pane === b.name ? `Hide ${b.label.toLowerCase()}` : b.label}
@@ -342,6 +384,13 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       <TaskList turns={s.turns} who={nameOf(convAgentId)}/>
       {s.notice && <p className="chat-notice" role="status">{s.notice}</p>}
       {mem?.notice && !remember && <p className="chat-notice" role="status">{mem.notice} <button type="button" className="link-button" onClick={() => memCtl?.clearNotice()}>OK</button></p>}
+      <ContextMenu menu={moreMenu.menu} onClose={moreMenu.close}/>
+      {chatSheet === 'continue' && s.activeId && <ContinueElsewhere controller={controller} chatId={s.activeId} onDone={() => setChatSheet(null)}/>}
+      {chatSheet === 'rename' && activeConv && <RenameSheet title={activeConv.title ?? ''} onClose={() => setChatSheet(null)} onSave={t => { void controller.rename(activeConv.id, t); setChatSheet(null); }}/>}
+      {chatSheet === 'delete' && activeConv && <Sheet title="Delete this chat?" onClose={() => setChatSheet(null)} actions={<>
+        <button type="button" autoFocus onClick={() => setChatSheet(null)}>Keep</button>
+        <button type="button" className="danger" onClick={() => { void controller.remove(activeConv.id); setChatSheet(null); }}>Delete</button></>}>
+        <p>“{activeConv.title || 'New chat'}” and its messages are deleted for good. To keep it out of the way instead, archive it from the sidebar.</p></Sheet>}
       {remember && memCtl && <RememberForm key={remember.key} controller={memCtl} seed={remember} project={project?.name ?? null} agent={convAgentName} onClose={() => setRemember(null)}/>}
       {cardForm && cardsCtl && <ChatCardForm key={cardForm.key} controller={cardsCtl} seed={cardForm} agents={s.agents} onClose={() => setCardForm(null)}/>}
       {s.reconnecting && <p className="chat-notice" role="status">Reconnecting to the reply…</p>}
@@ -375,9 +424,9 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
             accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*"/>
+          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
           <PlusButton onFiles={() => picker.current?.click()} onLong={() => setLongDraft(true)}/>
           <ModeButton value={s.mode} onChange={m => void controller.setMode(m)} open={popover === 'mode'} setOpen={v => setPopover(v ? 'mode' : null)}/>
-          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
           <span className="composer-spacer"/>
           {s.agents.length > 0 && <WhoButton team={{ id: '', name: (s.activeId ? convAgentName : s.agents.find(a => a.primary)?.name) ?? 'Main agent' }}
             agents={s.agents.filter(a => s.activeId ? (a.id !== convAgentId && !(a.primary && !convAgentId)) : !a.primary).map(a => ({ id: a.id, name: a.name }))}
@@ -481,9 +530,20 @@ function MicButton({ mic }: { mic: MicController }) {
 }
 
 /** Where this conversation works: project, folder, git branch and repository. */
+/** CHAT-BUILD-01 follow-up: rename the open chat from its ⋯ menu. */
+function RenameSheet({ title, onClose, onSave }: { title: string; onClose: () => void; onSave: (title: string) => void }) {
+  const [value, setValue] = useState(title);
+  return <Sheet title="Rename chat" onClose={onClose} actions={<>
+    <button type="button" onClick={onClose}>Cancel</button>
+    <button type="button" className="primary" onClick={() => onSave(value)}>Rename</button></>}>
+    <form onSubmit={e => { e.preventDefault(); onSave(value); }}><input autoFocus aria-label="Chat name" value={value} maxLength={120} onChange={e => setValue(e.target.value)}/></form>
+  </Sheet>;
+}
+
 /** CHAT-PRO-02 F: "Export" — the conversation as a Markdown file, optionally with a summary of the tool calls. */
-function ExportMenu({ client, conversationId, disabled }: { client: SessionClient; conversationId: string; disabled: boolean }) {
+function ExportMenu({ client, conversationId, disabled, openKey = 0 }: { client: SessionClient; conversationId: string; disabled: boolean; openKey?: number }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (openKey) { setOpen(true); } }, [openKey]);
   const [tools, setTools] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -494,8 +554,8 @@ function ExportMenu({ client, conversationId, disabled }: { client: SessionClien
     setNote(r.ok ? exportNote(r.file) : r.message);
   };
   return <span className="chat-export">
-    <button type="button" className="tool chat-export-button" aria-expanded={open} aria-haspopup="dialog" title="Save this conversation as a Markdown file"
-      onClick={() => { setOpen(v => !v); setNote(null); }}><UiIcon name="download" size={14}/><span>Export</span></button>
+    <button type="button" className="tool chat-export-button" aria-expanded={open} aria-haspopup="dialog" aria-label="Export" title="Export as Markdown"
+      onClick={() => { setOpen(v => !v); setNote(null); }}><UiIcon name="download" size={14}/></button>
     {open && <div className="chat-export-pop" role="dialog" aria-label="Export this conversation" onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}>
       <strong>Export as Markdown</strong>
       <label className="chat-export-check"><input type="checkbox" checked={tools} onChange={e => setTools(e.target.checked)}/> Include tool calls (collapsed summary)</label>

@@ -2,6 +2,7 @@
 // notice with Undo, icon buttons with tooltips, project tiles and avatars.
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { UiIcon } from './ui-icons';
 import type { UiIconName } from './ui-icons';
 import { initial, tileColour } from './memory-desktop';
@@ -42,11 +43,14 @@ export function ContextMenu({ menu, onClose }: { menu: MenuAt; onClose: () => vo
     const i = all.indexOf(document.activeElement as HTMLButtonElement);
     all[(i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length]?.focus();
   }
-  return <div ref={ref} className="dk-menu" role="menu" style={{ left, top, inlineSize: width }} onKeyDown={move}>
+  // Drawn in the app shell, so a blurred or transformed bar (the chat's top bar) cannot shift or clip it.
+  const host = typeof document === 'undefined' ? null : menu.invoker?.closest<HTMLElement>('.app-shell') ?? null;
+  const list = <div ref={ref} className="dk-menu" role="menu" style={{ left, top, inlineSize: width }} onKeyDown={move}>
     {menu.items.map((m, i) => m === 'sep' ? <hr key={i}/> : <button key={i} type="button" role={m.checked === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={m.checked} disabled={m.disabled} data-danger={m.danger || undefined} onClick={() => { onClose(); m.run(); }}>
       {m.checked !== undefined && <span className="dk-menu-check">{m.checked && <UiIcon name="check" size={13}/>}</span>}{m.icon ? <UiIcon name={m.icon} size={14}/> : <span className="dk-menu-gap"/>}<span className="dk-menu-label">{m.label}</span>{m.shortcut && <kbd>{m.shortcut}</kbd>}
     </button>)}
   </div>;
+  return host ? createPortal(list, host) : list;
 }
 
 /** An icon-only button with a tooltip and an accessible name (shortcut shown in the tooltip). */

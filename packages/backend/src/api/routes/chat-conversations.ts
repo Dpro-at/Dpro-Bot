@@ -44,7 +44,8 @@ import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
-import { CheckpointError, changedFiles, restore, snapshot } from '../../services/chat-checkpoints.js';
+import { CheckpointError, changedFiles, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
+import { changesSomething } from '../../tools/registry.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
@@ -241,7 +242,8 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   }
   // CHAT-BUILD-01 stage 5 (CH10): a reply in a git folder keeps a "before" snapshot so its changes can be undone.
   const checkpointFolder = t.role === 'owner' ? project?.folder ?? codingFolder : undefined;
-  const before = checkpointFolder ? await snapshot(checkpointFolder).catch(() => null) : null;
+  const state = checkpointFolder ? await snapshotState(checkpointFolder).catch(() => 'blocked' as const) : null;
+  const before = state === 'blocked' ? null : state;
   starting.delete(b.runId);
   const runContext: ChatRunContext = { ...journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }),
     // CHAT-BUILD-01 stage 3: the chat's Mode and Thinking, and the project's added folders the agent may read.
@@ -260,6 +262,9 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
         const files = after && after !== before ? (await changedFiles(before, after).catch(() => [])).length : 0;
         if (files) await q.run("UPDATE chat_messages SET checkpoint_folder = ?, checkpoint_before = ?, checkpoint_after = ?, checkpoint_files = ?, checkpoint_undone = 0 WHERE run_id = ? AND role = 'assistant'",
           checkpointFolder, before, after, files, b.runId).catch(() => undefined);
+      } else if (state === 'blocked' && chatRuns.get(b.runId)?.parts.some(p => p.kind === 'tools' && p.calls.some(call => changesSomething({ name: call.name })))) {
+        // No snapshot could be taken safely here: the reply says "Undo not available for this folder" instead of offering it.
+        await q.run("UPDATE chat_messages SET checkpoint_files = -1 WHERE run_id = ? AND role = 'assistant'", b.runId).catch(() => undefined);
       }
       // CHAT-BUILD-01 stage 4: the stored reply keeps its model and estimated tokens (tokens by model).
       if (runContext.usage) await q.run("UPDATE chat_messages SET model = ?, tokens_in = ?, tokens_out = ? WHERE run_id = ? AND role = 'assistant'",
