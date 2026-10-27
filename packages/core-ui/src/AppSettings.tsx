@@ -21,8 +21,9 @@ import type { ThemePreference } from './app-navigation';
 import { MemorySettings, MEMORY_PANES } from './MemorySettings';
 import type { MemorySettingsPane } from './MemorySettings';
 import { UiIcon } from './ui-icons';
+import { McpSection } from './ToolSections';
 import type { UiIconName } from './ui-icons';
-/** Places that are sections of their own; their Settings rows open them (MCP connections shows "← Settings" to come back). */
+/** Places that are sections of their own; their Settings rows open them. MCP connections stays in Settings with its places nested, like Memory. */
 type Tool='mcp'|'library';
 type Place='general'|'account'|'replies'|'move'|'permissions'|'verification'|'approval-rules'|'keys'|'accounts'|'channels'|'memory'|'schedules'|'departments'|'apps'|Tool|'about';
 /** Old names ('models', 'sharing', 'connections') still open their places. */
@@ -40,7 +41,7 @@ const ROWS:Record<Place,Row>={
  keys:{value:'keys',label:'Saved keys',icon:'key',words:'secrets tokens passwords key store older chats',note:'Keys you pasted in chats, kept encrypted on this computer.'},
  accounts:{value:'accounts',label:'Accounts',icon:'contact',words:'connections accounts genvr world account connect disconnect test publication',note:'Accounts connected to this workspace.'},
  channels:{value:'channels',label:'Channels',icon:'message',words:'messaging services telegram discord whatsapp trusted senders conversations automatic replies',note:'Messaging services and trusted senders.'},
- mcp:{value:'mcp',label:'MCP connections',icon:'tool',words:'mcp connections connectors tools servers add import coding apps genvr-local',jump:true},
+ mcp:{value:'mcp',label:'MCP connections',icon:'tool',words:'mcp connections connectors tools servers add import coding apps genvr-local',note:'Tools your agents reach through MCP servers.'},
  memory:{value:'memory',label:'Memory',icon:'database',words:MEMORY_PANES.map(p=>p.label).join(' ')+' memory rules sources access',note:'Memory rules, sources and access.'},
  schedules:{value:'schedules',label:'Scheduled tasks',icon:'clock',words:'schedules cron run now pause permission code recent runs',note:'Workspace schedules and recent outcomes.'},
  departments:{value:'departments',label:'Departments',icon:'building',words:'departments teams groups rename move agents new department',note:'The departments of your agents.'},
@@ -51,43 +52,45 @@ const ROWS:Record<Place,Row>={
 /**
  * Settings: one window with every place of the old Settings again, grouped
  * Application / Security / Connections / Workspace / About. Accounts, Channels,
- * MCP connections and Departments live only here. Places that are their own
- * section (MCP connections, Apps, Library) are jump rows that open it.
+ * MCP connections and Departments live only here. MCP connections, like Memory,
+ * shows its places nested under its row. Places that are their own section
+ * (Apps, Library) are jump rows that open it.
  * Permissions, Verification and Approval rules show the same components as Approvals.
  * In the signed-in window the places are the sidebar (the shell gives a slot;
  * Memory has its own sub-places); without a slot (signed out, tests) the same
  * places sit on the left of the page.
  */
-export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents, client, aboutOnly = false, initialTab = 'general', initialMemoryPane = 'rules', sidebarSlot, active = true, onOpenMemory, onOpenChat, onOpenApps, onOpenTool, onOpenGenvr, onApprovals, onBoard, onAgent }: { signedIn: boolean; preference: ThemePreference; onTheme: (v: ThemePreference) => void; onAccount: () => void; onAgents?: () => void; client?: SessionClient; aboutOnly?: boolean; initialTab?: SettingsTab; initialMemoryPane?: MemorySettingsPane; sidebarSlot?: HTMLElement | null; active?: boolean; onOpenMemory?: () => void; onOpenChat?: () => void; onOpenApps?: () => void; onOpenTool?: (tool: Tool) => void; onOpenGenvr?: () => void; onApprovals?: () => void; onBoard?: () => void; onAgent?: (id: string) => void }) {
+export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents, client, aboutOnly = false, initialTab = 'general', initialMemoryPane = 'rules', sidebarSlot, active = true, onOpenMemory, onOpenChat, onOpenApps, onOpenTool, onOpenGenvr, onApprovals, onBoard, onAgent, mcpOpenId }: { signedIn: boolean; preference: ThemePreference; onTheme: (v: ThemePreference) => void; onAccount: () => void; onAgents?: () => void; client?: SessionClient; aboutOnly?: boolean; initialTab?: SettingsTab; initialMemoryPane?: MemorySettingsPane; sidebarSlot?: HTMLElement | null; active?: boolean; onOpenMemory?: () => void; onOpenChat?: () => void; onOpenApps?: () => void; onOpenTool?: (tool: Tool) => void; onOpenGenvr?: () => void; onApprovals?: () => void; onBoard?: () => void; onAgent?: (id: string) => void; mcpOpenId?: string }) {
   const named=(t:SettingsTab):Place=>t==='models'?'replies':t==='sharing'?'move':t==='connections'?'accounts':t;
   const [query,setQuery]=useState('');const search=useRef<HTMLInputElement>(null);
   const info=useAppInfo();const [tab,setTab]=useState<Place>(named(initialTab));
   const [pane,setPane]=useState<MemorySettingsPane>(initialMemoryPane);
   const [permAgent,setPermAgent]=useState<string|undefined>();
+  const [mcpNav,setMcpNav]=useState<HTMLDivElement|null>(null);
   useEffect(()=>{setTab(named(initialTab));},[initialTab]);useEffect(()=>{setPane(initialMemoryPane);},[initialMemoryPane]);
   const user=signedIn?client?.getSnapshot().user:undefined,owner=user?.role==='owner',live=signedIn&&!!client;
   const ownerOnly=(keys:Place[])=>owner?keys:[];
   const groups:{name:string;keys:Place[]}[]=live?[
     {name:'Application',keys:['general','account','replies',...ownerOnly(['move'])]},
     {name:'Security',keys:[...ownerOnly(['permissions']),...(user?.role!=='guest'?['verification' as const]:[]),...ownerOnly(['approval-rules']),'keys']},
-    {name:'Connections',keys:ownerOnly(['accounts','channels',...(onOpenTool?['mcp' as const]:[]),'memory'])},
+    {name:'Connections',keys:ownerOnly(['accounts','channels',...(client?['mcp' as const]:[]),'memory'])},
     {name:'Workspace',keys:[...ownerOnly(['departments','schedules']),...(onOpenApps?['apps' as const]:[]),...(onOpenTool?ownerOnly(['library']):[])]},
     {name:'',keys:['about']},
   ]:[{name:'Application',keys:['general','account','replies']},{name:'',keys:['about']}];
   const allowed=groups.flatMap(g=>g.keys);
   const active_:Place=aboutOnly?'about':allowed.includes(tab)?tab:'general';
   const q=query.trim().toLowerCase(),found=(p:Row)=>!q||`${p.label} ${p.words}`.toLowerCase().includes(q);
-  const choose=(value:Place)=>{if(value==='apps'){onOpenApps?.();return;}if(value==='mcp'||value==='library'){onOpenTool?.(value);return;}setTab(value);};
+  const choose=(value:Place)=>{if(value==='apps'){onOpenApps?.();return;}if(value==='library'){onOpenTool?.(value);return;}setTab(value);};
   // ⌘F searches inside settings while this window is open.
   useEffect(()=>{if(!active||aboutOnly)return;const onKey=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='f'&&!document.querySelector('dialog[open]')&&!e.defaultPrevented){e.preventDefault();search.current?.focus();}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);},[active,aboutOnly]);
   const sidebar=<nav className="dk-sidebar settings-sidebar" aria-label="Settings sections">
     <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search settings" placeholder="Search settings" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Escape')setQuery('');}}/></label></div>
-    {groups.map(group=>{const rows=group.keys.map(k=>ROWS[k]).filter(found);return rows.length?<div key={group.name||'end'} className="settings-nav-group">{group.name&&<p className="section-label dk-label">{group.name}</p>}{rows.map(t=><div key={t.value} className="dk-group"><button type="button" className="nav-item dk-place" title={t.jump?`Open ${t.label}`:undefined} aria-current={active_===t.value?'page':undefined} aria-expanded={t.value==='memory'?active_==='memory':undefined} onClick={()=>choose(t.value)}><UiIcon name={t.icon} size={15}/><span className="dk-place-name">{t.label}</span>{t.jump&&<UiIcon name="chevron" size={11}/>}</button>{t.value==='memory'&&active_==='memory'&&MEMORY_PANES.map(p=><button key={p.key} type="button" className="nav-item dk-place" data-nested aria-current={pane===p.key?'page':undefined} onClick={()=>setPane(p.key)}><span className="dk-place-name">{p.label}</span></button>)}</div>)}</div>:null;})}
+    {groups.map(group=>{const rows=group.keys.map(k=>ROWS[k]).filter(found);return rows.length?<div key={group.name||'end'} className="settings-nav-group">{group.name&&<p className="section-label dk-label">{group.name}</p>}{rows.map(t=><div key={t.value} className="dk-group"><button type="button" className="nav-item dk-place" title={t.jump?`Open ${t.label}`:undefined} aria-current={active_===t.value?'page':undefined} aria-expanded={t.value==='memory'||t.value==='mcp'?active_===t.value:undefined} onClick={()=>choose(t.value)}><UiIcon name={t.icon} size={15}/><span className="dk-place-name">{t.label}</span>{t.jump&&<UiIcon name="chevron" size={11}/>}</button>{t.value==='memory'&&active_==='memory'&&MEMORY_PANES.map(p=><button key={p.key} type="button" className="nav-item dk-place" data-nested aria-current={pane===p.key?'page':undefined} onClick={()=>setPane(p.key)}><span className="dk-place-name">{p.label}</span></button>)}{t.value==='mcp'&&active_==='mcp'&&<div ref={setMcpNav} className="mcp-settings-nav"/>}</div>)}</div>:null;})}
     {q&&!groups.some(g=>g.keys.some(k=>found(ROWS[k])))&&<p className="settings-search-empty">No setting matches “{query.trim()}”.</p>}
     {!signedIn&&<div className="settings-signin-note"><p>Sign in to see your account, keys and workspace settings.</p><button type="button" onClick={onAccount}>Sign in</button></div>}
   </nav>;
   const label=aboutOnly?'About Dpro':active_==='memory'?`Memory · ${MEMORY_PANES.find(p=>p.key===pane)?.label??'Settings'}`:ROWS[active_].label;
-  const ownTitle=active_==='schedules'||active_==='memory';
+  const ownTitle=active_==='schedules'||active_==='memory'||active_==='mcp';
   const signIn=(title:string,description:string)=><PreferenceGroup title={title}><PreferenceRow title="Sign in required" description={description} icon="contact"><button type="button" onClick={onAccount}>Sign in</button></PreferenceRow></PreferenceGroup>;
   const page=<div id="settings-view-panel" aria-label={label} className="settings-content settings-st" data-pane={active_}><div className="preferences-page">
       {!ownTitle&&<header className="settings-page-head"><h2 className="settings-page-title">{label}</h2>{ROWS[active_].note&&<p className="settings-page-desc">{ROWS[active_].note}</p>}</header>}
@@ -115,6 +118,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='departments'&&owner&&<DepartmentsSettings client={client!} onAgent={onAgent}/>}
       {active_==='channels'&&owner&&<AgentConnectSettings client={client!}/>}
       {active_==='memory'&&owner&&<MemorySettings client={client!} pane={pane} onOpenMemory={onOpenMemory}/>}
+      {active_==='mcp'&&owner&&<McpSection client={client!} active={active} nav={mcpNav} openId={mcpOpenId} onOpenAgents={onAgents}/>}
       {active_==='schedules'&&owner&&<ScheduledTasks client={client!} active={active} onOpenConnections={()=>setTab('channels')}/>}
       {active_==='about'&&<>
         <div className="settings-about-head"><span className="settings-about-mark" aria-hidden="true">D</span><div><strong>Dpro</strong><small>Version {info?.version??'development preview'} · {info?(info.connection==='local'?'runs on this computer':'connected installation'):'local browser preview'}</small></div></div>
