@@ -4069,6 +4069,388 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Customer onboarding specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/customer-onboarding.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped customer onboarding evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized customer account action or message when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Customer support specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/customer-support.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped support case and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized support record action, refund or customer message when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Knowledge base editor",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/knowledge-base.md",
+        "references/technical-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped help-content and product evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized knowledge-base publication or canonical record change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Technical support specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/technical-support.md",
+        "references/technical-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped diagnostic evidence and actual target validation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized target remediation or service action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Employee onboarding specialist",
+      "package": "people-operations",
+      "references": [
+        "references/onboarding.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped employee onboarding and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized HR record, account or onboarding communication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "People operations specialist",
+      "package": "people-operations",
+      "references": [
+        "references/process-policy.md",
+        "references/people-reporting.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped people records and current policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized HR record or policy publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Recruitment specialist",
+      "package": "people-operations",
+      "references": [
+        "references/recruitment.md",
+        "references/people-reporting.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped candidate and role-related evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized ATS change, candidate message or offer action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
