@@ -68,6 +68,8 @@ export function conversationPath(path) {
   if (pm) return uuid(pm[1]) ? { kind: 'variables', id: pm[1] } : null;
   pm = /^\/api\/chat\/projects\/([^/?#]+)\/variables\/([A-Z_][A-Z0-9_]{0,63})$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'variable', id: pm[1], name: pm[2] } : null;
+  pm = /^\/api\/chat\/projects\/([^/?#]+)\/pr$/.exec(path);
+  if (pm) return uuid(pm[1]) ? { kind: 'project-pr', id: pm[1] } : null;
   pm = /^\/api\/chat\/projects\/([^/?#]+)\/git$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project-git', id: pm[1] } : null;
   pm = /^\/api\/chat\/projects\/([^/?#]+)\/changes$/.exec(path);
@@ -113,7 +115,7 @@ export function allowedConversation(method, path, body) {
   if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
-  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
+  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-pr', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
   if (method === 'POST' && p.kind === 'transcribe') return record(body) && onlyKeys(body, ['audio', 'language']) && typeof body.audio === 'string' && body.audio.length > 0 && body.audio.length <= MAX_AUDIO_CHARS && /^[A-Za-z0-9+/]+={0,2}$/.test(body.audio)
     && (body.language === undefined || STT_LANGUAGES.includes(body.language));
   if (method === 'DELETE') return body === undefined && (p.kind === 'one' || p.kind === 'project' || p.kind === 'variable');
@@ -209,6 +211,13 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'projects' && status === 200) { if (!Array.isArray(body.projects)) throw Error('protocol'); return { projects: body.projects.slice(0, 500).map(project) }; }
   if (p.kind === 'projects' || (p.kind === 'project' && record(body.project))) return { project: project(body.project) };
   if (p.kind === 'project') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }
+  if (p.kind === 'project-pr') {
+    const pr = record(body.pr) ? body.pr : null;
+    const ok = pr && Number.isSafeInteger(pr.number) && pr.number > 0 && typeof pr.url === 'string' && /^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}\/pull\/\d{1,9}$/.test(pr.url)
+      && ['open', 'merged', 'closed', 'draft'].includes(pr.state);
+    return { pr: ok ? { number: pr.number, title: str(pr.title, 200), state: pr.state, url: pr.url, checks: ['passing', 'pending', 'failing'].includes(pr.checks) ? pr.checks : null } : null,
+      ...(body.unavailable === true ? { unavailable: true } : {}) };
+  }
   if (p.kind === 'project-git') {
     const g = record(body.git) ? body.git : {}; const count = x => (Number.isSafeInteger(x) && x >= 0 ? x : null);
     const s = (x, max) => (typeof x === 'string' && x ? x.slice(0, max) : null);

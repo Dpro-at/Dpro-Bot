@@ -46,6 +46,7 @@ import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { CheckpointError, changedFiles, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
 import { changesSomething } from '../../tools/registry.js';
+import { projectPullRequest } from '../../services/github-pr-state.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
@@ -656,6 +657,13 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const p = await findProject(caller(request), request.params.id!);
     if (!p) return notFound(reply);
     return { git: p.folder ? await gitInfo(p.folder) : { branch: null, remote: null, dirty: null } };
+  });
+
+  // CH8 Results: the branch's pull request on GitHub (state and checks), read-only and cached a minute; owner only.
+  fastify.get('/api/chat/projects/:id/pr', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const p = await findProject(caller(request), request.params.id!);
+    if (!p) return notFound(reply);
+    return p.folder ? await projectPullRequest(caller(request), await gitInfo(p.folder)) : { pr: null };
   });
 
   // ---- microphone (CHAT-PRO-02 C): a recorded clip → text, on this computer only (owner) ----

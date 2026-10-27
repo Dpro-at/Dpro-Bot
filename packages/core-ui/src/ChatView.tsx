@@ -444,7 +444,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   </div>
   {pane === 'details' ? <ChatDetails controller={controller} client={client} recall={recallCtl} onSettings={onAddConnector} onClose={() => setPane(null)}
       memoryCard={s.activeId ? <>{recallCtl && <HandoffCard c={recallCtl} agentId={convAgentId || s.agentId || s.agents[0]?.id || ''} agentName={convAgentName}/>}{memCtl && <ChatMemoryCard controller={memCtl} onOpen={onOpenMemory}/>}</> : undefined}
-      resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} onRefresh={() => void controller.refreshGit()}/> : undefined}
+      resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} pr={owner && client ? { client, projectId: project.id } : undefined} onRefresh={() => void controller.refreshGit()}/> : undefined}
       placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
       onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })}/>
@@ -487,8 +487,9 @@ function RecallContext({ c, keys }: { c: ChatRecallController; keys: readonly st
 }
 
 /** The branch against GitHub: upstream, ahead/behind (last known state, offline), last commit, links to open on github.com. */
-function GitHubCard({ git, onRefresh }: { git: NonNullable<ReturnType<ConversationsController['getSnapshot']>['git']>; onRefresh: () => void }) {
+function GitHubCard({ git, pr, onRefresh }: { git: NonNullable<ReturnType<ConversationsController['getSnapshot']>['git']>; pr?: { client: SessionClient; projectId: string }; onRefresh: () => void }) {
   const gh = git.github;
+  const live = usePullRequest(gh && git.upstream ? pr : undefined, git.branch);
   const when = git.lastCommit?.date ? new Date(git.lastCommit.date) : null;
   return <section className="panel-card" aria-label="GitHub">
     <h3>{gh ? 'GitHub' : 'Git'} <button type="button" className="row-tool panel-head-tool" aria-label="Reload git status" title="Reload" onClick={onRefresh}><UiIcon name="refresh" size={11}/></button></h3>
@@ -498,6 +499,10 @@ function GitHubCard({ git, onRefresh }: { git: NonNullable<ReturnType<Conversati
       <div><dt aria-label="Upstream">↕</dt><dd className="panel-wrap">{git.upstream
         ? <><span dir="ltr">{git.upstream}</span>{git.ahead !== null && git.ahead !== undefined && <span className="git-sync"> · ↑{git.ahead} ↓{git.behind ?? 0}</span>}</>
         : <span className="muted">Not on GitHub yet (never pushed)</span>}</dd></div>
+      {live && <div><dt aria-label="Pull request"><span className="pr-dot" data-state={live.pr?.state ?? 'none'} aria-hidden="true"/></dt><dd className="panel-wrap">{live.pr
+        ? <><a href={live.pr.url} target="_blank" rel="noopener noreferrer" title={live.pr.title}>#{live.pr.number}</a> <span className="pr-state" data-state={live.pr.state}>{PR_WORD[live.pr.state]}</span>
+          {live.pr.checks && <span className="pr-checks" data-checks={live.pr.checks} title={CHECKS_WORD[live.pr.checks]}><span className="pr-dot" aria-hidden="true"/>{CHECKS_WORD[live.pr.checks]}</span>}</>
+        : <span className="muted">{live.unavailable ? 'PR state unavailable' : 'No pull request yet'}</span>}</dd></div>}
       {git.lastCommit && <div><dt aria-label="Last commit"><UiIcon name="check" size={12}/></dt><dd title={`${git.lastCommit.author}${when ? ` · ${when.toLocaleString()}` : ''}`}><code dir="ltr">{git.lastCommit.hash}</code> <span dir="auto">{git.lastCommit.subject}</span></dd></div>}
     </dl>
     {git.upstream && (git.ahead ?? 0) > 0 && <p className="muted git-note">{git.ahead} {git.ahead === 1 ? 'commit is' : 'commits are'} only on this computer. Pushing is your call.</p>}
@@ -506,8 +511,30 @@ function GitHubCard({ git, onRefresh }: { git: NonNullable<ReturnType<Conversati
       {gh.branchUrl && <a className="link-button" href={gh.branchUrl} target="_blank" rel="noopener noreferrer">Open branch</a>}
       {gh.compareUrl && <a className="link-button" href={gh.compareUrl} target="_blank" rel="noopener noreferrer" title={`Compare ${git.defaultBranch} with ${git.branch} and open a pull request on GitHub`}>Compare / pull request</a>}
     </div>}
-    <p className="muted git-note">Counts are from the last sync with GitHub; nothing is sent to GitHub from here.</p>
+    <p className="muted git-note">{live ? 'Counts are from the last sync with GitHub. The pull request is read from GitHub; nothing is changed there.' : 'Counts are from the last sync with GitHub; nothing is sent to GitHub from here.'}</p>
   </section>;
+}
+
+const PR_WORD = { open: 'Open', merged: 'Merged', closed: 'Closed', draft: 'Draft' } as const;
+const CHECKS_WORD = { passing: 'Checks pass', pending: 'Checks running', failing: 'Checks fail' } as const;
+type PrLive = { pr: { number: number; title: string; state: keyof typeof PR_WORD; url: string; checks: keyof typeof CHECKS_WORD | null } | null; unavailable?: true };
+/** CH8: the branch's pull request (owner only): read when the card shows, when the branch changes and when the window comes back. */
+function usePullRequest(src: { client: SessionClient; projectId: string } | undefined, branch: string | null): PrLive | null {
+  const [live, setLive] = useState<PrLive | null>(null);
+  const client = src?.client, projectId = src?.projectId;
+  useEffect(() => {
+    if (!client || !projectId) { setLive(null); return; }
+    let on = true;
+    const load = async () => {
+      try { const r = await client.request({ method: 'GET', path: `/api/chat/projects/${projectId}/pr` } as never); if (on) setLive(r.status === 200 ? r.body as PrLive : { pr: null, unavailable: true }); }
+      catch { if (on) setLive({ pr: null, unavailable: true }); }
+    };
+    void load();
+    const focus = () => { if (document.visibilityState === 'visible') void load(); };
+    window.addEventListener('focus', focus); document.addEventListener('visibilitychange', focus);
+    return () => { on = false; window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); };
+  }, [client, projectId, branch]);
+  return live;
 }
 
 /** Dictation: record, then the words land in the composer (transcribed on this computer). */
