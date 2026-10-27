@@ -3,6 +3,9 @@ export type UpgradeResource={sourceId:string;name:string;assigned?:boolean;statu
 export type UpgradeRole={sourceKey:string;sourceId:string;status:UpgradeStatus;installedIds:string[];name?:string;contentRevision?:string;revision?:number;linkedAgentIds?:string[];packResources?:UpgradeResource[];preservesConfiguration?:true};
 export type UpgradePreview={namespace:'professional-v1';fingerprint:string;readOnly:true;applySupported:true;requiresFreshReview:true;roles:UpgradeRole[];resources:UpgradeResource[];unmatchedInstalledIds:string[]};
 export type UpgradeReview={sourceKey:string;templateId:string;revision:number;name:string;reviewToken:string;changes:{field:string;before:string;after:string}[];agents:{id:string;name:string}[]};
-export function upgradeRoute(path:string):'preview'|'review'|'apply'|null;
+export function upgradeRoute(path:string):'preview'|'review'|'apply'|'prepare-review'|'prepare-apply'|null;
 export function allowedUpgrade(method:string,path:string,body?:unknown):boolean;
 export function upgradeResponse(path:string,status:number,body:unknown):unknown;
+
+export type PreparationReceipt={kind:'package'|'bindings';sourceKey:string;resourceId:string;templateId:string;revision:number;name:string};
+export type PreparationReview=PreparationReceipt&{reviewToken:string;files:{path:string;before:string;after:string}[];specialties:{id:string;name:string}[];agents:{id:string;name:string}[];bindings:string[]};

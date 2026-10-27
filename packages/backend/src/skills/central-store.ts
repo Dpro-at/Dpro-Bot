@@ -6,7 +6,8 @@ import os from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dataPath } from '../config/data-root.js';
-import { q, sql, one, run, type Step } from '../repositories/sql-steps.js';
+import { q, sql, one, run, dialect, type Step } from '../repositories/sql-steps.js';
+import {forUpdate} from '../db/pg/dialect.js';
 import { redactImportText } from '../memory/import/redact.js';
 import { isValidSkillName } from './skill-ids.js';
 
@@ -61,24 +62,35 @@ export class CentralSkills {
   }catch{throw new SkillLibraryError('skill_unavailable',503);}
  }
  private async trustedRoot(){await fs.mkdir(this.root,{recursive:true,mode:0o700});if((await fs.lstat(this.root)).isSymbolicLink())throw new SkillLibraryError('storage_unavailable',503);this.root=await fs.realpath(this.root);await fs.mkdir(path.join(this.root,'objects'),{recursive:true,mode:0o700});if((await fs.lstat(path.join(this.root,'objects'))).isSymbolicLink())throw new SkillLibraryError('storage_unavailable',503);}
- private async store(b:Bundle,origin:string,expected?:string){
+ private async store(b:Bundle,origin:string,expected?:string,review?:{expectedId:string|null;expectedRevision:number;guard:()=>Step<void>}){
   const work=this.tail.then(async()=>{
-   const existing=await q.one<SkillRow>('SELECT * FROM central_skills WHERE name=?',b.name);const duplicate=await q.one<SkillRow>('SELECT * FROM central_skills WHERE content_hash=?',b.hash);if(duplicate)return {skill:duplicate,duplicate:true};
+   const existing=await q.one<SkillRow>('SELECT * FROM central_skills WHERE name=?',b.name);const duplicate=await q.one<SkillRow>('SELECT * FROM central_skills WHERE content_hash=?',b.hash);if(duplicate&&!review)return {skill:duplicate,duplicate:true};
    if(existing&&existing.content_hash!==expected)throw new SkillLibraryError('version_conflict',409);
    await this.trustedRoot();const folder=path.join(this.root,'objects',b.hash);let present=false;try{present=(await fs.lstat(folder)).isDirectory();}catch{}
    if(present&&(await bundle(folder)).hash!==b.hash)throw new SkillLibraryError('storage_unavailable',503);
    if(!present){const temporary=path.join(this.root,'objects','pending-'+randomUUID());await fs.mkdir(temporary,{mode:0o700});for(const file of b.files){const destination=path.join(temporary,file.path);await fs.mkdir(path.dirname(destination),{recursive:true,mode:0o700});const handle=await fs.open(destination,'wx',0o600);try{await handle.writeFile(file.content);await handle.sync();}finally{await handle.close();}}await fs.rename(temporary,folder);const directory=await fs.open(path.join(this.root,'objects'),'r');try{await directory.sync();}finally{await directory.close();}}
    const id=existing?.id??randomUUID();const result=await sql().tx(function*():Step<number>{
+    if(review){
+     yield* review.guard();const d=yield* dialect();
+     const actual=yield* one<SkillRow>('SELECT * FROM central_skills WHERE name=?'+forUpdate(d),b.name);
+     const actualDuplicate=yield* one<{id:string}>('SELECT id FROM central_skills WHERE content_hash=?'+forUpdate(d),b.hash);
+     if((actual?.id??null)!==review.expectedId||(actual?.revision??0)!==review.expectedRevision||(actual?.content_hash??undefined)!==expected||actualDuplicate)throw new SkillLibraryError('version_conflict',409);
+    }
     if(existing){const updated=yield* run('UPDATE central_skills SET description=?,version=?,revision=revision+1,content_hash=?,origin=? WHERE id=? AND content_hash=?',b.description,b.version,b.hash,origin,id,expected!);if(!updated.changes)throw new SkillLibraryError('version_conflict',409);return existing.revision+1;}
     yield* run('INSERT INTO central_skills(id,name,description,version,revision,content_hash,origin) VALUES(?,?,?,?,1,?,?)',id,b.name,b.description,b.version,b.hash,origin);return 1;
-   });return {skill:{id,name:b.name,description:b.description,version:b.version,revision:result,content_hash:b.hash,origin},duplicate:false};
+   },{immediate:!!review});return {skill:{id,name:b.name,description:b.description,version:b.version,revision:result,content_hash:b.hash,origin},duplicate:false};
   });this.tail=work.catch(()=>undefined);return work;
  }
  /** Import an explicitly reviewed Markdown-only bundle; never executes or installs packages. */
- async installPortable(name:string,files:{path:string;content:string}[]){
+ validatePortable(name:string,files:{path:string;content:string}[]){
   if(!Array.isArray(files)||files.length<1||files.length>200)throw new SkillLibraryError('invalid_skill');
   const seen=new Set<string>();let total=0;const clean=files.map(file=>{if(!file||!safeRelative(file.path)||file.path.split('/').some(p=>p.startsWith('.'))||!file.path.endsWith('.md')||seen.has(file.path)||typeof file.content!=='string'||Buffer.byteLength(file.content)>MAX_FILE||file.content.includes('\0'))throw new SkillLibraryError('invalid_skill');seen.add(file.path);const text=normalize(file.content);total+=Buffer.byteLength(text);if(total>MAX_BUNDLE||redactImportText(text).total)throw new SkillLibraryError('secret_refused');return {path:file.path,content:text};}).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
-  const main=clean.find(f=>f.path==='SKILL.md');if(!main)throw new SkillLibraryError('invalid_skill');const prepared=prepareSkillMarkdown(main.content,name);await this.initialize();return this.store({...prepared,files:clean,hash:hash(JSON.stringify(clean))},'shared-workspace');
+  const main=clean.find(f=>f.path==='SKILL.md');if(!main)throw new SkillLibraryError('invalid_skill');const prepared=prepareSkillMarkdown(main.content,name);return {...prepared,files:clean,hash:hash(JSON.stringify(clean))};
+ }
+ async installPortable(name:string,files:{path:string;content:string}[]){const b=this.validatePortable(name,files);await this.initialize();return this.store(b,'shared-workspace');}
+ /** Internal source-update sink: immutable Markdown files, guarded row CAS, no assignments. */
+ async installReviewedPortable(name:string,files:{path:string;content:string}[],expected:{id:string|null;revision:number;hash:string|null},guard:()=>Step<void>){
+  const b=this.validatePortable(name,files);await this.initialize();return this.store(b,'owner-reviewed-source',expected.hash??undefined,{expectedId:expected.id,expectedRevision:expected.revision,guard});
  }
  async installMarkdown(content:string,name:string,origin:string){const prepared=prepareSkillMarkdown(content,name);await this.initialize();return this.store(prepared,origin);}
  async seedBundled(){await this.seedLegacy();await this.seedGenvrSdk();const directory=fileURLToPath(new URL('../../skills/',import.meta.url));for(const entry of await fs.readdir(directory,{withFileTypes:true}).catch(()=>[])){if(!entry.isDirectory())continue;try{const b=await bundle(path.join(directory,entry.name));if(!(await q.one('SELECT id FROM central_skills WHERE name=?',b.name)))await this.store(b,'bundled');}catch{/* Invalid optional bundled skills never block startup. */}}}
