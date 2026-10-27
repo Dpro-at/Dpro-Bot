@@ -4,7 +4,7 @@ export type ProposalStatus = typeof proposalStatuses[number];
 export type MemoryPhase = 'idle' | 'loading' | 'ready' | 'pending' | 'accepted' | 'rejected' | 'stale' | 'expired' | 'denied' | 'error' | 'unavailable' | 'deciding' | 'unknown';
 export interface MemoryContext { userId: string; agentId: string; drawerId: string; access: 'owner' | 'denied'; session: string }
 export interface Entry { type: string; importance: number; content: string }
-export type Change = { op: 'add'; after: Entry } | { op: 'update'; id: string; before: Entry; after: Entry } | { op: 'delete'; id: string; before: Entry };
+export type Change = { op: 'add'; after: Entry; topicKey?: string } |{ op: 'update'; id: string; before: Entry; after: Entry } | { op: 'delete'; id: string; before: Entry };
 export interface ProposalSummary {
   id: string; userId: string; agentId: string; drawerId: string; drawer: { kind: string; key?: string };
   reviewHash: string; baseHash: string; baseRevision: number; status: ProposalStatus; source: 'file' | 'upload' | 'learning' | 'agent' | 'import';
@@ -46,6 +46,8 @@ function timestamp(value: unknown): string {
 }
 function hash(value: unknown): string { const s = text(value, 64); if (!/^[a-f0-9]{64}$/.test(s)) return bad(); return s; }
 export function proposalId(value: unknown): string { const s = text(value, 64); if (!/^[A-Za-z0-9-]{1,64}$/.test(s)) return bad(); return s; }
+/** A learned memory's topic key: the backend's memory/topic-key.ts rules. */
+function topicKey(value: unknown): string { const s = text(value, 80); if (!/^[\p{L}\p{N}]+(-[\p{L}\p{N}]+)*$/u.test(s)) return bad(); return s; }
 function identifier(value: unknown): string { const s = text(value, 200); if (!/^[A-Za-z0-9_.@-]+$/.test(s) || s.includes('..')) return bad(); return s; }
 export function validDrawer(value: unknown): value is string {
   if (value === 'owner' || value === 'experience') return true;
@@ -90,9 +92,10 @@ export function parseProposal(value: unknown): Proposal {
   if (!Array.isArray(p.changes) || p.changes.length > 500) return bad();
   const changes: Change[] = p.changes.map(value => {
     const c = object(value);
-    const keys = c.op === 'add' ? ['op', 'after'] : c.op === 'update' ? ['op', 'id', 'before', 'after'] : c.op === 'delete' ? ['op', 'id', 'before'] : [];
+    const topic = c.op === 'add' && Object.prototype.hasOwnProperty.call(c, 'topicKey');
+    const keys = c.op === 'add' ? (topic ? ['op', 'after', 'topicKey'] : ['op', 'after']) : c.op === 'update' ? ['op', 'id', 'before', 'after'] : c.op === 'delete' ? ['op', 'id', 'before'] : [];
     exactKeys(c, keys);
-    if (c.op === 'add') return { op: 'add', after: entry(c.after) };
+    if (c.op === 'add') return { op: 'add', after: entry(c.after), ...(topic ? { topicKey: topicKey(c.topicKey) } : {}) };
     if (c.op === 'update') return { op: 'update', id: identifier(c.id), before: entry(c.before), after: entry(c.after) };
     if (c.op === 'delete') return { op: 'delete', id: identifier(c.id), before: entry(c.before) };
     return bad();
