@@ -5994,6 +5994,386 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Course designer",
+      "package": "course-design",
+      "references": [
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/module-authoring.md",
+        "references/delivery-evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized curriculum/learner evidence and participant pilot capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized LMS publication, enrollment or learner-data action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Professional skills trainer",
+      "package": "course-design",
+      "references": [
+        "references/professional-practice.md",
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/delivery-evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized role/task evidence and actual learner/facilitator interaction when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized participant delivery, LMS or staff-record action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Learning coach",
+      "package": "learning-support",
+      "references": [
+        "references/learning-coaching.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learning-task evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or reminder action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Mathematics tutor",
+      "package": "learning-support",
+      "references": [
+        "references/mathematics.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized problem context and actual calculation capability when tool validation is needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Programming teacher",
+      "package": "learning-support",
+      "references": [
+        "references/programming.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner code and scoped execution capability when actual example testing is requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learning-platform or learner-record action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Science tutor",
+      "package": "learning-support",
+      "references": [
+        "references/science.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized problem/evidence context and scoped calculation/simulation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or external teaching action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Translator",
+      "package": "translation-delivery",
+      "references": [
+        "references/meaning-terminology.md",
+        "references/document-tokens.md",
+        "references/review-delivery.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized complete source/glossary and required specialist review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized external translation service or publication when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }

@@ -62,7 +62,10 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 110);
+ assert.equal(recommendations.profiles.length, 117);
+ assert.equal(pack.specialties.filter(item=>item.department==='wellness').length,5);
+ assert.equal(new Set(pack.specialties.map(item=>item.name)).size,122);
+ assert.deepEqual(new Set(recommendations.profiles.map(profile=>profile.name)),new Set(pack.specialties.filter(item=>item.department!=='wellness').map(item=>item.name)));
  assert.equal(new Set(recommendations.profiles.map(profile=>profile.name)).size,recommendations.profiles.length);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
@@ -88,7 +91,7 @@ test('pilot recommendations save as versioned templates without changing agent a
  process.env.AGENT_EXEC_TOOLS = 'true'; // Catalogue fixture only; no tool execution.
  try {
   for (const profile of recommendations.profiles) {
-   if (profile.package==='language-coaching') {
+   if (profile.package==='language-coaching'||['Course designer','Professional skills trainer','Learning coach','Mathematics tutor','Programming teacher','Science tutor','Translator'].includes(profile.name)) {
     assert.deepEqual(profile.memoryWrite,['task']);
     assert.equal(profile.sharedMemory,false);
     assert.ok(profile.requirements.every(item=>item.toolName===null));
@@ -103,7 +106,7 @@ test('pilot recommendations save as versioned templates without changing agent a
     for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
     assert.equal(profile.modes.network,'ask');
    }
-   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design','language-coaching'].includes(profile.package)) {
+   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design','language-coaching','learning-support','translation-delivery'].includes(profile.package)) {
     for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
     assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
     assert.equal(profile.modes.network,profile.tools.some(tool=>tool.name==='web_fetch')?'ask':'off');
