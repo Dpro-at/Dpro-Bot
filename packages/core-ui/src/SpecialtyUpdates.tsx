@@ -24,7 +24,7 @@ export function SpecialtyUpdatesView({controller,state,onClose,dialogRef}:{contr
   {state.phase==='receipt'&&<p role="status">{state.preparationReceipt?copy.prepareSaved:copy.saved}</p>}
   {prep?<div className="sp-upgrade-review"><h4>{prep.name}</h4><p>{prep.kind==='package'?copy.shared:copy.bindIntro}</p>
    <h5>{copy.specialties}</h5>{prep.specialties.length?<ul>{prep.specialties.map(s=><li key={s.id}>{s.name}</li>)}</ul>:<p>{copy.noConsumers}</p>}
-   <h5>{copy.agents}</h5>{prep.agents.length?<ul>{prep.agents.map(a=><li key={a.id}>{a.name}</li>)}</ul>:<p>{copy.none}</p>}
+   <h5>{copy.agents}</h5>{prep.agents.length?<ul>{prep.agents.map(a=><li key={a.id}>{a.name}</li>)}</ul>:<p>{prep.kind==='package'?copy.noSkillAgents:copy.none}</p>}
    {prep.bindings.length>0&&<><h5>{copy.package}</h5><ul>{prep.bindings.map(name=><li key={name}>{name}</li>)}</ul></>}
    {prep.files.map(file=><section key={file.path}><h5>{file.path}</h5><details><summary>{copy.before}</summary><pre className="sp-quote">{file.before}</pre></details><details><summary>{copy.after}</summary><pre className="sp-quote">{file.after}</pre></details></section>)}
   </div>:review?<div className="sp-upgrade-review"><h4>{review.name}</h4><h5>{copy.agents}</h5>{review.agents.length?<ul>{review.agents.map(a=><li key={a.id}>{a.name}</li>)}</ul>:<p>{copy.none}</p>}

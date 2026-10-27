@@ -84,3 +84,7 @@ test('binding review is allowed only after every required package matches',async
 test('deterministic skill refusal is an error rather than an uncertain save',async()=>{
  const f=fake(r=>({status:r.path.endsWith('prepare-apply')?400:200,body:r.path.endsWith('preview')?blockedPreview:r.path.endsWith('prepare-review')?preparation:{code:'invalid_skill'}})),c=new SpecialtyUpdateController(f.client);await c.load();await c.prepare(key,'skill-1');c.confirm(true);await c.apply();assert.equal(c.state.phase,'error');assert.equal(c.state.error,'invalid_skill');assert.equal(c.state.preparation,null);
 });
+
+test('a skill used directly by agents does not claim it has no consumers when no specialty uses it',()=>{
+ const controller={confirm(){},back(){},apply(){},load(){}},state={phase:'review',preview:blockedPreview,review:null,preparation:{...preparation,specialties:[]},confirmed:false,error:null,receipt:null};const html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller,state,onClose(){}}));assert.match(html,/No specialties currently use this skill/);assert.match(html,/Fictional colleague/);assert.doesNotMatch(html,/No existing specialties or agents use this skill/);
+});
