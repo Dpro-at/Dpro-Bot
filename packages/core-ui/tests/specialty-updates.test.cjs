@@ -42,3 +42,13 @@ test('owner context is fenced before dispatch and a context change after apply i
  let context={phase:'authenticated',epoch:1,mode:'live',user:{id:'fixture-owner',role:'owner'}};const f=fake(r=>{if(r.path.endsWith('apply'))context={...context,mode:'mock'};return {status:200,body:r.path.endsWith('preview')?preview:r.path.endsWith('review')?review:receipt};});f.client.getSnapshot=()=>context;const c=new SpecialtyUpdateController(f.client);await c.load();await c.review(key);c.confirm(true);await c.apply();assert.equal(c.state.phase,'unknown');assert.equal(c.state.receipt,null);
  const denied=fake(()=>({status:200,body:preview}));denied.client.getSnapshot=()=>({...context,user:{id:'member',role:'user'}});const d=new SpecialtyUpdateController(denied.client);await d.load();assert.equal(denied.calls.length,0);assert.equal(d.state.phase,'error');
 });
+
+test('updates show only actionable rows and explain missing bindings with a quiet empty state',()=>{
+ const controller={back(){},apply(){},load(){},confirm(){},review(){}};
+ const role=preview.roles[0],roles=[{...role,name:'Update me',packResources:[{sourceId:'skill-1',name:'Fictional skill',status:'current',assigned:false}]},{...role,name:'Already current',status:'current'},{...role,name:'Not installed',status:'unmatched',installedIds:[]}];
+ const render=roles=>renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller,state:{phase:'ready',preview:{...preview,roles},review:null,confirmed:false,error:null,receipt:null},onClose(){}}));
+ const html=render(roles);assert.match(html,/Update me/);assert.doesNotMatch(html,/Already current|Not installed|No matching import/);assert.match(html,/Not assigned/);assert.match(html,/In Library, open Skills/);assert.match(html,/<button[^>]*disabled=""[^>]*>Review changes/);
+ const empty=render(roles.slice(1));assert.match(empty,/No installed specialties need an update here/);assert.match(empty,/>Refresh</);assert.doesNotMatch(empty,/sp-upgrade-row/);
+ assert.equal(upgradeResponse(base+'preview',200,{...preview,roles:[roles[0]]}).roles[0].packResources[0].assigned,false);
+ assert.throws(()=>upgradeResponse(base+'preview',200,{...preview,roles:[{...roles[0],packResources:[{...roles[0].packResources[0],assigned:'yes'}]}]}));
+});

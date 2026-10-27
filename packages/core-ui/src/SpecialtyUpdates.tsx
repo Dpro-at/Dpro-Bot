@@ -13,6 +13,7 @@ export function SpecialtyUpdates({client,onClose,onApplied}:{client:SessionClien
  return <SpecialtyUpdatesView controller={controller} state={state} onClose={onClose} dialogRef={dialog}/>;
 }
 export function SpecialtyUpdatesView({controller,state,onClose,dialogRef}:{controller:SpecialtyUpdateController;state:UpdateState;onClose:()=>void;dialogRef?:RefObject<HTMLDialogElement|null>}){
+ const actionable=state.preview?.roles.filter(r=>['content_update_available','local_conflict','ambiguous','retired'].includes(r.status))??[];
  const busy=['loading','reviewing','saving'].includes(state.phase),review=state.review;
  const error=state.error==='invalid_permissions'?copy.configuration:state.error==='resources_not_ready'?copy.blocked:['review_changed','version_conflict','impact_confirmation_required','configuration_changed'].includes(state.error??'')?copy.stale:['forbidden','unauthenticated'].includes(state.error??'')?copy.denied:copy.error;
  return <dialog ref={dialogRef} className="verification-sheet sp-update-dialog" aria-label={copy.title} onClose={onClose} onCancel={e=>{e.preventDefault();if(!busy)onClose();}}><h3>{copy.title}</h3><div className="dk-sheet-body">
@@ -25,12 +26,12 @@ export function SpecialtyUpdatesView({controller,state,onClose,dialogRef}:{contr
    {review.changes.map(c=><section key={c.field}><h5>{copy.fields[c.field as keyof typeof copy.fields]}</h5><details><summary>{copy.before}</summary><pre className="sp-quote">{c.before}</pre></details><details open><summary>{copy.after}</summary><pre className="sp-quote">{c.after}</pre></details></section>)}
    <label className="sp-upgrade-confirm"><input type="checkbox" disabled={busy} checked={state.confirmed} onChange={e=>controller.confirm(e.target.checked)}/>{copy.confirm}</label>
   </div>:state.preview&&<div className="sp-upgrade-list">
-   {state.preview.roles.map((role,i)=>{const blocked=role.packResources?.some(r=>r.status!=='current');return <section key={role.sourceKey+':'+i} className="sp-upgrade-row"><div><h4>{role.name??copy.retired}</h4><p>{copy.statuses[role.status]}</p></div>
-    {role.packResources&&<details><summary>{copy.package}</summary><ul>{role.packResources.map(r=><li key={r.sourceId}>{r.name} · {copy.resources[r.status]}</li>)}</ul></details>}
-    {role.status==='content_update_available'&&<><button type="button" disabled={busy||!!blocked||state.phase==='unknown'} onClick={()=>void controller.review(role.sourceKey)}>{copy.review}</button>{blocked&&<p className="sp-sub">{copy.blocked}</p>}</>}
+   {actionable.map((role,i)=>{const blocked=role.packResources?.some(r=>r.status!=='current'||r.assigned===false);return <section key={role.sourceKey+':'+i} className="sp-upgrade-row"><div><h4>{role.name??copy.retired}</h4><p>{copy.statuses[role.status]}</p></div>
+    {role.packResources&&<details><summary>{copy.package}</summary><ul>{role.packResources.map(r=><li key={r.sourceId}>{r.name} · {copy.resources[r.status]}{r.assigned===false&&` · ${copy.unassigned}`}</li>)}</ul></details>}
+    {role.status==='content_update_available'&&<><button type="button" disabled={busy||!!blocked||state.phase==='unknown'} onClick={()=>void controller.review(role.sourceKey)}>{copy.review}</button>{blocked&&<p className="sp-sub">{copy.blocked} {copy.resourceHelp}</p>}</>}
    </section>;})}
-   {!state.preview.roles.length&&<p>{copy.empty}</p>}
-   {state.preview.unmatchedInstalledIds.length>0&&<p>{copy.unmatched}</p>}
+   {!actionable.length&&<p>{copy.empty}</p>}
+   {actionable.length>0&&state.preview.roles.length>actionable.length&&<p className="sp-sub">{copy.quiet}</p>}
   </div>}
  </div><div className="dk-sheet-actions">
   {review&&<button type="button" disabled={busy} onClick={()=>controller.back()}>{copy.back}</button>}

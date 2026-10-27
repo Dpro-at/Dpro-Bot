@@ -36,3 +36,15 @@ test('specialty MCP tool keeps the owner gates of the page',async()=>{
   const n=calls.length;assert.equal((await callTool('specialty_library',args,{backend})).isError,true,JSON.stringify(args));assert.equal(calls.length,n);
  }
 });
+
+test('source updates retain exact owner review/apply contract and reject confirmation shortcuts',async()=>{
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});return {};}};
+ const sourceKey='professional-role-'+'a'.repeat(24),reviewToken='b'.repeat(64),base='/api/workspace-pack/specialty-upgrade-';
+ for(const [args,method,path,body] of [
+ [{operation:'updates'},'GET',base+'preview',undefined],
+ [{operation:'update_review',body:{sourceKey}},'POST',base+'review',{sourceKey}],
+ [{operation:'update_apply',body:{sourceKey,reviewToken,confirmed:true}},'POST',base+'apply',{sourceKey,reviewToken,confirmed:true}]]){
+ assert.notEqual((await callTool('specialty_library',args,{backend})).isError,true);assert.deepEqual(calls.at(-1),{method,path,body});}
+ for(const args of [{operation:'updates',body:{}},{operation:'update_review',id,body:{sourceKey}},{operation:'update_apply',body:{sourceKey,reviewToken}},{operation:'update_apply',body:{sourceKey,reviewToken,confirmed:false}},{operation:'update_apply',body:{sourceKey,reviewToken,confirmed:true,config:{}}}]){
+ const n=calls.length;assert.equal((await callTool('specialty_library',args,{backend})).isError,true);assert.equal(calls.length,n);}
+});

@@ -13,7 +13,7 @@ export function allowedUpgrade(method,path,body){
  return method==='POST'&&(action==='review'?exact(body,['sourceKey'])&&key(body.sourceKey):action==='apply'&&exact(body,['sourceKey','reviewToken','confirmed'])&&key(body.sourceKey)&&hash(body.reviewToken)&&body.confirmed===true);
 }
 const status=['current','content_update_available','local_conflict','ambiguous','unmatched','retired'];
-function resource(v){if(!object(v)||!text(v.sourceId,64)||!text(v.name,100)||!['current','missing','conflict','ambiguous'].includes(v.status))throw Error('Invalid update resource');return {sourceId:v.sourceId,name:v.name,status:v.status};}
+function resource(v){if(!object(v)||!text(v.sourceId,64)||!text(v.name,100)||!['current','missing','conflict','ambiguous'].includes(v.status))throw Error('Invalid update resource');if(v.assigned!==undefined&&typeof v.assigned!=='boolean')throw Error('Invalid update resource');return {sourceId:v.sourceId,name:v.name,status:v.status,...(v.assigned!==undefined?{assigned:v.assigned}:{})};}
 function role(v){
  if(!object(v)||!key(v.sourceKey)||!text(v.sourceId,64)||!status.includes(v.status)||!list(v.installedIds,30,id))throw Error('Invalid update role');
  const value={sourceKey:v.sourceKey,sourceId:v.sourceId,status:v.status,installedIds:[...v.installedIds]};
