@@ -3654,6 +3654,421 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Accountant",
+      "package": "financial-operations",
+      "references": [
+        "references/data-controls.md",
+        "references/accounting-workpapers.md",
+        "references/journal-audit.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded financial records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized exact ledger posting or period change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Budget analyst",
+      "package": "financial-operations",
+      "references": [
+        "references/planning-variance.md",
+        "references/data-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded budget/actual records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized budget-system change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Financial reporting specialist",
+      "package": "financial-operations",
+      "references": [
+        "references/financial-reporting.md",
+        "references/data-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded reporting records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized report filing or publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Invoicing specialist",
+      "package": "financial-operations",
+      "references": [
+        "references/invoicing.md",
+        "references/data-controls.md",
+        "references/accounting-workpapers.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded invoice/order evidence and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized invoice issue, correction or ledger change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Compliance assistant",
+      "package": "compliance-evidence",
+      "references": [
+        "references/scope-sources.md",
+        "references/evidence-assessment.md",
+        "references/review-followup.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded compliance evidence access when supplied records are insufficient",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized control change, evidence request or attestation submission when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Contract assistant",
+      "package": "legal-work",
+      "references": [
+        "references/matter-intake.md",
+        "references/contract-review.md",
+        "references/drafting-review.md",
+        "references/records-authority.md",
+        "references/authority-research.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized complete contract documents and schedules when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized contract-system action or external commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Legal research assistant",
+      "package": "legal-work",
+      "references": [
+        "references/matter-intake.md",
+        "references/authority-research.md",
+        "references/drafting-review.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped research records and qualified current-authority review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized external legal-record action or filing when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
