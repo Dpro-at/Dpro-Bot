@@ -62,7 +62,7 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 82);
+ assert.equal(recommendations.profiles.length, 87);
  assert.equal(new Set(recommendations.profiles.map(profile=>profile.name)).size,recommendations.profiles.length);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
@@ -88,10 +88,10 @@ test('pilot recommendations save as versioned templates without changing agent a
  process.env.AGENT_EXEC_TOOLS = 'true'; // Catalogue fixture only; no tool execution.
  try {
   for (const profile of recommendations.profiles) {
-   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations'].includes(profile.package)) {
+   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design'].includes(profile.package)) {
     for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
     assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
-    assert.equal(profile.modes.network,'ask');
+    assert.equal(profile.modes.network,profile.tools.some(tool=>tool.name==='web_fetch')?'ask':'off');
    }
    const row = db.prepare('SELECT id FROM specialty_templates WHERE name=?').get(profile.name);
    assert.ok(row);

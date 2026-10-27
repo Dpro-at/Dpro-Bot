@@ -4451,6 +4451,289 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Editor",
+      "package": "content-studio",
+      "references": [
+        "references/editorial-delivery.md",
+        "references/editorial-acceptance.md",
+        "references/claims-and-voice.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized editable source and factual/voice evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized publishing or external editorial action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Fact checker",
+      "package": "evidence-research",
+      "references": [
+        "references/fact-checking.md",
+        "references/evidence-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source discovery when supplied citations are insufficient",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only primary-source retrieval when a known source is available",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized restricted-source access or external inquiry when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Research analyst",
+      "package": "evidence-research",
+      "references": [
+        "references/evidence-review.md",
+        "references/ledger-format.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source discovery and bounded comparison/computation when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only primary-source retrieval when a known source is available",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized restricted-source access or external inquiry when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Technical writer",
+      "package": "technical-documentation",
+      "references": [
+        "references/documentation-modes.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized product/source evidence and scoped example execution when validation is requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized documentation publication or project-system action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Staff training specialist",
+      "package": "course-design",
+      "references": [
+        "references/staff-training.md",
+        "references/professional-practice.md",
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/delivery-evaluation.md",
+        "references/module-authoring.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learning requirements and learner/facilitator evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized participant pilot, enrollment, LMS publication or learner-data action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
