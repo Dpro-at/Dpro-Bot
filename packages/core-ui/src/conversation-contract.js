@@ -175,7 +175,7 @@ function message(x) {
     runId: validRunId(x.runId) ? x.runId : null, durationMs: num(x.durationMs) ?? null, createdAt: str(x.createdAt, 40),
     ...(x.code === 'run_interrupted' ? { code: 'run_interrupted' } : {}),
     ...(agentId(x.agentId) ? { agentId: x.agentId } : {}),
-    ...(record(x.changes) && num(x.changes.files) ? { changes: { files: num(x.changes.files), undone: x.changes.undone === true } } : {}) };
+    ...(record(x.changes) && num(x.changes.files) ? { changes: { files: num(x.changes.files), undone: x.changes.undone === true } } : record(x.changes) && x.changes.unavailable === true ? { changes: { files: 0, undone: false, unavailable: true } } : {}) };
 }
 
 function project(x) {

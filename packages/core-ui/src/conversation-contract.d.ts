@@ -40,7 +40,7 @@ export type WireConversation = { model?: string; id: string; title: string | nul
 export type WireToolCall = { id: string; name: string; input: string; output?: string; isError?: boolean; ms?: number; approvalId?: string };
 export type WirePart = { kind: 'text'; text: string } | { kind: 'reasoning'; text: string; ms?: number } | { kind: 'tools'; step: number; calls: WireToolCall[] }
   | { kind: 'steer'; text: string; step: number } | { kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit'; text?: string };
-export type WireMessage = { id: string; role: 'user' | 'assistant' | 'system'; content: string; parts: WirePart[] | null; status: 'complete' | 'stopped' | 'error'; runId: string | null; durationMs: number | null; createdAt: string; agentId?: string; code?: 'run_interrupted'; changes?: { files: number; undone: boolean } };
+export type WireMessage = { id: string; role: 'user' | 'assistant' | 'system'; content: string; parts: WirePart[] | null; status: 'complete' | 'stopped' | 'error'; runId: string | null; durationMs: number | null; createdAt: string; agentId?: string; code?: 'run_interrupted'; changes?: { files: number; undone: boolean; unavailable?: boolean } };
 export type RunEvent = ({ seq: number; at?: number }) & (
   | { type: 'text' | 'reasoning'; content: string }
   | { type: 'tool_start'; step: number; tools: { id: string; name: string; input: string }[] }

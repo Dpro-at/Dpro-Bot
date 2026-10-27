@@ -35,6 +35,7 @@ import type { FooterEntry } from './ShellFooter';
 import { footerFor } from './footer-prefs';
 import type { FooterSection } from './footer-prefs';
 import { ChatSearchController } from './chat-search';
+import { chatFromLink } from './chat-actions';
 import type { Command } from './CommandPalette';
 import { accountRoleLabel, isDeveloperBuild } from './developer-build';
 
@@ -77,7 +78,9 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const toggleTheme = () => { const next = theme === 'dark' ? 'light' : 'dark'; const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; appearance.setPreference(next === system ? 'system' : next); };
   useAppNavigation(destination => setPage(destination === 'home' ? 'chat' : destination));
   const [chat, setChat] = useState<ConversationsController>();
-  useEffect(() => { const c = new ConversationsController(client); setChat(c); void c.load(); return () => c.dispose(); }, [client]);
+  // A window opened for one chat (⌘O) carries `#chat=<id>`: open that chat once the list is in.
+  useEffect(() => { const c = new ConversationsController(client); setChat(c); const linked = chatFromLink(window.location.hash);
+    void c.load().then(() => { if (!linked) return; try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* keep going */ } void c.open(linked); }); return () => c.dispose(); }, [client]);
   // CHAT-PRO-02 D: search inside the chats (the sidebar box and the ⌘K box each keep their own).
   const [search, setSearch] = useState<{ side: ChatSearchController; palette: ChatSearchController }>();
   useEffect(() => { const s = { side: new ChatSearchController(client), palette: new ChatSearchController(client) }; setSearch(s); return () => { s.side.dispose(); s.palette.dispose(); }; }, [client]);

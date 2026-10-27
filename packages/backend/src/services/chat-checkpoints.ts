@@ -6,7 +6,7 @@
  * "after" tree. Either refuses when one of those files changed since.
  */
 import { execFile } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { minimalChildEnv } from '../tools/exec-policy.js';
@@ -28,22 +28,43 @@ function git(folder: string, args: string[], index?: string): Promise<string> {
   }, (err, stdout) => (err ? reject(err) : resolve(String(stdout)))));
 }
 const literal = (p: string) => `:(literal)${p}`;
+let version: Promise<[number, number] | null> | null = null;
+/** True when the installed git is at least major.minor (GIT_ATTR_SOURCE needs 2.40). */
+async function gitAtLeast(major: number, minor: number): Promise<boolean> {
+  version ??= git(tmpdir(), ['--version']).then((v) => { const m = /(\d+)\.(\d+)/.exec(v); return m ? [Number(m[1]), Number(m[2])] as [number, number] : null; }, () => null);
+  const v = await version;
+  return !!v && (v[0] > major || (v[0] === major && v[1] >= minor));
+}
 
-/** The project folder's files as a git tree, or null when it is not a git folder (or git fails).
- * Only the chosen folder (not the rest of its repository) and never secret-looking files. */
+/** The project folder's files as a git tree, or null when there is none (see snapshotState). */
 export async function snapshot(folder: string): Promise<string | null> {
+  const s = await snapshotState(folder);
+  return s === 'blocked' ? null : s;
+}
+
+/** The project folder's files as a git tree; null when it is not a git folder (or git fails); 'blocked' when git
+ * here could start a program (no undo then). Only the chosen folder (not the rest of its repository) and never
+ * secret-looking files. */
+export async function snapshotState(folder: string): Promise<string | 'blocked' | null> {
   let dir: string | undefined;
   try {
     if ((await git(folder, ['rev-parse', '--is-inside-work-tree'])).trim() !== 'true') return null;
     const top = (await git(folder, ['rev-parse', '--show-toplevel'])).trim();
     const rel = path.relative(realpathSync(top), realpathSync(folder)).split(path.sep).join('/');
     if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
-    // A repository that defines its own attributes file inside .git could still name a filter program: no snapshot then.
-    try { if (/filter/i.test(readFileSync(path.join(top, '.git', 'info', 'attributes'), 'utf8'))) return null; } catch { /* none */ }
+    // Fail closed: git too old to read attributes from the empty tree, a filter defined in the repository's own
+    // config, or an info/attributes file that names one (found the way git finds it, also in worktrees and submodules).
+    if (!(await gitAtLeast(2, 40))) return 'blocked';
+    if ((await git(top, ['config', '--local', '--get-regexp', '^filter\\.']).catch((e: { code?: number }) => (e?.code === 1 ? '' : 'unknown'))).trim()) return 'blocked';
+    const attributes = path.resolve(top, (await git(top, ['rev-parse', '--git-path', 'info/attributes'])).trim());
+    try { if (/filter/i.test(readFileSync(attributes, 'utf8'))) return 'blocked'; }
+    catch (err) { if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') return 'blocked'; }
     dir = mkdtempSync(path.join(tmpdir(), 'girru-ckpt-'));
     const index = path.join(dir, 'index');
     // Start from the real index (fast), then add every file git sees in the folder; the real index is never touched.
-    try { copyFileSync(path.resolve(top, (await git(top, ['rev-parse', '--git-path', 'index'])).trim()), index); } catch { /* an empty index works too */ }
+    // The copy keeps the real index's times: git then still re-reads files changed in the same second (racily clean).
+    try { const real = path.resolve(top, (await git(top, ['rev-parse', '--git-path', 'index'])).trim()); const t = statSync(real); copyFileSync(real, index); utimesSync(index, t.atime, t.mtime); }
+    catch { try { unlinkSync(index); } catch { /* an empty index works too */ } }
     const scope = rel || '.';
     await git(top, ['add', '-A', '--', scope, ...NEVER.map((n) => `:(exclude,glob)${rel ? `${rel}/` : ''}**/${n}`)], index);
     const tree = (await git(top, ['write-tree'], index)).trim();

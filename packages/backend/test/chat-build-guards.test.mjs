@@ -158,3 +158,27 @@ test('stage 5: a snapshot covers only the project folder, never secret files, an
   await ck.restore(after, before);
   assert.equal((await import('node:fs')).readFileSync(join(repo, 'other.txt'), 'utf8'), '2', 'files outside the project folder are never touched');
 });
+
+test('stage 5 follow-up: no snapshot when the repository defines a filter (also in a git worktree)', async () => {
+  const { mkdtempSync, writeFileSync, existsSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const ck = await import('../src/services/chat-checkpoints.ts');
+  const repo = mkdtempSync(join(tmpdir(), 'girru-filter-'));
+  const g = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: 'ignore' });
+  g(repo, 'init', '-q'); g(repo, 'config', 'user.email', 't@example.test'); g(repo, 'config', 'user.name', 't');
+  writeFileSync(join(repo, 'a.txt'), '1'); g(repo, 'add', '.'); g(repo, 'commit', '-qm', 'x');
+  const wt = join(mkdtempSync(join(tmpdir(), 'girru-wt-')), 'wt');
+  g(repo, 'worktree', 'add', '-q', wt);
+  assert.ok(await ck.snapshot(wt), 'a plain worktree is fine');
+  const marker = join(repo, 'filter-ran');
+  g(repo, 'config', 'filter.evil.clean', `sh -c 'touch ${marker}; cat'`);
+  writeFileSync(join(repo, '.git', 'info', 'attributes'), '* filter=evil\n');
+  writeFileSync(join(wt, 'a.txt'), '2');
+  assert.equal(await ck.snapshot(wt), null, 'a repository filter: no snapshot (fail closed)');
+  assert.equal(await ck.snapshot(repo), null);
+  assert.equal(existsSync(marker), false, 'the filter program never ran');
+  assert.equal(await ck.snapshotState(wt), 'blocked', 'the reply can say Undo is not available here');
+  assert.equal(await ck.snapshotState(mkdtempSync(join(tmpdir(), 'girru-plain-'))), null, 'outside git: nothing to say');
+});
