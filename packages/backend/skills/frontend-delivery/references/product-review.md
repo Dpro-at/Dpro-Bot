@@ -4,7 +4,7 @@
 
 Identify the main object and action. Keep context that supports the action visible; move unrelated configuration into the product's established settings surface. For selected-object workflows, a quiet list and an adjacent editor often reduce repeated navigation. A focused canvas may need more space and a collapsible inspector.
 
-Do not apply a desktop layout to a landing page or a marketing hero to a desktop settings form. In Dpro, the current section owns the shared sidebar. A second sidebar that repeats the same places makes the product harder to understand.
+Do not apply a desktop layout to a landing page or a marketing hero to a desktop settings form. In Girru, the current section owns the shared sidebar. A second sidebar that repeats the same places makes the product harder to understand.
 
 ## Deliberate visual decisions
 

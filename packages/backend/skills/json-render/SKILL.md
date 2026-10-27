@@ -5,7 +5,7 @@ metadata:
   agent-player:
     emoji: "🎨"
     version: "1.0.0"
-    author: "Dpro Bot Team"
+    author: "Dpro"
     category: "utilities"
     tags: ["ui", "charts", "dashboard", "visualization", "components", "spec"]
     triggers:

@@ -15,7 +15,7 @@ const history=JSON.parse(fs.readFileSync(new URL('../skills/professional-source-
 const templates=new SpecialtyTemplates(),distribution=new SpecialtyDistribution(templates);
 const {PERMISSION_CATEGORIES}=await import('../src/tools/agent-permissions.ts');
 const config={primarySkill:null,skills:[],tools:[],memoryRead:[],memoryWrite:[],sharedMemory:false,modes:Object.fromEntries(PERMISSION_CATEGORIES.map(x=>[x,'ask']))};
-const owner='distribution-owner',legacy=history.releases[0],current=history.releases[1];
+const owner='distribution-owner',legacy=history.releases[0],current=history.releases.at(-1);
 const draft=(role,revision=0)=>({name:role.name,department:role.department,description:role.description,instructions:role.instructions,config,revision});
 const role=pack.specialties[0],id=importedSpecialtyId(owner,legacy.fingerprint,role.id);
 after(()=>{closeDatabase();});
@@ -66,7 +66,7 @@ test('explicit stable keys survive position changes and identify retired roles',
  assert.equal(preview.roles.find(r=>r.sourceKey===retiredKey).status,'retired');assert.ok(!preview.unmatchedInstalledIds.includes(retiredId));
 });
 test('invalid history, duplicate stable keys and unregistered content fail closed',()=>{
- for(const change of [h=>{h.version=2;},h=>{h.releases[0].fingerprint='bad';},h=>{h.releases[0].roles[0].sourceKey=h.releases[0].roles[1].sourceKey;},h=>{h.releases[1].roles[0].contentHash='0'.repeat(64);},h=>{h.releases.pop();}]){const h=structuredClone(history);change(h);assert.throws(()=>validateProfessionalSource(pack,h));}
+ for(const change of [h=>{h.version=2;},h=>{h.releases[0].fingerprint='bad';},h=>{h.releases[0].roles[0].sourceKey=h.releases[0].roles[1].sourceKey;},h=>{h.releases.at(-1).roles[0].contentHash='0'.repeat(64);},h=>{h.releases.pop();}]){const h=structuredClone(history);change(h);assert.throws(()=>validateProfessionalSource(pack,h));}
  const changed=structuredClone(pack);changed.specialties[0].instructions+=' Modified';assert.throws(()=>validateProfessionalSource(changed,history),/source_revision_unregistered/);
 });
 test('all bundled specialties round-trip through the actual save normalization',async()=>{

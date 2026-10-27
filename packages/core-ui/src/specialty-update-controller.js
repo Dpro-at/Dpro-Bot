@@ -11,7 +11,7 @@ export class SpecialtyUpdateController{
  async review(sourceKey){if(this.busy||this.disposed)return;const role=this.state.preview?.roles.find(r=>r.sourceKey===sourceKey);if(role?.status!=='content_update_available')return;const n=++this.sequence;this.emit({phase:'reviewing',review:null,preparation:null,preparationReceipt:null,confirmed:false,error:null,receipt:null});try{const review=await this.request('review',{sourceKey});if(review.sourceKey!==sourceKey||review.templateId!==role.installedIds[0]||review.revision!==role.revision)throw Error('upgrade_preview_unavailable');if(n===this.sequence)this.emit({phase:'review',review});}catch(e){if(n===this.sequence)this.emit({phase:'error',error:e.message});}}
  async prepare(sourceKey,resourceId){
   if(this.busy||this.disposed||this.state.phase==='unknown')return;
-  const role=this.state.preview?.roles.find(r=>r.sourceKey===sourceKey);if(role?.status!=='content_update_available')return;
+  const role=this.state.preview?.roles.find(r=>r.sourceKey===sourceKey);if(role?.status!=='content_update_available'&&!(role?.status==='current'&&resourceId!=='bindings'))return;
   const resources=role.packResources??[];
   if(resourceId==='bindings'?!resources.some(r=>r.assigned===false)||resources.some(r=>r.status!=='current'):!resources.some(r=>r.sourceId===resourceId&&['missing','conflict'].includes(r.status)))return;
   const n=++this.sequence;this.emit({phase:'reviewing',review:null,preparation:null,preparationReceipt:null,confirmed:false,error:null,receipt:null});

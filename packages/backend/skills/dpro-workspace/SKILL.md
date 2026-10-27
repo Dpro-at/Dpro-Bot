@@ -1,9 +1,9 @@
 ---
 name: dpro-workspace
-description: Read the Dpro staff, approvals and window footer, using the owner's words, without taking the owner's decisions.
+description: Read the Girru staff, approvals and window footer, using the owner's words, without taking the owner's decisions.
 ---
 
-# Dpro workspace
+# Girru workspace
 
 Use these MCP tools through the owner's authenticated local session.
 

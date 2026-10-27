@@ -12,7 +12,7 @@ metadata:
 
 # Local GenVR space builder
 
-Fallback copy. When the GenVR SDK is installed, Dpro loads the SDK's own `genvr-world-builder`
+Fallback copy. When the GenVR SDK is installed, Girru loads the SDK's own `genvr-world-builder`
 (places and games, with references) instead of this file and keeps it updated with each SDK version.
 This guide supplies instructions, not permissions or a live connection.
 

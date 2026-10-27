@@ -99,7 +99,7 @@ Full props and examples for all supported components.
 ### Accordion
 ```json
 {"type":"Accordion","props":{"items":[
-  {"title":"What is Dpro Bot?","content":"A local AI agent platform."},
+  {"title":"What is Girru?","content":"A local AI agent platform."},
   {"title":"How does it work?","content":"Uses Claude or Ollama as the LLM backend."}
 ]},"children":[]}
 ```

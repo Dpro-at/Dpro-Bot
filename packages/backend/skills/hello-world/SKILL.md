@@ -5,7 +5,7 @@ metadata:
   agent-player:
     emoji: "👋"
     version: "1.0.0"
-    author: "Dpro Bot Team"
+    author: "Dpro"
     category: "demo"
     tags: ["greeting", "hello", "demo", "test"]
     triggers:
@@ -55,7 +55,7 @@ How can I help you today?
 
 **Response:**
 ```
-👋 Hi there! Welcome to Dpro Bot.
+👋 Hi there! Welcome to Girru.
 
 I'm ready to assist you with anything you need.
 What would you like to do?
