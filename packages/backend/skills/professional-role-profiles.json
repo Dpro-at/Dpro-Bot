@@ -920,6 +920,391 @@
         "settings": "off"
       },
       "requirements": []
+    },
+    {
+      "name": "Server administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Linux administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Windows administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/windows-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Network administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/network-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Cloud engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/cloud-iac.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "DevOps engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/delivery-pipelines.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Container platform engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/container-platform.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }

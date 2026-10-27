@@ -62,7 +62,7 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 18);
+ assert.equal(recommendations.profiles.length, 25);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
  const frontend = await templates.get(frontendId);
@@ -74,8 +74,9 @@ test('pilot recommendations save as versioned templates without changing agent a
  assert.equal(db.prepare('SELECT count(*) n FROM agent_specialties WHERE agent_id=?').get(fixtureAgent.id).n, 1);
  const {setAgentGrants} = await import('../src/tools/grants.ts');
  const {createAgentToolsRegistry} = await import('../src/tools/index.ts');
- const {loadAgentPermissions,setAgentPermissions} = await import('../src/tools/agent-permissions.ts');
+ const {loadAgentPermissions,setAgentPermissions,permissionCategory} = await import('../src/tools/agent-permissions.ts');
  await setAgentGrants(fixtureAgent.id,{grants:['read']},'pack-owner',(await createAgentToolsRegistry({workspaceDir:root})).listRegistered());
+ assert.equal(permissionCategory({name:'web_fetch'}),'network');
  const initialPermissions = await loadAgentPermissions(fixtureAgent.id);
  await setAgentPermissions(fixtureAgent.id,{memoryRead:['task'],memoryWrite:[],sharedMemory:false,modes:initialPermissions.modes},initialPermissions.version,'pack-owner');
  assert.ok(db.prepare('SELECT count(*) n FROM agent_tool_grants WHERE agent_id=?').get(fixtureAgent.id).n>0);
@@ -92,7 +93,7 @@ test('pilot recommendations save as versioned templates without changing agent a
    const skill = db.prepare('SELECT id FROM central_skills WHERE name=?').get(profile.package);
    assert.ok(skill, 'Resolve the actual fixture skill ID');
    assert.ok([current.config.primarySkill,...current.config.skills].includes(skill.id),'Preserve the existing role package binding');
-   for (const resource of new Set(['SKILL.md',...(current.instructions.match(/references\/[a-z-]+\.md/g)||[])])) assert.ok(fs.existsSync(path.join(source,profile.package,resource)),resource);
+   for (const resource of new Set(['SKILL.md',...(current.instructions.match(/(?:references|assets)\/[a-z0-9_-]+\.md/g)||[])])) assert.ok(fs.existsSync(path.join(source,profile.package,resource)),resource);
    for (const resource of profile.references) assert.ok(fs.existsSync(path.join(source, profile.package, resource)));
    const config = {
     primarySkill: skill.id, skills: [], tools: profile.tools,
