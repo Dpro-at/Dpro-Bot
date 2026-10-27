@@ -1178,6 +1178,22 @@ button.status-item:hover { background:var(--row-hover); color:var(--text); }
 .app-shell .git-sync { color:var(--text-3); font-variant-numeric:tabular-nums; }
 .app-shell .git-note { font-size:11px; margin:4px 0 0; }
 .app-shell .git-links { display:flex; flex-wrap:wrap; gap:10px; margin-block-start:6px; font-size:12px; }
+/* CH8: pull request state in the git colours (open green, merged purple, closed red, draft grey) and a checks dot. */
+.app-shell { --pr-open:#1A7F37; --pr-merged:#8250DF; --pr-closed:#CF222E; --pr-draft:#6E7781; --checks-pass:#1A7F37; --checks-run:#BF8700; --checks-fail:#CF222E; }
+.shell[data-theme="dark"] .app-shell, .app-shell[data-theme="dark"] { --pr-open:#3FB950; --pr-merged:#A371F7; --pr-closed:#F85149; --pr-draft:#8B949E; --checks-pass:#3FB950; --checks-run:#D29922; --checks-fail:#F85149; }
+.app-shell .pr-dot { display:inline-block; inline-size:8px; block-size:8px; border-radius:50%; background:var(--pr-draft); vertical-align:middle; }
+.app-shell .pr-dot[data-state="open"] { background:var(--pr-open); }
+.app-shell .pr-dot[data-state="merged"] { background:var(--pr-merged); }
+.app-shell .pr-dot[data-state="closed"] { background:var(--pr-closed); }
+.app-shell .pr-dot[data-state="none"] { background:transparent; box-shadow:inset 0 0 0 1px var(--control); }
+.app-shell .pr-state { font-size:11px; font-weight:600; color:var(--pr-draft); }
+.app-shell .pr-state[data-state="open"] { color:var(--pr-open); }
+.app-shell .pr-state[data-state="merged"] { color:var(--pr-merged); }
+.app-shell .pr-state[data-state="closed"] { color:var(--pr-closed); }
+.app-shell .pr-checks { display:inline-flex; align-items:center; gap:4px; margin-inline-start:8px; font-size:11px; color:var(--muted); }
+.app-shell .pr-checks[data-checks="passing"] .pr-dot { background:var(--checks-pass); }
+.app-shell .pr-checks[data-checks="pending"] .pr-dot { background:var(--checks-run); }
+.app-shell .pr-checks[data-checks="failing"] .pr-dot { background:var(--checks-fail); }
 .app-shell .panel-list code { font-size:11px; color:var(--text-3); }
 .app-shell .panel-list dd.panel-wrap { white-space:normal; overflow:visible; overflow-wrap:anywhere; }
 @media (max-width: 900px) { .app-shell .chat-layout[data-max] .chat-panel.chat-pane { inline-size:100%; } }

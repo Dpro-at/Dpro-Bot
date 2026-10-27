@@ -42,3 +42,16 @@ test('chats: status reads tokens by model, the team and the schedule (never the 
  assert.equal(r.structuredContent.schedule.every,'daily');
  assert.doesNotMatch(JSON.stringify(r),/secret plan/);
 });
+
+test('chats: pull_request reads the project branch’s pull request (read-only), or says it is unavailable',async()=>{
+ const calls=[];const answers=[{pr:{number:38,title:'Fixes',state:'merged',url:'https://github.com/acme/widgets/pull/38',checks:'passing'}},{pr:null,unavailable:true},{pr:null}];
+ const backend={async request(method,path){calls.push({method,path});return answers.shift();}};
+ const merged=await callTool('chats',{operation:'pull_request',projectId:PID},{backend});
+ assert.deepEqual(merged.structuredContent.pullRequest,{number:38,title:'Fixes',state:'merged',url:'https://github.com/acme/widgets/pull/38',checks:'passing'});
+ const off=await callTool('chats',{operation:'pull_request',projectId:PID},{backend});
+ assert.equal(off.structuredContent.unavailable,true);assert.match(off.content[0].text,/PR state unavailable/);
+ assert.equal((await callTool('chats',{operation:'pull_request',projectId:PID},{backend})).structuredContent.pullRequest,null);
+ assert.deepEqual(calls,[...Array(3)].map(()=>({method:'GET',path:`/api/chat/projects/${PID}/pr`})));
+ assert.equal((await callTool('chats',{operation:'pull_request',projectId:'../x'},{backend})).isError,true);
+ assert.equal(calls.length,3);
+});
