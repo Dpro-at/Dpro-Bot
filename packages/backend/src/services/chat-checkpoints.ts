@@ -36,14 +36,15 @@ async function gitAtLeast(major: number, minor: number): Promise<boolean> {
   return !!v && (v[0] > major || (v[0] === major && v[1] >= minor));
 }
 
-/** The project folder's files as a git tree, or null when it is not a git folder (or git fails).
- * Only the chosen folder (not the rest of its repository) and never secret-looking files. */
-/** A snapshot of the folder, null outside a git work tree, or 'blocked' when git here could start a program (no undo then). */
+/** The project folder's files as a git tree, or null when there is none (see snapshotState). */
 export async function snapshot(folder: string): Promise<string | null> {
   const s = await snapshotState(folder);
   return s === 'blocked' ? null : s;
 }
 
+/** The project folder's files as a git tree; null when it is not a git folder (or git fails); 'blocked' when git
+ * here could start a program (no undo then). Only the chosen folder (not the rest of its repository) and never
+ * secret-looking files. */
 export async function snapshotState(folder: string): Promise<string | 'blocked' | null> {
   let dir: string | undefined;
   try {
