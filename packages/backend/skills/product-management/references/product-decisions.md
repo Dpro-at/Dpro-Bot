@@ -8,6 +8,8 @@ Identify the user problem, affected population, current journey, business outcom
 
 Compare doing nothing, a process/content improvement and a product change against the same outcome and constraints. Record reach, consequence, confidence, dependencies and effort as estimates with source dates; do not manufacture a precise priority score. For a chosen option define intended behavior, non-goals, edge cases, acceptance evidence and measurement population/window. Keep requirements separate from a prescribed technical implementation unless a constraint actually requires it.
 
+Keep absolute losses, rates and their denominators distinct when comparing opportunities. No-change is a comparison option, not a prediction that future outcomes cannot improve. Treat claimed customer behavior, solution mechanisms, industry rules and implementation effort as hypotheses unless supported by inspected evidence; do not present an uncited generalization as a known fact or declare that an untested option cannot help. Proposed companion work also consumes capacity and needs an estimate before any combined sprint commitment.
+
 ## Verify and hand off
 
 Deliver a decision brief and outcome roadmap with rationale, tradeoffs, unresolved assumptions, owner and review trigger. A roadmap sequence is not a release-date or staffing commitment. Define the observation that could invalidate the bet and how rollback or learning affects the next decision. A shipped feature, adopted behavior and improved business outcome need separate evidence.

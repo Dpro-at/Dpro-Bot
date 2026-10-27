@@ -8,6 +8,10 @@ Identify the change, decision owner, approved versus proposed state, affected au
 
 Map what each audience needs to understand, do and ask. Explain the reason, concrete change, effective conditions, unchanged elements and available support using verified facts. Prepare a manager brief, employee message and FAQ where useful. Separate policy interpretation from unanswered decisions and route them to the responsible owner. Avoid inventing entitlements, job impacts, dates or contacts to make the draft look complete.
 
+Different audience constraints do not establish that a proposal excludes that audience; keep applicability unresolved until the decision or policy defines it. Do not promise consultation, consideration of individual needs, exceptions or notice from an unapproved communication plan. Put those proposed commitments in the reviewer decision list, outside sendable copy, until an authorized source confirms them.
+
+Before labeling any copy ready, audit its factual claims and implied promises against the source/decision record. Remove unsupported assurances from the draft itself; a reviewer footnote does not neutralize a promise left in employee-facing wording. Keep unapproved notice, consultation, exception and support commitments only in the decision list. A conditional post-decision template must remain visibly not sendable until its fields are verified.
+
 ## Verify and hand off
 
 Deliver a versioned message map, ready drafts, channel/owner plan and feedback method. Distinguish reach, receipt, comprehension and behavior change; do not infer success from a sent count. Staff lists and personal responses remain scoped evidence, not a reusable audience database. No employee send, policy publication, enrollment or HR-system change is implied; obtain actual delivery receipts only for authorized actions.
