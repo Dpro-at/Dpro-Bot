@@ -115,3 +115,5 @@ export class SpecialtyDistribution{
   return {namespace:'professional-v1',fingerprint,readOnly:true,applySupported:true,requiresFreshReview:true,roles,resources,unmatchedInstalledIds:installed.filter(r=>!matched.has(r.id)).map(r=>r.id)};
  }
 }
+
+export {source as loadProfessionalSource};

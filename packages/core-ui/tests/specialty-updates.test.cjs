@@ -47,8 +47,44 @@ test('updates show only actionable rows and explain missing bindings with a quie
  const controller={back(){},apply(){},load(){},confirm(){},review(){}};
  const role=preview.roles[0],roles=[{...role,name:'Update me',packResources:[{sourceId:'skill-1',name:'Fictional skill',status:'current',assigned:false}]},{...role,name:'Already current',status:'current'},{...role,name:'Not installed',status:'unmatched',installedIds:[]}];
  const render=roles=>renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller,state:{phase:'ready',preview:{...preview,roles},review:null,confirmed:false,error:null,receipt:null},onClose(){}}));
- const html=render(roles);assert.match(html,/Update me/);assert.doesNotMatch(html,/Already current|Not installed|No matching import/);assert.match(html,/Not assigned/);assert.match(html,/In Library, open Skills/);assert.match(html,/<button[^>]*disabled=""[^>]*>Review changes/);
+ const html=render(roles);assert.match(html,/Update me/);assert.doesNotMatch(html,/Already current|Not installed|No matching import/);assert.match(html,/Not assigned/);assert.match(html,/Review skill assignment/);assert.match(html,/<button[^>]*disabled=""[^>]*>Review changes/);
  const empty=render(roles.slice(1));assert.match(empty,/No installed specialties need an update here/);assert.match(empty,/>Refresh</);assert.doesNotMatch(empty,/sp-upgrade-row/);
  assert.equal(upgradeResponse(base+'preview',200,{...preview,roles:[roles[0]]}).roles[0].packResources[0].assigned,false);
  assert.throws(()=>upgradeResponse(base+'preview',200,{...preview,roles:[{...roles[0],packResources:[{...roles[0].packResources[0],assigned:'yes'}]}]}));
+});
+
+test('skill preparation routes require exact confirmation and remain outside the read-only stage',()=>{
+ for(const gate of [allowedUpgrade,allowedRequest,allowed]){
+  assert.equal(gate('POST',base+'prepare-review',{sourceKey:key,resourceId:'skill-1'}),true);
+  assert.equal(gate('POST',base+'prepare-apply',{sourceKey:key,resourceId:'bindings',reviewToken:proof,confirmed:true}),true);
+  for(const body of [{sourceKey:key,resourceId:'skill-1',reviewToken:proof},{sourceKey:key,resourceId:'skill-1',reviewToken:proof,confirmed:false},{sourceKey:key,resourceId:'skill-1',reviewToken:proof,confirmed:true,files:[]}])assert.equal(gate('POST',base+'prepare-apply',body),false);
+ }
+ for(const path of ['prepare-review','prepare-apply'])assert.equal(stage1Route('POST',base+path),false);
+});
+const preparation={kind:'package',sourceKey:key,resourceId:'skill-1',templateId:id,revision:2,name:'fictional-skill',reviewToken:proof,files:[{path:'SKILL.md',before:'Old guide',after:'New guide <script>unsafe</script>'}],specialties:[{id,name:'Fictional specialty'}],agents:[{id:'fictional-agent',name:'Fictional colleague'}],bindings:[]};
+const blockedPreview={...preview,roles:[{...preview.roles[0],packResources:[{sourceId:'skill-1',name:'fictional-skill',status:'conflict',assigned:true}]}]};
+test('shared skill review shows the full diff and all consumers and requires its own checkbox',async()=>{
+ const f=fake(r=>({status:200,body:r.path.endsWith('preview')?blockedPreview:r.path.endsWith('prepare-review')?preparation:{kind:preparation.kind,sourceKey:key,resourceId:'skill-1',templateId:id,revision:3,name:preparation.name}})),c=new SpecialtyUpdateController(f.client);
+ await c.load();await c.prepare(key,'skill-1');assert.equal(c.state.preparation.kind,'package');await c.apply();assert.equal(f.calls.length,2);
+ let html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller:c,state:c.state,onClose(){}}));assert.match(html,/Fictional colleague/);assert.match(html,/Affected specialties/);assert.match(html,/shared skill/);assert.match(html,/&lt;script&gt;/);assert.match(html,/<button[^>]*disabled=""[^>]*>Save reviewed skill changes/);
+ c.confirm(true);await c.apply();assert.equal(c.state.preparation,null);assert.equal(c.state.preparationReceipt.revision,3);assert.deepEqual(f.calls[2].body,{sourceKey:key,resourceId:'skill-1',reviewToken:proof,confirmed:true});await c.apply();assert.equal(f.calls.length,3);
+});
+test('lost skill apply responses discard the proof, fence context changes and never retry',async()=>{
+ const f=fake(r=>r.path.endsWith('prepare-apply')?Promise.reject(Error('lost')):{status:200,body:r.path.endsWith('preview')?blockedPreview:preparation}),c=new SpecialtyUpdateController(f.client);
+ await c.load();await c.prepare(key,'skill-1');c.confirm(true);await c.apply();assert.equal(c.state.phase,'unknown');assert.equal(c.state.preparation,null);await c.prepare(key,'skill-1');await c.apply();assert.equal(f.calls.length,3);
+ const invalid={...preparation,files:[{path:'SKILL.md',before:'a',after:8}]};assert.throws(()=>upgradeResponse(base+'prepare-review',200,invalid));
+ const hidden=upgradeResponse(base+'prepare-review',200,{...preparation,config:{secret:true}});assert.deepEqual(hidden,preparation);
+});
+test('binding review is allowed only after every required package matches',async()=>{
+ const ready={...blockedPreview,roles:[{...blockedPreview.roles[0],packResources:[{sourceId:'skill-1',name:'fictional-skill',status:'current',assigned:false}]}]};
+ const binding={...preparation,kind:'bindings',resourceId:'bindings',revision:1,name:'Fictional specialty',files:[],bindings:['fictional-skill']};const f=fake(r=>({status:200,body:r.path.endsWith('preview')?ready:binding})),c=new SpecialtyUpdateController(f.client);
+ await c.load();await c.prepare(key,'bindings');assert.equal(c.state.preparation.kind,'bindings');const html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller:c,state:c.state,onClose(){}}));assert.match(html,/Tool access, memory and action permissions stay/);assert.match(html,/fictional-skill/);
+});
+
+test('deterministic skill refusal is an error rather than an uncertain save',async()=>{
+ const f=fake(r=>({status:r.path.endsWith('prepare-apply')?400:200,body:r.path.endsWith('preview')?blockedPreview:r.path.endsWith('prepare-review')?preparation:{code:'invalid_skill'}})),c=new SpecialtyUpdateController(f.client);await c.load();await c.prepare(key,'skill-1');c.confirm(true);await c.apply();assert.equal(c.state.phase,'error');assert.equal(c.state.error,'invalid_skill');assert.equal(c.state.preparation,null);
+});
+
+test('a skill used directly by agents does not claim it has no consumers when no specialty uses it',()=>{
+ const controller={confirm(){},back(){},apply(){},load(){}},state={phase:'review',preview:blockedPreview,review:null,preparation:{...preparation,specialties:[]},confirmed:false,error:null,receipt:null};const html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller,state,onClose(){}}));assert.match(html,/No specialties currently use this skill/);assert.match(html,/Fictional colleague/);assert.doesNotMatch(html,/No existing specialties or agents use this skill/);
 });

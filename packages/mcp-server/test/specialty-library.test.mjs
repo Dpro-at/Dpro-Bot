@@ -48,3 +48,9 @@ test('source updates retain exact owner review/apply contract and reject confirm
  for(const args of [{operation:'updates',body:{}},{operation:'update_review',id,body:{sourceKey}},{operation:'update_apply',body:{sourceKey,reviewToken}},{operation:'update_apply',body:{sourceKey,reviewToken,confirmed:false}},{operation:'update_apply',body:{sourceKey,reviewToken,confirmed:true,config:{}}}]){
  const n=calls.length;assert.equal((await callTool('specialty_library',args,{backend})).isError,true);assert.equal(calls.length,n);}
 });
+
+test('skill preparation can be inspected through MCP but only confirmed inside the app',async()=>{
+ const calls=[],backend={async request(method,path,body){calls.push({method,path,body});return {};}};const sourceKey='professional-role-'+'a'.repeat(24);
+ assert.notEqual((await callTool('specialty_library',{operation:'update_prepare_review',body:{sourceKey,resourceId:'skill-1'}},{backend})).isError,true);assert.deepEqual(calls[0],{method:'POST',path:'/api/workspace-pack/specialty-upgrade-prepare-review',body:{sourceKey,resourceId:'skill-1'}});
+ assert.equal((await callTool('specialty_library',{operation:'update_prepare_apply',body:{sourceKey,resourceId:'skill-1',reviewToken:'a'.repeat(64),confirmed:true}},{backend})).isError,true);assert.equal(calls.length,1);
+});
