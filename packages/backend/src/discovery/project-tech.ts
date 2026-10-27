@@ -4,7 +4,7 @@
  * Design (DESIGN-FIND-01): colours and fonts from Tailwind configs, CSS custom
  * properties (incl. Tailwind v4 @theme), design-token JSON and brand-kit /
  * style-guide Markdown; rules from those Markdown files and from the owner's
- * own text in DESIGN.md (outside Dpro's markers); logo / icon / favicon images
+ * own text in DESIGN.md (outside Girru's markers); logo / icon / favicon images
  * in brand, assets, public, static and image folders (named and linked, never
  * opened as text, never moved).
  *
@@ -94,7 +94,7 @@ const IMAGE = /\.(svg|png|jpe?g|webp|ico)$/i;
 const LOGO_NAME = /(logo|icon|favicon|brand|wordmark|apple-touch|symbol|mark)/i;
 const IMAGE_DIRS = /(^|\/)(brand|branding|assets|public|static|images?|img|media|icons?|logos?|docs)(\/|$)/i;
 
-/** DESIGN.md section Dpro writes (memory/project-design.ts); the finder reads only the owner's text around it. */
+/** DESIGN.md section Girru writes (memory/project-design.ts); the finder reads only the owner's text around it. */
 export const DESIGN_MARK_START = '<!-- dpro-design:start — managed by Dpro: the text between these two markers is replaced when the design changes; write your own rules outside them -->';
 export const DESIGN_MARK_END = '<!-- dpro-design:end -->';
 const DESIGN_SECTION = /<!-- dpro-design:start\b[^\n]*?-->[\s\S]*?<!-- dpro-design:end -->/g;

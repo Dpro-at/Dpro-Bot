@@ -18,7 +18,7 @@ test('SDK skills are added, then updated when a newer SDK changes them',async()=
 });
 
 test('an SDK skill replaces an untouched bundled copy but never an owner-imported one',async()=>{
- // Dpro's own older copy was seeded as 'bundled' by the first test (no SDK copy of that name yet).
+ // Girru's own older copy was seeded as 'bundled' by the first test (no SDK copy of that name yet).
  assert.equal(row('genvr-world-builder').origin,'bundled');const before=row('genvr-world-builder').revision;
  db.prepare("INSERT INTO central_skills(id,name,description,version,revision,content_hash,origin) VALUES('owner-copy','genvr-avatar-presentation','mine','1.0.0',3,?,'claude')").run('b'.repeat(64));
  await write('genvr-world-builder','World steps.');await write('genvr-avatar-presentation','Avatar steps.');

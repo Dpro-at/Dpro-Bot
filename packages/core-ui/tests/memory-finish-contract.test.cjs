@@ -105,7 +105,7 @@ test('M11 bridge: reads, kill switch, preview -> confirm with the hash, folder s
 test('M11 bridge projections: no secret, last call, previews and the activity log project the same twice', () => {
   const s = twice(memoryBridgeResponse, '/api/memory-bridge', 200, {
     clients: [{ client: 'claude-code', name: 'Claude Code', enabled: true, configPath: '/tmp/h/.claude.json', registrationId: '0123abcd-0000-4000-8000-000000000000', registeredAt: '2026-10-18 10:00:00', lastCallAt: '2026-10-21 12:00:00', lastTool: 'memory_search', token: 'x' }],
-    projects: [{ projectId: 'proj-1', name: 'Dpro', folder: '/tmp/dpro', filesEnabled: true, backflowEnabled: false, gitExclude: true, writtenAt: null, confirmedAt: null }],
+    projects: [{ projectId: 'proj-1', name: 'Girru', folder: '/tmp/dpro', filesEnabled: true, backflowEnabled: false, gitExclude: true, writtenAt: null, confirmedAt: null }],
     registrations: [{ id: '0123abcd-0000-4000-8000-000000000000', client: 'claude-code', configPath: '/tmp/h/.claude.json', backupPath: '/tmp/b', existed: true, beforeSha256: H, afterSha256: H, status: 'applied', createdAt: '2026-10-18 10:00:00', undoneAt: null }],
     serverReady: true,
   });

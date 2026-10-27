@@ -16,7 +16,7 @@ export const DEVICE_LABEL_HEADER = 'x-dpro-device-label';
 export function deviceLabel(userAgent) {
   const ua = typeof userAgent === 'string' ? userAgent.slice(0, 400) : '';
   const system = /iPhone|iPad/.test(ua) ? (ua.includes('iPad') ? 'iPad' : 'iPhone') : /Android/.test(ua) ? 'Android' : /Mac OS X|Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
-  const app = /Electron|Dpro/i.test(ua) ? 'Dpro app' : /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  const app = /Electron|Girru/i.test(ua) ? 'Girru app' : /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
   if (!app && !system) return 'Unknown device';
   return app && system ? `${app} on ${system}` : app || system;
 }

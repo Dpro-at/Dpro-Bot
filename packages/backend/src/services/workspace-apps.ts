@@ -9,7 +9,7 @@ export type WorkspaceApp = {
 export const BUNDLED_APPS:ReadonlyArray<WorkspaceApp> = [
   {id:'terminal',name:'Terminal',kind:'builtin',version:null,summary:'Command sessions on this computer.',state:'included',sourceId:null,permissions:['Host account access when you start a shell'],tools:0,removable:false},
   {id:'trading',name:'Trading preview',kind:'builtin',version:null,summary:'Local paper practice with fictional money and prices.',state:'included',sourceId:null,permissions:['Paper setup requires owner review','Live orders are not connected'],tools:0,removable:false},
-  {id:'code',name:'Code',kind:'builtin',version:null,summary:'The project editor beside your chats, in the Dpro desktop app.',state:'included',sourceId:null,permissions:['Opens only in the Dpro desktop app that has the editor','Edits files in the project folder you open'],tools:0,removable:false},
+  {id:'code',name:'Code',kind:'builtin',version:null,summary:'The project editor beside your chats, in the Girru desktop app.',state:'included',sourceId:null,permissions:['Opens only in the Girru desktop app that has the editor','Edits files in the project folder you open'],tools:0,removable:false},
 ];
 export interface WorkspaceAppsSources {
   servers:()=>Promise<McpServerView[]>;

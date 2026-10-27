@@ -291,7 +291,7 @@ export async function registerWafRoutes(fastify) {
   fastify.post('/self', {
     schema: {
       tags: ['WAF Security'],
-      description: 'Self-audit Dpro Bot backend security',
+      description: 'Self-audit Girru backend security',
     },
   }, async (request, reply) => {
     const backendUrl = process.env.BACKEND_URL || `http://${process.env.HOST || 'localhost'}:${process.env.PORT || '41522'}`;

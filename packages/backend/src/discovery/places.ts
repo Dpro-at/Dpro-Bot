@@ -1,5 +1,5 @@
 /**
- * Folders the owner allows Dpro to read, file kinds, "don't show" rules and
+ * Folders the owner allows Girru to read, file kinds, "don't show" rules and
  * merged projects (DISCOVER-02, board M18). Nothing outside an allowed folder
  * is walked for project notes; agent folders (~/.claude, ~/.codex, ~/.ssh/config)
  * stay as in M17. Paths work on macOS, Windows and Linux.

@@ -2,7 +2,7 @@
  * Credentials System Types
  *
  * Secure storage for API keys, tokens, and OAuth credentials
- * Dpro Bot Credentials System
+ * Girru Credentials System
  */
 
 export enum CredentialType {

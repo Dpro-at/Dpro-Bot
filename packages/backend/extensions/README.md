@@ -1,6 +1,6 @@
-# Dpro Bot Extensions
+# Girru Extensions
 
-This directory contains extensions that add functionality to Dpro Bot.
+This directory contains extensions that add functionality to Girru.
 
 ## Quick Start
 
@@ -170,7 +170,7 @@ Manually update sidebar:
   "description": "Simple example extension",
   "version": "1.0.0",
   "type": "custom",
-  "author": "Dpro Bot",
+  "author": "Dpro",
   "main": "index.js",
   "permissions": []
 }

@@ -69,7 +69,7 @@ export function OrgChart({agents,selected,query,owner,onSelect,onOpen,onMenu,onM
        <button type="button" role="treeitem" data-agent={a.id} aria-selected={selected===a.id} aria-expanded={n.kids?!n.folded:undefined} aria-level={n.depth+1}
         aria-label={`${a.name??'Agent'}, ${n.sub?'sub-agent':a.placed==='main'?'main agent':roleWord(a.role)}`} tabIndex={selected===a.id||(!selected&&n.depth===0)?0:-1} draggable={owner&&(mode==='departments'?a.placed!=='sub':movable(a))}
         className={['oc-card',n.sub&&'oc-sub',a.placed==='main'&&'oc-main',n.match&&'oc-match',drag===a.id&&'oc-lifted',drag&&drag!==a.id&&!can&&'oc-dim',over===a.id&&can&&'oc-target'].filter(Boolean).join(' ')}
-        title={n.sub?`Sub-agent of ${byId.get(a.manager??'')?.name??'its agent'}`:a.placed==='auto'?'Placed by Dpro. Drag it onto another agent to change who it reports to.':undefined}
+        title={n.sub?`Sub-agent of ${byId.get(a.manager??'')?.name??'its agent'}`:a.placed==='auto'?'Placed by Girru. Drag it onto another agent to change who it reports to.':undefined}
         style={mode==='reports'&&a.department?{borderInlineStartColor:departmentTone(a.department).fg}:undefined}
         onClick={()=>onSelect(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>key(e,n)} onContextMenu={e=>{e.preventDefault();onSelect(a.id);onMenu(e,a);}}
         onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',a.id);setDrag(a.id);onSelect(a.id);}} onDragEnd={()=>{setDrag(null);setOver(null);setOverGroup(null);}}

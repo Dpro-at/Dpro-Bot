@@ -415,7 +415,7 @@ export function matchProject<P extends { slug: string; name: string; folder: str
 
 const TEMPORARY = /(^|[\\/])(tmp|temp|var[\\/]folders|scratchpad)([\\/]|$)/i;
 /**
- * The project drawer for a folder no Dpro project claims (`project:<folder name>`),
+ * The project drawer for a folder no Girru project claims (`project:<folder name>`),
  * so its project facts never land in the owner's own drawer. None for the home
  * folder, a drive or user folder, or a temporary folder.
  */

@@ -6,7 +6,7 @@
  *   PUT   /api/memory-bridge/clients/:client                    { enabled } kill switch (off also deletes the CLI's token)
  *   GET   /api/memory-bridge/clients/:client/registration       dry run: the server entry for the CLI's config file + previewHash
  *   POST  /api/memory-bridge/clients/:client/registration       { previewHash, confirm: true } backs up the file, then writes it
- *   POST  /api/memory-bridge/registrations/:id/undo             restores the backup (or removes only Dpro's entry)
+ *   POST  /api/memory-bridge/registrations/:id/undo             restores the backup (or removes only Girru's entry)
  *   GET   /api/memory-bridge/projects/:projectId/files          dry run of AGENTS.md / CLAUDE.md / GEMINI.md (+ .git/info/exclude)
  *   POST  /api/memory-bridge/projects/:projectId/files          { previewHash, confirm: true } writes them; kept in sync from then on
  *   PATCH /api/memory-bridge/projects/:projectId                { filesEnabled: false?, backflowEnabled?, gitExclude? }

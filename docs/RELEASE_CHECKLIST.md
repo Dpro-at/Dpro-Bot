@@ -1,4 +1,4 @@
-# Dpro Bot v1.3.0 Release Checklist
+# Girru v1.3.0 Release Checklist
 
 Complete checklist for preparing and publishing the v1.3.0 release with installers.
 
@@ -378,11 +378,11 @@ See CHANGELOG.md for full details."
 **Manual Process:**
 
 1. **Navigate to GitHub:**
-   - Go to: https://github.com/9mtm/Agent-Player/releases/new
+   - Go to: https://github.com/Dpro-at/Girru/releases/new
 
 2. **Fill Release Form:**
    - **Tag:** v1.3.0
-   - **Title:** `Dpro Bot v1.3.0 - Professional Installer`
+   - **Title:** `Girru v1.3.0 - Professional Installer`
    - **Description:** Copy from CHANGELOG.md
 
 3. **Upload Files:**
@@ -414,7 +414,7 @@ gh auth login
 
 # Create release
 gh release create v1.3.0 \
-  --title "Dpro Bot v1.3.0 - Professional Installer" \
+  --title "Girru v1.3.0 - Professional Installer" \
   --notes-file CHANGELOG.md \
   agent-player-installer-1.3.0-win-x64.msi \
   agent-player-installer-1.3.0-linux-x86_64.AppImage \
@@ -435,7 +435,7 @@ After release is published, verify README.md links work:
 
 **URL Format:**
 ```
-https://github.com/9mtm/Agent-Player/releases/download/v1.3.0/agent-player-installer-1.3.0-win-x64.msi
+https://github.com/Dpro-at/Girru/releases/download/v1.3.0/agent-player-installer-1.3.0-win-x64.msi
 ```
 
 ---
@@ -592,7 +592,7 @@ If critical issues discovered after release:
 **Announcement Template:**
 
 ```
-🎉 Dpro Bot v1.3.0 is now available!
+🎉 Girru v1.3.0 is now available!
 
 🚀 What's New:
 - One-click installer for Windows, Linux, and macOS
@@ -602,10 +602,10 @@ If critical issues discovered after release:
 - Professional uninstaller
 
 📥 Download now:
-https://github.com/9mtm/Agent-Player/releases/tag/v1.3.0
+https://github.com/Dpro-at/Girru/releases/tag/v1.3.0
 
 📖 Full changelog:
-https://github.com/9mtm/Agent-Player/blob/main/CHANGELOG.md
+https://github.com/Dpro-at/Girru/blob/main/CHANGELOG.md
 ```
 
 ---
@@ -701,4 +701,4 @@ cargo tauri build
 
 **Release Complete!** 🎉
 
-Dpro Bot v1.3.0 is now live with professional installers for all platforms.
+Girru v1.3.0 is now live with professional installers for all platforms.

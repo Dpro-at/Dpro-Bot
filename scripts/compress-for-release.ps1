@@ -1,12 +1,12 @@
 # =====================================================================
-# Dpro Bot - Compress for GitHub Release
+# Girru - Compress for GitHub Release
 # =====================================================================
 # This script creates agent-player-files.zip for stub installer
 # It excludes build artifacts and development files
 # =====================================================================
 
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host " Dpro Bot - Release Compression Script" -ForegroundColor Cyan
+Write-Host " Girru - Release Compression Script" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -124,12 +124,12 @@ Write-Host "Original size: $totalSizeMB MB" -ForegroundColor Yellow
 Write-Host "Compression ratio: $([math]::Round(($zipSize / $totalSize) * 100, 1))%" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
-Write-Host "  1. Go to: https://github.com/9mtm/Agent-Player/releases/new" -ForegroundColor White
+Write-Host "  1. Go to: https://github.com/Dpro-at/Girru/releases/new" -ForegroundColor White
 Write-Host "  2. Tag: v1.3.0" -ForegroundColor White
-Write-Host "  3. Title: Dpro Bot v1.3.0" -ForegroundColor White
+Write-Host "  3. Title: Girru v1.3.0" -ForegroundColor White
 Write-Host "  4. Upload: $outputFile" -ForegroundColor White
 Write-Host "  5. Publish release" -ForegroundColor White
 Write-Host ""
 Write-Host "The stub installer will download from:" -ForegroundColor Cyan
-Write-Host "  https://github.com/9mtm/Agent-Player/releases/download/1.3.0/agent-player-files.zip" -ForegroundColor White
+Write-Host "  https://github.com/Dpro-at/Girru/releases/download/1.3.0/agent-player-files.zip" -ForegroundColor White
 Write-Host ""

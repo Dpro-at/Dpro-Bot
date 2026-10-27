@@ -4,7 +4,7 @@ Complete documentation for the Stock & Crypto Trading Extension.
 
 ## Overview
 
-The Trading Extension enables users to trade stocks and cryptocurrencies directly from Dpro Bot using their Alpaca accounts. It supports both Paper Trading (demo mode with virtual money) and Live Trading (real money).
+The Trading Extension enables users to trade stocks and cryptocurrencies directly from Girru using their Alpaca accounts. It supports both Paper Trading (demo mode with virtual money) and Live Trading (real money).
 
 ## Architecture
 
@@ -44,7 +44,7 @@ packages/backend/extensions/trading/
 ### Prerequisites
 1. Node.js 18+ and pnpm
 2. Alpaca account (free at [alpaca.markets](https://alpaca.markets))
-3. Dpro Bot backend running
+3. Girru backend running
 
 ### Enable Extension
 
@@ -627,4 +627,4 @@ For issues:
 
 ## License
 
-Same as Dpro Bot project
+Same as Girru project

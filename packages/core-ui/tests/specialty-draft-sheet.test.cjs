@@ -49,7 +49,7 @@ test('SP3b: Describe it is the first start; the local draft opens unsaved for ch
 test('SP3b: with no local model the sheet says one plain sentence and stays open',async t=>{
  const x=await mount(t,{status:409,body:{code:'local_model_required'}});
  await click(button(x.container,'New specialty'));await fill(x.container.querySelector('textarea'),'A job.');await click(button(x.container,'Make the draft'));
- assert.match(text(x.container),/Dpro needs a local model on this computer to draft it\. Copy one or start empty instead\./);
+ assert.match(text(x.container),/Girru needs a local model on this computer to draft it\. Copy one or start empty instead\./);
  assert.ok(button(x.container,'Make the draft'));
 });
 

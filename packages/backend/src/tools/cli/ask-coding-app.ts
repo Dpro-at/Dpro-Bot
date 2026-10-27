@@ -42,7 +42,7 @@ export const askCodingAppTool: Tool = {
     if (!request) return fail('request is empty.');
     if (request.length > MAX_CODING_REQUEST_CHARS) return fail(`request is longer than ${MAX_CODING_REQUEST_CHARS} characters.`);
     if (context?.toolPolicy) return fail('Coding apps are not available for outside senders.');
-    if (!subscriptionEnabled()) return fail('Coding apps are available only in the Dpro desktop app.');
+    if (!subscriptionEnabled()) return fail('Coding apps are available only in the Girru desktop app.');
     const caller = context?.userId ? await sql().read(one<{ role: string }>('SELECT role FROM users WHERE id=?', context.userId)) : null;
     if (caller?.role !== 'owner') return fail('Only the owner\'s own chats may use the coding apps.');
     let folder = context?.fileReadRoot;

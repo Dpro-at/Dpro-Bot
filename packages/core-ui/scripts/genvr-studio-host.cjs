@@ -66,7 +66,7 @@ function createStudioHost({ env = process.env, packageRoot } = {}) {
   const verified = new Set();
   let bridge = null, voice = null, ready = null, origin = null;
   // Private library access: a short-lived ticket per owner session, issued only after the
-  // application server has checked the caller's Dpro session (role owner) with the backend.
+  // application server has checked the caller's Girru session (role owner) with the backend.
   const tickets = new Map();
   const TICKET_MS = 12 * 60 * 60 * 1000;
   function issueTicket(userId) {
@@ -138,7 +138,7 @@ function createStudioHost({ env = process.env, packageRoot } = {}) {
         res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'no-store' }); res.end(data); return;
       }
       case '/studio-library/remove': {
-        // Removes Dpro's converted copy only; the original download is never touched.
+        // Removes Girru's converted copy only; the original download is never touched.
         if (!ASSET_ID.test(input.id)) return json(res, 400, { error: 'Invalid id.' });
         await update(async index => { index.assets = index.assets.filter(a => a.id !== input.id); for (const k of Object.keys(index.assignments)) if (index.assignments[k] === input.id) delete index.assignments[k]; await fsp.rm(assetFile(input.id), { force: true }); });
         return json(res, 200, { ok: true });

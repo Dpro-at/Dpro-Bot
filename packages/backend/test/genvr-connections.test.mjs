@@ -32,7 +32,7 @@ test('only the owner sees or changes connections; bodies are exact',async()=>{
 test('device consent: connecting shows the code, then connected; the token stays in the key store',{timeout:30000},async()=>{
  const started=(await app.inject({method:'POST',url:'/api/connections/genvr/link',headers:owner,payload:{}})).json().connection;
  assert.equal(started.status,'connecting');assert.equal(started.pending.userCode,'ABCD-EFGH');assert.equal(started.pending.verificationUri,'https://genvr.net/link');
- assert.deepEqual(calls[0],['start','Dpro Agent',['worlds:read','worlds:write','worlds:publish','worlds:join']]);
+ assert.deepEqual(calls[0],['start','Girru',['worlds:read','worlds:write','worlds:publish','worlds:join']]);
  assert.ok(await wait(async()=>(await get()).status==='connected'));
  const c=await get();assert.equal(c.account.name,'Fictional Owner');assert.equal(c.pending,null);assert.ok(polls>=2);
  const all=JSON.stringify((await app.inject({url:'/api/connections',headers:owner})).json());assert.ok(!all.includes(TOKEN)&&!all.includes('device-secret'));
@@ -47,7 +47,7 @@ test('test world: draft created once, upload on server version, separate publish
  assert.equal((await up()).json().publication.version,2);assert.equal(server.drafts,1);
  const content={violence:false,blood:false,horror:false,romance:false,userChat:false,paidItems:false};
  assert.equal((await app.inject({method:'POST',url:'/api/connections/genvr/test-world/publish',headers:owner,payload:{title:'T',type:'social',access:'public',content}})).statusCode,400);
- const pub=(await app.inject({method:'POST',url:'/api/connections/genvr/test-world/publish',headers:owner,payload:{confirm:true,title:'Dpro test world',type:'social',access:'public',content}})).json().publication;
+ const pub=(await app.inject({method:'POST',url:'/api/connections/genvr/test-world/publish',headers:owner,payload:{confirm:true,title:'Girru test world',type:'social',access:'public',content}})).json().publication;
  assert.equal(pub.status,'published');assert.equal(pub.link,'https://genvr.net/places/exp-fictional');assert.deepEqual(server.publish.access,{mode:'public'});
  assert.equal((await up()).statusCode,409);
  const list=(await app.inject({url:'/api/connections/genvr/publications',headers:owner})).json().publications;assert.equal(list.length,1);

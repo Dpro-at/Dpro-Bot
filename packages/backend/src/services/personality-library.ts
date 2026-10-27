@@ -48,7 +48,7 @@ function impact(entry:LibraryEntry,profile:Profile,rows:any[]){
 export class PersonalityLibrary {
  async initialize(){await sql().tx(function*(){yield* lockName('personality-library');yield* seedLibraryStep();},{immediate:true});}
  async list(){return sql().tx(function*(){const rows=yield* all<Row>('SELECT * FROM personality_library ORDER BY id');const links=yield* all<{personality_id:string;id:string;name:string}>('SELECT l.personality_id,a.id,a.name FROM agent_personality_links l JOIN agents_config a ON a.id=l.agent_id ORDER BY a.name,a.id');const starters=new Set((yield* all<{personality_id:string}>("SELECT personality_id FROM personality_library_versions WHERE revision=1 AND created_by='system'")).map(x=>x.personality_id));
-  // `starter`: shipped with Dpro (first version written by the seed); everything else was made by the owner. `agents` names who uses it, for faces in the list.
+  // `starter`: shipped with Girru (first version written by the seed); everything else was made by the owner. `agents` names who uses it, for faces in the list.
   return rows.map(r=>{const agents=links.filter(l=>l.personality_id===r.id).map(l=>({id:l.id,name:String(l.name??l.id).slice(0,100)}));return {id:r.id,revision:r.revision,profile:validateProfile(JSON.parse(r.profile_json)),archived:!!r.archived,usedBy:agents.length,starter:starters.has(r.id),agents:agents.slice(0,200)};});});}
  async read(id:string){return sql().read(readStep(id));}
  async versions(id:string){return sql().read((function*(){yield* readStep(id,true);return yield* all<{revision:number;profile_json:string;created_at:string}>('SELECT revision,profile_json,created_at FROM personality_library_versions WHERE personality_id=? ORDER BY revision DESC',id);})());}

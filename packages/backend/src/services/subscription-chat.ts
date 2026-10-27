@@ -46,7 +46,7 @@ export async function subscriptionSearchDirs(home=os.homedir(),pathEnv=process.e
   ...await versions(path.join(home,'.local','share','fnm','node-versions'),['installation','bin']),...await versions(path.join(home,'.nvm','versions','node'),['bin'])];
  return [...new Set(dirs.filter(d=>path.isAbsolute(d)))];
 }
-/** Where a chat without a project folder lets a coding app work: one private, empty folder per conversation, outside Dpro's data (CORE-PICKER-03). */
+/** Where a chat without a project folder lets a coding app work: one private, empty folder per conversation, outside Girru's data (CORE-PICKER-03). */
 export const chatWorkspacesRoot=()=>process.env.DPRO_CHAT_WORKSPACES?path.resolve(process.env.DPRO_CHAT_WORKSPACES):path.join(os.homedir(),'.dpro','chat-workspaces');
 const CONVERSATION_ID=/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/;
 export async function chatWorkspace(conversationId:string):Promise<string>{
@@ -107,12 +107,12 @@ export async function runSubscription(model:string,folder:string,prompt:string,s
    try{const answer=subscriptionAnswer(kind,output).trim();if(!answer)throw Error();resolve(answer);}catch{reject(Error('cli_failed'));}
   });
   if(signal.aborted||processesStopping){stop();return;}
-  try{launched.start(kind==='gemini'?JSON.stringify({event:'user',message:{content:'Use no native tools, MCP, files, browser, shell, agents or schedules. Return only the requested text/JSON. Dpro executes its own tools separately.\n'+prompt}})+'\n':prompt);}catch{stop();cleanup();reject(Error('cli_unavailable'));}
+  try{launched.start(kind==='gemini'?JSON.stringify({event:'user',message:{content:'Use no native tools, MCP, files, browser, shell, agents or schedules. Return only the requested text/JSON. Girru executes its own tools separately.\n'+prompt}})+'\n':prompt);}catch{stop();cleanup();reject(Error('cli_unavailable'));}
  });
 }
 
 /** Antigravity owns account credentials. A fresh empty workspace prevents loading project instructions.
- * Native tools remain governed by Antigravity plan/headless review; only Dpro registry tools are requested. */
+ * Native tools remain governed by Antigravity plan/headless review; only Girru registry tools are requested. */
 export async function geminiReplyConfig(root=os.tmpdir(),home=os.homedir()){
  const settings=path.join(home,'.gemini','antigravity-cli','settings.json');
  let config:any={};try{config=JSON.parse(await fs.readFile(settings,'utf8'));}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw Error('cli_config_unavailable');}

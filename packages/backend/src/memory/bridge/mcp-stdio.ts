@@ -2,7 +2,7 @@
 /**
  * Entry of the dpro-memory MCP server (MEM-BRIDGE-01), started by a CLI:
  *   node mcp-stdio.js --client claude-code|codex|gemini-cli|antigravity
- * Environment (set by Dpro's registration; paths only, never a secret):
+ * Environment (set by Girru's registration; paths only, never a secret):
  *   AGENT_PLAYER_CONFIG_DIR  folder of instance.json;  AGENT_PLAYER_URL  the local backend
  * stdout carries only MCP messages; diagnostics go to stderr and never hold the token.
  */

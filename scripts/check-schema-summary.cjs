@@ -2,7 +2,7 @@ const Database = require('../packages/backend/node_modules/better-sqlite3');
 const db = new Database('../packages/backend/.data/agent-player.db');
 
 console.log('╔════════════════════════════════════════════════════════════════════════╗');
-console.log('║          📊 قاعدة بيانات Dpro Bot - ملخص الجداول                 ║');
+console.log('║          📊 قاعدة بيانات Girru - ملخص الجداول                 ║');
 console.log('╚════════════════════════════════════════════════════════════════════════╝\n');
 
 // Get all tables

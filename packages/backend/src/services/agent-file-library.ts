@@ -2,7 +2,7 @@
  * Agent page › Files (AGENT-FILES-01, boards AF1–AF3).
  *
  * The files an agent reads, in its own folder (.data/agents/<id>/):
- *   Who it is            PERSONALITY.md — Dpro writes its Personality block
+ *   Who it is            PERSONALITY.md — Girru writes its Personality block
  *                        between markers; the owner edits the text around it.
  *   What it keeps in mind MEMORY.md — owner writes with the version read
  *                        (agent-files.ts writeMemoryCAS); agents never write it.
@@ -170,7 +170,7 @@ export async function saveFile(agentId: string, name: unknown, content: unknown,
     const raw = await readPersonality(agentId).catch(() => { throw new FileLibraryError(503, 'files_unavailable'); });
     if (digest(raw) !== expectedHash) throw new FileLibraryError(409, 'changed');
     const block = personalityExportBlock(raw);
-    // The Personality block stays as Dpro wrote it; anything typed between markers is dropped.
+    // The Personality block stays as Girru wrote it; anything typed between markers is dropped.
     const clean = stripPersonalityExport(content);
     const next = block ? upsertPersonalityExport(clean, block) : clean;
     await keepVersion(f.versions, WHO, raw);

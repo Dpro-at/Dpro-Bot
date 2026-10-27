@@ -24,7 +24,7 @@ function backend({ stale = false } = {}) {
       { client: 'gemini-cli', name: 'Gemini CLI', enabled: false, configPath: '/tmp/h/.gemini/settings.json', registrationId: null, registeredAt: null, lastCallAt: null, lastTool: null },
       { client: 'antigravity', name: 'Antigravity', enabled: false, configPath: '/tmp/h/.gemini/config/mcp_config.json', registrationId: null, registeredAt: null, lastCallAt: null, lastTool: null },
     ],
-    projects: [{ projectId: 'proj-1', name: 'Dpro', folder: '/tmp/dpro', filesEnabled: files, backflowEnabled: back, gitExclude: git, writtenAt: files ? '2026-10-21 12:00:00' : null, confirmedAt: null }],
+    projects: [{ projectId: 'proj-1', name: 'Girru', folder: '/tmp/dpro', filesEnabled: files, backflowEnabled: back, gitExclude: git, writtenAt: files ? '2026-10-21 12:00:00' : null, confirmedAt: null }],
     registrations: [], serverReady: true,
   });
   const client = { request: async r => {
@@ -61,8 +61,8 @@ test('the page shows each app, its registration, last call and the folders as dr
   const html = renderToStaticMarkup(React.createElement(BridgeView, { c, onChangeFolder: () => {} }));
   for (const words of ['Coding apps share this memory', 'Claude Code', 'Registered · 18 Oct', 'Last call 4 min ago · memory_search', 'Codex', 'Not registered', 'No calls yet', 'Register…', 'Check registration', 'Undo registration',
     'Folders and projects', '/tmp/dpro', 'Hidden', 'Bring back app notes', 'Now', 'Preview &amp; turn on', 'Change', 'Your own text in those files is never changed.',
-    'Step 1 of 2 · Preview', 'Register Dpro memory in Codex', '/tmp/h/.codex/config.toml · a backup is kept first', '[mcp_servers.dpro-memory]', 'No key, password or token goes into this file.',
-    'Confirm and register', 'If the file changed after this preview, Dpro stops and shows a new preview.', 'Recent bridge activity', 'Claude Code read the Dpro brief', 'Claude Code proposed a fact for Dpro → Review'])
+    'Step 1 of 2 · Preview', 'Register Girru memory in Codex', '/tmp/h/.codex/config.toml · a backup is kept first', '[mcp_servers.dpro-memory]', 'No key, password or token goes into this file.',
+    'Confirm and register', 'If the file changed after this preview, Girru stops and shows a new preview.', 'Recent bridge activity', 'Claude Code read the Girru brief', 'Claude Code proposed a fact for Girru → Review'])
     assert.ok(html.includes(words), words);
 });
 
@@ -107,8 +107,8 @@ test('kill switch, undo, folder settings, files preview -> confirm, back-flow no
 });
 
 test('activity lines in plain words', () => {
-  const name = () => 'Dpro';
-  assert.equal(activityText({ id: 'x', client: 'codex', projectId: 'p', action: 'mcp-handoff', detail: null, createdAt: '' }, name), 'Codex wrote a handoff for Dpro');
+  const name = () => 'Girru';
+  assert.equal(activityText({ id: 'x', client: 'codex', projectId: 'p', action: 'mcp-handoff', detail: null, createdAt: '' }, name), 'Codex wrote a handoff for Girru');
   assert.equal(activityText({ id: 'x', client: 'gemini-cli', projectId: null, action: 'client-off', detail: null, createdAt: '' }, name), 'Gemini CLI turned off by you');
   assert.equal(activityText({ id: 'x', client: 'claude-code', projectId: null, action: 'registered', detail: null, createdAt: '' }, name), 'Claude Code registered by you (backup kept)');
 });

@@ -1,4 +1,4 @@
-# Dpro Bot Installation Guide
+# Girru Installation Guide
 
 Complete installation guide for all platforms and deployment modes.
 
@@ -184,7 +184,7 @@ Click **Next** after selecting
 
 #### System Tray Icon
 
-After installation, you'll see an **Dpro Bot** icon in your system tray:
+After installation, you'll see an **Girru** icon in your system tray:
 
 - **Left-click:** Show menu
 - **Right-click:** Quick actions
@@ -260,13 +260,13 @@ Download `agent-player-installer-1.3.0-macos-universal.dmg` from releases.
 #### Step 2: Open the DMG
 
 1. Double-click the `.dmg` file
-2. Drag **Dpro Bot Installer** to **Applications** folder
+2. Drag **Girru Installer** to **Applications** folder
 3. Eject the DMG
 
 #### Step 3: Run the Installer
 
 1. Open **Applications**
-2. Right-click **Dpro Bot Installer** → **Open**
+2. Right-click **Girru Installer** → **Open**
 3. If macOS Gatekeeper blocks it:
    - **System Settings** → **Privacy & Security**
    - Scroll down → Click **Open Anyway**
@@ -274,7 +274,7 @@ Download `agent-player-installer-1.3.0-macos-universal.dmg` from releases.
 
 #### macOS-Specific Defaults
 
-- **Installation Directory:** `/Applications/Dpro Bot.app/Contents/Resources`
+- **Installation Directory:** `/Applications/Girru.app/Contents/Resources`
 - **Service Manager:** launchd
 - **Service Names:**
   - `com.agentplayer.backend.plist`
@@ -342,7 +342,7 @@ docker-compose restart
 **What Gets Installed:**
 - Node.js 20 LTS portable runtime
 - Python 3.12 embedded distribution
-- Dpro Bot source code (production build)
+- Girru source code (production build)
 - System service (Windows Service / systemd / launchd)
 
 **Advantages:**
@@ -397,7 +397,7 @@ sudo launchctl unload /Library/LaunchDaemons/com.agentplayer.frontend.plist
 
 ### Server Mode
 
-Deploy Dpro Bot to a remote VPS/cloud server with automatic nginx + SSL setup.
+Deploy Girru to a remote VPS/cloud server with automatic nginx + SSL setup.
 
 **Requirements:**
 - Remote server running Ubuntu 22.04+ or Debian 11+
@@ -426,7 +426,7 @@ Deploy Dpro Bot to a remote VPS/cloud server with automatic nginx + SSL setup.
 1. Node.js 20 LTS
 2. Python 3.12
 3. nginx (reverse proxy)
-4. Dpro Bot application
+4. Girru application
 5. systemd services
 6. SSL certificate (if domain provided)
 7. ufw firewall rules
@@ -473,7 +473,7 @@ If you skipped admin account creation, default credentials are:
 
 ### System Tray Application
 
-The Dpro Bot system tray application runs in the background:
+The Girru system tray application runs in the background:
 
 **Features:**
 - ✅ Quick access to dashboard
@@ -487,7 +487,7 @@ The Dpro Bot system tray application runs in the background:
 
 ### Auto-Updates
 
-Dpro Bot checks for updates automatically:
+Girru checks for updates automatically:
 
 - **Check interval:** Every 24 hours
 - **Update source:** GitHub Releases
@@ -583,7 +583,7 @@ sudo tail -f /var/log/system.log | grep agentplayer
 2. **Check firewall:**
    - Windows: Allow ports 41521, 41522 in Windows Firewall
    - Linux: `sudo ufw allow 41521` and `sudo ufw allow 41522`
-   - macOS: System Settings → Network → Firewall → Allow Dpro Bot
+   - macOS: System Settings → Network → Firewall → Allow Girru
 
 3. **Check logs:**
    - Navigate to installation directory → `logs/` folder
@@ -641,4 +641,4 @@ After installation, check out:
 
 **Installation complete! 🎉**
 
-Start building intelligent AI agents with Dpro Bot.
+Start building intelligent AI agents with Girru.

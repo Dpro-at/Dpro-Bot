@@ -24,8 +24,8 @@ test('A3: right-click on a tile offers the inspector actions and keeps owner gat
  const w=src('WorkspaceApplications.tsx');assert.match(w,/onContextMenu=\{e=>contextFor\(e,x\)\}/);assert.match(w,/\.filter\(x=>x\.kind!=='mcp'\)/);assert.doesNotMatch(w,/Connected services|Add connection/);
 });
 test('A6: the source catalogue uses the board words and letter tiles',()=>{
- assert.deepEqual(sourceFacts({present:true}).map(x=>x[0]),['On this computer','Works in Dpro','Asks for']);assert.equal(sourceFacts({present:false})[0][1],'Not found');
- const s=src('SourceCatalogue.tsx');assert.doesNotMatch(s,/Local presence|Compatibility|Activation|Present locally/);assert.match(s,/<Tile name=\{x\.name\}/);assert.match(s,/it may be out of date/);assert.match(s,/Dpro does not copy its keys/);
+ assert.deepEqual(sourceFacts({present:true}).map(x=>x[0]),['On this computer','Works in Girru','Asks for']);assert.equal(sourceFacts({present:false})[0][1],'Not found');
+ const s=src('SourceCatalogue.tsx');assert.doesNotMatch(s,/Local presence|Compatibility|Activation|Present locally/);assert.match(s,/<Tile name=\{x\.name\}/);assert.match(s,/it may be out of date/);assert.match(s,/Girru does not copy its keys/);
 });
 test('A8: GenVR access is shown in plain words, unknown codes pass through',()=>{
  assert.equal(scopeWords('worlds:read'),'See your spaces');assert.equal(scopeWords('worlds:write'),'Save worlds as private drafts');assert.equal(scopeWords('worlds:publish'),'Publish only after you agree');assert.equal(scopeWords('worlds:join'),'Join worlds');assert.equal(scopeWords('items:new'),'items:new');

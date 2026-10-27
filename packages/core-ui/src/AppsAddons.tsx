@@ -14,7 +14,7 @@ export const addonState=(x:Pick<Addon,'kind'|'enabled'|'installed'>)=>x.kind==='
 /**
  * Apps › Add-ons in my coding apps (AA2a): what Claude Code and Codex have
  * installed, one card per app. Read only; hook commands and settings stay
- * private and nothing runs. Dpro's own connections and skills are links.
+ * private and nothing runs. Girru's own connections and skills are links.
  */
 export function AppsAddons({client,refresh,query='',onConnections,onSkills}:{client:SessionClient;refresh:number;query?:string;onConnections:()=>void;onSkills?:()=>void}){
  const [data,setData]=useState<{items:Addon[];sources:{source:string;status:string}[]}|null>(null),[error,setError]=useState(false);
@@ -26,6 +26,6 @@ export function AppsAddons({client,refresh,query='',onConnections,onSkills}:{cli
    return <section key={source} className="apps-addon-card" aria-label={name}><header><Icon size={22}/><strong>{name}</strong><small>{query.trim()&&all.length?`${items.length} of ${all.length} match`:items.length?[plugins&&plural(plugins,'plugin'),hooks&&plural(hooks,'hook group')].filter(Boolean).join(' · '):missing?'Not on this computer':'Nothing installed'}</small></header>
     {items.length?<ul>{items.map((x,i)=><li key={x.name+i}><UiIcon name={x.kind==='hook'?'history':'puzzle'} size={14}/><span title={x.name}>{x.kind==='hook'?`${x.label??x.name} (${plural(x.count,'rule')})`:addonName(x.label??x.name)}</span><small data-state={x.installed===false&&x.kind!=='hook'?'missing':undefined}>{addonState(x)}</small></li>)}</ul>:<p className="fine-print">{query.trim()&&all.length?'No add-on matches your search.':missing?`${name} was not found in this computer’s home folder.`:'No plugins or hooks found.'}</p>}
    </section>;})}</div>}
-  <p className="apps-help">Dpro’s own: <button type="button" className="link-button" onClick={onConnections}>MCP connections</button>{onSkills&&<> · <button type="button" className="link-button" onClick={onSkills}>Skills</button></>} · Which coding apps can answer in Chat: Settings › Replies.</p>
+  <p className="apps-help">Girru’s own: <button type="button" className="link-button" onClick={onConnections}>MCP connections</button>{onSkills&&<> · <button type="button" className="link-button" onClick={onSkills}>Skills</button></>} · Which coding apps can answer in Chat: Settings › Replies.</p>
  </div>;
 }

@@ -77,7 +77,7 @@ export function AgentConnectSettings({ client }: { client: SessionClient }) {
     return () => { disposed = true; clearInterval(timer); };
   }, [client, owner]);
   if (!owner) return null;
-  const line = (c: ChannelEntry) => !c.configured ? 'Not set up' : c.state === 'restart_required' ? 'Restart Dpro to finish' : c.enabled ? 'On' : 'Off · set up';
+  const line = (c: ChannelEntry) => !c.configured ? 'Not set up' : c.state === 'restart_required' ? 'Restart Girru to finish' : c.enabled ? 'On' : 'Off · set up';
   // The live connection, only while a channel is on (the old header showed it too).
   const liveWords: Record<string, string> = { connected: 'Connected', connecting: 'Connecting…', reconnecting: 'Reconnecting…', error: 'Connection error', disconnected: 'Disconnected' };
   const liveState = (c: ChannelEntry) => c.enabled && liveWords[c.state as string] ? ` · ${liveWords[c.state as string]}` : '';

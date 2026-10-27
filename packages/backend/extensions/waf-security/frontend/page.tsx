@@ -218,7 +218,7 @@ export default function WafSecurityPage() {
             ) : (
               <>
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                Self-Audit Dpro Bot
+                Self-Audit Girru
               </>
             )}
           </Button>
@@ -231,7 +231,7 @@ export default function WafSecurityPage() {
           <CardHeader>
             <CardTitle className="text-yellow-600">Self-Audit Results</CardTitle>
             <CardDescription>
-              Security issues found in Dpro Bot backend
+              Security issues found in Girru backend
             </CardDescription>
           </CardHeader>
           <CardContent>

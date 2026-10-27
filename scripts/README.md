@@ -1,6 +1,6 @@
-# Dpro Bot Build Scripts
+# Girru Build Scripts
 
-This directory contains scripts for building and releasing Dpro Bot installers.
+This directory contains scripts for building and releasing Girru installers.
 
 ## 📁 Available Scripts
 
@@ -260,4 +260,4 @@ If you improve these scripts, please:
 
 ## 📄 License
 
-MIT License - Same as Dpro Bot
+MIT License - Same as Girru

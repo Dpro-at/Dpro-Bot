@@ -8,7 +8,7 @@ import chalk from 'chalk';
 export async function welcomeStep(): Promise<void> {
   console.log(chalk.cyan(`
 ╔═══════════════════════════════════════════╗
-║     Welcome to Dpro Bot! 👋           ║
+║     Welcome to Girru! 👋           ║
 ╠═══════════════════════════════════════════╣
 ║                                           ║
 ║  Your personal AI assistant that works    ║

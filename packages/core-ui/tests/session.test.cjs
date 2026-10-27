@@ -126,7 +126,7 @@ test('mock login is explicitly fictional and rejects wrong credentials', async (
 });
 test('shell renders fixture by default, login has no protected content, logout needs explicit confirmation', async () => {
   let html = renderToStaticMarkup(React.createElement(App)); assert.match(html, /Open offline login mock/); assert.doesNotMatch(html, /Use live sign-in/);
-  const s = setup(() => ok({ setupComplete: true, setupRequired: false, message: 'Setup already completed' })); s.client.selectMode('mock'); await s.client.discoverSetup(); html = renderToStaticMarkup(React.createElement(App, { client: s.client })); assert.match(html, /Welcome to Dpro/); assert.doesNotMatch(html, /type="password"|Memory review/);
+  const s = setup(() => ok({ setupComplete: true, setupRequired: false, message: 'Setup already completed' })); s.client.selectMode('mock'); await s.client.discoverSetup(); html = renderToStaticMarkup(React.createElement(App, { client: s.client })); assert.match(html, /Welcome to Girru/); assert.doesNotMatch(html, /type="password"|Memory review/);
   await s.login(); html = renderToStaticMarkup(React.createElement(App, { client: s.client })); assert.match(html, /<button>Sign out on this device<\/button>/); assert.doesNotMatch(html, /Sign out on every device\?/, 'sign out everywhere asks only when opened in Settings › Account'); assert.match(html, /class="dk-mem" aria-label="Memory"/); assert.doesNotMatch(html, /must-not-escape|fictional-token|Mira/);
 });
 

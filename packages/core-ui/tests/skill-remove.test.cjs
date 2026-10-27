@@ -35,17 +35,17 @@ test('remove a skill: contract is a narrow owner DELETE with a confirm and its r
 });
 test('the owner removes an unused skill after one question; a used skill cannot be removed',async t=>{
  const x=await mount(t,'owner');
- await x.menuFor(used);const blocked=button(document.body,'Remove from Dpro (an agent uses it)');assert.ok(blocked);assert.equal(blocked.disabled,true);
+ await x.menuFor(used);const blocked=button(document.body,'Remove from Girru (an agent uses it)');assert.ok(blocked);assert.equal(blocked.disabled,true);
  await act(async()=>{document.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));});await flush();
- await x.menuFor(free);await click(button(document.body,'Remove from Dpro…'));
- assert.match(text(document.body),/Remove Fictional free from Dpro\?/);assert.equal(x.calls.filter(c=>c.method==='DELETE').length,0);
+ await x.menuFor(free);await click(button(document.body,'Remove from Girru…'));
+ assert.match(text(document.body),/Remove Fictional free from Girru\?/);assert.equal(x.calls.filter(c=>c.method==='DELETE').length,0);
  await click(button(document.body,'Remove'));
  const sent=x.calls.find(c=>c.method==='DELETE');assert.equal(sent.path,`${SKILLS_PATH}/items/${free}`);assert.deepEqual(sent.body,{revision:3,confirmed:true});
- assert.equal(x.container.querySelector(`[data-id="${free}"]`),null);assert.match(text(document.body),/removed from Dpro/);
+ assert.equal(x.container.querySelector(`[data-id="${free}"]`),null);assert.match(text(document.body),/removed from Girru/);
 });
 test('a refusal stays in the sheet in plain words; others never see the remove item',async t=>{
  const x=await mount(t,'owner',{status:409,body:{code:'skill_in_use',agents:1,specialties:0}});
- await x.menuFor(free);await click(button(document.body,'Remove from Dpro…'));await click(button(document.body,'Remove'));
+ await x.menuFor(free);await click(button(document.body,'Remove from Girru…'));await click(button(document.body,'Remove'));
  assert.match(text(document.body),/An agent or a specialty uses it now\. Take it back first, then remove it\./);assert.ok(x.container.querySelector(`[data-id="${free}"]`));
- const y=await mount(t,'admin');await y.menuFor(free);assert.equal(button(document.body,'Remove from Dpro…'),undefined);
+ const y=await mount(t,'admin');await y.menuFor(free);assert.equal(button(document.body,'Remove from Girru…'),undefined);
 });

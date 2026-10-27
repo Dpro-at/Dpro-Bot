@@ -43,7 +43,7 @@ const real = (p: string): string | null => { try { return fs.realpathSync.native
 
 /**
  * The owner's project whose folder is `cwd` or contains it (the deepest one).
- * A folder Dpro does not know gives null: the bridge serves nothing there.
+ * A folder Girru does not know gives null: the bridge serves nothing there.
  */
 export async function projectForFolder(ownerId: string, cwd: string): Promise<Project | null> {
   if (typeof cwd !== 'string' || !path.isAbsolute(cwd)) return null;
@@ -159,7 +159,7 @@ export async function latestBridgeHandoff(ownerId: string, projectId: string): P
   return r ? toBridgeHandoff(r) : undefined;
 }
 
-/** Handoff notes coding apps wrote (read only in Dpro, MEM-GAPS-02 / board M12), newest first; optionally one project or one app. */
+/** Handoff notes coding apps wrote (read only in Girru, MEM-GAPS-02 / board M12), newest first; optionally one project or one app. */
 export async function listBridgeHandoffs(ownerId: string, filter: { projectId?: string; client?: BridgeClient; limit?: number } = {}): Promise<BridgeHandoff[]> {
   const where = ['owner_id = ?'];
   const params: string[] = [ownerId];

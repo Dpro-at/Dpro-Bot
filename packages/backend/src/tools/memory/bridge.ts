@@ -46,7 +46,7 @@ async function guarded(context: ToolExecutionContext | undefined, fn: (owner: st
 
 export const memoryBridgeTool: Tool = {
   name: 'memory_bridge',
-  description: `Dpro's memory bridge to Claude Code, Codex, Gemini CLI and Antigravity (read only).
+  description: `Girru's memory bridge to Claude Code, Codex, Gemini CLI and Antigravity (read only).
 action "status": which CLIs are on, registered, and which project folders have managed files.
 action "preview_files" (project_id): the AGENTS.md / CLAUDE.md / GEMINI.md change for a project folder, as a diff, with a previewHash.
 action "preview_registration" (client): the dpro-memory entry for that CLI's config file, with a previewHash.
@@ -103,15 +103,15 @@ To apply a preview, call memory_bridge_apply with its previewHash (the owner app
 
 export const memoryBridgeApplyTool: Tool = {
   name: 'memory_bridge_apply',
-  description: `Change Dpro's memory bridge after the owner approves this call.
-action "apply_files" (project_id, preview_hash): write the previewed managed section into the project's AGENTS.md / CLAUDE.md / GEMINI.md (only between Dpro's markers) and keep it in sync.
+  description: `Change Girru's memory bridge after the owner approves this call.
+action "apply_files" (project_id, preview_hash): write the previewed managed section into the project's AGENTS.md / CLAUDE.md / GEMINI.md (only between Girru's markers) and keep it in sync.
 action "stop_files" (project_id): stop updating that folder's files (they stay as they are).
 action "register" (client, preview_hash): add the dpro-memory server to that CLI's config (the original is backed up first).
 action "undo_registration" (registration_id): restore the CLI config.
 action "set_client" (client, enabled): kill switch for one CLI.
 action "set_backflow" (project_id, enabled): import that folder's CLI memory files as review proposals from now on.
 action "backflow_now" (project_id): do that import once now.
-action "set_git_exclude" (project_id, enabled): list the files Dpro creates in that folder in .git/info/exclude (hidden from Git), or stop doing so for files it creates from now on.`,
+action "set_git_exclude" (project_id, enabled): list the files Girru creates in that folder in .git/info/exclude (hidden from Git), or stop doing so for files it creates from now on.`,
   input_schema: {
     type: 'object',
     properties: {

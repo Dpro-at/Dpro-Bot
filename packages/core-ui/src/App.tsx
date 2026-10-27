@@ -59,7 +59,7 @@ function FixtureShell({ seed }: { seed?: State }) {
   return <div className="shell" data-theme={state.theme} lang={state.locale} dir={state.locale === 'ar' ? 'rtl' : 'ltr'}>
     <a className="skip" href="#content">{c.skip}</a>
     <header className="titlebar">
-      <span className="brand"><DproMark/>Dpro</span>
+      <span className="brand"><DproMark/>Girru</span>
       <div className="toolbar">
         <button className="ghost" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K"><Icon name="command"/>{c.commands} <kbd>⌘K / Ctrl K</kbd></button>
         <button className="ghost" onClick={() => dispatch({ type: 'theme' })}>{c.theme}</button>

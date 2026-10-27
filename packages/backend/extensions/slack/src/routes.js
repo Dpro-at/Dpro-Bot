@@ -52,7 +52,7 @@ export async function registerSlackRoutes(fastify) {
         channel,
         text,
         'bot',
-        'Dpro Bot Bot',
+        'Girru Bot',
         new Date().toISOString(),
         thread_ts || null,
         'outgoing'

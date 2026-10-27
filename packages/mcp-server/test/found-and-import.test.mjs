@@ -17,7 +17,7 @@ test('found lists what the folder scan found: names, place and state only, read 
  const skills=await callTool('skill_library',{operation:'found'},{backend:f.backend});assert.notEqual(skills.isError,true);
  assert.deepEqual(skills.structuredContent.items,[{name:'content-studio',place:'agent_player',state:'new'}]);
  const mcp=await callTool('workspace_apps',{operation:'found'},{backend:f.backend});assert.notEqual(mcp.isError,true);
- assert.deepEqual(mcp.structuredContent.items,[{name:'calendar',place:'This computer',state:'in Dpro'}]);
+ assert.deepEqual(mcp.structuredContent.items,[{name:'calendar',place:'This computer',state:'in Girru'}]);
  const text=JSON.stringify([skills,mcp]);assert.doesNotMatch(text,/SKILL\.md|\.claude|private|SECRET-TEXT|sk-live|hidden-one|prod/);
  assert.ok(f.calls.every(c=>c.method==='GET'&&c.path==='/api/memory/import/discovery'));
  for(const [tool,args] of [['skill_library',{operation:'found',id:'x'}],['workspace_apps',{operation:'found',scanId}]]){const n=f.calls.length;assert.equal((await callTool(tool,args,{backend:f.backend})).isError,true);assert.equal(f.calls.length,n);}

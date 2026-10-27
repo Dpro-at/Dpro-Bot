@@ -1,5 +1,5 @@
 /**
- * Quick helper (AGENTS-ORG-01, board SA1): a Dpro agent hands light,
+ * Quick helper (AGENTS-ORG-01, board SA1): a Girru agent hands light,
  * read-only work (look up, sum up, sort, draft) to the small local agent.
  * The owner turns it on per agent (Agent page › Sub-agents › Quick helper),
  * which grants these two tools; nothing is granted by default.

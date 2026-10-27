@@ -273,7 +273,7 @@ test('3. memory -> linked entities; one memory with usage, entities and readers 
 });
 
 test('4. company / department access columns gate pinned facts; role templates cap them', async () => {
-  await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Dpro.' }, 201);
+  await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Girru.' }, 201);
   await ok('POST', '/api/memory/scopes/pinned', { scope: `department:${mkt.id}`, text: 'Marketing posts on Tuesdays.' }, 201);
   await ok('POST', '/api/memory/scopes/pinned', { scope: PD, text: 'Alpha uses teal.' }, 201);
   const perms = (agent) => loadRunPermissions(agent, [], { userId: OWNER, project: project.slug });
@@ -283,7 +283,7 @@ test('4. company / department access columns gate pinned facts; role templates c
   await access([{ op: 'set_rule', scope: 'company', drawerKind: 'department', read: 'deny', write: 'deny' }]);
   assert.deepEqual((await perms('ms-main')).scopeRead, ['company']);
   const sys = system((await turn(conv.id, 'What do we pin?')).body);
-  assert.match(sys, /We are Dpro\./);
+  assert.match(sys, /We are Girru\./);
   assert.match(sys, /Alpha uses teal\./);
   assert.doesNotMatch(sys, /Tuesdays/);
   const eff = await ok('GET', `/api/memory/access/effective/ms-main?project=${project.slug}`);

@@ -1,8 +1,8 @@
-// MEM-BRIDGE-01: Dpro memory is the one brain for Claude Code, Codex, Gemini CLI and Antigravity.
-//  - a fact approved in Dpro appears in the managed AGENTS.md brief and in the MCP read tools;
-//  - owner text outside Dpro's markers stays byte for byte; no secret reaches any written file;
+// MEM-BRIDGE-01: Girru memory is the one brain for Claude Code, Codex, Gemini CLI and Antigravity.
+//  - a fact approved in Girru appears in the managed AGENTS.md brief and in the MCP read tools;
+//  - owner text outside Girru's markers stays byte for byte; no secret reaches any written file;
 //  - the MCP write tools only create review proposals / handoff notes; a note from Codex reaches Claude Code;
-//  - nothing for a folder Dpro does not know; kill switch per CLI; loopback + install proof + token;
+//  - nothing for a folder Girru does not know; kill switch per CLI; loopback + install proof + token;
 //  - registration preview -> confirm -> undo restores the CLI config byte for byte (temp HOME only);
 //  - back-flow: what a CLI writes in its own memory files comes back as review proposals, once.
 // Throwaway HOME, DB and keys; no model is reached (dead OLLAMA_URL, MEMORY_GRAPH_MODEL=off).
@@ -124,7 +124,7 @@ test('owner API: only the owner; status lists the CLIs (all off) and the project
   assert.equal(s.projects[0].filesEnabled, false);
 });
 
-test('a fact approved in Dpro appears in the managed brief; owner text outside the markers is untouched', async () => {
+test('a fact approved in Girru appears in the managed brief; owner text outside the markers is untouched', async () => {
   await learn({ userId: OWNER, actor: `owner:${OWNER}`, review: true, candidates: [{ content: 'Alpha deploys with the release script in scripts/release.sh', type: 'fact', drawer: { kind: 'project', key: project.slug }, origin: 'owner' }] });
   assert.equal(await approveAll(), 1);
   const pv = await call(OWNER, 'GET', `/api/memory-bridge/projects/${project.id}/files`);
@@ -293,13 +293,13 @@ test('registration: preview -> confirm -> undo restores each CLI config byte for
     const u = await call(OWNER, 'POST', `/api/memory-bridge/registrations/${reg.id}/undo`);
     assert.equal(u.statusCode, 200, u.body);
     assert.equal(u.json().mode, 'restored');
-    if (reg.client === 'antigravity') assert.equal(existsSync(reg.configPath), false, 'a file Dpro created is removed again');
+    if (reg.client === 'antigravity') assert.equal(existsSync(reg.configPath), false, 'a file Girru created is removed again');
     else assert.equal(readFileSync(reg.configPath, 'utf8'), originals[reg.client][1], `${reg.client} restored byte for byte`);
   }
   assert.equal((await call(OWNER, 'POST', `/api/memory-bridge/registrations/${tokens[0].id}/undo`)).statusCode, 409);
 });
 
-test('undo after the CLI changed its config removes only Dpro\'s entry', async () => {
+test('undo after the CLI changed its config removes only Girru\'s entry', async () => {
   const file = join(dir, '.codex', 'config.toml');
   const original = readFileSync(file, 'utf8');
   const preview = (await call(OWNER, 'GET', '/api/memory-bridge/clients/codex/registration')).json().preview;
@@ -331,7 +331,7 @@ test('back-flow: a CLI\'s own memory files come back as review proposals, each c
   assert.match(text, /Frankfurt/);
   assert.match(text, /CHANGES\.md/);
   assert.ok(!text.includes(SECRET), 'secret scan before review');
-  assert.ok(!text.includes('Alpha deploys with the release script'), 'Dpro\'s own section is not imported back');
+  assert.ok(!text.includes('Alpha deploys with the release script'), 'Girru\'s own section is not imported back');
   const again = (await call(OWNER, 'POST', `/api/memory-bridge/projects/${project.id}/backflow`)).json().result;
   assert.equal(again.proposed, 0, 'each chunk once');
 });
@@ -378,7 +378,7 @@ test('the real stdio server starts the way a CLI starts it, lists its tools and 
   assert.deepEqual(tools, ['handoff_write', 'latest_handoff', 'memory_propose', 'memory_search', 'pinned_facts', 'project_brief', 'project_design']);
   const r = await c.callTool({ name: 'project_brief', arguments: {} });
   assert.ok(r.isError);
-  assert.match(r.content[0].text, /Cannot reach Dpro/);
+  assert.match(r.content[0].text, /Cannot reach Girru/);
   await c.close();
 });
 

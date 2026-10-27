@@ -1,5 +1,5 @@
 #!/bin/bash
-# Dpro Bot — Backend Self-Restart (Linux/Mac)
+# Girru — Backend Self-Restart (Linux/Mac)
 #
 # Usage:
 #   bash packages/backend/restart-backend.sh

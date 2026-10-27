@@ -256,7 +256,7 @@ export async function testPayload(url, payload, category, timeout = 60000) {
 }
 
 /**
- * Self-audit Dpro Bot backend security (ENHANCED - Phase 5)
+ * Self-audit Girru backend security (ENHANCED - Phase 5)
  * Comprehensive security assessment with 14 headers + 6 advanced tests
  */
 export async function selfAudit(backendUrl) {

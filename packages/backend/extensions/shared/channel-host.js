@@ -11,7 +11,7 @@ export async function sendChannel(id, destination, text) {
   return runtime.send(destination, text);
 }
 
-/** Dpro Bot integration boundary: storage, identity and agent execution stay here. */
+/** Girru integration boundary: storage, identity and agent execution stay here. */
 export async function registerChannelRoutes(fastify, api, id, options = {}) {
   const db = api.db;
   db.exec(`CREATE TABLE IF NOT EXISTS channel_events (
@@ -40,7 +40,7 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
   async function send(destination, text, senderId = 'bot') {
     if (!active() || !connector) throw new Error('Channel is disabled or unconfigured');
     const delivery = await connector.send(destination, text);
-    insert({ ...delivery, senderId, senderName: 'Dpro Bot', text, timestamp: new Date().toISOString() }, 'outgoing', delivery.acknowledgement === 'adapter' ? 'accepted' : 'delivered');
+    insert({ ...delivery, senderId, senderName: 'Girru', text, timestamp: new Date().toISOString() }, 'outgoing', delivery.acknowledgement === 'adapter' ? 'accepted' : 'delivered');
     return delivery;
   }
   function allowed(message, config) {

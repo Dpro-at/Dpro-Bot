@@ -1,4 +1,4 @@
--- Dpro Bot Database Schema
+-- Girru Database Schema
 -- SQLite 3 with better-sqlite3
 
 -- Users Table (Authentication & Team Management)

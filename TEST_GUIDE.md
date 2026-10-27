@@ -1,4 +1,4 @@
-# 🧪 دليل التجربة - Dpro Bot Stub Installer
+# 🧪 دليل التجربة - Girru Stub Installer
 
 ## الخطوات للتجربة المحلية
 
@@ -26,7 +26,7 @@ cargo tauri build
 
 **النتيجة**:
 ```
-installer\target\release\bundle\msi\Dpro Bot_1.3.0_x64_en-US.msi
+installer\target\release\bundle\msi\Girru_1.3.0_x64_en-US.msi
 ```
 
 ---
@@ -35,7 +35,7 @@ installer\target\release\bundle\msi\Dpro Bot_1.3.0_x64_en-US.msi
 
 ```powershell
 # خيار 1: رفع يدوي على GitHub Releases
-# روح على: https://github.com/9mtm/Agent-Player/releases/new
+# روح على: https://github.com/Dpro-at/Girru/releases/new
 # Tag: v1.3.0-test
 # Upload: agent-player-files.zip
 
@@ -50,7 +50,7 @@ gh release create v1.3.0-test agent-player-files.zip --title "Test Release" --no
 ```powershell
 # شغّل الـ MSI installer
 cd C:\MAMP\htdocs\agent\agent_player\installer\target\release\bundle\msi
-.\Dpro Bot_1.3.0_x64_en-US.msi
+.\Girru_1.3.0_x64_en-US.msi
 ```
 
 **ما راح يصير**:
@@ -77,7 +77,7 @@ cd C:\MAMP\htdocs\agent\agent_player\installer\target\release\bundle\msi
 // في bundler.rs - مؤقت للتجربة
 let url = format!("file:///C:/MAMP/htdocs/agent/agent_player/agent-player-files.zip");
 // بدل:
-// let url = format!("https://github.com/9mtm/Agent-Player/releases/download/{}/agent-player-files.zip", version);
+// let url = format!("https://github.com/Dpro-at/Girru/releases/download/{}/agent-player-files.zip", version);
 ```
 
 ثم:
@@ -121,10 +121,10 @@ git tag v1.3.0
 git push origin v1.3.0
 
 # 4. راقب GitHub Actions
-# https://github.com/9mtm/Agent-Player/actions
+# https://github.com/Dpro-at/Girru/actions
 
 # 5. بعد 10 دقائق - الإصدار جاهز!
-# https://github.com/9mtm/Agent-Player/releases
+# https://github.com/Dpro-at/Girru/releases
 ```
 
 ---

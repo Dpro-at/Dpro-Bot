@@ -11,8 +11,8 @@
  *   GET  /api/memory/import/discovery/items/:id        preview (redacted) + previewHash
  *   POST /api/memory/import/discovery/import           { items: [{ id, previewHash, secret? }] } (1-100)
  *   POST /api/memory/import/discovery/items/:id/ignore { on }
- *   POST /api/memory/import/discovery/items/:id/remove take it out of Dpro (the file stays)
- *   POST /api/memory/import/discovery/items/:id/keep   gone from this computer: keep it in Dpro
+ *   POST /api/memory/import/discovery/items/:id/remove take it out of Girru (the file stays)
+ *   POST /api/memory/import/discovery/items/:id/keep   gone from this computer: keep it in Girru
  *
  * DISCOVER-02 (board M18):
  *   GET  …/places[?parent=<id>]           folders and drives (top level, or one folder's subfolders)

@@ -364,14 +364,14 @@ export class MemoryDesktopController extends Store<DesktopState> {
   /** Logo inspector: set as the main logo (undo puts the old main back) or "not a logo" (the file never changes). */
   setMainLogo(slug: string, id: string | null) {
     const d = this.getSnapshot().design; const before = d && d !== 'missing' ? d.logos.find(l => l.main)?.id ?? null : null;
-    return this.patchDesign(slug, { mainLogo: id }, { mainLogo: before }, id ? 'Set as the main logo.' : 'Dpro picks the main logo again.');
+    return this.patchDesign(slug, { mainLogo: id }, { mainLogo: before }, id ? 'Set as the main logo.' : 'Girru picks the main logo again.');
   }
   notLogo(slug: string, id: string) { this.publish({ logoOpen: null }); return this.patchDesign(slug, { notLogo: id }, null, 'Not shown as a logo any more. Your file was not changed.'); }
   setMainColour(slug: string, value: string) {
     const d = this.getSnapshot().design; const before = d && d !== 'missing' ? d.colours.find(c => c.main)?.value : undefined;
     return this.patchDesign(slug, { mainColour: value }, before ? { mainColour: before } : null, `Main colour: ${value}.`);
   }
-  setWriteFile(slug: string, on: boolean) { return this.patchDesign(slug, { writeFile: on }, { writeFile: !on }, on ? 'DESIGN.md is kept in the project folder.' : 'DESIGN.md is kept only inside Dpro now.'); }
+  setWriteFile(slug: string, on: boolean) { return this.patchDesign(slug, { writeFile: on }, { writeFile: !on }, on ? 'DESIGN.md is kept in the project folder.' : 'DESIGN.md is kept only inside Girru now.'); }
   /** The last automatic design change goes back (the notice's Undo for "Found the design"). */
   async undoDesign(slug: string): Promise<boolean> {
     try {

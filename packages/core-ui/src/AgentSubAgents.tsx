@@ -113,7 +113,7 @@ export function AddSubAgentSheet({client,agents,parent,onClose,onAdded}:{client:
  const starts:{key:'copy'|'specialty'|'empty';title:string;text:string;icon:UiIconName}[]=[{key:'copy',title:'Copy of it',text:'Same job and personality',icon:'copy'},{key:'specialty',title:'A specialty',text:'One from Library',icon:'layers'},{key:'empty',title:'Empty',text:'Write its job yourself',icon:'file'}];
  return <Sheet title={`A helper for ${parent.name??'this agent'}`} onClose={onClose} actions={<><button type="button" onClick={onClose}>Cancel</button><button type="button" className="primary" disabled={!ready} onClick={()=>void add()}>{busy?'Adding…':'Add sub-agent'}</button></>}>
   <div className="sa-sheet">
-   <label className="ag-field">Name<input value={name} maxLength={60} placeholder="Dpro picks a new name when left empty" onChange={e=>setName(e.target.value)}/></label>
+   <label className="ag-field">Name<input value={name} maxLength={60} placeholder="Girru picks a new name when left empty" onChange={e=>setName(e.target.value)}/></label>
    <span className="ag-field">Starts as</span>
    <div className="sa-starts" role="radiogroup" aria-label="Starts as">{starts.map(s=><button type="button" role="radio" aria-checked={startsAs===s.key} key={s.key} className="sa-start" onClick={()=>setStartsAs(s.key)}><UiIcon name={s.icon} size={16}/><b>{s.title}</b><small>{s.text}</small></button>)}</div>
    {startsAs==='specialty'&&<label className="ag-field">Specialty<select value={specialty} onChange={e=>setSpecialty(e.target.value)}><option value="">Choose one…</option>{specialties.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}

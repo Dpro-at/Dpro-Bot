@@ -11,7 +11,7 @@ import { q } from '../repositories/sql-steps.js';
 import { genvrSdk, linkedGenvrClient, GENVR_WEB, errorCode } from './genvr-account.js';
 
 export const TEST_WORLD_ID = 'dpro.publication.test';
-const TEST_TITLE = 'Dpro test world';
+const TEST_TITLE = 'Girru test world';
 
 export interface Publication { localId: string; serverId: string; title: string; status: 'draft' | 'published'; version: number; access: string; link: string | null; updatedAt: string }
 export class PublicationError extends Error { constructor(readonly code: string, readonly status = 400) { super(code); } }

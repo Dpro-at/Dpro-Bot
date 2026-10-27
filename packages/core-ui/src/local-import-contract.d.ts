@@ -1,6 +1,6 @@
 export type LocalSource = 'claude-code' | 'codex' | 'antigravity' | 'gemini-cli';
 export const LOCAL_SOURCES: readonly LocalSource[];
-/** `root`: the project folder the conversation belongs to; `project`: where its project facts go (`linked`: one of the owner's Dpro projects; else a project drawer named after the folder); `turns` is null when only the start of a large log was read. */
+/** `root`: the project folder the conversation belongs to; `project`: where its project facts go (`linked`: one of the owner's Girru projects; else a project drawer named after the folder); `turns` is null when only the start of a large log was read. */
 export type LocalSession = { id: string; source: LocalSource; cwd: string | null; root: string | null; rootName: string | null; project: { slug: string; name: string; linked: boolean } | null; title: string; startedAt: string | null; updatedAt: string; bytes: number; turns: number | null; imported: { importedAt: string; proposed: number } | null };
 export type ImportJob = { id: string; total: number; done: number; proposed: number; errors: number; status: 'running' | 'done' | 'error' | 'paused'; notice: string | null; automatic?: boolean };
 export const LOCAL_IMPORT_PATH: '/api/memory/import/local';

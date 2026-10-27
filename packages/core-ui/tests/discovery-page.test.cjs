@@ -31,7 +31,7 @@ function backend() {
   const kids = [P('d', 'Projects', { kind: 'folder', inherited: 'allow' }), P('e', 'Personal', { kind: 'folder', inherited: 'allow' })];
   const view = () => ({ scannedAt: new Date().toISOString(), ms: 1900, leftOut: 261, allowedFolders: 1, settings: { watch: true, intervalMinutes: 30, kinds }, file: '/secret/path',
     suggestions: [{ key: 'f'.repeat(32), a: { id: R1, name: 'flowxtra' }, b: { id: '9'.repeat(32), name: 'landdingpage_flowxtra' }, reason: 'one name is inside the other' }],
-    roots: [{ id: 'computer', name: 'This computer', path: null, project: 'not a project · SSH, user skills', count: 2, fresh: 1, watch: true }, { id: R1, name: 'flowxtra', path: '~/work/flowxtra', project: 'Dpro project Flowxtra', count: 5, fresh: 3, watch: true }, { id: '9'.repeat(32), name: 'landdingpage_flowxtra', path: '~/work/landdingpage_flowxtra', project: 'Projects · landdingpage-flowxtra', count: 1, fresh: 1, watch: true }, ...groups],
+    roots: [{ id: 'computer', name: 'This computer', path: null, project: 'not a project · SSH, user skills', count: 2, fresh: 1, watch: true }, { id: R1, name: 'flowxtra', path: '~/work/flowxtra', project: 'Girru project Flowxtra', count: 5, fresh: 3, watch: true }, { id: '9'.repeat(32), name: 'landdingpage_flowxtra', path: '~/work/landdingpage_flowxtra', project: 'Projects · landdingpage-flowxtra', count: 1, fresh: 1, watch: true }, ...groups],
     items: list });
   const client = { request: async r => {
     calls.push(r);
@@ -78,8 +78,8 @@ test('the page: projects with new counts, kinds and states, where each item goes
   await c.load();
   assert.equal(c.getSnapshot().rootId, R1, 'opens on the first project with something new');
   const html = renderToStaticMarkup(React.createElement(DiscoveryView, { c, active: false }));
-  for (const words of ['By project folder', 'This computer', 'flowxtra', '3 new', 'Found on this computer', 'Dpro only reads; your files never change', 'Scan now', 'Watch', '30 min',
-    'Memory files', 'Project notes', 'MCP servers', 'SSH hosts', 'Needs your decision', 'Gone from this computer', 'Dpro project Flowxtra', '~/work/flowxtra', 'Stop watching this project',
+  for (const words of ['By project folder', 'This computer', 'flowxtra', '3 new', 'Found on this computer', 'Girru only reads; your files never change', 'Scan now', 'Watch', '30 min',
+    'Memory files', 'Project notes', 'MCP servers', 'SSH hosts', 'Needs your decision', 'Gone from this computer', 'Girru project Flowxtra', '~/work/flowxtra', 'Stop watching this project',
     'brand-voices', 'Lessons', 'Changed', 'Update', 'Review', 'Keep', 'Import selected', 'Memory files go in as they are (no model)', 'Rules of this page', '261 files were left out: copies, archives and other people', 'private SSH keys, .env files'])
     assert.ok(html.includes(words), words);
   c.setKind('memory'); assert.deepEqual(c.shown().map(i => i.name), ['brand-voices', 'brand-colors', 'old-server']);
@@ -121,10 +121,10 @@ test('ignore, remove (from the opened item), keep, watch settings, stop watching
   assert.match(c.getSnapshot().result, /Ignored/);
   await c.open(I(4));
   let html = renderToStaticMarkup(React.createElement(DiscoveryView, { c, active: false }));
-  assert.ok(html.includes('Read again') && !html.includes('>Remove from Dpro</button>'), 'notes are read again, not removed one by one');
+  assert.ok(html.includes('Read again') && !html.includes('>Remove from Girru</button>'), 'notes are read again, not removed one by one');
   c.setRoot('computer'); await c.open(I(7));
   html = renderToStaticMarkup(React.createElement(DiscoveryView, { c, active: false }));
-  assert.ok(html.includes('>Remove from Dpro</button>'));
+  assert.ok(html.includes('>Remove from Girru</button>'));
   await c.remove(I(7));
   assert.match(c.getSnapshot().result, /file on this computer is unchanged/);
   await c.keep(I(5));
@@ -147,7 +147,7 @@ test('folders: tick several, allow them at once; leave a subfolder out; count; w
   const c = new DiscoveryController(client);
   await c.load(); await c.loadPlaces();
   let html = renderToStaticMarkup(React.createElement(DiscoveryView, { c, active: false }));
-  for (const words of ['Folders Dpro may read', 'Documents', 'Work drive', 'drive', 'What to read', 'Agent notes (.md)', 'Agent commands and sub-agents', 'Word, PDF, Excel and images: later.', 'Never read, even in an allowed folder', '+ Add a drive or folder'])
+  for (const words of ['Folders Girru may read', 'Documents', 'Work drive', 'drive', 'What to read', 'Agent notes (.md)', 'Agent commands and sub-agents', 'Word, PDF, Excel and images: later.', 'Never read, even in an allowed folder', '+ Add a drive or folder'])
     assert.ok(html.includes(words), words);
   const [docs, desk, work] = c.getSnapshot().places.top;
   c.tick(docs, true); c.tick(work, true);

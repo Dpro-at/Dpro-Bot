@@ -1,10 +1,10 @@
 {
   "id": "waf-security",
   "name": "WAF Security Scanner",
-  "description": "Test WAF protection on any website + self-audit Dpro Bot security",
+  "description": "Test WAF protection on any website + self-audit Girru security",
   "version": "1.0.0",
   "type": "tool",
-  "author": "Dpro Bot",
+  "author": "Dpro",
   "main": "index.js",
   "permissions": ["network", "database", "tools"],
   "frontendRoutes": [

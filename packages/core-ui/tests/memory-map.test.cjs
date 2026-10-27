@@ -10,7 +10,7 @@ const { KnowledgeMap } = require('../src/MemoryMap.tsx');
 
 const ent = (id, name, kind) => ({ id, kind, name, aliases: id === 'ahmed' ? ['أحمد'] : [], memories: 2, links: 1, updatedAt: '2026-10-21T08:00:00.000Z' });
 const lk = (id, from, to, type, status = 'active') => ({ id, type, status, from: { id: from, name: from, kind: 'person' }, to: { id: to, name: to, kind: 'project' }, memoryIds: ['m1'], createdAt: '2026-10-20T08:00:00.000Z' });
-const entities = [ent('ahmed', 'Ahmed', 'person'), ent('flowxtra', 'Flowxtra', 'project'), ent('dpro', 'Dpro', 'project'), ent('genvr', 'GenVR', 'project'), ent('videos', 'Short videos', 'topic'), ent('far', 'Far away', 'place')];
+const entities = [ent('ahmed', 'Ahmed', 'person'), ent('flowxtra', 'Flowxtra', 'project'), ent('dpro', 'Girru', 'project'), ent('genvr', 'GenVR', 'project'), ent('videos', 'Short videos', 'topic'), ent('far', 'Far away', 'place')];
 const links = { active: [lk('l1', 'ahmed', 'flowxtra', 'works_on'), lk('l2', 'genvr', 'dpro', 'part_of'), lk('l4', 'flowxtra', 'dpro', 'depends_on')], pending: [lk('l3', 'ahmed', 'videos', 'prefers', 'pending')] };
 
 function backend() {
@@ -37,7 +37,7 @@ test('the map loads at most 150 nodes, filters by kind and shows 1–2 links aro
   c.toggleKind('place'); assert.equal(c.visible().nodes.some(n => n.id === 'far'), false);
   await c.select('ahmed');
   c.setDepth(1); assert.deepEqual(c.visible().nodes.map(n => n.id).sort(), ['ahmed', 'flowxtra', 'videos']);
-  c.setDepth(2); assert.ok(c.visible().nodes.some(n => n.id === 'dpro'), 'two links deep reaches Dpro');
+  c.setDepth(2); assert.ok(c.visible().nodes.some(n => n.id === 'dpro'), 'two links deep reaches Girru');
   const html = renderToStaticMarkup(React.createElement(KnowledgeMap, { c, onOpenMemories: () => {} }));
   for (const words of ['People', 'Projects', 'Topics', 'prefers (review)', 'Ahmed', 'Also: أحمد', 'waiting for your review', 'Runs Flowxtra marketing since June.', 'Open all 2 memories about Ahmed', 'Zoom in'])
     assert.ok(html.includes(words), words);

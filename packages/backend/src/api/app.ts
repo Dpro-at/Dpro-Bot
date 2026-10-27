@@ -13,7 +13,7 @@ import {securityCoverageRoutes} from './routes/security-coverage.js';
 import {chatAddonsRoutes} from './routes/chat-addons.js';
 import { mcpImportRoutes } from './routes/mcp-import.js';
 /**
- * Dpro Bot Fastify app factory.
+ * Girru Fastify app factory.
  *
  * buildServer() creates the Fastify instance with every global hook and the
  * core route plugins, without initializing background systems and without
@@ -300,7 +300,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
       },
     },
   }, async () => ({
-    name: 'Dpro Bot Backend',
+    name: 'Girru Backend',
     version: '0.1.0',
     docs: '/docs'
   }));

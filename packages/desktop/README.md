@@ -1,8 +1,8 @@
-# Dpro desktop app
+# Girru desktop app
 
-Electron shell for Dpro. One window, one instance.
+Electron shell for Girru. One window, one instance.
 
-- **This computer:** the app starts the Dpro backend on the bundled
+- **This computer:** the app starts the Girru backend on the bundled
   Node runtime, on `127.0.0.1` with a random port and a fresh per-launch token
   that every request must carry. The UI bridge (`packages/core-ui/scripts/application-server.cjs`)
   runs inside the app on a second random loopback port and adds the token; the
@@ -12,8 +12,8 @@ Electron shell for Dpro. One window, one instance.
   instead of creating an account. A new workspace requires an explicit choice
   and confirmation, then opens owner setup with a one-time local code. The
   password form offers local generation, visibility and strength guidance.
-- **An existing Dpro:** menu → *Connect to an Existing Dpro…* opens another
-  Dpro after checking its setup endpoint, by its `https://` address (or `http://` on this computer, for example
+- **An existing Girru:** menu → *Connect to an Existing Girru…* opens another
+  Girru after checking its setup endpoint, by its `https://` address (or `http://` on this computer, for example
   through an SSH tunnel). Nothing runs locally then.
 - **Quit** (menu, Cmd/Ctrl+Q or closing the window) stops the backend first:
   an IPC shutdown request, then a forced stop after 15 s. The backend also

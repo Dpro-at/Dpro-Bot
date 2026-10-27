@@ -106,7 +106,7 @@ export async function agentsConfigRoutes(fastify: FastifyInstance) {
     if (!actor) return reply;
     try {
       const rows = await agents().listConfigs(actor);
-      // AGENTS-ORG-01: who each agent reports to (the owner's choice, else Dpro's place) and whose sub-agent it is.
+      // AGENTS-ORG-01: who each agent reports to (the owner's choice, else Girru's place) and whose sub-agent it is.
       const org = orgFields(await orgRows());
       return reply.send({ agents: rows.map(r => ({ ...parseAgent(r), ...(org.get(r.id) ?? {}) })) });
     } catch (err: any) {
@@ -212,7 +212,7 @@ export async function agentsConfigRoutes(fastify: FastifyInstance) {
   });
 
   // PUT /api/agents/:id/reports-to { reportsTo: id | null, expectedVersion? } — owner only (AGENTS-ORG-01).
-  //   null hands the place back to Dpro. 400 main_fixed / sub_agent / not_movable / invalid_target / circle,
+  //   null hands the place back to Girru. 400 main_fixed / sub_agent / not_movable / invalid_target / circle,
   //   404 not_found, 409 version_conflict.
   fastify.put<{ Params: { id: string }; Body: unknown }>('/api/agents/:id/reports-to', { config: { access: 'owner' } }, async (req, reply) => {
     const actor = admin(req, reply);

@@ -1,6 +1,6 @@
 # Database Structure
 
-Dpro Bot uses SQLite database stored in `packages/backend/.data/database.db`
+Girru uses SQLite database stored in `packages/backend/.data/database.db`
 
 ---
 

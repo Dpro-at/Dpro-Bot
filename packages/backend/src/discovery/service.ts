@@ -1,7 +1,7 @@
 /**
  * "Found on this computer" (DISCOVER-01, board M17): one scan finds what coding
  * agents left on this computer, grouped by project folder and kind, and hands
- * each item to the part of Dpro that already owns it.
+ * each item to the part of Girru that already owns it.
  *
  *   memory  Claude Code memory files  ~/.claude/projects/<folder>/memory/*.md
  *           → one memory each (user → About you, feedback → Lessons,
@@ -25,7 +25,7 @@
  * memory, note, design and database; Skills, MCP and Terminal ask for theirs.
  *
  * Read only: no file here is ever changed, moved or deleted (DESIGN.md, written
- * between Dpro's markers by the design store, is the one file Dpro keeps).
+ * between Girru's markers by the design store, is the one file Girru keeps).
  * Never read: private keys (an IdentityFile is named, never opened), .env files
  * (except the DB_* connection names, never a password), browser, keychain or
  * wallet data. Paths work on macOS, Windows and Linux (os.homedir + path).
@@ -180,7 +180,7 @@ async function projectNotes(home: string, known: string[], allowed: { allow: str
   const starts = [...new Set([...known, ...allowed.allow])];
   const walked = new Set<string>();
   const seen = new Set<string>(); const roots = new Map<string, string>();
-  // A file belongs to its git project; outside git, to the nearest project Dpro already knows, else to its own folder.
+  // A file belongs to its git project; outside git, to the nearest project Girru already knows, else to its own folder.
   const knownRoots = [...known].sort((x, y) => y.length - x.length);
   const rootOf = async (dir: string) => {
     if (roots.has(dir)) return roots.get(dir)!;
@@ -332,7 +332,7 @@ function projectSlugOf(root: string | null, ctx: Ctx): string | null {
 }
 /**
  * Design and databases join their project on their own (no import step):
- * each scan stores what it found per project (the project joins Dpro by its
+ * each scan stores what it found per project (the project joins Girru by its
  * folder name when it was not known yet). A kind that is off is left alone.
  */
 async function applyProjectTech(userId: string, s: Scan, home: string, on: { design: boolean; databases: boolean }) {
@@ -410,17 +410,17 @@ export async function scan(userId: string, opts: DiscoveryOptions = {}): Promise
 }
 
 type Ctx = { projects: Project[]; home: string; groupOf?: Map<string, P.Group> };
-/** A Dpro skill with this name, and whether this page added it (only then may it be replaced). */
+/** A Girru skill with this name, and whether this page added it (only then may it be replaced). */
 async function skillInDpro(userId: string, name: string, saved: Row | undefined) {
   const s = await q.one<{ id: string; content_hash: string }>('SELECT id, content_hash FROM central_skills WHERE name = ?', name).catch(() => undefined);
   if (!s) return null;
   const agents = (await q.one<{ n: number }>('SELECT COUNT(*) AS n FROM central_agent_skills WHERE skill_id = ?', s.id).catch(() => undefined))?.n ?? 0;
   return { ...s, agents: Number(agents), ours: saved?.ref === s.id };
 }
-/** Where an item goes in Dpro, and the memory drawer for memory files. */
+/** Where an item goes in Girru, and the memory drawer for memory files. */
 function destination(f: Pick<Found, 'kind' | 'root' | 'memory' | 'mcp'> & { skillTaken?: { agents: number } }, ctx: Ctx): { to: string; drawer: string } {
   const group = f.root ? ctx.groupOf?.get(f.root) : undefined;
-  // A merged project: the first of its folders that is a Dpro project, else the merged project's own drawer.
+  // A merged project: the first of its folders that is a Girru project, else the merged project's own drawer.
   const project = group ? group.roots.map((r) => matchProject(r, r, ctx.projects)).find(Boolean) : f.root ? matchProject(f.root, f.root, ctx.projects) : undefined;
   const key = project?.slug ?? (group ? group.slug : rootDrawerKey(f.root, ctx.home));
   const projectDrawer = key ? `project:${key}` : 'owner';
@@ -502,7 +502,7 @@ export async function view(userId: string, opts: DiscoveryOptions & { rescan?: b
     const key = project ? null : group ? group.slug : rootDrawerKey(g.root, home);
     const hiddenHere = [...(hidden.get(id) ?? [])];
     return { id, name: group ? group.name : g.root ? path.basename(g.root) || g.root : 'This computer', path: group ? group.roots.map((r) => homeRel(home, r)).join('  +  ') : g.root ? homeRel(home, g.root) : null,
-      project: project ? `Dpro project ${project.name}` : key ? `Projects · ${key}` : g.root ? 'About you' : 'not a project · SSH, user skills', count: g.count, fresh: g.fresh, watch: true,
+      project: project ? `Girru project ${project.name}` : key ? `Projects · ${key}` : g.root ? 'About you' : 'not a project · SSH, user skills', count: g.count, fresh: g.fresh, watch: true,
       ...(group ? { group: { members: group.roots.map((r) => ({ id: rootId(r), name: path.basename(r) || r, path: homeRel(home, r) })) } } : {}), ...(hiddenHere.length ? { hidden: hiddenHere } : {}) };
   });
   for (const id of unwatched) roots.push({ id, name: 'Not watched', path: null, project: null, count: 0, fresh: 0, watch: false });
@@ -627,7 +627,7 @@ export async function importItems(userId: string, items: { id: string; previewHa
         await save(userId, f, 'imported', r.duplicate && !existing?.ours ? null : r.skill.id, f.hash);
       } else if (f.kind === 'mcp') {
         const r = await mcp.importFound(userId, f.mcp!, f.mcp!.hash ?? '', it.secret !== 'leave');
-        // A server that was already in Dpro is not this page's to remove later.
+        // A server that was already in Girru is not this page's to remove later.
         await save(userId, f, 'imported', r.duplicate ? null : r.id, f.hash);
       } else {
         const h = f.ssh!;
@@ -670,7 +670,7 @@ export async function ignore(userId: string, id: string, on: boolean) {
   return { id, ignored: on };
 }
 
-/** Take an imported item out of Dpro (the file here stays); it is then ignored so it is not offered again. */
+/** Take an imported item out of Girru (the file here stays); it is then ignored so it is not offered again. */
 export async function remove(userId: string, id: string) {
   await init();
   if (!/^[a-f0-9]{32}$/.test(id)) throw new DiscoveryError('invalid_input');
@@ -690,7 +690,7 @@ export async function remove(userId: string, id: string) {
   await q.run("UPDATE discovery_items SET state = 'ignored', ref = NULL, updated_at = ? WHERE user_id = ? AND item_id = ?", new Date().toISOString(), userId, id);
   return { id, removed: true };
 }
-/** Gone from this computer: keep what Dpro has (stop showing it as gone). */
+/** Gone from this computer: keep what Girru has (stop showing it as gone). */
 export async function keep(userId: string, id: string) {
   await init();
   if (!/^[a-f0-9]{32}$/.test(id)) throw new DiscoveryError('invalid_input');

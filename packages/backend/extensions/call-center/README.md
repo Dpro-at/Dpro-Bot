@@ -192,7 +192,7 @@ npm install @google-cloud/text-to-speech
 2. Copy **Account SID** (starts with `AC...`)
 3. Copy **Auth Token** (click "View" to reveal)
 
-### Step 3: Configure in Dpro Bot
+### Step 3: Configure in Girru
 1. Enable Call Center extension
 2. Go to `/dashboard/call-center` → **Settings** tab
 3. Paste Account SID and Auth Token
@@ -385,4 +385,4 @@ With 5 tabs:
 
 ## License
 
-MIT - Part of Dpro Bot
+MIT - Part of Girru

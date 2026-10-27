@@ -21,7 +21,7 @@ test('a specialty draft is never written to browser storage (it may hold pasted 
  for(const f of ['specialty-draft.ts','SpecialtyLibrary.tsx'])assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../src',f),'utf8'),/localStorage|sessionStorage|indexedDB/,f);
 });
 test('skills show readable titles, never package slugs',()=>{
- assert.match(library,/return s\?skillTitle\(s\.name\):'Skill no longer in Dpro'/);assert.match(library,/<b>\{skillTitle\(s\.name\)\}<\/b>/);
+ assert.match(library,/return s\?skillTitle\(s\.name\):'Skill no longer in Girru'/);assert.match(library,/<b>\{skillTitle\(s\.name\)\}<\/b>/);
  assert.match(agentPart,/return s\?skillTitle\(s\.name\):'A skill'/);assert.match(agentPart,/<b>\{skillTitle\(s\.name\)\}<\/b>/);
  assert.doesNotMatch(library+agentPart,/<b>\{s\.name\}<\/b>/);
  const {skillTitle}=require('../src/skill-display.ts');assert.equal(skillTitle('content-studio'),'Content studio');

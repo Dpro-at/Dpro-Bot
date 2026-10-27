@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Dpro Bot GitHub Release Creation Script
+# Girru GitHub Release Creation Script
 # Creates a new GitHub release with all installer files
 #
 # Prerequisites:
@@ -11,11 +11,11 @@
 set -e  # Exit on error
 
 VERSION="1.3.0"
-REPO="9mtm/Agent-Player"
+REPO="Dpro-at/Girru"
 RELEASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/releases"
 
 echo "========================================"
-echo "Dpro Bot Release Creation Script"
+echo "Girru Release Creation Script"
 echo "Version: $VERSION"
 echo "Repository: $REPO"
 echo "========================================"
@@ -83,7 +83,7 @@ echo ""
 # Create release notes
 echo "[3/5] Creating release notes..."
 RELEASE_NOTES=$(cat <<'EOF'
-# 🎉 Dpro Bot v1.3.0 - Professional Desktop Installer
+# 🎉 Girru v1.3.0 - Professional Desktop Installer
 
 Complete transformation from manual installation to one-click desktop application!
 
@@ -122,10 +122,10 @@ Verify downloads using `checksums.txt` (SHA256).
 
 Complete guides included:
 
-- [Installation Guide](https://github.com/9mtm/Agent-Player/blob/main/docs/INSTALLATION.md) (~650 lines)
-- [Deployment Guide](https://github.com/9mtm/Agent-Player/blob/main/docs/DEPLOYMENT.md) (~800 lines)
-- [Upgrading Guide](https://github.com/9mtm/Agent-Player/blob/main/docs/UPGRADING.md) (~450 lines)
-- [Testing Checklist](https://github.com/9mtm/Agent-Player/blob/main/docs/TESTING_CHECKLIST.md) (234 scenarios)
+- [Installation Guide](https://github.com/Dpro-at/Girru/blob/main/docs/INSTALLATION.md) (~650 lines)
+- [Deployment Guide](https://github.com/Dpro-at/Girru/blob/main/docs/DEPLOYMENT.md) (~800 lines)
+- [Upgrading Guide](https://github.com/Dpro-at/Girru/blob/main/docs/UPGRADING.md) (~450 lines)
+- [Testing Checklist](https://github.com/Dpro-at/Girru/blob/main/docs/TESTING_CHECKLIST.md) (234 scenarios)
 
 ## 🚀 Quick Start
 
@@ -144,7 +144,7 @@ Complete guides included:
 ### macOS
 1. Download `agent-player-installer-1.3.0-macos-universal.dmg`
 2. Open DMG and drag to Applications
-3. Run Dpro Bot Installer
+3. Run Girru Installer
 4. Follow 8-step wizard
 
 ## 🔒 Security
@@ -156,12 +156,12 @@ All installers are:
 
 ## 🆕 Migration from v1.2.x
 
-Existing users can migrate using the new installer. See [UPGRADING.md](https://github.com/9mtm/Agent-Player/blob/main/docs/UPGRADING.md) for detailed instructions.
+Existing users can migrate using the new installer. See [UPGRADING.md](https://github.com/Dpro-at/Girru/blob/main/docs/UPGRADING.md) for detailed instructions.
 
 ## 💬 Support
 
-- **Issues**: https://github.com/9mtm/Agent-Player/issues
-- **Discussions**: https://github.com/9mtm/Agent-Player/discussions
+- **Issues**: https://github.com/Dpro-at/Girru/issues
+- **Discussions**: https://github.com/Dpro-at/Girru/discussions
 
 ## 🙏 Credits
 
@@ -169,7 +169,7 @@ Built by: **9mtm** (Creator) with **Claude Code** (AI Assistant)
 
 ---
 
-**Full Changelog**: https://github.com/9mtm/Agent-Player/blob/main/CHANGELOG.md
+**Full Changelog**: https://github.com/Dpro-at/Girru/blob/main/CHANGELOG.md
 EOF
 )
 
@@ -200,7 +200,7 @@ echo "[5/5] Creating GitHub Release..."
 
 gh release create "v${VERSION}" \
     --repo "$REPO" \
-    --title "Dpro Bot v${VERSION} - Professional Desktop Installer" \
+    --title "Girru v${VERSION} - Professional Desktop Installer" \
     --notes "$RELEASE_NOTES" \
     "${REQUIRED_FILES[@]}" \
     checksums.txt

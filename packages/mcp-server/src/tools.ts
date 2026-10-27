@@ -43,13 +43,13 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. Apps in the Dpro window has two places: My apps (installed apps only: Terminal, Trading, Code, GenVR and any app installed) and Store (Dpro\u2019s catalogue \u2014 the apps that come with Dpro, then its registry \u2014 and the add-ons in coding apps). MCP connections, Channels and Accounts are places in Settings, not in Apps. list: My apps, with the MCP connections listed apart (Settings \u203a MCP connections). store: what the Store shows (catalogue and add-ons, read only); catalogue and addons read each part. MCP connections (Settings \u203a MCP connections): read one (its tools and which agents may use them), add one disabled, or turn one off; found lists MCP servers the folder scan found on this computer (names, place and state only; read only); look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner\u2019s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in Settings \u203a MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (Settings \u203a Channels: chat channels and who may write), accounts (Settings \u203a Accounts: linked accounts such as GenVR); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
+    description:'Owner-session only. Apps in the Girru window has two places: My apps (installed apps only: Terminal, Trading, Code, GenVR and any app installed) and Store (Girru\u2019s catalogue \u2014 the apps that come with Girru, then its registry \u2014 and the add-ons in coding apps). MCP connections, Channels and Accounts are places in Settings, not in Apps. list: My apps, with the MCP connections listed apart (Settings \u203a MCP connections). store: what the Store shows (catalogue and add-ons, read only); catalogue and addons read each part. MCP connections (Settings \u203a MCP connections): read one (its tools and which agents may use them), add one disabled, or turn one off; found lists MCP servers the folder scan found on this computer (names, place and state only; read only); look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner\u2019s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in Settings \u203a MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (Settings \u203a Channels: chat channels and who may write), accounts (Settings \u203a Accounts: linked accounts such as GenVR); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','store','read','add','disable','found','look','preview','import','channels','accounts','addons','catalogue']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
   {
     name:'agents',title:'Agents (read only)',
-    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Dpro, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Dpro place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Files (agent page \u203a Files): files (id: its files — Who it is, What it keeps in mind, Knowledge — with which ones it reads) and file (id, name: What it keeps in mind or a Knowledge file; secrets hidden; Who it is stays in the app). Only on the owner\u2019s explicit instruction: write_file (id, name, content) creates or replaces a Knowledge file (.md .txt .csv .json, up to 1 MB); it is not read into answers until the owner turns it on in the app. Who it is and What it keeps in mind are changed by the owner in the app. How the owner sees the team: chart (read: List or Chart, arranged by who reports to whom or by department, line style, zoom) and set_chart (view, mode, lines, zoom) on the owner\u2019s instruction. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent or a file, stopping work and the quick helper switch); this tool refuses them.',
+    description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Girru, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Girru place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Files (agent page \u203a Files): files (id: its files — Who it is, What it keeps in mind, Knowledge — with which ones it reads) and file (id, name: What it keeps in mind or a Knowledge file; secrets hidden; Who it is stays in the app). Only on the owner\u2019s explicit instruction: write_file (id, name, content) creates or replaces a Knowledge file (.md .txt .csv .json, up to 1 MB); it is not read into answers until the owner turns it on in the app. Who it is and What it keeps in mind are changed by the owner in the app. How the owner sees the team: chart (read: List or Chart, arranged by who reports to whom or by department, line style, zoom) and set_chart (view, mode, lines, zoom) on the owner\u2019s instruction. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent or a file, stopping work and the quick helper switch); this tool refuses them.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department','org','sub_agents','sub_agent_work','set_reports_to','add_sub_agent','files','file','write_file','chart','set_chart']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64},reportsTo:{type:['string','null'],maxLength:128},name:{type:'string',maxLength:60},startsAs:{type:'string',enum:['copy','empty']},description:{type:'string',maxLength:1000},tools:{type:'array',maxItems:100,items:{type:'string',maxLength:64}},content:{type:'string',maxLength:1048576},view:{type:'string',enum:['list','chart']},mode:{type:'string',enum:['reports','departments']},lines:{type:'string',enum:['elbow','curved','straight']},zoom:{type:'number',minimum:0.3,maximum:1.6}},required:['operation'],additionalProperties:false},
   },
   {
@@ -60,7 +60,7 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_footer',title:'Footer sections',
-    description:'Owner-session only. Read or change which sections the Dpro window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
@@ -70,7 +70,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'skill_library',title:'Skill library',
-    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Dpro\u2019s official catalogue, read only), found (skills the folder scan found on this computer: names, place and state only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write only on the owner\u2019s explicit instruction: add (a new package from look, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Dpro\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Adding what the folder scan found is done by the owner in the app. Removing a skill from Dpro is not available.',
+    description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Girru\u2019s official catalogue, read only), found (skills the folder scan found on this computer: names, place and state only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write only on the owner\u2019s explicit instruction: add (a new package from look, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Girru\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Adding what the folder scan found is done by the owner in the app. Removing a skill from Girru is not available.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','found','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
   },
   {
@@ -89,8 +89,8 @@ export const TOOL_DEFINITIONS = [
     name: 'spawn_small_agent',
     title: 'Delegate a light task to the small local agent',
     description: [
-      'Hand ONE light, self-contained task to the Dpro Bot small local agent (local Qwen model; free, private, slower and less capable than you).',
-      'Good for: lookups in Dpro Bot memory/storage, summaries of text you pass in, classification/tagging, first drafts.',
+      'Hand ONE light, self-contained task to the Girru small local agent (local Qwen model; free, private, slower and less capable than you).',
+      'Good for: lookups in Girru memory/storage, summaries of text you pass in, classification/tagging, first drafts.',
       'Not for: code changes, security decisions, anything that sends, pays, deletes, installs or runs commands (the small agent has no such tools), or tasks needing deep reasoning.',
       'Returns a run id at once; fetch the result card with get_result. Outputs marked needs_review must be checked by you before use.',
       'The small agent only gets read-only tools (memory_search, storage_search, read, memory_graph) and only the memory drawers you name; delegation never adds permissions.',
@@ -111,7 +111,7 @@ export const TOOL_DEFINITIONS = [
         max_steps: { type: 'integer', minimum: 1, maximum: 100, description: 'Step budget (model + tool calls). Default and upper limit 15.' },
         read_dir: {
           type: 'string', maxLength: 1024,
-          description: 'Absolute directory the "read" tool may read (only with tools including "read"; must be inside a folder the owner allowed with SMALL_AGENT_READ_ROOTS on the backend, otherwise refused; never the Dpro Bot backend, data, config or credential folders; .env, keys, tokens and databases stay blocked). Default: the small agent\'s own workspace.',
+          description: 'Absolute directory the "read" tool may read (only with tools including "read"; must be inside a folder the owner allowed with SMALL_AGENT_READ_ROOTS on the backend, otherwise refused; never the Girru backend, data, config or credential folders; .env, keys, tokens and databases stay blocked). Default: the small agent\'s own workspace.',
         },
       },
       required: ['task'],
@@ -319,7 +319,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       }
       return fail(err.message);
     }
-    return fail('Unexpected error in the Dpro Bot MCP server.');
+    return fail('Unexpected error in the Girru MCP server.');
   }
 }
 
@@ -460,7 +460,7 @@ async function editHandoff(args: Record<string, unknown>, { backend }: HandlerDe
 
 /** "Found on this computer" (the same folder scan as Memory), read only: names, place and state.
  *  File paths, file text and secret values are left out; adding what was found stays with the owner in the app. */
-const FOUND_STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs the owner\u2019s decision',imported:'in Dpro',gone:'gone from this computer'};
+const FOUND_STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs the owner\u2019s decision',imported:'in Girru',gone:'gone from this computer'};
 const FOUND_REFUSED='Adding what the folder scan found is done by the owner in the app (Found on this computer / This computer); it may ask where a key goes. This tool only lists it (operation found).';
 async function foundOnComputer(backend:BackendClient,kind:'skill'|'mcp'){
  const view=obj(await backend.request('GET','/api/memory/import/discovery'));
@@ -476,19 +476,19 @@ async function skillLibraryTool(args:Record<string,unknown>,{backend}:HandlerDep
  const agentId=()=>{const v=need('agentId',SKILL_AGENT,'agentId');if(v==='small-local-agent')throw new InputError('The small local agent has no skills');return v;};
  const note='A skill is guidance only; it never grants tools, connections or memory.';
  switch(operation){
-  case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Dpro. ${note}`,{skills:list?.skills??[],usage});}
+  case 'list':{only(args,['operation']);const list=await backend.request('GET',base);let usage:unknown=null;try{usage=(await backend.request('GET',base+'/usage'))?.usage??null;}catch{usage=null;}return ok(`Skills in Girru. ${note}`,{skills:list?.skills??[],usage});}
   case 'read':{only(args,['operation','id']);return ok(`Skill files (Markdown only). ${note}`,await backend.request('GET',`${base}/items/${need('id',SKILL_ID,'skill id')}`));}
   case 'agent':{only(args,['operation','agentId']);return ok('Skills this agent has.',await backend.request('GET',`${base}/agents/${agentId()}`));}
   case 'found':{only(args,['operation']);return ok('Skills the folder scan found on this computer (read only; names, place and state). The owner adds them in the app.',await foundOnComputer(backend,'skill'));}
   case 'add_found':case 'import_found':throw new InputError(FOUND_REFUSED);
-  case 'catalogue':{only(args,['operation']);return ok('Dpro\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
+  case 'catalogue':{only(args,['operation']);return ok('Girru\u2019s official catalogue (read only). Adding from it needs the owner\u2019s authenticator code in the app.',await backend.request('GET','/api/skills/reviewed-installs/catalogue'));}
   case 'look':{only(args,['operation']);return ok('Looking for skill packages from coding apps on this computer. Nothing there changes. Call look_status with the scan id.',await backend.request('POST',base+'/scan',{}));}
   case 'look_status':{only(args,['operation','scanId']);return ok('Skill packages found so far.',await backend.request('GET',`${base}/scans/${need('scanId',SKILL_ID,'scanId')}`));}
-  case 'preview':{only(args,['operation','scanId','sourceId']);return ok('The package files as they would be added (secrets hidden; scripts and links left out). existing shows whether Dpro has a copy.',await backend.request('POST',base+'/preview',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId')}));}
+  case 'preview':{only(args,['operation','scanId','sourceId']);return ok('The package files as they would be added (secrets hidden; scripts and links left out). existing shows whether Girru has a copy.',await backend.request('POST',base+'/preview',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId')}));}
   // Changes to what agents follow stay with the owner in the app (same as specialties): MCP can only add an unassigned skill.
   case 'give':case 'take_back':case 'update':throw new InputError('Giving, taking back and updating a skill change what agents follow; the owner does them in the app after its review');
-  case 'add':{only(args,['operation','scanId','sourceId','hash']);return ok('Added to Dpro. It stays unassigned until the owner gives it to an agent.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash')}));}
-  default:throw new InputError('Unknown operation. Adding from Dpro\u2019s catalogue is done by the owner in the app (it needs the authenticator code)');
+  case 'add':{only(args,['operation','scanId','sourceId','hash']);return ok('Added to Girru. It stays unassigned until the owner gives it to an agent.',await backend.request('POST',base+'/import',{scanId:need('scanId',SKILL_ID,'scanId'),sourceId:need('sourceId',SKILL_ID,'sourceId'),hash:need('hash',SKILL_HASH,'hash')}));}
+  default:throw new InputError('Unknown operation. Adding from Girru\u2019s catalogue is done by the owner in the app (it needs the authenticator code)');
  }
 }
 
@@ -612,13 +612,13 @@ async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDe
   if(p.hash!==hash)throw new InputError('It changed in that app since the preview. Look and preview it again');
   if((Array.isArray(p.envNames)&&p.envNames.length)||(Array.isArray(p.headerNames)&&p.headerNames.length))throw new InputError('This connection has secrets; the owner adds it in the app (Settings › MCP connections › My coding apps)');
   const r=obj(await backend.request('POST','/api/mcp-import/import',{...body,hash}));
-  return ok(r.duplicate===true?'Already in Dpro. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in Settings › MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
+  return ok(r.duplicate===true?'Already in Girru. Nothing was added twice.':'Added off. The owner turns it on and chooses agents in Settings › MCP connections.',{id:r.id??null,duplicate:r.duplicate===true,enabled:false});
  }
  if(typeof args.operation==='string'&&APPS_OWNER_ONLY.has(args.operation))throw new InputError(APPS_REFUSED);
  if(typeof args.operation==='string'&&Object.hasOwn(APPS_READS,args.operation)){
   only(args,['operation']);
   const r=APPS_READS[args.operation as keyof typeof APPS_READS],data:Record<string,unknown>={};
-  // included: the apps that come with Dpro only, never the MCP connections in the same list.
+  // included: the apps that come with Girru only, never the MCP connections in the same list.
  for(const [field,path] of r.paths)data[field]=field==='included'?splitApps(scrub(await backend.request('GET',path))).apps:scrub(await backend.request('GET',path));
   return ok(r.note,data);
  }
@@ -758,7 +758,7 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
   only(args,['operation']);
   const list=obj(await backend.request('GET','/api/agents')).agents,rows=(Array.isArray(list)?list:[]).filter(record).filter(a=>a.placed!=='none');
   const node=(a:Record<string,unknown>)=>({...agentView(a),manager:text(a.manager,128),placed:text(a.placed,8),subAgentOf:text(a.subAgentOf,128)});
-  return ok('Who reports to whom. placed: main (on top), set (the owner chose), auto (Dpro placed it: under its department\u2019s manager, else the main agent), sub (a sub-agent of its agent). Change it only on the owner\u2019s explicit instruction (set_reports_to).',{agents:rows.map(node)});
+  return ok('Who reports to whom. placed: main (on top), set (the owner chose), auto (Girru placed it: under its department\u2019s manager, else the main agent), sub (a sub-agent of its agent). Change it only on the owner\u2019s explicit instruction (set_reports_to).',{agents:rows.map(node)});
  }
  if(operation==='sub_agents'){
   only(args,['operation','id']);
@@ -774,10 +774,10 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
  if(operation==='set_reports_to'){
   only(args,['operation','id','reportsTo']);
   const id=agentIdArg(args.id,'agent id');
-  if(!('reportsTo' in args))throw new InputError('reportsTo is required (an agent id, or null to let Dpro place it)');
+  if(!('reportsTo' in args))throw new InputError('reportsTo is required (an agent id, or null to let Girru place it)');
   const reportsTo=args.reportsTo===null?null:agentIdArg(args.reportsTo,'reportsTo');
   const res=obj(await backend.request('PUT','/api/agents/'+encodeURIComponent(id)+'/reports-to',{reportsTo}));
-  return ok(reportsTo?'Changed: it now reports to that agent.':'Dpro places it again.',{id:text(res.id,128),reportsTo:text(res.reportsTo,128)});
+  return ok(reportsTo?'Changed: it now reports to that agent.':'Girru places it again.',{id:text(res.id,128),reportsTo:text(res.reportsTo,128)});
  }
  if(operation==='add_sub_agent'){
   only(args,['operation','id','name','startsAs','description','tools']);
@@ -890,7 +890,7 @@ const APPS_OWNER_ONLY=new Set(['channel_on','channel_off','activate','deactivate
 const APPS_READS={
  channels:{note:'Chat channels and who may write (Settings \u203a Channels; read only). Keys are never returned.',paths:[['channels','/api/agent-connect/catalog']]},
  accounts:{note:'Linked accounts (Settings \u203a Accounts; read only). Sign-in codes and tokens are never returned.',paths:[['accounts','/api/connections']]},
- store:{note:'The Store: the apps that come with Dpro (included: already in My apps; Code opens only in the Dpro desktop app with its editor), Dpro\u2019s app catalogue, the coding-app catalogue and the add-ons in coding apps on this computer (read only). Installing is done by the owner in the app.',paths:[['included','/api/apps'],['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue'],['addons','/api/chat/addons']]},
+ store:{note:'The Store: the apps that come with Girru (included: already in My apps; Code opens only in the Girru desktop app with its editor), Girru\u2019s app catalogue, the coding-app catalogue and the add-ons in coding apps on this computer (read only). Installing is done by the owner in the app.',paths:[['included','/api/apps'],['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue'],['addons','/api/chat/addons']]},
  addons:{note:'Plugins and hooks from coding apps on this computer (read only).',paths:[['addons','/api/chat/addons']]},
- catalogue:{note:'The apps that come with Dpro (included: already in My apps), Dpro\u2019s app catalogue and the coding-app catalogue (read only). Installing is done by the owner in the app.',paths:[['included','/api/apps'],['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue']]},
+ catalogue:{note:'The apps that come with Girru (included: already in My apps), Girru\u2019s app catalogue and the coding-app catalogue (read only). Installing is done by the owner in the app.',paths:[['included','/api/apps'],['apps','/api/marketplace/search?limit=100&offset=0'],['codingApps','/api/chat/addons/catalogue']]},
 } as const;

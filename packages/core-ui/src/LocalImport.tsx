@@ -78,14 +78,14 @@ export function LocalImportView({ controller: c, active, onReview, client }: { c
           <input type="search" placeholder="Find by words or folder" aria-label="Find conversations" value={query} onChange={e => setQuery(e.target.value)}/>
           <label className="term-check"><input type="checkbox" checked={onlyNew} onChange={e => setOnlyNew(e.target.checked)}/>Not imported yet</label>
           <button type="button" disabled={!shown.length || running} onClick={() => c.selectAll(shown.map(x => x.id))}>Select all matching ({shown.length})</button>
-          <p className="fine-print">{s.selected.length} selected. The import continues when you leave this page. If you close Dpro Agent, it resumes when Dpro Agent starts again unless you pause it.</p>
+          <p className="fine-print">{s.selected.length} selected. The import continues when you leave this page. If you close Girru, it resumes when Girru starts again unless you pause it.</p>
           <button type="button" className="primary" disabled={!s.selected.length || running} onClick={() => void c.start()}>{running ? 'Importing…' : `Import ${s.selected.length || ''} ${s.selected.length === 1 ? 'conversation' : 'conversations'}`.replace('  ', ' ')}</button>
           {s.selected.length > 0 && !running && <button type="button" className="link-button" onClick={() => c.clear()}>Clear</button>}
         </div>
         {!shown.length ? <p className="fine-print">{s.sessions.length ? 'No conversation matches.' : 'No conversations from other agents were found on this computer.'}</p>
           : [...groups].map(([root, list]) => <div key={root} className="local-import-group">
             <p className="local-import-folder"><b dir="ltr">{list[0].rootName ?? 'No folder'}</b> · {list.length} {list.length === 1 ? 'conversation' : 'conversations'}
-              {' · '}{list[0].project?.linked ? `Dpro project ${list[0].project.name}` : list[0].project ? `project facts go to Projects · ${list[0].project.slug}` : 'project facts go to About you'}
+              {' · '}{list[0].project?.linked ? `Girru project ${list[0].project.name}` : list[0].project ? `project facts go to Projects · ${list[0].project.slug}` : 'project facts go to About you'}
               {root && <span className="fine-print" dir="ltr" title={root}> · {shortPath(root)}</span>}</p>
             <ul>{list.slice(0, ROWS_PER_PROJECT).map(x => <li key={x.id}>
               <div className="local-import-row">

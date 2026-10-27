@@ -58,7 +58,7 @@ export async function completeStep(state: OnboardingState): Promise<void> {
     options: [
       {
         value: 'start',
-        label: 'Start Dpro Bot',
+        label: 'Start Girru',
         hint: 'Recommended'
       },
       {
@@ -81,7 +81,7 @@ export async function completeStep(state: OnboardingState): Promise<void> {
 
   switch (nextAction) {
     case 'start':
-      prompts.log.info('\nStarting Dpro Bot...');
+      prompts.log.info('\nStarting Girru...');
       prompts.log.info('Run: agent-player start');
       break;
 
@@ -90,7 +90,7 @@ export async function completeStep(state: OnboardingState): Promise<void> {
       break;
 
     case 'exit':
-      prompts.log.info('\nYou can start Dpro Bot anytime with: agent-player start');
+      prompts.log.info('\nYou can start Girru anytime with: agent-player start');
       break;
   }
 }

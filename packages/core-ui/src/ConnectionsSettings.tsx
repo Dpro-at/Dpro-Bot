@@ -21,12 +21,12 @@ const MESSAGES: Record<string, string> = {
 const message = (code?: string) => (code && MESSAGES[code]) || 'The request failed. Try again.';
 const CONTENT = { violence: false, blood: false, horror: false, romance: false, userChat: false, paidItems: false };
 const CONTENT_LABELS: Record<keyof typeof CONTENT, string> = { violence: 'Violence', blood: 'Blood', horror: 'Horror', romance: 'Romance', userChat: 'Visitors can chat', paidItems: 'Paid items' };
-/** "Dpro may" in plain words (AA5); a code Dpro does not know yet is shown as it is. */
+/** "Girru may" in plain words (AA5); a code Girru does not know yet is shown as it is. */
 const SCOPE_WORDS: Record<string, string> = { 'worlds:read': 'See your spaces', 'worlds:write': 'Save worlds as private drafts', 'worlds:publish': 'Publish only after you agree', 'worlds:join': 'Join worlds' };
 export const scopeWords = (scope: string) => SCOPE_WORDS[scope] ?? scope;
 const date = (v: string | null) => v ? new Date(v).toLocaleString() : '';
 
-/** Apps › Accounts (AA5): online accounts linked to this Dpro, today GenVR (owner only). */
+/** Apps › Accounts (AA5): online accounts linked to this Girru, today GenVR (owner only). */
 export function ConnectionsSettings({ client, onOpenGenvr }: { client: SessionClient; onOpenGenvr?: () => void }) {
   const owner = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot).user?.role === 'owner';
   const [genvr, setGenvr] = useState<Connection>();
@@ -55,21 +55,21 @@ export function ConnectionsSettings({ client, onOpenGenvr }: { client: SessionCl
       {phase === 'loading' && <p role="status" className="apps-empty">Loading connections…</p>}
       {phase === 'error' && <div role="alert" className="apps-empty"><p>Connections could not be loaded.</p><button type="button" onClick={() => void load()}>Try again</button></div>}
       {genvr && <div role="listbox" aria-label="Accounts"><button type="button" role="option" aria-selected="true" className="apps-row"><span className="apps-icon" data-app="genvr"><UiIcon name="globe" size={18}/></span><span><strong>GenVR</strong><small>Your world account</small></span><span className="st-state" data-state={linked ? 'ready' : genvr.status === 'expired' ? 'warn' : 'off'}><i aria-hidden="true"/>{STATUS[genvr.status]}</span></button></div>}
-      <p className="apps-help">More accounts will appear here when Dpro can link them.</p>
+      <p className="apps-help">More accounts will appear here when Girru can link them.</p>
     </div>
     <aside className="apps-inspector" aria-label="Selected account">{genvr && <article className="connection-card" aria-label="Genvr connection">
       <div className="apps-inspector-head"><span className="apps-tile-icon" data-app="genvr" aria-hidden="true"><UiIcon name="globe" size={22}/></span><div><h3>GenVR</h3><p className="apps-inspector-line" role="status">{linked && genvr.account ? `${genvr.account.name} · connected` : STATUS[genvr.status]}</p></div>
         {(linked || genvr.status === 'expired') && <details className="st-menu"><summary className="tool" aria-label="More for GenVR" title="More"><UiIcon name="more" size={15}/></summary><div role="menu">{linked && <button type="button" role="menuitem" onClick={e => { e.currentTarget.closest('details')?.removeAttribute('open'); setTesting(true); }}>Try publishing a test world…</button>}<button type="button" role="menuitem" disabled={busy} onClick={e => { e.currentTarget.closest('details')?.removeAttribute('open'); setConfirmOff(true); }}>Disconnect…</button></div></details>}</div>
       {genvr.status === 'connecting' && genvr.pending && <div className="connection-pending">
-        <p>Open GenVR, sign in, and approve <b>Dpro</b>. Check that this code is shown there:</p>
+        <p>Open GenVR, sign in, and approve <b>Girru</b>. Check that this code is shown there:</p>
         <p className="connection-code" aria-label="Approval code">{genvr.pending.userCode}</p>
         <div className="connection-actions"><a className="button primary" href={genvr.pending.verificationUri} target="_blank" rel="noopener noreferrer">Open GenVR to approve</a>
           <button type="button" disabled={busy} onClick={() => void act(`${GENVR}/cancel`, {})}>Cancel</button></div>
-        <p className="fine-print">Waiting for your OK · the code works until {date(genvr.pending.expiresAt)}. Your GenVR password is never typed in Dpro.</p>
+        <p className="fine-print">Waiting for your OK · the code works until {date(genvr.pending.expiresAt)}. Your GenVR password is never typed in Girru.</p>
       </div>}
-      {linked && <><h4>Dpro may</h4><ul className="apps-may-list">{genvr.scopes.map(x => <li key={x}>{scopeWords(x)}</li>)}</ul><dl className="apps-facts"><dt>Linked</dt><dd>{date(genvr.linkedAt)}</dd><dt>Valid until</dt><dd>{date(genvr.expiresAt)}</dd></dl></>}
+      {linked && <><h4>Girru may</h4><ul className="apps-may-list">{genvr.scopes.map(x => <li key={x}>{scopeWords(x)}</li>)}</ul><dl className="apps-facts"><dt>Linked</dt><dd>{date(genvr.linkedAt)}</dd><dt>Valid until</dt><dd>{date(genvr.expiresAt)}</dd></dl></>}
       {genvr.error && genvr.status !== 'connecting' && <p role="alert" className="error">{message(genvr.error)}</p>}
-      {confirmOff && <div className="apps-confirm" role="alertdialog" aria-label="Disconnect GenVR"><p>Disconnect GenVR? Dpro removes the link; your worlds stay on GenVR.</p><div className="connection-actions"><button type="button" onClick={() => setConfirmOff(false)}>Keep</button><button type="button" className="danger" disabled={busy} onClick={() => void act(`${GENVR}/disconnect`, { confirm: true })}>Disconnect</button></div></div>}
+      {confirmOff && <div className="apps-confirm" role="alertdialog" aria-label="Disconnect GenVR"><p>Disconnect GenVR? Girru removes the link; your worlds stay on GenVR.</p><div className="connection-actions"><button type="button" onClick={() => setConfirmOff(false)}>Keep</button><button type="button" className="danger" disabled={busy} onClick={() => void act(`${GENVR}/disconnect`, { confirm: true })}>Disconnect</button></div></div>}
       <div className="apps-actions">
         {(genvr.status === 'not_connected' || genvr.status === 'error' || genvr.status === 'expired') && <button type="button" className="primary" disabled={busy} onClick={() => void act(`${GENVR}/link`, {})}>{genvr.status === 'expired' ? 'Connect again' : 'Connect GenVR'}</button>}
         {linked && onOpenGenvr && <button type="button" className="primary" onClick={onOpenGenvr}>Open GenVR</button>}
@@ -84,7 +84,7 @@ export function ConnectionsSettings({ client, onOpenGenvr }: { client: SessionCl
 function TestPublication({ send }: { send: (method: 'GET' | 'POST', path: string, body?: unknown) => Promise<{ ok: boolean; body: Record<string, any> }> }) {
   const [pub, setPub] = useState<Publication | null>(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const [uploadOk, setUploadOk] = useState(false), [publishOk, setPublishOk] = useState(false);
-  const [title, setTitle] = useState('Dpro test world'), [type, setType] = useState<'social' | 'game' | 'event'>('social'), [access, setAccess] = useState<'public' | 'friends' | 'invite'>('public');
+  const [title, setTitle] = useState('Girru test world'), [type, setType] = useState<'social' | 'game' | 'event'>('social'), [access, setAccess] = useState<'public' | 'friends' | 'invite'>('public');
   const [content, setContent] = useState(CONTENT);
   useEffect(() => { void send('GET', `${GENVR}/publications`).then(r => { if (r.ok) setPub(r.body.publications.find((p: Publication) => p.localId === 'dpro.publication.test') ?? null); }).catch(() => undefined); }, [send]);
   const run = async (path: string, body: unknown) => {

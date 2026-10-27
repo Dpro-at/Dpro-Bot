@@ -39,7 +39,7 @@ async function guarded(context: ToolExecutionContext | undefined, fn: (owner: st
 export const discoveryTool: Tool = {
   name: 'discovery',
   description: `What coding agents left on this computer (read only): Claude Code memory files, project notes (CLAUDE / AGENTS / HANDOFF / BACKLOG.md …), skills, MCP servers and SSH hosts, grouped by project folder.
-action "list" (optional kind: memory | note | skill | mcp | ssh | design | database, or kinds: [...], state: new | changed | decision | imported | ignored | gone, project_id, limit): items with where each would go in Dpro.
+action "list" (optional kind: memory | note | skill | mcp | ssh | design | database, or kinds: [...], state: new | changed | decision | imported | ignored | gone, project_id, limit): items with where each would go in Girru.
 action "scan": read the computer again now.
 action "preview" (item_id): the item's redacted text and its previewHash.
 action "places" (optional parent_id): the folders and drives the owner can allow, with their state (allowed, left out, inherited).
@@ -86,11 +86,11 @@ Private keys, .env files (except DB_* connection names) and secrets are never re
 
 export const discoveryApplyTool: Tool = {
   name: 'discovery_apply',
-  description: `Change what Dpro takes from this computer, after the owner approves this call.
+  description: `Change what Girru takes from this computer, after the owner approves this call.
 action "import" (items: [{ id, preview_hash, secret? }]): import or update previewed items. Memory files become memories; project notes are read by the local model; skills join the library assigned to no agent; MCP servers are added switched off (secret "credentials" stores their token encrypted, "leave" adds them without it); SSH hosts are saved by name only.
 action "ignore" (item_id, on): ignore an item, or stop ignoring it.
-action "remove" (item_id): take an imported item out of Dpro; the file on the computer stays.
-action "keep" (item_id): an item gone from the computer stays in Dpro.
+action "remove" (item_id): take an imported item out of Girru; the file on the computer stays.
+action "keep" (item_id): an item gone from the computer stays in Girru.
 action "set_watch" (enabled, interval_minutes 15 | 30 | 60): read the computer again on a schedule (nothing is imported on its own).
 action "set_project_watch" (project_id, enabled): stop or start watching one project folder.
 action "set_places" (allow?, deny?, exclude?: place ids from discovery "places"): allow several folders at once, take allowed ones back, leave subfolders out.
@@ -135,8 +135,8 @@ action "dismiss_suggestion" (key): a suggested merge is not the same project.`,
           return ok(`${results.filter((r) => r.ok).length} of ${results.length} imported.${results.some((r) => !r.ok) ? ` Not imported: ${results.filter((r) => !r.ok).map((r) => `${r.id} (${r.code})`).join(', ')}` : ''}`, { results });
         }
         case 'ignore': { const r = await D.ignore(owner, String(params.item_id ?? ''), params.on as boolean); return ok(r.ignored ? 'Ignored.' : 'No longer ignored.', r); }
-        case 'remove': { const r = await D.remove(owner, String(params.item_id ?? '')); return ok('Taken out of Dpro; the file on the computer is unchanged.', r); }
-        case 'keep': { const r = await D.keep(owner, String(params.item_id ?? '')); return ok('Kept in Dpro.', r); }
+        case 'remove': { const r = await D.remove(owner, String(params.item_id ?? '')); return ok('Taken out of Girru; the file on the computer is unchanged.', r); }
+        case 'keep': { const r = await D.keep(owner, String(params.item_id ?? '')); return ok('Kept in Girru.', r); }
         case 'set_watch': { const s = await D.setSettings(owner, { watch: params.enabled, intervalMinutes: params.interval_minutes }); return ok(`Watching ${s.watch ? `every ${s.intervalMinutes} min` : 'off'}.`, { settings: s }); }
         case 'set_project_watch': { const r = await D.setRootWatch(owner, String(params.project_id ?? ''), params.enabled); return ok(r.watch ? 'Watching this folder again.' : 'This folder is no longer watched.', r); }
         case 'set_places': {

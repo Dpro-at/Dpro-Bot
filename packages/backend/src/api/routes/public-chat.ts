@@ -851,7 +851,7 @@ export async function registerPublicChatRoutes(fastify: FastifyInstance) {
 
     const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:41521'}/room/embed/${roomId}?size=${room.embed_size}&theme=${room.embed_theme}`;
 
-    const iframeCode = `<!-- Dpro Bot Public Chat Room -->
+    const iframeCode = `<!-- Girru Public Chat Room -->
 <iframe
   src="${embedUrl}"
   width="${widthStr}"
@@ -861,7 +861,7 @@ export async function registerPublicChatRoutes(fastify: FastifyInstance) {
   title="${room.name}"
 ></iframe>`;
 
-    const scriptCode = `<!-- Dpro Bot Public Chat Room (Dynamic Loading) -->
+    const scriptCode = `<!-- Girru Public Chat Room (Dynamic Loading) -->
 <script>
   (function() {
     const iframe = document.createElement('iframe');

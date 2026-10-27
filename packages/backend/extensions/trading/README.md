@@ -1,6 +1,6 @@
 # Trading Extension
 
-Stock & Crypto trading integration with Alpaca API for Dpro Bot.
+Stock & Crypto trading integration with Alpaca API for Girru.
 
 ## Features
 
@@ -363,4 +363,4 @@ Current version: **1.0.0**
 
 ## License
 
-Same as Dpro Bot project
+Same as Girru project

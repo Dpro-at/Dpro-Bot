@@ -23,7 +23,7 @@ test('every page action keeps its owner gate and plain words (SP2–SP6)',()=>{
  assert.match(source,/const body=pending\?\?/);assert.match(source,/disabled=\{busy\|\|!confirmed\|\|!hirePersonality/);
  // A changed tool definition is never silently accepted.
  assert.match(source,/fingerprint:before\?before\.fingerprint:t\.fingerprint/);
- for(const words of ['Give to an agent…','Take back','Update ${plural','Hire with this…','Throw the draft away','Copy as a new specialty','Needs something Dpro doesn’t have yet…','Remove old choice','No tool or memory permission changes.','Their personality and own rules stay.','I checked the job, its tools and what it asks before.'])assert.ok(source.includes(words),words);
+ for(const words of ['Give to an agent…','Take back','Update ${plural','Hire with this…','Throw the draft away','Copy as a new specialty','Needs something Girru doesn’t have yet…','Remove old choice','No tool or memory permission changes.','Their personality and own rules stay.','I checked the job, its tools and what it asks before.'])assert.ok(source.includes(words),words);
  assert.doesNotMatch(source,/localStorage|sessionStorage|dangerouslySetInnerHTML/);
  // Long texts open the shared editor; the only plain box is the few lines for "Describe it" (board SP3b).
  assert.equal((source.match(/<textarea/g)??[]).length,1);assert.match(source,/Describe the job in a few lines<textarea rows=\{4\} maxLength=\{2000\}/);

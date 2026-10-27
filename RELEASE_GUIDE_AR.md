@@ -1,4 +1,4 @@
-# 🚀 دليل الإصدارات التلقائية - Dpro Bot
+# 🚀 دليل الإصدارات التلقائية - Girru
 
 ## نظام تلقائي 100% ✨
 
@@ -56,7 +56,7 @@ git push origin v1.3.0
 
 ### الخطوة 4: شوف السحر يصير ✨
 
-روح على: https://github.com/9mtm/Agent-Player/actions
+روح على: https://github.com/Dpro-at/Girru/actions
 
 راح تشوف 5 jobs يشتغلون بنفس الوقت:
 - 🗜️ ضغط الملفات (وندوز) - دقيقتين
@@ -69,7 +69,7 @@ git push origin v1.3.0
 
 ### الخطوة 5: تحقق من الإصدار
 
-بعد ما يخلص، روح على: https://github.com/9mtm/Agent-Player/releases/tag/v1.3.0
+بعد ما يخلص، روح على: https://github.com/Dpro-at/Girru/releases/tag/v1.3.0
 
 راح تلاقي:
 - ✅ `agent-player-installer-1.3.0-win-x64.msi` (~3 ميجا)
@@ -142,7 +142,7 @@ git push origin v1.3.0
 ### المشكلة: CI/CD ما اشتغل
 
 **الحل:**
-1. روح على: https://github.com/9mtm/Agent-Player/actions
+1. روح على: https://github.com/Dpro-at/Girru/actions
 2. اضغط على الـ workflow اللي فشل
 3. شوف الـ logs - راح يقلك وين المشكلة
 4. صلّح المشكلة
@@ -158,7 +158,7 @@ git push origin v1.3.0
 
 **الحل:**
 1. تأكد إن الملف موجود في الإصدار:
-   `https://github.com/9mtm/Agent-Player/releases/download/v1.3.0/agent-player-files.zip`
+   `https://github.com/Dpro-at/Girru/releases/download/v1.3.0/agent-player-files.zip`
 2. شيك النت - لازم يكون مفتوح
 3. لو ما نفع، زوّد الـ timeout في `bundler.rs` (حالياً 5 دقايق)
 

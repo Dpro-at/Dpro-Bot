@@ -5,9 +5,9 @@ import {IconButton,Tile} from './desktop-ui';
 import {SkillTile} from './SkillsWorkspace';
 import {blockedReason,skillFileSummary,skillTitle} from './skill-display';
 const RANK:Record<string,number>={new:0,changed:1,decision:2,imported:3,gone:4};
-const STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs your decision',imported:'in Dpro',gone:'gone from this computer'};
+const STATE:Record<string,string>={new:'new',changed:'changed since it was added',decision:'needs your decision',imported:'in Girru',gone:'gone from this computer'};
 /** SK3c / MC4: skills or MCP servers found on this computer by the same folder scan as Memory, one at a time (J / K).
- *  Add it (off) · Don't show again · Take out of Dpro — the file on this computer never changes.
+ *  Add it (off) · Don't show again · Take out of Girru — the file on this computer never changes.
  *  An MCP server with a key first asks: Credentials or Leave it. Turning it on stays in All connections. */
 export function SkillFoundPlace({c,active,kind='skill'}:{c:DiscoveryController;active:boolean;kind?:'skill'|'mcp'}){
  const mcp=kind==='mcp',word=mcp?'MCP servers':'skills',title=(name:string)=>mcp?name:skillTitle(name);
@@ -31,7 +31,7 @@ export function SkillFoundPlace({c,active,kind='skill'}:{c:DiscoveryController;a
     return about?<><p className="sk-found-about" dir="auto">{about}</p><details className="sk-found-file"><summary>Show the skill file</summary>{file}</details></>:file;})()}
    {mcp&&p&&p.secrets.length>0&&item.state!=='imported'&&<div className="sk-found-ask"><p>It has a key. Save it in Credentials, or leave it on this computer?</p><div className="dk-segmented" role="group" aria-label="The key">{(['credentials','leave'] as const).map(v=><button key={v} type="button" aria-pressed={s.secret===v} disabled={s.busy} onClick={()=>c.setSecret(v)}>{v==='credentials'?'Credentials':'Leave it'}</button>)}</div></div>}
    {p?.blocked&&<p className="sk-alert">{blockedReason(p.blocked)}</p>}
-   <div className="sk-insp-actions">{item.state==='imported'?<button type="button" disabled={s.busy} onClick={()=>void c.remove(item.id)}>{mcp?'Take out':'Take out of Dpro'}</button>:<button type="button" className="primary sk-main" disabled={s.busy||!p||!!p.blocked} onClick={()=>void c.importOpen()}>Add it (off)</button>}<button type="button" disabled={s.busy} onClick={()=>void c.ignore(item.id,true)}>Don’t show again</button></div>
+   <div className="sk-insp-actions">{item.state==='imported'?<button type="button" disabled={s.busy} onClick={()=>void c.remove(item.id)}>{mcp?'Take out':'Take out of Girru'}</button>:<button type="button" className="primary sk-main" disabled={s.busy||!p||!!p.blocked} onClick={()=>void c.importOpen()}>Add it (off)</button>}<button type="button" disabled={s.busy} onClick={()=>void c.ignore(item.id,true)}>Don’t show again</button></div>
    <p className="sk-hint">{item.state==='imported'?'Taking it out leaves the file on this computer.':mcp?'Added connections start off; you turn them on in All connections.':'Added skills start off; you give them to agents.'} Which folders are read: Settings › Memory › Folders and drives.</p>
   </>}
  </section>;

@@ -33,7 +33,7 @@ export async function seedDatabase() {
         repos.sessions.createMessage({
           session_id: session.id,
           role: 'assistant',
-          content: 'Welcome to Dpro Bot! How can I help you today?'
+          content: 'Welcome to Girru! How can I help you today?'
         });
 
         console.log('[Seed] ✅ Created welcome chat session');

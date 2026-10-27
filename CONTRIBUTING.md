@@ -1,6 +1,6 @@
-# Contributing to Dpro Bot
+# Contributing to Girru
 
-Thank you for your interest in contributing to Dpro Bot! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Girru! This document provides guidelines and instructions for contributing.
 
 ## Table of Contents
 

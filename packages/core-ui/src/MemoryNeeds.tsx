@@ -24,7 +24,7 @@ export function NeedsYou({ c, mode, onOpenChat, design }: { c: MemoryReviewContr
   useEffect(() => { ref.current?.focus(); }, [mode]);
   if (s.phase === 'error') return <div className="dk-empty"><p>{s.notice}</p><button type="button" onClick={() => void c.load()}>Try again</button></div>;
   if (s.phase !== 'ready') return <p className="dk-empty" role="status">Reading what waits for you…</p>;
-  if (!s.items.length) return <>{design && <DesignQuestions d={design}/>}<div className="dk-empty"><UiIcon name="check" size={20}/><p>Nothing needs you. Dpro saves routine facts on its own and asks only when something matters or disagrees.</p>{s.result && <p className="fine-print">{s.result}</p>}</div></>;
+  if (!s.items.length) return <>{design && <DesignQuestions d={design}/>}<div className="dk-empty"><UiIcon name="check" size={20}/><p>Nothing needs you. Girru saves routine facts on its own and asks only when something matters or disagrees.</p>{s.result && <p className="fine-print">{s.result}</p>}</div></>;
   function keys(e: KeyboardEvent<HTMLElement>) {
     if ((e.target as HTMLElement).closest('input, textarea, select')) return;
     const k = e.key.toLowerCase();
@@ -71,7 +71,7 @@ function Question({ c, onOpenChat }: { c: MemoryReviewController; onOpenChat?: (
     const ch = d.changes[0];
     const before = ch && 'before' in ch ? ch.before.content : '—'; const after = ch && 'after' in ch ? ch.after.content : '—';
     return <article className="dk-question">
-      <h3><UiIcon name="diff" size={15}/>This changes something Dpro already knows <span className="fine-print">({drawerName(d.drawerId)})</span></h3>
+      <h3><UiIcon name="diff" size={15}/>This changes something Girru already knows <span className="fine-print">({drawerName(d.drawerId)})</span></h3>
       <div className="dk-versus">
         <div><span className="fine-print">Now</span><p dir="auto"><WithSwatches text={before}/></p></div>
         <div data-new><span className="fine-print">New, {ago(d.createdAt)}</span>
@@ -86,7 +86,7 @@ function Question({ c, onOpenChat }: { c: MemoryReviewController; onOpenChat?: (
             {s.editing === null ? <button type="button" onClick={() => { setMore(false); c.startEdit(); }}>Edit the new one first</button> : <button type="button" onClick={() => { setMore(false); c.cancelEdit(); }}>Cancel the edit</button>}
           </div></Popover></span>
       </div>
-      <section className="dk-why"><h4>Why Dpro asks</h4><p dir="auto">{d.note ?? 'The new fact and the saved one are about the same thing but say different things. Both cannot be true.'}</p>
+      <section className="dk-why"><h4>Why Girru asks</h4><p dir="auto">{d.note ?? 'The new fact and the saved one are about the same thing but say different things. Both cannot be true.'}</p>
         {plainReasons(d.reasons).length > 0 && <p className="fine-print">{plainReasons(d.reasons).join(', ')}</p>}
         <p className="fine-print">The agent wrote this text. It is information only: it cannot change permissions or give instructions.</p></section>
     </article>;
@@ -98,7 +98,7 @@ function Question({ c, onOpenChat }: { c: MemoryReviewController; onOpenChat?: (
       {'before' in ch && <p className="dk-del" dir="auto">− <WithSwatches text={ch.before.content}/></p>}
       {'after' in ch && <p className="dk-add" dir="auto">+ <WithSwatches text={ch.after.content}/></p>}
     </li>)}</ol>}
-    {(d.note || plainReasons(d.reasons).length > 0) && <section className="dk-why"><h4>Why Dpro asks</h4>{d.note && <p dir="auto">{d.note}</p>}{plainReasons(d.reasons).length > 0 && <p className="fine-print">{plainReasons(d.reasons).join(', ')}</p>}</section>}
+    {(d.note || plainReasons(d.reasons).length > 0) && <section className="dk-why"><h4>Why Girru asks</h4>{d.note && <p dir="auto">{d.note}</p>}{plainReasons(d.reasons).length > 0 && <p className="fine-print">{plainReasons(d.reasons).join(', ')}</p>}</section>}
     {d.changes.length > 1 && <label className="dk-check"><input type="checkbox" checked={read} onChange={e => setRead(e.target.checked)}/>I read every change above</label>}
     <div className="actions"><button type="button" onClick={() => void c.approve('reject')} disabled={s.busy}>Reject</button>
       <button type="button" className="primary" onClick={() => void c.approve('approve')} disabled={s.busy || (d.changes.length > 1 && !read)}>{d.changes.length > 1 ? 'Approve the changes' : 'Remember'}</button></div>

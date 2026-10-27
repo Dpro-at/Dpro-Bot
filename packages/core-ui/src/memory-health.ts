@@ -32,7 +32,7 @@ export const CHECKS: ReadonlyArray<{ kinds: DoctorKind[]; label: string; note: s
   { kinds: ['embedding-missing', 'embedding-stale'], label: 'Search index out of date', note: 'memories search cannot find by meaning yet' },
   { kinds: ['orphan-versions'], label: 'History without its memory', note: 'old versions of a memory that was deleted' },
   { kinds: ['broken-drawer'], label: 'Missing project', note: 'memories of a project that was renamed or deleted' },
-  { kinds: ['topic-key-invalid'], label: 'Badly named topics', note: 'topic names Dpro cannot sort' },
+  { kinds: ['topic-key-invalid'], label: 'Badly named topics', note: 'topic names Girru cannot sort' },
   { kinds: ['graph-orphan'], label: 'Unused map links', note: 'links and names on the map no memory mentions' },
 ];
 const draftOf = (r: ScopeRules): RulesDraft => ({ routine: r.own.routine ?? 'inherit', important: r.own.important ?? 'inherit', contradiction: r.own.contradiction ?? 'inherit', weeklyDay: r.effective.weekly.day, weeklyHour: r.effective.weekly.hour });

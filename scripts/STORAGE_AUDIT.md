@@ -1,6 +1,6 @@
-# 📦 Dpro Bot - Storage Audit Report
+# 📦 Girru - Storage Audit Report
 **تاريخ الفحص:** 2026-02-22
-**النظام:** Dpro Bot v1.3.0
+**النظام:** Girru v1.3.0
 
 ---
 

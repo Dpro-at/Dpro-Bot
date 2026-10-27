@@ -24,7 +24,7 @@ test('Antigravity uses an empty private workspace and refuses unsafe ambient CLI
  const config=await geminiReplyConfig(root,home);try{assert.deepEqual(await fs.readdir(config.dir),[]);assert.equal((await fs.stat(config.dir)).mode&0o777,0o700);}finally{await config.cleanup();}await assert.rejects(fs.stat(config.dir));
  for(const body of [{modelProvider:'gemini'},{toolPermission:'always-proceed'},{permissions:{allow:['command(*)']}},{hooks:{start:'unsafe'}}]){await fs.writeFile(file,JSON.stringify(body));await assert.rejects(geminiReplyConfig(root,home),/cli_config_unsafe/);}
 });
-test('Dpro tools are offered and executed through the supplied registry, then the result returns to the model',async()=>{
+test('Girru tools are offered and executed through the supplied registry, then the result returns to the model',async()=>{
  let calls=0,executed=0;
  const result=await subscriptionToolLoop({prompt:'Synthetic task',signal:new AbortController().signal,tools:[tool],
  reply:async prompt=>{calls++;if(calls===1){assert.match(prompt,/test_lookup/);return JSON.stringify({type:'tool',name:tool.name,arguments:{}});}assert.match(prompt,/found synthetic item/);return '{"type":"answer","text":"Done"}';},
@@ -39,7 +39,7 @@ test('unknown tool, abort, pending approval and iteration limits fail closed wit
  assert.equal(text,'Awaiting approval');assert.equal(calls,1);
  let executions=0;await assert.rejects(subscriptionToolLoop({...base,reply:async()=>'{"type":"tool","name":"test_lookup","arguments":{}}',execute:async()=>{executions++;return {content:[]};}}),/cli_tool_limit/);assert.equal(executions,8);
 });
-test('reply-only native launches keep Dpro execution behind its own tool registry',()=>{
+test('reply-only native launches keep Girru execution behind its own tool registry',()=>{
  const claude=subscriptionArgs('claude',undefined,undefined,true);assert.equal(claude[claude.indexOf('--tools')+1],'');
  const codex=subscriptionArgs('codex',undefined,undefined,true);assert.equal(codex[codex.indexOf('--sandbox')+1],'read-only');assert.ok(codex.includes('shell_tool'));assert.ok(codex.includes('unified_exec'));assert.ok(codex.includes('web_search="disabled"'));
 });

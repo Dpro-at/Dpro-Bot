@@ -122,7 +122,7 @@ test('groups: make by dragging, move in and out, rename, share, ungroup — each
   });
   const d = new MemoryDesktopController(b);
   await d.loadGroups();
-  assert.equal(await d.createGroup('Dpro products', ['tel-agent', 'seo-agent']), true);
+  assert.equal(await d.createGroup('Girru products', ['tel-agent', 'seo-agent']), true);
   assert.deepEqual(groups.find(g => g.id === 'g-2').projects, ['tel-agent', 'seo-agent']);
   assert.equal(await d.moveToGroup('tel-agent', 'g-1'), true);
   assert.deepEqual(groups.find(g => g.id === 'g-1').projects, ['flowxtra', 'tel-agent']); assert.deepEqual(groups.find(g => g.id === 'g-2').projects, ['seo-agent']);

@@ -59,7 +59,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Dpro Agent', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -293,7 +293,7 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
       </div>}
 
       {!s.activeId&&onChooseContext&&<button type="button" className="composer-context" onClick={onChooseContext}>{project?.folder?'Folder: '+project.name:'General chat · Choose a folder…'}</button>}
-      {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app. Dpro tools follow the selected agent’s grants and approvals. Stop cancels the local process.</p>}
+      {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app. Girru tools follow the selected agent’s grants and approvals. Stop cancels the local process.</p>}
       <form className="chat-composer" method="post" onSubmit={e => { e.preventDefault(); submit(); }}
         onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); void onFiles(e.dataTransfer.files); } }}>
         <label htmlFor="chat-input" className="sr-only">Message</label>
@@ -408,7 +408,7 @@ function ChatSidePanel({ controller, client, onAddConnector, memory, onOpenMemor
         <div><dt><UiIcon name="brain" size={12}/></dt><dd>{agent} · {model}</dd></div>
       </dl>
     </section></SessionDisclosure>
-    {client&&project?.folder&&<SessionDisclosure title="Coding sessions" icon="terminal"><section className="panel-card"><h3>Local coding sessions</h3><p className="fine-print">Saved Dpro chats stay in the sidebar. Memory imports are managed in Memory.</p><CodingSessions key={project.id+':'+project.folder} client={client} controller={controller} folder={project.folder}/></section></SessionDisclosure>}
+    {client&&project?.folder&&<SessionDisclosure title="Coding sessions" icon="terminal"><section className="panel-card"><h3>Local coding sessions</h3><p className="fine-print">Saved Girru chats stay in the sidebar. Memory imports are managed in Memory.</p><CodingSessions key={project.id+':'+project.folder} client={client} controller={controller} folder={project.folder}/></section></SessionDisclosure>}
     <SessionDisclosure title="Conversation" icon="message" summary={`${replies.length} replies`}><section className="panel-card">
       <h3 className="sr-only">Conversation</h3>
       <dl className="panel-list">

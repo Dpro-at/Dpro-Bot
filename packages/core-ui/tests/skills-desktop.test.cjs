@@ -3,7 +3,7 @@ const {skillTitle,skillSource,skillLook,fileTitle}=require('../src/skill-display
 const id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 test('skills show readable names and sources, never raw slugs or origin codes',()=>{
  assert.equal(skillTitle('content-studio'),'Content studio');assert.equal(skillTitle('activity_coaching'),'Activity coaching');assert.equal(skillTitle('Content Studio'),'Content Studio');assert.equal(skillTitle(''),'Untitled skill');
- for(const [origin,line] of [['workspace','Made in this workspace'],['managed','Made in this workspace'],['bundled','Comes with Dpro'],['genvr-sdk','From GenVR'],['reviewed-marketplace','From Dpro’s catalogue'],['claude','From Claude Code'],['claude-command','From Claude Code'],['codex','From Codex'],['mystery-code','From another place']])assert.equal(skillSource(origin).line,line);
+ for(const [origin,line] of [['workspace','Made in this workspace'],['managed','Made in this workspace'],['bundled','Comes with Girru'],['genvr-sdk','From GenVR'],['reviewed-marketplace','From Girru’s catalogue'],['claude','From Claude Code'],['claude-command','From Claude Code'],['codex','From Codex'],['mystery-code','From another place']])assert.equal(skillSource(origin).line,line);
  assert.deepEqual(skillLook('content-studio'),skillLook('content-studio'));assert.equal(skillLook('content-studio').icon,'pencil');assert.equal(fileTitle('SKILL.md'),'Main guide');assert.equal(fileTitle('references/claims-and-voice.md'),'Claims and voice');
 });
 test('who-uses-a-skill read is a narrow owner GET that keeps only ids',()=>{

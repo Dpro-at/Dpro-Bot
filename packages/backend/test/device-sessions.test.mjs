@@ -23,8 +23,8 @@ const a=generateToken('ds-owner',1),b=generateToken('ds-owner',1),other=generate
 const h=t=>({authorization:'Bearer '+t});
 test('labels are short and plain; the raw browser text is not kept',async()=>{
  assert.equal(deviceLabel(mac),'Chrome on Mac');assert.equal(deviceLabel(win),'Firefox on Windows');
- assert.equal(deviceLabel('Mozilla/5.0 (Macintosh) Electron/38 Dpro'),'Dpro app on Mac');assert.equal(deviceLabel(undefined),'Unknown device');
- assert.equal(signInLabel({'x-dpro-device-label':'Dpro app on Mac','user-agent':win}),'Dpro app on Mac');assert.equal(signInLabel({'x-dpro-device-label':'<script>','user-agent':win}),'Firefox on Windows');
+ assert.equal(deviceLabel('Mozilla/5.0 (Macintosh) Electron/38 Girru'),'Girru app on Mac');assert.equal(deviceLabel(undefined),'Unknown device');
+ assert.equal(signInLabel({'x-dpro-device-label':'Girru app on Mac','user-agent':win}),'Girru app on Mac');assert.equal(signInLabel({'x-dpro-device-label':'<script>','user-agent':win}),'Firefox on Windows');
  await recordSession(a,mac);await recordSession(b,signInLabel({'user-agent':win}));await recordSession(other,mac);
  assert.ok(!JSON.stringify(db.prepare('SELECT * FROM auth_sessions').all()).includes('AppleWebKit'));
 });

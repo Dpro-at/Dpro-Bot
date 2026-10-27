@@ -4,7 +4,7 @@
   "description": "Telegram bot integration - send and receive messages via Telegram Bot API",
   "version": "2.1.0",
   "type": "channel",
-  "author": "Dpro Bot Team",
+  "author": "Dpro",
   "main": "index.js",
   "permissions": [
     "network",

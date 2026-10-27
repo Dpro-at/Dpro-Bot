@@ -1,7 +1,7 @@
 /**
  * Background sync of the memory bridge (MEM-BRIDGE-01, startup.ts, background
  * jobs on): every minute the managed files of confirmed folders are rewritten
- * (inside Dpro's markers only) when the project's facts or handoff changed,
+ * (inside Girru's markers only) when the project's facts or handoff changed,
  * and back-flow runs for folders where the owner turned it on. Before that,
  * coding apps and project folders connect on their own once the owner allowed
  * reading this computer (service.ts autoConnect, MEM-UX-02).

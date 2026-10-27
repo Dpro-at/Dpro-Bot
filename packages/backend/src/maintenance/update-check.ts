@@ -4,7 +4,7 @@
  * A git checkout install compares its branch with the branch it follows.
  * Reading uses local git only (no network): the counts are as fresh as the
  * last look. `check()` runs `git fetch` once, only when the owner asks; the
- * update itself stays the `agent-player update` command (it stops Dpro,
+ * update itself stays the `agent-player update` command (it stops Girru,
  * backs up and can roll back). Other installs only report their version.
  * Remote addresses are never returned (they may hold credentials).
  */

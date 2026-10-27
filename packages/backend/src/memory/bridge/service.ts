@@ -7,7 +7,7 @@
  *   MCP server   read tools (project_brief, pinned_facts, latest_handoff, memory_search, project_design)
  *                and write tools that only create review proposals (memory_propose)
  *                or handoff notes (handoff_write), for the project whose folder the
- *                CLI runs in; nothing for a folder Dpro does not know
+ *                CLI runs in; nothing for a folder Girru does not know
  */
 import { designBlock, getDesign } from '../project-design.js';
 import fs from 'node:fs';
@@ -211,7 +211,7 @@ export async function syncOwner(ownerId: string): Promise<{ written: number; pro
  *     backed up first; Undo restores it). An app the owner switched off, or
  *     whose registration the owner undid, is never registered again by itself.
  *   - each project folder without folder settings gets its managed files
- *     (default on; written only between Dpro's markers). A folder the owner
+ *     (default on; written only between Girru's markers). A folder the owner
  *     turned off stays off; a conflict is recorded once and left alone.
  * Every step is audited ('automatic'). Never throws.
  */
@@ -264,9 +264,9 @@ export type McpTool = (typeof MCP_TOOLS)[number];
 export async function openSession(c: unknown, nonce: unknown, proof: unknown): Promise<{ token: string }> {
   const cl = client(c);
   const ownerId = await bridgeOwner();
-  if (!ownerId) throw new BridgeError('Dpro has no owner yet', 403, 'no_owner');
+  if (!ownerId) throw new BridgeError('Girru has no owner yet', 403, 'no_owner');
   if (!checkSessionProof(cl, nonce, proof)) throw new BridgeError('Not allowed', 401, 'unauthenticated');
-  if (!(await clientEnabled(ownerId, cl))) throw new BridgeError(`${CLIENT_NAMES[cl]} is switched off in Dpro`, 403, 'client_off');
+  if (!(await clientEnabled(ownerId, cl))) throw new BridgeError(`${CLIENT_NAMES[cl]} is switched off in Girru`, 403, 'client_off');
   await audit(ownerId, 'session', { client: cl });
   return { token: await ensureToken(ownerId, cl) };
 }
@@ -278,10 +278,10 @@ export async function mcpCall(c: unknown, token: unknown, cwd: unknown, tool: un
   const cl = client(c);
   const ownerId = await bridgeOwner();
   if (!ownerId || !(await tokenMatches(ownerId, cl, token))) throw new BridgeError('Not allowed', 401, 'unauthenticated');
-  if (!(await clientEnabled(ownerId, cl))) throw new BridgeError(`${CLIENT_NAMES[cl]} is switched off in Dpro`, 403, 'client_off');
+  if (!(await clientEnabled(ownerId, cl))) throw new BridgeError(`${CLIENT_NAMES[cl]} is switched off in Girru`, 403, 'client_off');
   if (typeof tool !== 'string' || !(MCP_TOOLS as readonly string[]).includes(tool)) throw new BridgeError('Unknown tool', 400, 'unknown_tool');
   const project = typeof cwd === 'string' ? await projectForFolder(ownerId, cwd) : null;
-  if (!project) throw new BridgeError('Dpro does not know this folder. Add it as a project folder in Dpro first.', 404, 'unknown_folder');
+  if (!project) throw new BridgeError('Girru does not know this folder. Add it as a project folder in Girru first.', 404, 'unknown_folder');
   const a = args && typeof args === 'object' && !Array.isArray(args) ? args : {};
   // Reads are logged too (tool name only, never the query), so the owner sees which app used the memory and when.
   if (tool !== 'memory_propose' && tool !== 'handoff_write') await audit(ownerId, 'mcp-read', { client: cl, projectId: project.id, note: tool });
@@ -308,10 +308,10 @@ export async function mcpCall(c: unknown, token: unknown, cwd: unknown, tool: un
       return { text: results.length ? results.map((r) => `- ${r.content}`).join('\n') : 'Nothing found in this project.', data: { results } };
     }
     case 'project_design': {
-      // DESIGN-FIND-01: the design Dpro found for this project (the same text as DESIGN.md's Dpro section).
+      // DESIGN-FIND-01: the design Girru found for this project (the same text as DESIGN.md's Girru section).
       const v = await getDesign(ownerId, projectDrawer(project).key!).catch(() => null);
       const has = !!v && (v.colours.length + v.fonts.length + v.logos.length + v.rules.length) > 0;
-      return { text: has ? designBlock(v!) : 'Dpro has not found a design for this project yet.', data: { colours: v?.colours.length ?? 0, fonts: v?.fonts.length ?? 0, logos: v?.logos.length ?? 0, rules: v?.rules.length ?? 0, conflicts: v?.conflicts.length ?? 0 } };
+      return { text: has ? designBlock(v!) : 'Girru has not found a design for this project yet.', data: { colours: v?.colours.length ?? 0, fonts: v?.fonts.length ?? 0, logos: v?.logos.length ?? 0, rules: v?.rules.length ?? 0, conflicts: v?.conflicts.length ?? 0 } };
     }
     case 'memory_propose': {
       const content = typeof a.content === 'string' ? a.content.trim() : '';
@@ -321,7 +321,7 @@ export async function mcpCall(c: unknown, token: unknown, cwd: unknown, tool: un
       const proposal = r.proposed[0];
       await audit(ownerId, 'mcp-propose', { client: cl, projectId: project.id, note: proposal ? `proposal ${proposal.id}` : (r.skipped[0]?.reason ?? 'nothing') });
       if (!proposal) return { text: `Not proposed: ${r.skipped[0]?.reason ?? 'nothing to add'}.`, data: { proposalId: null, reason: r.skipped[0]?.reason ?? null } };
-      return { text: 'Proposed. The owner reviews it in Dpro; it becomes shared memory only after approval.', data: { proposalId: proposal.id } };
+      return { text: 'Proposed. The owner reviews it in Girru; it becomes shared memory only after approval.', data: { proposalId: proposal.id } };
     }
     case 'handoff_write': {
       let body;

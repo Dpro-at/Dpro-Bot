@@ -14,7 +14,7 @@ for (const extension of extensions) {
   const matches = fs.readdirSync(root).filter(name => name.endsWith(extension));
   if (matches.length !== 1) throw new Error(`Expected one ${extension} installer`);
   const bytes = fs.readFileSync(path.join(root, matches[0]));
-  const name = `Dpro-${version}-${platform}${extension}`;
+  const name = `Girru-${version}-${platform}${extension}`;
   fs.writeFileSync(path.join(output, name), bytes);
   sums.push(`${createHash('sha256').update(bytes).digest('hex')}  ${name}`);
 }

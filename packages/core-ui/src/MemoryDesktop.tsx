@@ -231,8 +231,8 @@ export function MemoryWindow({ client, active = false, focus, sidebarSlot, onOpe
     : project && ds.projectView === 'databases' ? <DatabasesView d={d} slug={project.slug} agents={ss.agents}/>
     : project && ds.projectView === 'files' ? <FilesView client={client} agents={ss.agents} drawers={[{ id: `project:${project.slug}`, name: project.name }]}/>
     : <MemoryList k={k} pinned={ds.pinned} showPinned={place === 'all' || !!project} onMenu={(e, i) => menu.at(e, memoryMenu(i))} onPinnedMenu={(e, f) => menu.at(e, [{ label: 'Edit…', icon: 'pencil', run: () => setSheet({ kind: 'edit-pinned', fact: f }) }, { label: 'Unpin', icon: 'pin', run: () => void d.unpin(f) }])}
-      empty={project ? <><p>Nothing remembered here yet. Dpro remembers on its own while you chat. You can add something yourself too.</p><button type="button" className="primary" onClick={() => { x.startAdd(); setSheet({ kind: 'remember' }); }}>Remember</button></>
-        : xs.query ? <p>No memory matches. Put words in "quotes" for exact words.</p> : <p>Nothing here yet. Dpro remembers on its own while you chat.</p>}/>;
+      empty={project ? <><p>Nothing remembered here yet. Girru remembers on its own while you chat. You can add something yourself too.</p><button type="button" className="primary" onClick={() => { x.startAdd(); setSheet({ kind: 'remember' }); }}>Remember</button></>
+        : xs.query ? <p>No memory matches. Put words in "quotes" for exact words.</p> : <p>Nothing here yet. Girru remembers on its own while you chat.</p>}/>;
 
   const inspector = ds.extra ? null
     : xs.open && open && listPlace ? <MemoryInspector k={k} item={open} onHistory={() => setSheet({ kind: 'history' })} onTrash={() => void trashIds([open.id])}/>
@@ -365,7 +365,7 @@ function MemorySidebar({ k, waiting, searchRef, onRemember, menu, projectMenu, o
       </div>;
     })}
     {projects.filter(p => !grouped.has(p.slug)).map(p => projectRow(p, false))}
-    {tree && !projects.length && <p className="dk-side-note">Projects appear here when Dpro finds them or you remember something for one.</p>}
+    {tree && !projects.length && <p className="dk-side-note">Projects appear here when Girru finds them or you remember something for one.</p>}
     {ds.groups === 'missing' && projects.length > 1 && <p className="dk-side-note">Groups of projects arrive with the next update.</p>}
     <p className="section-label dk-label"><span>Also</span></p>
     {row('people', 'users', 'People', tree?.company.drawers.people)}
@@ -715,7 +715,7 @@ function ProjectActionSheet({ k, onClose, onDone }: { k: K; onClose: () => void;
     {s.previewBusy && <p role="status">Checking who reads it after…</p>}
     {s.preview && <><h4>Who reads it after</h4><ul className="dk-effects">{effectLines(s.preview).map((l, i) => <li key={i}>{l}</li>)}</ul>
       {s.preview.effects.sample && s.preview.effects.sample.length > 0 && <ul className="dk-who-after">{s.preview.effects.sample.slice(0, 8).map(x => <li key={x.agentId + x.project}><Avatar name={x.agentName}/>{x.agentName}<span className="fine-print">{x.before.read.length && !x.after.read.length ? 'stops reading' : !x.before.read.length && x.after.read.length ? 'starts reading' : 'as before'}</span></li>)}</ul>}
-      <p className="fine-print">Nothing changes until you click {verb[a]}. If the project changes meanwhile, Dpro asks you to look again.</p></>}
+      <p className="fine-print">Nothing changes until you click {verb[a]}. If the project changes meanwhile, Girru asks you to look again.</p></>}
     {s.previewNotice && <p className="dk-inline-notice" role="alert">{s.previewNotice}</p>}
   </Sheet>;
 }
@@ -727,7 +727,7 @@ function ForgetSheet({ k, ids, onClose }: { k: K; ids?: string[]; onClose: () =>
   const projects = items.filter(i => i.kind === 'project');
   return <Sheet title={ids ? 'Forget for good?' : `Forget ${n} ${n === 1 ? 'memory' : 'memories'} for good?`} onClose={onClose}
     actions={<><button type="button" onClick={onClose}>Cancel</button><button type="button" className="danger-solid" disabled={ds.busy || !items.length} onClick={() => void d.forgetForGood(ids).then(ok => { if (ok) onClose(); })}>Forget for good</button></>}>
-    <p>Their text and history are removed from Dpro and from every memory file. This cannot be undone.</p>
+    <p>Their text and history are removed from Girru and from every memory file. This cannot be undone.</p>
     {projects.map(p => <p key={p.id} className="fine-print">Also the {p.count} memories of the project {p.text || p.id.slice(8)}.</p>)}
   </Sheet>;
 }

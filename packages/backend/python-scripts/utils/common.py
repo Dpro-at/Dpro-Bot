@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Common utilities shared across all Dpro Bot Python tools.
+Common utilities shared across all Girru Python tools.
 """
 
 import json

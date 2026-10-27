@@ -159,7 +159,7 @@ test('tree: departments, General default, counts and health per scope', async ()
 test('pinned facts: company, department and project load first, size-limited, redacted', async () => {
   const tree = await ok('GET', '/api/memory/scopes/tree?fresh=1');
   const eng = tree.departments.find((d) => d.name === 'Engineering');
-  await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Dpro.' }, 201);
+  await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Girru.' }, 201);
   await ok('POST', '/api/memory/scopes/pinned', { scope: `department:${eng.id}`, text: 'Engineering ships on Fridays.' }, 201);
   const { fact } = await ok('POST', '/api/memory/scopes/pinned', { scope: 'project:alpha', text: 'Alpha key is sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }, 201);
   assert.ok(!fact.text.includes('AAAAAAAAAAAAAAAA'), 'a secret is never pinned');
@@ -169,17 +169,17 @@ test('pinned facts: company, department and project load first, size-limited, re
 
   const block = await S.pinnedFactsBlock(OWNER, 'alpha');
   assert.match(block, /^## Pinned facts/);
-  const iCompany = block.indexOf('We are Dpro.');
+  const iCompany = block.indexOf('We are Girru.');
   const iDept = block.indexOf('Engineering ships on Fridays.');
   const iProject = block.indexOf('Alpha runs on PostgreSQL 16.');
   assert.ok(iCompany > 0 && iDept > iCompany && iProject > iDept, block);
-  assert.equal(await S.pinnedFactsBlock(OWNER, 'beta'), '## Pinned facts\nThe owner pinned these facts. They hold unless the owner changes them.\nCompany:\n- We are Dpro.');
+  assert.equal(await S.pinnedFactsBlock(OWNER, 'beta'), '## Pinned facts\nThe owner pinned these facts. They hold unless the owner changes them.\nCompany:\n- We are Girru.');
   assert.equal(await S.pinnedFactsBlock('ms-user', 'alpha'), '', 'never across owners');
   // Only the facts of drawers the reply's agent may read.
   const noProject = await S.pinnedFactsBlock(OWNER, 'alpha', { company: true, project: false });
-  assert.ok(noProject.includes('We are Dpro.') && !noProject.includes('Engineering ships') && !noProject.includes('PostgreSQL 16'));
+  assert.ok(noProject.includes('We are Girru.') && !noProject.includes('Engineering ships') && !noProject.includes('PostgreSQL 16'));
   const noOwner = await S.pinnedFactsBlock(OWNER, 'alpha', { company: false, project: true });
-  assert.ok(!noOwner.includes('We are Dpro.') && noOwner.includes('PostgreSQL 16'));
+  assert.ok(!noOwner.includes('We are Girru.') && noOwner.includes('PostgreSQL 16'));
 
   // Size limit: the most specific facts keep their place.
   for (let i = 0; i < 6; i++) await S.addPinnedFact(OWNER, { kind: 'company', id: '' }, `Company filler ${i} `.padEnd(400, 'x'), OWNER);

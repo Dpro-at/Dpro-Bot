@@ -108,7 +108,7 @@ export class CentralSkills {
  /** DISCOVER-01: remove a skill from the library; refused while an agent has it. */
  async remove(id:string){await this.initialize();if(await q.one('SELECT agent_id FROM central_agent_skills WHERE skill_id=?',id))throw new SkillLibraryError('skill_in_use',409);await q.run('DELETE FROM central_skills WHERE id=?',id);}
  /**
-  * Remove a skill from Dpro (owner, in the app only): refused while any agent
+  * Remove a skill from Girru (owner, in the app only): refused while any agent
   * has it or any specialty asks for it, and when it changed since the owner
   * looked (revision). One transaction, so a skill given meanwhile is never lost.
   */
