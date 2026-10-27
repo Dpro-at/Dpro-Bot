@@ -19,11 +19,13 @@ export function validateProfessionalSource(rawPack:unknown,history:any){
  const pack=validateWorkspacePack(rawPack);
  const hex=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
  if(history.version!==1||!Array.isArray(history.releases)||history.releases.length>30||history.releases.some((r:any)=>!hex(r.fingerprint)||!Array.isArray(r.roles)||r.roles.length>300||new Set(r.roles.map((x:any)=>x.id)).size!==r.roles.length||new Set(r.roles.map((x:any)=>x.sourceKey)).size!==r.roles.length||r.roles.some((x:any)=>typeof x.id!=='string'||!/^specialty-[1-9][0-9]*$/.test(x.id)||typeof x.sourceKey!=='string'||!/^professional-role-[a-f0-9]{24}$/.test(x.sourceKey)||!hex(x.contentHash))))throw new Error('invalid_source_history');
+ const seeds:{id:string;sourceKey:string;contentHashes:string[]}[]=history.seeds??[];
+ if(!Array.isArray(seeds)||seeds.length>300||new Set(seeds.map(r=>r?.id)).size!==seeds.length||new Set(seeds.map(r=>r?.sourceKey)).size!==seeds.length||seeds.some(r=>!r||typeof r.id!=='string'||!/^[a-f0-9-]{36}$/.test(r.id)||typeof r.sourceKey!=='string'||!/^professional-role-[a-f0-9]{24}$/.test(r.sourceKey)||!Array.isArray(r.contentHashes)||r.contentHashes.length<1||r.contentHashes.length>10||!r.contentHashes.every(hex)))throw new Error('invalid_source_history');
  const releases:Release[]=history.releases;
  if(new Set(releases.map(r=>r.fingerprint)).size!==releases.length)throw new Error('invalid_source_history');
  const fingerprint=digest(pack),current=releases.find(r=>r.fingerprint===fingerprint);
  if(!current||current.roles.length!==pack.specialties.length||pack.specialties.some(r=>current.roles.find(x=>x.id===r.id)?.contentHash!==digest(content(r))))throw new Error('source_revision_unregistered');
- return {pack,releases,fingerprint,current};
+ return {pack,releases,fingerprint,current,seeds};
 }
 function source(){return validateProfessionalSource(JSON.parse(readFileSync(new URL('../../skills/professional-workspace-settings.json',import.meta.url),'utf8')),JSON.parse(readFileSync(new URL('../../skills/professional-source-history.json',import.meta.url),'utf8')));}
 
@@ -31,7 +33,7 @@ export function professionalSourceManifest(){
  const {pack,fingerprint,current}=source();
  return {namespace:'professional-v1',fingerprint,roles:pack.specialties.map(r=>({sourceKey:current.roles.find(x=>x.id===r.id)!.sourceKey,sourceId:r.id,contentRevision:digest(content(r)),name:r.name,skills:[...r.skills]}))};
 }
-/** Read-only advice. No confirmation token, apply operation, role-name matching or grant changes. Resource names are advisory. */
+/** Known source identities only. Content saves retain configuration and agent authority. */
 export class SpecialtyDistribution{
  constructor(private templates=new SpecialtyTemplates(),private loadSource=source){}
  async review(owner:string,sourceKey:string){
@@ -81,7 +83,7 @@ export class SpecialtyDistribution{
   return {templateId:result.id,revision:result.revision,name:result.name};
  }
  async preview(owner:string){
-  const {pack,releases,fingerprint,current}=this.loadSource();
+  const {pack,releases,fingerprint,current,seeds}=this.loadSource();
   const installed=await q.all<{id:string}>('SELECT id FROM specialty_templates');
   const ids=new Set(installed.map(r=>r.id));
   const skills=await q.all<{id:string;name:string;content_hash:string}>('SELECT id,name,content_hash FROM central_skills');
@@ -95,14 +97,15 @@ export class SpecialtyDistribution{
   const roles=[];
   for(const role of pack.specialties){
    const sourceKey=current.roles.find(r=>r.id===role.id)!.sourceKey;
-   const candidates=releases.flatMap(release=>release.roles.filter(r=>r.sourceKey===sourceKey).map(r=>({id:importedSpecialtyId(owner,release.fingerprint,r.id),baseline:r.contentHash}))).filter(r=>ids.has(r.id));
+   const candidates=releases.flatMap(release=>release.roles.filter(r=>r.sourceKey===sourceKey).map(r=>({id:importedSpecialtyId(owner,release.fingerprint,r.id),baselines:[r.contentHash]}))).concat(seeds.filter(r=>r.sourceKey===sourceKey).map(r=>({id:r.id,baselines:r.contentHashes}))).filter(r=>ids.has(r.id));
    candidates.forEach(r=>matched.add(r.id));
    const contentRevision=digest(content(role));
    if(candidates.length!==1){roles.push({sourceKey,sourceId:role.id,name:role.name,contentRevision,status:candidates.length?'ambiguous':'unmatched',installedIds:candidates.map(r=>r.id)});continue;}
    const candidate=candidates[0],live=await this.templates.get(candidate.id),liveHash=digest(content(live));
    const links=await q.all<{agent_id:string}>('SELECT agent_id FROM agent_specialties WHERE template_id=? ORDER BY agent_id',live.id);
+   const configuredSkills=[live.config?.primarySkill,...(Array.isArray(live.config?.skills)?live.config.skills:[])];
    // The config is never replaced. Package changes may affect other consumers and need separate review.
-   roles.push({sourceKey,sourceId:role.id,name:role.name,contentRevision,installedIds:[live.id],revision:live.revision,linkedAgentIds:links.map(r=>r.agent_id),status:liveHash===contentRevision?'current':liveHash===candidate.baseline?'content_update_available':'local_conflict',packResources:resources.filter(r=>role.skills.includes(r.sourceId)),preservesConfiguration:true});
+   roles.push({sourceKey,sourceId:role.id,name:role.name,contentRevision,installedIds:[live.id],revision:live.revision,linkedAgentIds:links.map(r=>r.agent_id),status:liveHash===contentRevision?'current':candidate.baselines.includes(liveHash)?'content_update_available':'local_conflict',packResources:resources.filter(r=>role.skills.includes(r.sourceId)).map(r=>({...r,assigned:skills.some(s=>s.name===r.name&&configuredSkills.includes(s.id))})),preservesConfiguration:true});
   }
   const currentKeys=new Set(current.roles.map(r=>r.sourceKey));
   for(const release of releases)for(const role of release.roles){
