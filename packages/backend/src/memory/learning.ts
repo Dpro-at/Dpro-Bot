@@ -71,7 +71,7 @@ export type LearningOrigin = 'owner' | 'agent' | 'extraction' | 'outsider';
 export type LearningReason =
   | 'owner-identity' | 'owner-preference' | 'people'
   | 'money' | 'credentials' | 'health' | 'legal' | 'permissions' | 'decision'
-  | 'conflict' | 'overwrite' | 'low-confidence' | 'outsider' | 'chat'
+  | 'conflict' | 'overwrite' | 'low-confidence' | 'outsider' | 'chat' | 'high-importance'
   /** MEM-GAPS-02: the scope's review rules ask for routine facts too. */
   | 'scope-rule';
 
@@ -309,6 +309,8 @@ export interface LearnInput {
   metadata?: Record<string, unknown>;
   /** CHAT-PRO-02 E: every new item goes to the owner as a proposal (routine ones too). */
   review?: boolean;
+  /** Why review was asked (shown with the proposal); default 'chat'. */
+  reviewReason?: LearningReason;
 }
 
 export interface LearnOutcome {
@@ -362,7 +364,7 @@ export async function learn(input: LearnInput): Promise<LearnOutcome> {
       // similarity (search scores depend on the active embedding model).
       .map((r) => ({ id: r.memory.id, content: r.memory.content, similarity: textSimilarity(content, r.memory.content) }));
     const cls = classifyLearning({ ...c, content, type, drawer }, { similar });
-    if (input.review && cls.kind === 'routine') { cls.kind = 'important'; cls.reasons.push('chat'); }
+    if (input.review && cls.kind === 'routine') { cls.kind = 'important'; cls.reasons.push(input.reviewReason ?? 'chat'); }
     // MEM-GAPS-02: the scope's review rules (owner accounts; a chat the owner reviews always asks).
     const rules = ownerReview && !input.review ? await rulesForDrawer(input.userId, drawer) : null;
     if (rules && cls.kind === 'routine' && rules.routine === 'ask') { cls.kind = 'important'; cls.reasons.push('scope-rule'); }

@@ -17,6 +17,7 @@
  * approvals) stays in the tools registry; this loop only calls `execute`.
  */
 
+import { stallGuard, type StallGuard } from './model-stall.js';
 import type { ToolResult } from '../tools/types.js';
 
 /** Step limit for one turn; the model is asked to continue in a new turn after it. */
@@ -33,7 +34,8 @@ export type LoopFrame =
   | { type: 'text'; content: string }
   | { type: 'tool_start'; step: number; tools: { id: string; name: string; input: string }[] }
   | { type: 'tool_result'; step: number; results: { id: string; name: string; output: string; isError: boolean; ms: number }[] }
-  | { type: 'done'; done: true; steps: number };
+  | { type: 'done'; done: true; steps: number }
+  | { type: 'notice'; code: 'local_model_slow' };
 
 export interface ApiTool { name: string; description: string; input_schema: unknown }
 
@@ -63,6 +65,8 @@ export interface OllamaLoopOptions {
   keepAlive?: string | number;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** CHAT-BUILD-01: how long the model may send nothing (first piece / between pieces). */
+  stallMs?: { first?: number; idle?: number };
 }
 
 /** The registry's tool list in the local model's function format. */
@@ -129,9 +133,18 @@ export async function runOllamaAgentLoop(o: OllamaLoopOptions): Promise<{ steps:
 
   /** One model call, streamed; returns its text, thinking and tool calls. */
   async function streamOne() {
+    const guard = stallGuard(o.signal, o.stallMs);
+    try { return await readOne(guard); }
+    catch (err) {
+      if (guard.stalled && !o.signal.aborted) { o.write({ type: 'notice', code: 'local_model_slow' }); throw new ModelUnavailable(504); }
+      throw err;
+    } finally { guard.done(); }
+  }
+
+  async function readOne(guard: StallGuard) {
     const res = await fetchImpl(`${o.url}/api/chat`, {
       method: 'POST',
-      signal: o.signal,
+      signal: guard.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: o.model, messages, stream: true, tools,
@@ -172,6 +185,7 @@ export async function runOllamaAgentLoop(o: OllamaLoopOptions): Promise<{ steps:
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      guard.tick();
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';

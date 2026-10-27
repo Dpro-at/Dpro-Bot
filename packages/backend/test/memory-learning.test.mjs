@@ -186,6 +186,23 @@ test('non-owner account: important items are not saved (owner reviews proposals 
   assert.equal((await call('GET', '/api/memory/proposals', 'ml-user')).statusCode, 403);
 });
 
+test('CHAT-BUILD-01: an agent cannot pin its own memory; secrets it saves are removed', async () => {
+  const pin = await run(memorySaveTool, { content: 'Alpha keeps docs in a docs folder', type: 'fact', drawer: 'project:alpha', importance: 10, metadata: { pinned: true, note: 'kept' } }, ownerCtx);
+  assert.equal(pin.data.pendingApproval, true, 'importance above 7 waits for the owner');
+  assert.ok(pin.data.reasons.includes('high-importance'), JSON.stringify(pin.data.reasons));
+  assert.equal(memByContent('Alpha keeps docs in a docs folder'), undefined);
+  const meta = await run(memorySaveTool, { content: 'Alpha lint runs in CI', type: 'fact', drawer: 'project:alpha', importance: 6, metadata: { pinned: true, pin: true, source: 'owner', note: 'kept' } }, ownerCtx);
+  assert.ok(meta.data?.memoryId, meta.content?.[0]?.text);
+  const row = db.prepare('SELECT metadata, importance_score FROM memories WHERE id = ?').get(meta.data.memoryId);
+  const m = JSON.parse(row.metadata);
+  assert.equal(m.pinned, undefined); assert.equal(m.pin, undefined); assert.notEqual(m.source, 'owner'); assert.equal(m.note, 'kept');
+  assert.ok(row.importance_score < 0.9, 'never in the pinned block');
+  const secret = 'ghp_' + 'Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8';
+  const red = await run(memorySaveTool, { content: `Alpha CI token is ${secret}`, type: 'fact', drawer: 'project:alpha' }, ownerCtx);
+  const all = db.prepare('SELECT content FROM memories').all().map((r) => r.content).join('\n') + JSON.stringify(red);
+  assert.ok(!all.includes(secret), 'the raw secret is never stored or echoed');
+});
+
 test('memory_save tool: routine saved + versioned by the agent; important -> proposal; outsider never auto-saved', async () => {
   const r1 = await run(memorySaveTool, { content: 'Alpha uses pnpm workspaces', type: 'fact', drawer: 'project:alpha' }, ownerCtx);
   assert.ok(r1.data?.memoryId, r1.content?.[0]?.text);

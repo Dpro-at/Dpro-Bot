@@ -13,6 +13,12 @@ import { drawerWritable } from '../../repositories/scope.js';
 import { repositories } from '../../repositories/index.js';
 import { toolMemoryActor } from '../../repositories/actor.js';
 import { isUserConversation, linkAgentProposal } from '../../services/chat-memory.js';
+import { redactImportText } from '../../memory/import/redact.js';
+
+/** CHAT-BUILD-01 (M1): an agent may not pin its own memory; importance above this waits for the owner. */
+export const AGENT_SELF_IMPORTANCE = 7;
+/** Metadata keys only the owner or the system sets (pinning, origin). */
+const RESERVED_METADATA = new Set(['pinned', 'pin', 'source', 'learned', 'origin', 'owner', 'importance']);
 import { DrawerInputError, defaultDrawerForType, parseDrawerId, sameDrawer, type DrawerRef } from '../../memory/drawers.js';
 
 interface MemorySaveParams {
@@ -73,6 +79,7 @@ Importance scale (1-10):
 - 4-6: Medium importance (useful context)
 - 7-9: High importance (critical facts)
 - 10: Critical (user's name, core preferences)
+Importance 8-10 is shown to the owner first and saved only if the owner accepts it. You cannot pin a memory yourself (metadata such as "pinned" is ignored). Secrets (keys, tokens, passwords) are removed before saving.
 
 Examples:
 - "User's name is Ahmed" (type: fact, importance: 10)
@@ -163,6 +170,11 @@ Examples:
 
       // Validate importance
       const importance = Math.max(1, Math.min(10, params.importance || 5));
+      // CHAT-BUILD-01 (M1): high importance would put the memory in every reply's prompt: the owner decides it.
+      const selfImportant = importance > AGENT_SELF_IMPORTANCE;
+      // CHAT-BUILD-01 (M2): secrets in what the agent saves are removed before the memory is stored.
+      const content = redactImportText(String(params.content ?? '')).text;
+      const metadata = Object.fromEntries(Object.entries(params.metadata && typeof params.metadata === 'object' && !Array.isArray(params.metadata) ? params.metadata : {}).filter(([k]) => !RESERVED_METADATA.has(k)));
       const type = params.type || 'conversation';
 
       // CORE-05: routine facts are saved (versioned); important ones become a
@@ -175,9 +187,9 @@ Examples:
       // overwrite one of the owner's memories: it waits for the owner instead.
       const boardTopic = !toolOwnerTurn(context) && params.topic_key !== undefined && params.topic_key !== null && params.topic_key !== '';
       const outcome = await repositories.memory.learn(actor, {
-        candidates: [{ content: params.content, type, importance, drawer, ...(params.topic_key !== undefined ? { topicKey: params.topic_key } : {}) }],
-        metadata: { ...params.metadata, tags: params.tags || [], savedAt: new Date().toISOString() },
-        ...(chat || boardTopic ? { review: true } : {}),
+        candidates: [{ content, type, importance, drawer, ...(params.topic_key !== undefined ? { topicKey: params.topic_key } : {}) }],
+        metadata: { ...metadata, tags: params.tags || [], savedAt: new Date().toISOString() },
+        ...(chat || boardTopic || selfImportant ? { review: true, ...(selfImportant && !chat && !boardTopic ? { reviewReason: 'high-importance' as const } : {}) } : {}),
       });
       const memory = outcome.saved[0];
       const proposal = outcome.proposed[0];
@@ -237,7 +249,7 @@ Examples:
         content: [
           {
             type: 'text',
-            text: `✓ Memory saved successfully!\n\nContent: ${params.content}\nType: ${memory.type}\nImportance: ${importance}/10 (${layerDisplay})\nID: ${memory.id}${
+            text: `✓ Memory saved successfully!\n\nContent: ${content}\nType: ${memory.type}\nImportance: ${importance}/10 (${layerDisplay})\nID: ${memory.id}${
               params.tags && params.tags.length > 0 ? `\nTags: ${params.tags.join(', ')}` : ''
             }\n\nThis information will be recalled automatically in future relevant conversations.`,
           },

@@ -25,6 +25,8 @@ export type RunFrame = Record<string, unknown> & { type: string };
 export interface RunEvent { seq: number; frame: RunFrame }
 export type RunStatus = 'running' | TurnStatus;
 
+/** Notices a turn may show (CHAT-BUILD-01). */
+export const NOTICE_CODES = new Set(['rate_limited', 'claude_key_missing', 'local_model_slow']);
 /** Runs one user may have running at the same time. */
 export const MAX_RUNNING_PER_USER = 3;
 /** How long a finished run stays attachable in memory. */
@@ -84,6 +86,11 @@ export class ChatRun {
       return;
     }
     if (type === 'tool_start' || type === 'tool_result') { this.addTools(type, frame); return; }
+    // CHAT-BUILD-01: notices (rate limit wait, key missing) are shown, never stored as answer text.
+    if (type === 'notice' && NOTICE_CODES.has(String(frame.code))) {
+      this.emit({ type: 'notice', code: String(frame.code), ...(Number.isFinite(frame.waitSec) ? { waitSec: Number(frame.waitSec) } : {}), ...(typeof frame.model === 'string' ? { model: frame.model.slice(0, 100) } : {}) });
+      return;
+    }
     // Unknown frames (provider notes, metadata) are not shown or stored.
   }
 
@@ -268,6 +275,8 @@ export interface StartRunInput {
   agentId?: string | null;
   execute: (reply: FastifyReply) => Promise<unknown>;
   onPersisted?: (status: TurnStatus) => Promise<void>;
+  /** CHAT-BUILD-01: the turn could not be stored; the caller must still close its journal row. */
+  onUnstored?: () => Promise<void>;
 }
 
 export class ChatRunRegistry {
@@ -305,6 +314,7 @@ export class ChatRunRegistry {
         await input.onPersisted?.(status);
       } catch (err) {
         console.error('[ChatRuns] Could not store the turn', { runId: run.id, name: (err as Error)?.name ?? 'Error' });
+        await input.onUnstored?.().catch(() => undefined);
       }
       run.raw.end();
       run.finish(status, this.now());

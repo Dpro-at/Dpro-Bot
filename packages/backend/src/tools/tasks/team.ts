@@ -37,6 +37,19 @@ export const teamListTool: Tool = {
 
 // A coordinator gets one active child at a time; no background queue or detached inference.
 const active = new Set<string>();
+/** CHAT-BUILD-01: one model call of a delegated agent (was 30 s, too short for real work). */
+export const CHILD_CALL_MS = 120_000;
+/** Running delegations per conversation, so Stop in that chat reaches them. */
+const delegations = new Map<string, Set<AbortController>>();
+/** Stops every delegated agent working for this conversation; returns how many were stopped. */
+export function stopDelegations(sessionId: string): number {
+  const set = delegations.get(sessionId);
+  if (!set) return 0;
+  for (const c of set) c.abort();
+  return set.size;
+}
+const untilAborted = <T>(work: Promise<T>, signal: AbortSignal): Promise<T> => signal.aborted ? Promise.reject(Error('cancelled'))
+  : new Promise<T>((resolve, reject) => { const stop = () => reject(Error('cancelled')); signal.addEventListener('abort', stop, { once: true }); work.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop)); });
 export const teamResultsTool: Tool = {
   name: 'team_results',
   description: 'Read the latest five delegated results for this owner conversation. Use after an approved delegation to collect and combine results. Started or waiting_approval means unfinished; never retry it automatically.',
@@ -68,6 +81,9 @@ export const teamDelegateTool: Tool = {
     const key = context!.userId!;
     if (active.has(key)) return fail();
     active.add(key);
+    const stopper = new AbortController();
+    const session = context!.sessionId ?? '';
+    if (session) { const set = delegations.get(session) ?? new Set(); set.add(stopper); delegations.set(session, set); }
     let resultId: string | undefined;
     const { startTeamResult, finishTeamResult } = await import('../../services/team-results.js');
     try {
@@ -85,20 +101,20 @@ export const teamDelegateTool: Tool = {
       });
       const { subscriptionAgentContext } = await import('../../services/subscription-agent-context.js');
       const instructions = await subscriptionAgentContext(target.id);
-      const signal = AbortSignal.timeout(240000);
+      const signal = AbortSignal.any([AbortSignal.timeout(240000), stopper.signal]);
       const reply = async (prompt: string): Promise<string> => {
         if (signal.aborted) throw Error('cancelled');
         if (subscriptionModel(target.model)) return runSubscription(target.model, folder, prompt, signal, { appToolsOnly: true });
         if (target.provider === 'ollama' || target.provider === 'local') {
           const { ollamaToolChat } = await import('../../llm/ollama-tool-chat.js');
-          const result = await ollamaToolChat({ model: target.model, messages: [{ role: 'user', content: prompt }], tools: [], temperature: target.temperature, maxTokens: Math.min(target.max_tokens || 2048, 8192), timeoutMs: 30000 });
+          const result = await ollamaToolChat({ model: target.model, messages: [{ role: 'user', content: prompt }], tools: [], temperature: target.temperature, maxTokens: Math.min(target.max_tokens || 2048, 8192), timeoutMs: CHILD_CALL_MS, signal });
           return result.content;
         }
         const { resolveProviderApiKey } = await import('../../credentials/authority.js');
         const { modelCall } = await import('../../llm/model-call.js');
         const apiKey = await resolveProviderApiKey('claude', { agentId: target.id, noGlobal: true });
         if (!apiKey) throw Error('model_unavailable');
-        const result = await modelCall({ actor: target.id }, { purpose: 'task_run', prompt, maxOutputTokens: Math.min(target.max_tokens || 2048, 8192), timeoutMs: 30000, noLocal: true, paid: { provider: 'claude', model: target.model, apiKey } });
+        const result = await untilAborted(modelCall({ actor: target.id }, { purpose: 'task_run', prompt, maxOutputTokens: Math.min(target.max_tokens || 2048, 8192), timeoutMs: CHILD_CALL_MS, noLocal: true, paid: { provider: 'claude', model: target.model, apiKey } }), signal);
         if (!result.ok || result.provider !== 'claude') throw Error('model_unavailable');
         return result.text;
       };
@@ -112,6 +128,6 @@ export const teamDelegateTool: Tool = {
       if (resultId) await finishTeamResult(resultId, fail()).catch(() => {});
       return fail();
     }
-    finally { active.delete(key); }
+    finally { active.delete(key); const set = delegations.get(session); set?.delete(stopper); if (set && !set.size) delegations.delete(session); }
   },
 };

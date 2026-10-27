@@ -26,7 +26,7 @@ test('recovered chat displays safe continuation instead of blind retry', async t
   const base = createLoginMock();
   const client = new SessionClient({ mock: async request => {
     const response = await base(request);
-    if (request.path.endsWith('/messages') && response.status === 200) return { ...response, body: { ...response.body,
+    if (/\/messages(\?|$)/.test(request.path) && response.status === 200) return { ...response, body: { ...response.body,
       messages: [{ ...recovered, id: 'request', role: 'user', content: 'Original task', status: 'complete', code: undefined }, recovered], activeRunId: null } };
     return response;
   } });
@@ -48,7 +48,7 @@ test('an open chat reconciles a missing SSE run after restart without sending th
     calls.push(request);
     if (/\/api\/chat\/runs\/[^/]+\/events/.test(request.path)) return { status: 404, body: { code: 'not_found' } };
     const response = await base(request);
-    if (request.path.endsWith('/messages') && response.status === 200) {
+    if (/\/messages(\?|$)/.test(request.path) && response.status === 200) {
       reads++;
       const user = { ...recovered, id: 'request', role: 'user', content: 'Original task', status: 'complete', code: undefined };
       return { ...response, body: { ...response.body, messages: reads === 1 ? [user] : [user, recovered], activeRunId: reads === 1 ? recovered.runId : null } };

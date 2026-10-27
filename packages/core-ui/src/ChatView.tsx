@@ -113,6 +113,14 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [s.draft]);
   useEffect(() => { input.current?.focus(); }, [s.activeId]);
+  // CHAT-BUILD-01: a reply the server started by itself (after an approval) shows up when the window is back in front, or within 20 s.
+  useEffect(() => {
+    if (mode !== 'live' || !s.activeId) return;
+    const refresh = () => { if (document.visibilityState === 'visible') void controller.refreshActive(); };
+    const timer = setInterval(refresh, 20_000);
+    window.addEventListener('focus', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [controller, mode, s.activeId]);
 
   const submit = () => { if (s.draft.trim() || s.attachments.length) { setFollowing(true); void controller.send(); } };
   const picker = useRef<HTMLInputElement>(null);
@@ -256,6 +264,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <details className="chat-starting-ideas"><summary><UiIcon name="chevron" size={12}/>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
           <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}><UiIcon name="compose" size={14}/>{t}</button>)}</div></details>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
+        {s.hasEarlier && <button type="button" className="ghost-action chat-earlier" disabled={s.loadingEarlier} onClick={() => void controller.loadEarlier()}>{s.loadingEarlier ? 'Loading earlier messages…' : 'Show earlier messages'}</button>}
         {s.turns.map((t, i) => t.role === 'user'
           ? <UserMessage key={t.key} turn={t} highlight={flash === t.key} onKey={client ? setKeysOpen : undefined} onRemember={canRemember && messageRef(t) ? () => openRemember(t, t.content) : undefined}/>
           : <AssistantTurn recovery={t.code === 'run_interrupted' && client && s.activeId ? <RecoveryApprovals key={`${s.activeId}:${client.getSnapshot().epoch}`} client={client} conversationId={s.activeId}/> : undefined} key={t.key} turn={t} highlight={flash === t.key} writer={teamChat ? nameOf(t.agentId ?? convAgentId) : undefined} last={i === s.turns.length - 1} onRetry={lastUser ? () => void controller.send(t.code === 'run_interrupted' ? 'Continue the interrupted work from the saved checkpoints. Review what is already done and inspect unknown outcomes before repeating any action. Ask me to approve each tool call.' : lastUser.content) : undefined}

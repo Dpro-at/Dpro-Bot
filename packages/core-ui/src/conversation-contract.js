@@ -9,6 +9,8 @@ export const PROJECTS_PATH = '/api/chat/projects';
 const folderOk = x => typeof x === 'string' && x.length <= 1024 && !/[\u0000-\u001F]/.test(x);
 const repoOk = x => typeof x === 'string' && x.length <= 300 && (x === '' || /^(https:\/\/|git@)[A-Za-z0-9.@:/_~%+-]{3,300}$/.test(x));
 export const MAX_MESSAGE = 100000;
+/** CHAT-BUILD-01: request bytes for one message (100,000 Arabic characters are about 200 KB of UTF-8). */
+export const MAX_MESSAGE_BYTES = 480 * 1024;
 export const MAX_TITLE = 120;
 /** One reader connection lasts at most this long; the client re-attaches with after=<seq>. */
 export const RUN_STREAM_MS = 5 * 60 * 1000;
@@ -52,8 +54,9 @@ export function conversationPath(path) {
   if (pm) { const rel = paneRel(pm[3]); return uuid(pm[1]) && rel !== null && (rel !== '' || pm[2] === 'tree') ? { kind: `project-${pm[2]}`, id: pm[1], rel } : null; }
   let m = /^\/api\/chat\/conversations\/([^/?#]+)$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: 'one', id: m[1] } : null;
-  m = /^\/api\/chat\/conversations\/([^/?#]+)\/messages$/.exec(path);
-  if (m) return uuid(m[1]) ? { kind: 'messages', id: m[1] } : null;
+  // CHAT-BUILD-01: one page of a long conversation (?limit=N[&before=<message id>]).
+  m = /^\/api\/chat\/conversations\/([^/?#]+)\/messages(?:\?limit=([1-9]\d{0,2})(?:&before=([^&#]+))?)?$/.exec(path);
+  if (m) return uuid(m[1]) && (m[2] === undefined || Number(m[2]) <= 500) && (m[3] === undefined || uuid(m[3])) ? { kind: 'messages', id: m[1] } : null;
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/runs$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: 'runs', id: m[1] } : null;
   m = /^\/api\/chat\/runs\/([^/?#]+)\/events(?:\?after=(0|[1-9]\d{0,8}))?$/.exec(path);
@@ -192,7 +195,7 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'one') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }
   if (p.kind === 'messages') {
     if (!Array.isArray(body.messages) || body.messages.length > 20000) throw Error('protocol');
-    return { conversation: conversation(body.conversation), messages: body.messages.map(message), activeRunId: validRunId(body.activeRunId) ? body.activeRunId : null };
+    return { conversation: conversation(body.conversation), messages: body.messages.map(message), activeRunId: validRunId(body.activeRunId) ? body.activeRunId : null, ...(body.hasMore === true ? { hasMore: true } : {}) };
   }
   if (p.kind === 'runs') {
     if (!validRunId(body.runId)) throw Error('protocol');
@@ -209,6 +212,8 @@ export function projectRunEvent(x) {
 }
 /** Typed reasons a run may end with (CHAT-PRO-02 G: LM Studio not running). */
 const END_CODES = ['model_unavailable', 'local_model_missing', 'lmstudio_not_running', 'subscription_org_blocked'];
+/** Notices a running turn may show (CHAT-BUILD-01); never part of the answer. */
+const NOTICE_CODES = ['rate_limited', 'claude_key_missing', 'local_model_slow'];
 function projectEvent(x) {
   if (!record(x) || !Number.isSafeInteger(x.seq) || x.seq < 1) throw Error('protocol');
   const seq = x.seq;
@@ -218,6 +223,9 @@ function projectEvent(x) {
   }
   if (x.type === 'tool_result' && Array.isArray(x.results) && x.results.length <= 64) {
     return { seq, type: 'tool_result', step: num(x.step) ?? 0, results: x.results.map(r => ({ id: str(r?.id, 128), name: str(r?.name, 128), output: str(r?.output, 12000), isError: r?.isError === true, ...(num(r?.ms) !== undefined ? { ms: num(r.ms) } : {}) })) };
+  }
+  if (x.type === 'notice' && NOTICE_CODES.includes(x.code)) {
+    return { seq, type: 'notice', code: x.code, ...(num(x.waitSec) !== undefined ? { waitSec: num(x.waitSec) } : {}), ...(typeof x.model === 'string' ? { model: str(x.model, 100) } : {}) };
   }
   if (x.type === 'end' && ['complete', 'stopped', 'error'].includes(x.status)) {
     return { seq, type: 'end', status: x.status, ms: num(x.ms) ?? 0, ...(END_CODES.includes(x.code) ? { code: x.code } : {}) };

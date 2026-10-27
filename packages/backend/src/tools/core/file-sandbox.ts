@@ -127,7 +127,7 @@ const SSH_KEY_NAME = /^id_(rsa|dsa|ecdsa|ed25519)(_sk)?(\.pub)?$/i;
 const DB_NAME = /\.(db|sqlite3?)($|[-.])/i;
 const KEY_FILE = /\.(pem|key|p12|pfx|ppk)$/i;
 /** CLI token (auth.json), backend instance secret (instance.json) and similar. */
-const SECRET_FILE_NAMES: ReadonlySet<string> = new Set(['auth.json', 'instance.json', 'secrets.env', '.netrc', '.npmrc', '.git-credentials', '.pgpass']);
+const SECRET_FILE_NAMES: ReadonlySet<string> = new Set(['auth.json', 'instance.json', 'secrets.env', '.netrc', '.npmrc', '.git-credentials', '.pgpass', '.credentials.json', 'studio-connection.json']);
 
 /** `.env`, `.env.local`, `secrets.env`, `prod.env`, ... */
 function isEnvFileName(name: string): boolean {
