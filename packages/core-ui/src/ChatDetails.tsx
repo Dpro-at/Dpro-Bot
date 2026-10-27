@@ -69,8 +69,8 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
   return live;
 }
 
-export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder }: {
-  controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode;
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder }: {
+  controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
   onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
   onSchedule: () => void; onAddFolder: () => void;
 }) {
@@ -118,11 +118,12 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
         {live.team.slice(0, more.has('team') ? 50 : 3).map((d, i) => <Row key={`${d.agentId}-${i}`} face={d.agentName} name={d.agentName} sub={`Handed a part · ${answersLabel(d.model, s.models, 'normal')}`} indent
           end={d.status === 'started' ? <StopButton onStop={onStop}/> : <span className="panel-end" data-tone={d.status === 'waiting_approval' ? 'needs' : d.status === 'failed' ? 'error' : undefined}>{d.status === 'answered' ? 'Done' : d.status === 'waiting_approval' ? 'Waits for you' : d.status === 'failed' ? 'Failed' : ''}</span>}/>)}
       </>, more: live.team.length > 3 && !more.has('team') ? <ShowMore n={live.team.length - 3} onClick={() => setMore(new Set([...more, 'team']))}/> : undefined },
-    results: { has: changed > 0 || outputs.length > 0, summary: changed ? `+${s.git?.added ?? 0} −${s.git?.removed ?? 0}` : `${outputs.length} ${outputs.length === 1 ? 'file' : 'files'}`,
+    results: { has: changed > 0 || outputs.length > 0 || !!resultsExtra, summary: changed ? `+${s.git?.added ?? 0} −${s.git?.removed ?? 0}` : `${outputs.length} ${outputs.length === 1 ? 'file' : 'files'}`,
       side: changed ? <button type="button" className="link-button" onClick={() => onOpenPane('changes')}>Review</button> : undefined,
       body: <>
         {changed > 0 && <Row icon="diff" name={`${changed} ${changed === 1 ? 'file' : 'files'} changed`} sub={`${s.git?.branch ?? 'Working folder'} · not committed`} end={<span className="panel-end"><span className="plus">+{s.git?.added ?? 0}</span> <span className="minus">−{s.git?.removed ?? 0}</span></span>} onClick={() => onOpenPane('changes')}/>}
         {outputs.slice(-(more.has('results') ? 50 : 3)).reverse().map(o => <Row key={o.path} icon={o.kind === 'edit' ? 'pencil' : 'file'} name={o.path.split('/').at(-1) ?? o.path} sub={o.kind === 'edit' ? 'Changed here' : 'Made in this chat'} onClick={() => onOpenPane('files')}/>)}
+        {resultsExtra}
       </>, more: outputs.length > 3 && !more.has('results') ? <ShowMore n={outputs.length - 3} onClick={() => setMore(new Set([...more, 'results']))}/> : undefined },
     memory: { has: !!memoryCard || !!trace, summary: trace?.items?.length ? `${trace.items.length} used` : 'Saved from this chat', side: undefined,
       body: <>{trace && recall ? <ContextCard trace={trace} c={recall}/> : null}{memoryCard}</> },

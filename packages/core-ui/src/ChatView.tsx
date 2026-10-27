@@ -387,6 +387,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   </div>
   {pane === 'details' ? <ChatDetails controller={controller} client={client} recall={recallCtl} onSettings={onAddConnector} onClose={() => setPane(null)}
       memoryCard={s.activeId ? <>{recallCtl && <HandoffCard c={recallCtl} agentId={convAgentId || s.agentId || s.agents[0]?.id || ''} agentName={convAgentName}/>}{memCtl && <ChatMemoryCard controller={memCtl} onOpen={onOpenMemory}/>}</> : undefined}
+      resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} onRefresh={() => void controller.refreshGit()}/> : undefined}
       placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
       onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })}/>
