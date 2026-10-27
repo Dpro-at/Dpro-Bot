@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {q} from '../repositories/sql-steps.js';
+import {q,one,dialect,type Step} from '../repositories/sql-steps.js';
+import {forUpdate} from '../db/pg/dialect.js';
 import {SpecialtyTemplates} from './specialty-templates.js';
 import {validateWorkspacePack} from './workspace-pack.js';
 
@@ -12,6 +13,7 @@ export function importedSpecialtyId(owner:string,fingerprint:string,sourceId:str
  const h=digest(owner+':'+fingerprint+':specialty:'+sourceId);
  return h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32);
 }
+export class UpgradeError extends Error{constructor(readonly code:string,readonly status=409){super(code);}}
 type Release={fingerprint:string;roles:{id:string;sourceKey:string;contentHash:string}[]};
 export function validateProfessionalSource(rawPack:unknown,history:any){
  const pack=validateWorkspacePack(rawPack);
@@ -32,6 +34,52 @@ export function professionalSourceManifest(){
 /** Read-only advice. No confirmation token, apply operation, role-name matching or grant changes. Resource names are advisory. */
 export class SpecialtyDistribution{
  constructor(private templates=new SpecialtyTemplates(),private loadSource=source){}
+ async review(owner:string,sourceKey:string){
+  const state=await this.reviewState(owner,sourceKey);
+  return {sourceKey,templateId:state.live.id,revision:state.live.revision,name:state.proposed.name,reviewToken:state.token,changes:state.changes,agents:state.impact.agents};
+ }
+ private async reviewState(owner:string,sourceKey:string){
+  if(typeof sourceKey!=='string'||!/^professional-role-[a-f0-9]{24}$/.test(sourceKey))throw new UpgradeError('invalid_input',400);
+  const preview=await this.preview(owner),entry=preview.roles.find(r=>r.sourceKey===sourceKey);
+  if(!entry||entry.status!=='content_update_available'||entry.installedIds.length!==1)throw new UpgradeError('upgrade_not_available');
+  const loaded=this.loadSource();
+  if(loaded.fingerprint!==preview.fingerprint)throw new UpgradeError('review_changed');
+  const record=loaded.current.roles.find(r=>r.sourceKey===sourceKey),role=loaded.pack.specialties.find(r=>r.id===record?.id);
+  if(!role)throw new UpgradeError('review_changed');
+  const live=await this.templates.get(entry.installedIds[0]);
+  if(live.revision!==entry.revision)throw new UpgradeError('review_changed');
+  const selected=new Set([live.config.primarySkill,...live.config.skills]);
+  const resources=[];
+  for(const ref of role.skills){
+   const source=loaded.pack.skills.find(r=>r.id===ref)!;
+   const files=source.files.map(f=>({path:f.path,content:f.content.replace(/\r\n?/g,'\n').trim()+'\n'})).sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+   const expected=createHash('sha256').update(JSON.stringify(files)).digest('hex');
+   const rows=await q.all<{id:string;name:string;content_hash:string}>('SELECT id,name,content_hash FROM central_skills WHERE name=?',source.name);
+   if(rows.length!==1||rows[0].content_hash!==expected||!selected.has(rows[0].id))throw new UpgradeError('resources_not_ready');
+   resources.push({...rows[0]});
+  }
+  const proposed={...content(role),instructions:role.instructions,revision:live.revision,config:structuredClone(live.config)};
+  const impact=await this.templates.impact(live.id,proposed,live.config);
+  const changes=impact.changes.map(c=>c.field==='instructions'?{...c,after:content(proposed).instructions}:c).filter(c=>c.before!==c.after);
+  const token=digest({owner,sourceKey,fingerprint:loaded.fingerprint,templateId:live.id,proposed,resources,impact:impact.confirmation,changes});
+  return {live,proposed,resources,impact,changes,token,fingerprint:loaded.fingerprint};
+ }
+ async apply(owner:string,sourceKey:string,reviewToken:string){
+  if(typeof reviewToken!=='string'||!(/^[a-f0-9]{64}$/).test(reviewToken))throw new UpgradeError('invalid_input',400);
+  const state=await this.reviewState(owner,sourceKey);
+  if(state.token!==reviewToken)throw new UpgradeError('review_changed');
+  const loadSource=this.loadSource;
+  const guard=function*():Step<void>{
+   if(loadSource().fingerprint!==state.fingerprint)throw new UpgradeError('review_changed');
+   const d=yield* dialect();
+   for(const expected of [...state.resources].sort((a,b)=>a.id.localeCompare(b.id))){
+    const row=yield* one<{name:string;content_hash:string}>('SELECT name,content_hash FROM central_skills WHERE id=?'+forUpdate(d),expected.id);
+    if(!row||row.name!==expected.name||row.content_hash!==expected.content_hash)throw new UpgradeError('resources_not_ready');
+   }
+  };
+  const result=await this.templates.save(state.live.id,{...state.proposed,confirmImpact:state.impact.confirmation},guard,state.live.config);
+  return {templateId:result.id,revision:result.revision,name:result.name};
+ }
  async preview(owner:string){
   const {pack,releases,fingerprint,current}=this.loadSource();
   const installed=await q.all<{id:string}>('SELECT id FROM specialty_templates');
@@ -61,6 +109,6 @@ export class SpecialtyDistribution{
    const id=importedSpecialtyId(owner,release.fingerprint,role.id);
    if(!currentKeys.has(role.sourceKey)&&ids.has(id)&&!matched.has(id)){matched.add(id);roles.push({sourceKey:role.sourceKey,sourceId:role.id,status:'retired',installedIds:[id]});}
   }
-  return {namespace:'professional-v1',fingerprint,readOnly:true,applySupported:false,requiresFreshReview:true,roles,resources,unmatchedInstalledIds:installed.filter(r=>!matched.has(r.id)).map(r=>r.id)};
+  return {namespace:'professional-v1',fingerprint,readOnly:true,applySupported:true,requiresFreshReview:true,roles,resources,unmatchedInstalledIds:installed.filter(r=>!matched.has(r.id)).map(r=>r.id)};
  }
 }

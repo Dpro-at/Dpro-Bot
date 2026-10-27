@@ -1,8 +1,10 @@
+import {SpecialtyUpdates} from './SpecialtyUpdates';
+import {updateCopy} from './specialty-update-copy';
 import {PersonalityPicker} from './PersonalityLibrary';
 import {properWords} from './skill-display';
 import {defaultLibraryId,type Entry as PersonalityEntry} from './personality-library';
 import {createPortal} from 'react-dom';
-import {useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import type {ReactNode,KeyboardEvent as ReactKeyboardEvent} from 'react';
 import {UiIcon,type UiIconName} from './ui-icons';
 import type {SessionClient} from './session';
@@ -67,6 +69,8 @@ const typing=(t:EventTarget)=>t instanceof HTMLElement&&(!!t.closest('input,text
  * back undo; only Update and Hire ask first. Specialties never grant tools.
  */
 export function SpecialtyLibrary({client,hire=false,onHired,sidebarSlot,active=true,onOpenAgent,onOpenConnections}:{client:SessionClient;hire?:boolean;onHired?:()=>void;sidebarSlot?:HTMLElement|null;active?:boolean;onOpenAgent?:(id:string)=>void;onOpenConnections?:()=>void}){
+ const [updates,setUpdates]=useState(false);
+ const updateApplied=useCallback(()=>{setReload(n=>n+1);setDraft(null);setSaved(null);},[]);
  const [list,setList]=useState<Summary[]>([]),[catalogue,setCatalogue]=useState<Catalogue|null>(null),[draft,setDraft]=useState<Template|null>(null),[saved,setSaved]=useState<Template|null>(null),[phase,setPhase]=useState('loading'),[error,setError]=useState(''),[reload,setReload]=useState(0);
  const [place,setPlace]=useState('all'),[availability,setAvailability]=useState('all'),[sort,setSort]=useState<'name'|'use'>('name'),[query,setQuery]=useState(''),[inspector,setInspector]=useState(true),[view,setView]=useState<'library'|'open'>('library'),[part,setPart]=useState<Part>('overview');
  const [agents,setAgents]=useState<Agent[]>([]),[agentPhase,setAgentPhase]=useState('idle'),[agentReload,setAgentReload]=useState(0),[giving,setGiving]=useState<string[]|null>(null),[agentQuery,setAgentQuery]=useState(''),[access,setAccess]=useState<Agent|null>(null);
@@ -173,7 +177,7 @@ export function SpecialtyLibrary({client,hire=false,onHired,sidebarSlot,active=t
   {facts.map(f=><div key={f.title} className="sp-fact"><UiIcon name={f.icon} size={16}/><div><span>{f.title}</span><div className="sp-chips">{f.chips}</div></div></div>)}<small className="sp-hint">Right-click a specialty for the same actions. Giving and taking back undo with ⌘Z.</small></>}</aside>:inspector?<aside className="sp-inspector sp-insp-empty" aria-label="Selected specialty"><UiIcon name="layers" size={28}/><p>Select a specialty to see its job, skills, tools and agents.</p></aside>:null;
  const placeName=hire?'Choose a specialty':place==='team'?'In my team':place==='soon'?'Coming soon':place.startsWith('dept:')?place.slice(5):'All specialties';
  const library=<div className="sp-content"><div className="sp-bar">{place.startsWith('dept:')?<span className="sp-tile" aria-hidden="true" style={toneStyle(familyOf(place.slice(5)).colour,26)}><UiIcon name={familyOf(place.slice(5)).icon} size={14}/></span>:<UiIcon name={place==='team'?'users':place==='soon'?'clock':'layers'} size={16}/>}<h2>{placeName}</h2><span className="sp-grow"/>
-  <IconButton icon="filter" label="Content availability" pressed={availability!=='all'} onClick={e=>menu.at(e,showMenu())}/><IconButton icon="more" label="More for this place" onClick={e=>menu.at(e,placeMenu())}/><IconButton icon="inspector" label="Show or hide details" shortcut="⌥⌘I" pressed={inspector} onClick={()=>setInspector(v=>!v)}/></div>
+  <>{!hire&&client.getSnapshot?.().user?.role==='owner'&&<button type="button" disabled={locked||changed} onClick={()=>setUpdates(true)}>{updateCopy.open}</button>}</><IconButton icon="filter" label="Content availability" pressed={availability!=='all'} onClick={e=>menu.at(e,showMenu())}/><IconButton icon="more" label="More for this place" onClick={e=>menu.at(e,placeMenu())}/><IconButton icon="inspector" label="Show or hide details" shortcut="⌥⌘I" pressed={inspector} onClick={()=>setInspector(v=>!v)}/></div>
   <div className="sp-list" aria-label={hire?'Specialties to hire with':'Specialties'}>{phase==='loading'&&!list.length?<div className="sp-empty" role="status"><UiIcon name="clock" size={24}/><p>Loading specialties…</p></div>:grouped.map(([heading,items])=><div key={heading} role="group" aria-label={heading}><div className="sp-heading">{heading}</div>{items.map(t=><button key={t.id} type="button" className="sp-row" aria-pressed={draft?.id===t.id} data-soon={t.planned||undefined} disabled={locked&&draft?.id!==t.id} onClick={()=>select(t.id)} onDoubleClick={()=>open(t.id)} onContextMenu={e=>{select(t.id);menu.at(e,rowMenu(t));}} onKeyDown={e=>rowKey(e,t)}><DeptTile department={groupsOf(t)[0]} soon={t.planned}/><span className="sp-row-text"><b>{t.name}</b><small>{t.kind==='track'?'Track':t.description||readable(t.department)}</small></span>{t.planned&&<span className="sp-soon-tag" title="Not ready yet"><UiIcon name="clock" size={12}/>Coming soon</span>}<span className="dk-avatars" aria-label={(t.agents??[]).map(a=>a.name).join(', ')||'No agent has it'}>{(t.agents??[]).slice(0,3).map(a=><Avatar key={a.id} name={a.name} size={22}/>)}</span></button>)}</div>)}
   {phase!=='loading'&&!shown.length&&<div className="sp-empty"><UiIcon name={place==='team'?'users':'search'} size={24}/><p>{place==='team'&&!query&&availability==='all'?'No agent has a specialty yet. Give one from All specialties.':'No specialties match.'}</p><button type="button" onClick={()=>{setQuery('');setAvailability('all');setPlace('all');}}>{place==='team'&&!query&&availability==='all'?'Show all specialties':'Clear filters'}</button></div>}</div></div>;
  const partTitle=partList.find(p=>p.id===part)?.name??'';
@@ -219,7 +223,7 @@ export function SpecialtyLibrary({client,hire=false,onHired,sidebarSlot,active=t
   {view==='open'&&draft?openView:library}{view==='library'?inspectorPane:draftPane}
   {phase==='error'&&<div className="sp-error" role="alert"><UiIcon name="alert" size={14}/><span>{error}</span><button type="button" disabled={!!pending} onClick={()=>{setError('');setReload(n=>n+1);}}>Reload specialties</button>{draft&&draft.revision>0&&!pending&&<button type="button" onClick={()=>{const id=draft.id;setDraft(null);setSaved(null);setError('');select(id,true);}}>Reload this specialty</button>}</div>}
   {draft&&editor&&<DocumentEditor title={`${draft.name} · Responsibilities`} files={[{id:'description',name:'Responsibilities.md',content:draft.description,readOnly}]} maxLength={1800} onChange={(_,text)=>edit({description:text})} onClose={()=>setEditor(false)}/>}
-  {pickerSheet}{giveSheet}{accessSheet}{reviewSheet}{hireSheet}{newSheet}
+  {updates&&<SpecialtyUpdates client={client} onClose={()=>setUpdates(false)} onApplied={updateApplied}/>}{pickerSheet}{giveSheet}{accessSheet}{reviewSheet}{hireSheet}{newSheet}
   <ContextMenu menu={menu.menu} onClose={menu.close}/><Notice toast={toast} onUndo={()=>{const run=toast?.run;setToast(null);run?.();}} onDone={id=>setToast(t=>t?.id===id?null:t)}/>
  </section>;
 }
