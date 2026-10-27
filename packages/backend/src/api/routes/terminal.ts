@@ -13,6 +13,7 @@
  * Every open and close is written to the audit log; keystrokes are not.
  */
 
+import { variablesEnv } from '../../services/project-variables.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { actorOf } from '../../auth/auth-gate.js';
 import { actorOrReply, requireOwner } from '../../repositories/scope.js';
@@ -105,12 +106,14 @@ export function terminalRoutesWith(manager: TerminalManager) {
         const body = request.body && typeof request.body === 'object' ? request.body : {};
         // A chat project's terminal opens in the project folder (re-checked: it must still exist).
         let cwd: string | undefined;
+        let extraEnv: Record<string, string> | undefined;
         if (body.projectId !== undefined) {
           const project = typeof body.projectId === 'string' && SESSION_ID.test(body.projectId) ? await findProject(owner, body.projectId) : undefined;
           if (!project?.folder) return reply.code(404).send({ error: 'No such project folder', code: 'not_found' });
           try { cwd = checkFolder(project.folder); } catch { return reply.code(404).send({ error: 'The project folder is gone', code: 'not_found' }); }
+          extraEnv = await variablesEnv(owner, project.id).catch(() => undefined);
         }
-        const created = await manager.create(owner, { cols: body.cols, rows: body.rows, cwd });
+        const created = await manager.create(owner, { cols: body.cols, rows: body.rows, cwd, extraEnv });
         audit(request, owner, 'terminal.session.open', created.id);
         return reply.code(201).send(created);
       } catch (err) {

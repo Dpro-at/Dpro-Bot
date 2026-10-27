@@ -5,7 +5,6 @@ import {AppsWorkspace} from './AppsWorkspace';
 import type {AppsPlace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
 import {LibrarySection} from './LibrarySection';
-import {NewChatDialog} from './NewChatDialog';
 import {usePendingApprovalCount} from './ApprovalPage';
 import {ApprovalsWorkspace} from './HumanReviewsPage';
 import type {ApprovalsPlaceRequest} from './HumanReviewsPage';
@@ -93,7 +92,6 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const mode = state.mode === 'mock' ? 'mock' : 'live';
   const [rail, setRail] = useState(true);
   const [palette, setPalette] = useState(false);
-  const [choosingChat,setChoosingChat]=useState(false);
   const [settingsTab,setSettingsTab]=useState<SettingsTab>('general');
   const [memoryPane,setMemoryPane]=useState<MemorySettingsPane>('rules');
   const [slot,setSlot]=useState<HTMLElement|null>(null);
@@ -135,7 +133,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const newChat = () => {setChoosingChat(true);setPage('chat');};
+  // CHAT-BUILD-01 stage 3 (CH5): a new chat opens at once, in the project you are in — no dialog.
+  const newChat = () => { const c = chat?.getSnapshot(); const p = c?.conversations.find(x => x.id === c.activeId)?.projectId ?? c?.projectFilter ?? ''; chat?.filterProject(p); chat?.newChat(); setPage('chat'); };
   const commands: Command[] = [
     ...pages.filter(p=>p.key!=='genvr'&&(p.key!=='approvals'||user.role!=='guest')&&(p.key!=='library'||user.role==='owner')).map(p => ({ id: `go-${p.key}`, group: 'Go to', label: p.label, icon:p.icon==='board'||p.icon==='book'?<UiIcon name={p.icon} size={14}/>:<Icon name={p.icon}/>, run: () => setPage(p.key) })),
     ...tools.map(t=>({...t,id:'tool-'+t.id,group:'Tools',keywords:t.id==='terminal'?'console shell':t.id==='genvr'?'spaces worlds':'editor'})),
@@ -161,7 +160,6 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
 
   const sidebarShown = rail && (page === 'chat' || ownSidebar);
   return <div className="shell app-shell" data-theme={theme} data-rail={sidebarShown ? 'open' : 'closed'} data-section={page} lang="en" dir="ltr">
-    {choosingChat&&chat&&<NewChatDialog controller={chat} onClose={()=>setChoosingChat(false)}/>}
     <header className="titlebar">
       <WorkspaceModes onModeChange={mode=>{if(mode==='code')setPage('code');else if(page==='code')setPage('chat');}}/>
       <div className="titlebar-tools">

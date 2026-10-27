@@ -286,7 +286,7 @@ test('team chat: "@Name" or the reply picker chooses who writes; replies show th
   assert.equal(c.getSnapshot().replyAgent, '', 'opening resets the picker');
   const html = renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock' }));
   assert.match(html, /class="reply-writer"[^>]*>.*Offline helper/);
-  assert.match(html, /aria-label="Reply from"|>Reply from</);
+  assert.match(html, /aria-label="Who answers: [^"]+"/, "CHAT-BUILD-01: the composer says who answers");
   c.edit('hey @off');
   assert.match(renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock' })), /role="listbox" aria-label="Agents"/);
 });

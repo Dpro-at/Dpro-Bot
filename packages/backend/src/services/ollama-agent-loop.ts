@@ -59,6 +59,8 @@ export interface OllamaLoopOptions {
   temperature?: number;
   maxTokens?: number;
   think?: boolean;
+  /** CHAT-BUILD-01: `think` came from the chat's Thinking choice; a model that cannot think gets the call again without it. */
+  thinkOptional?: boolean;
   maxSteps?: number;
   /** MEM-CACHE-01: model window (num_ctx) and how long the model stays loaded (keep_alive). */
   numCtx?: number;
@@ -153,6 +155,11 @@ export async function runOllamaAgentLoop(o: OllamaLoopOptions): Promise<{ steps:
         options: { ...(o.temperature === undefined ? {} : { temperature: o.temperature }), ...(o.maxTokens ? { num_predict: o.maxTokens } : {}), ...(o.numCtx ? { num_ctx: o.numCtx } : {}) },
       }),
     });
+    if (res.status === 400 && o.thinkOptional && o.think !== undefined) {
+      try { await res.body?.cancel(); } catch { /* ignore */ }
+      o.think = undefined;
+      return readOne(guard);
+    }
     if (!res.ok || !res.body) {
       try { await res.body?.cancel(); } catch { /* ignore */ }
       throw new ModelUnavailable(res.status);

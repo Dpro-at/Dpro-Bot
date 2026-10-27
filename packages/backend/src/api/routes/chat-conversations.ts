@@ -32,7 +32,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticateActiveUser } from '../../auth/route-guards.js';
 import {
   addUserMessage, createConversation, createProject, deleteConversation, deleteProject, findConversation, findProject, gitInfo,
-  listConversationMessages, listConversations, pageConversationMessages, listProjects, patchConversation, patchProject, ProjectInputError, type Conversation, type ConversationMessage,
+  listConversationMessages, listConversations, pageConversationMessages, CHAT_MODES, CHAT_THINKING, listProjects, patchConversation, patchProject, ProjectInputError, type Conversation, type ConversationMessage,
 } from '../../repositories/chat-conversations.js';
 import { ProjectPathError, gitChanges, gitFileDiff, listFolder, readFolderFile } from '../../repositories/project-files.js';
 import { MAX_AUDIO_BYTES, STT_LANGUAGES, SttError, sttSetup, transcribe } from '../../services/local-stt.js';
@@ -44,6 +44,7 @@ import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
+import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
@@ -140,11 +141,16 @@ export function historyFor(messages: readonly ConversationMessage[], budget = HI
 }
 
 /** A short system note so the agent knows which project it works in. */
-export function projectNote(name: string, folder: string | null, repo: string | null): string {
+export function projectNote(name: string, folder: string | null, repo: string | null, folders: readonly { path: string; write: boolean }[] = []): string {
   return [`## Current project\nYou are working in the project "${name}".`,
     folder ? `Its folder on this computer is ${folder}; the read tool reads files from that folder (paths relative to it).` : '',
-    repo ? `Its git repository: ${repo}.` : ''].filter(Boolean).join(' ');
+    repo ? `Its git repository: ${repo}.` : '',
+    folders.length ? `Added folders the read tool also reads (give the full path): ${folders.map((f) => `${f.path}${f.write ? '' : ' (read only)'}`).join(', ')}.` : ''].filter(Boolean).join(' ');
 }
+
+/** CHAT-BUILD-01 stage 3: Mode "Plan first" and "Ask me" in the agent's words. */
+const PLAN_FIRST_NOTE = 'This chat is in "Plan first" mode: before you change anything, call plan_steps with the whole plan and end your reply asking the owner to approve it. Every tool that changes something asks the owner first.';
+const ASK_NOTE = 'This chat is in "Ask me" mode: every tool that changes something asks the owner first. Reading and searching run as usual.';
 
 /** CHAT-PRO-02 I: more than one agent has answered in this conversation. */
 const TEAM_NOTE = 'Several agents of the team answer in this conversation. Earlier replies written by another agent start with that agent\'s name in brackets, like [Name]. Build on their work; do not repeat it, and do not write as them.';
@@ -240,12 +246,15 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
       // MEM-CACHE-01: after the reply, the local model may rewrite a few quick summaries of older turns.
       void refreshSummaries({ sessionId: c.id, userId, turns }).catch(() => 0);
     },
-    execute: (runReply) => withChatRun(journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }), () => executeChatTurn(runReply, {
+    execute: (runReply) => withChatRun({ ...journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }),
+      // CHAT-BUILD-01 stage 3: the chat's Mode and Thinking, and the project's added folders the agent may read.
+      chatMode: c.mode ?? 'auto', thinking: c.thinking ?? 'normal', ...(project?.folders.length ? { readRoots: project.folders.map((f) => f.path) } : {}) }, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
+      ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
       ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
       ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
-      systemPromptAppend: [approvedResults, project ? projectNote(project.name, project.folder, project.repoUrl) : '', PLAN_NOTE, HANDOFF_NOTE, [...prior, userMessage].some((m) => new RegExp(SECRET_REF_RE.source).test(m.content)) ? SECRET_NOTE : '', prior.some((m) => m.role === 'assistant' && (m.agentId ?? c.agentId ?? null) !== (replyAgent ?? null)) ? TEAM_NOTE : ''].filter(Boolean).join('\n\n'),
+      systemPromptAppend: [approvedResults, project ? projectNote(project.name, project.folder, project.repoUrl, project.folders) : '', PLAN_NOTE, c.mode === 'plan' ? PLAN_FIRST_NOTE : c.mode === 'ask' ? ASK_NOTE : '', HANDOFF_NOTE, [...prior, userMessage].some((m) => new RegExp(SECRET_REF_RE.source).test(m.content)) ? SECRET_NOTE : '', prior.some((m) => m.role === 'assistant' && (m.agentId ?? c.agentId ?? null) !== (replyAgent ?? null)) ? TEAM_NOTE : ''].filter(Boolean).join('\n\n'),
       ...(effectiveModel ? { model: effectiveModel, ...(effectiveModel === AUTO_MODEL ? {} : { provider: modelProvider(effectiveModel) }) } : {}),
     })),
   });
@@ -282,6 +291,14 @@ export async function withStatus(userId: string, list: Conversation[]): Promise<
   const waiting = new Map((await q.all<{ session_id: string; n: number }>("SELECT session_id, COUNT(*) AS n FROM tool_approvals WHERE user_id = ? AND status = 'pending' AND session_id IS NOT NULL GROUP BY session_id", userId).catch(() => []))
     .map((r) => [r.session_id, Number(r.n)]));
   return list.map((c) => ({ ...c, ...(chatRuns.activeFor(c.id) ? { running: true as const } : {}), ...(waiting.get(c.id) ? { waiting: waiting.get(c.id) } : {}) }));
+}
+
+/** CHAT-SECRETS-01: a waiting message keeps key-store references only, like a sent one. */
+async function queuedSafe(userId: string, conversationId: string, list: { key: string; text: string }[]) {
+  if (!(await findConversation(userId, conversationId))) return [];
+  const out: { key: string; text: string }[] = [];
+  for (const q of list) out.push({ key: q.key, text: (await vaultSecretsInText(userId, conversationId, q.text)).text });
+  return out;
 }
 
 /** The message a continuation turn adds after the owner decides the conversation's waiting approvals. */
@@ -366,8 +383,12 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.title !== undefined && b.title !== null && (typeof b.title !== 'string' || b.title.length > TITLE_CHARS)) return bad(reply, 'title must be text of at most 120 characters');
     if (b.pinned !== undefined && typeof b.pinned !== 'boolean') return bad(reply, 'pinned must be true or false');
     if (b.archived !== undefined && typeof b.archived !== 'boolean') return bad(reply, 'archived must be true or false');
+    // CHAT-BUILD-01 stage 3: Mode, Thinking and the waiting messages of this chat.
+    if (b.mode !== undefined && !(CHAT_MODES as readonly unknown[]).includes(b.mode)) return bad(reply, 'mode must be auto, ask, accept_edits or plan');
+    if (b.thinking !== undefined && !(CHAT_THINKING as readonly unknown[]).includes(b.thinking)) return bad(reply, 'thinking must be quick, normal or deep');
+    if (b.queued !== undefined && (!Array.isArray(b.queued) || b.queued.length > 20 || b.queued.some((x: any) => !x || typeof x !== 'object' || Object.keys(x).some((k) => k !== 'key' && k !== 'text') || typeof x.key !== 'string' || !ID.test(x.key) && !/^[A-Za-z0-9-]{8,64}$/.test(x.key) || typeof x.text !== 'string' || !x.text.trim() || x.text.length > MESSAGE_CHARS))) return bad(reply, 'queued must be up to 20 { key, text } messages');
     if (b.projectId !== undefined && b.projectId !== null && (typeof b.projectId !== 'string' || !(await findProject(caller(request), b.projectId)))) return bad(reply, 'unknown project');
-    const c = await patchConversation(caller(request), request.params.id!, { title: cleanTitle(b.title), pinned: b.pinned, projectId: b.projectId, model: b.model, archived: b.archived });
+    const c = await patchConversation(caller(request), request.params.id!, { title: cleanTitle(b.title), pinned: b.pinned, projectId: b.projectId, model: b.model, archived: b.archived, mode: b.mode, thinking: b.thinking, queued: b.queued === undefined ? undefined : await queuedSafe(caller(request), request.params.id!, b.queued) });
     return c ? { conversation: c } : notFound(reply);
   });
 
@@ -486,15 +507,44 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
   fastify.post('/api/chat/projects', { config: { access: 'owner' } }, async (request: Req, reply) => {
     const b: any = request.body ?? {};
     if (typeof b.name !== 'string' || (b.folder !== undefined && b.folder !== null && typeof b.folder !== 'string') || (b.repoUrl !== undefined && b.repoUrl !== null && typeof b.repoUrl !== 'string')) return bad(reply, 'name, folder and repoUrl must be text');
+    if (b.folders !== undefined && !Array.isArray(b.folders)) return bad(reply, 'folders must be a list');
     if (typeof b.folder !== 'string' || !b.folder.trim()) return reply.code(400).send({ code: 'invalid_project', error: 'Choose a working folder for this project. Use General chat without a folder.' });
-    try { return reply.code(201).send({ project: await createProject(caller(request), { name: b.name, folder: b.folder, repoUrl: b.repoUrl }) }); } catch (err) { return projectError(reply, err); }
+    try { return reply.code(201).send({ project: await createProject(caller(request), { name: b.name, folder: b.folder, repoUrl: b.repoUrl, folders: b.folders }) }); } catch (err) { return projectError(reply, err); }
   });
   fastify.put('/api/chat/projects/:id', { config: { access: 'owner' } }, async (request: Req, reply) => {
     const b: any = request.body ?? {};
     for (const k of ['name', 'folder', 'repoUrl']) if (b[k] !== undefined && b[k] !== null && typeof b[k] !== 'string') return bad(reply, `${k} must be text`);
-    try { const p = await patchProject(caller(request), request.params.id!, { name: b.name, folder: b.folder, repoUrl: b.repoUrl }); return p ? { project: p } : notFound(reply); } catch (err) { return projectError(reply, err); }
+    if (b.folders !== undefined && !Array.isArray(b.folders)) return bad(reply, 'folders must be a list');
+    try { const p = await patchProject(caller(request), request.params.id!, { name: b.name, folder: b.folder, repoUrl: b.repoUrl, folders: b.folders }); return p ? { project: p } : notFound(reply); } catch (err) { return projectError(reply, err); }
   });
-  fastify.delete('/api/chat/projects/:id', { config: { access: 'owner' } }, async (request: Req, reply) => ((await deleteProject(caller(request), request.params.id!)) ? { ok: true } : notFound(reply)));
+  fastify.delete('/api/chat/projects/:id', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    if (!(await deleteProject(caller(request), request.params.id!))) return notFound(reply);
+    await deleteProjectVariables(caller(request), request.params.id!).catch(() => undefined);
+    return { ok: true };
+  });
+  // ---- project variables (CHAT-BUILD-01 stage 3, CH5): encrypted; names only ever leave the backend ----
+  const variableError = (reply: FastifyReply, err: unknown) => {
+    if (err instanceof ProjectVariableError) return reply.code(400).send({ error: err.message, code: 'invalid_variable' });
+    throw err;
+  };
+  fastify.get('/api/chat/projects/:id/variables', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    if (!(await findProject(caller(request), request.params.id!))) return notFound(reply);
+    reply.header('Cache-Control', 'no-store');
+    return { variables: await listVariables(caller(request), request.params.id!) };
+  });
+  fastify.put('/api/chat/projects/:id/variables/:name', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const name = (request.params as any).name as string;
+    const b: any = request.body ?? {};
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'value') || typeof b.value !== 'string') return bad(reply, 'Body must be { value }');
+    if (!(await findProject(caller(request), request.params.id!))) return notFound(reply);
+    try { await setVariable(caller(request), request.params.id!, name, b.value); } catch (err) { return variableError(reply, err); }
+    return { variables: await listVariables(caller(request), request.params.id!) };
+  });
+  fastify.delete('/api/chat/projects/:id/variables/:name', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    if (!(await findProject(caller(request), request.params.id!))) return notFound(reply);
+    if (!(await deleteVariable(caller(request), request.params.id!, (request.params as any).name))) return notFound(reply);
+    return { variables: await listVariables(caller(request), request.params.id!) };
+  });
   fastify.get('/api/chat/projects/:id/git', { config: { access: 'owner' } }, async (request: Req, reply) => {
     const p = await findProject(caller(request), request.params.id!);
     if (!p) return notFound(reply);

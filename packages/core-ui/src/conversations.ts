@@ -7,6 +7,7 @@ import type { SessionClient } from './session';
 import { MAX_MESSAGE, MAX_MESSAGE_BYTES, SIDEBAR_PATH, validRunId } from './conversation-contract.js';
 import { DEFAULT_PREFS, readPrefs } from './chat-sidebar-prefs';
 import type { SidebarPrefs } from './chat-sidebar-prefs';
+import type { ChatMode, ChatThinking } from './conversation-contract.js';
 import type { RunEvent, WireConversation, WireGit, WireMessage, WireProject } from './conversation-contract.js';
 import { applyEvent, fromWire, liveTurn, userTurn } from './turns';
 import { exportConversation } from './chat-export';
@@ -53,6 +54,9 @@ export type ConversationsState = Readonly<{
   loadingEarlier: boolean;
   /** CHAT-BUILD-01 stage 2 (CH9): which sidebar sections show, their order and folded projects. */
   sidebar: SidebarPrefs;
+  /** CHAT-BUILD-01 stage 3 (CH3): Mode and Thinking of the open chat (or the next new one). */
+  mode: ChatMode;
+  thinking: ChatThinking;
   notice?: string;
 }>;
 
@@ -81,8 +85,8 @@ export function withAttachments(message: string, files: readonly { name: string;
 }
 
 const emptyState = (): ConversationsState => Object.freeze({
-    access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: '', projects: [], projectFilter: '', git: null,
-    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS,
+    access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: 'auto', projects: [], projectFilter: '', git: null,
+    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',
 });
 
 export class ConversationsController {
@@ -197,8 +201,8 @@ export class ConversationsController {
     if(r.status!==200)throw Error('Folder unavailable');return r.body as never;
   }
   /** Creates a project; resolves with an error message for the form, or null on success. */
-  async createProject(input: { name: string; folder: string; repoUrl: string }): Promise<string | null> {
-    const body: Record<string, string> = { name: input.name.trim() };
+  async createProject(input: { name: string; folder: string; repoUrl: string; folders?: { path: string; write: boolean }[] }): Promise<string | null> {
+    const body: Record<string, unknown> = { name: input.name.trim(), ...(input.folders?.length ? { folders: input.folders } : {}) };
     if (input.folder.trim()) body.folder = input.folder.trim();
     if (input.repoUrl.trim()) body.repoUrl = input.repoUrl.trim();
     if (!body.name) return 'Give the project a name.';
@@ -215,11 +219,11 @@ export class ConversationsController {
     } catch { return 'The project was not created (no connection).'; }
   }
   /** Renames a project or changes its folder or repo (empty folder/repo clears it). */
-  async editProject(id: string, input: { name: string; folder: string; repoUrl: string }): Promise<string | null> {
+  async editProject(id: string, input: { name: string; folder: string; repoUrl: string; folders?: { path: string; write: boolean }[] }): Promise<string | null> {
     const name = input.name.trim();
     if (!name) return 'Give the project a name.';
     try {
-      const r = await this.call('PUT', `/api/chat/projects/${id}`, { name, folder: input.folder.trim() || null, repoUrl: input.repoUrl.trim() || null });
+      const r = await this.call('PUT', `/api/chat/projects/${id}`, { name, folder: input.folder.trim() || null, repoUrl: input.repoUrl.trim() || null, ...(input.folders ? { folders: input.folders } : {}) });
       if (r.status === 200 && record(r.body) && record(r.body.project)) {
         const p = r.body.project as Project;
         this.publish({ projects: this.#state.projects.map(x => (x.id === id ? p : x)).sort((a, b) => a.name.localeCompare(b.name)) });
@@ -273,7 +277,7 @@ export class ConversationsController {
     return !m[4]||!!app.variants?.some(v=>v.id===m[4]);
   }
   selectModel(model: string) {
-    if(!this.live() || !(model===''||this.#state.models.some(m=>m.id===model)||this.#appModel(model)))return;
+    if(!this.live() || !(model===''||model==='auto'||this.#state.models.some(m=>m.id===model)||this.#appModel(model)))return;
     this.publish({model});const id=this.#state.activeId;if(!id)return;
     this.#pendingModelWrites++;
     this.#modelWrites=this.#modelWrites.then(async()=>{
@@ -297,7 +301,7 @@ export class ConversationsController {
   /** A blank conversation (created on the first message). */
   newChat() {
     this.#follow?.abort(); this.#openSeq++;
-    this.publish({ activeId: null, model: '', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false });
+    this.publish({ activeId: null, model: 'auto', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false, mode: 'auto', thinking: 'normal' });
     void this.loadGit();
   }
 
@@ -319,7 +323,10 @@ export class ConversationsController {
       const turns = messages.map(fromWire);
       if (active) turns.push(liveTurn(active, this.now()));
       const conversation=r.body.conversation as Conversation;this.replace(conversation);
-      this.publish({ turns, threadPhase: 'ready', runId: active, model: conversation.model ?? '', hasEarlier: r.body.hasMore === true });
+      // CHAT-BUILD-01 stage 3: messages that waited when the window closed wait again (Send now sends them).
+      const waiting = conversation.queued ?? [];
+      this.publish({ turns, threadPhase: 'ready', runId: active, model: conversation.model ?? '', hasEarlier: r.body.hasMore === true,
+        mode: conversation.mode ?? 'auto', thinking: conversation.thinking ?? 'normal', queue: waiting, queuePaused: waiting.length > 0 && !active });
       void this.loadGit();
       if (active) void this.follow(active, seq);
     } catch { if (this.live() && seq === this.#openSeq) this.publish({ threadPhase: 'error', notice: 'The conversation could not be loaded.' }); }
@@ -385,6 +392,7 @@ export class ConversationsController {
     if(this.#state.activeId&&this.#modelSaveFailures.has(this.#state.activeId)){this.publish({notice:'The model choice was not saved. Choose it again before sending.'});return;}
     if (this.#state.runId || this.#state.starting) {
       this.publish({ queue: [...this.#state.queue, { key: this.newId(), text: message }], ...(text === undefined ? { draft: '' } : {}) });
+      this.#saveQueue(this.#state.activeId, this.#state.queue);
       return;
     }
     const seq = this.#openSeq;
@@ -403,6 +411,9 @@ export class ConversationsController {
         if ((c.status !== 201 && c.status !== 200) || !record(c.body) || !record(c.body.conversation)) throw new SessionFailure('unavailable');
         const conv = c.body.conversation as Conversation;
         id = conv.id;
+        // CHAT-BUILD-01 stage 3: the Mode and Thinking chosen before the first message belong to the new chat.
+        const settings = { ...(this.#state.mode !== 'auto' ? { mode: this.#state.mode } : {}), ...(this.#state.thinking !== 'normal' ? { thinking: this.#state.thinking } : {}) };
+        if (Object.keys(settings).length) await this.call('PUT', `/api/chat/conversations/${id}`, settings).catch(() => undefined);
         this.publish({ activeId: id, conversations: [conv, ...this.#state.conversations.filter(x => x.id !== id)] });
       }
       // CHAT-PRO-02 I: "@Name" or the reply picker chooses who writes this reply.
@@ -424,6 +435,7 @@ export class ConversationsController {
       if (r.status === 409 && record(r.body) && r.body.code === 'conversation_busy' && typeof r.body.runId === 'string') {
         // Another tab is still answering here: wait in the queue and follow that run.
         this.publish({ starting: false, turns: this.#state.turns.filter(t => t !== optimistic), queue: [{ key: runId, text: message }, ...this.#state.queue], runId: r.body.runId, notice: undefined });
+        this.#saveQueue(id, this.#state.queue);
         this.publish({ turns: [...this.#state.turns, liveTurn(r.body.runId, this.now())] });
         void this.follow(r.body.runId, seq);
         return;
@@ -487,7 +499,8 @@ export class ConversationsController {
           } catch { /* A transient outage keeps the bounded reconnect path. */ }
         }
         if (failures >= RETRY_MS.length) {
-          this.publish({ reconnecting: false, runId: null, notice: 'Lost the connection to this reply. Reopen the conversation to check its saved state before retrying.' });
+          // CHAT-BUILD-01: waiting messages never get stuck: they wait for Send now.
+          this.publish({ reconnecting: false, runId: null, queuePaused: this.#state.queue.length > 0, notice: 'Lost the connection to this reply. Reopen the conversation to check its saved state before retrying.' });
           this.finishLive('error');
           return;
         }
@@ -513,7 +526,7 @@ export class ConversationsController {
     void this.refreshList();
     if (stopped) return;
     const [next, ...rest] = this.#state.queue;
-    if (next) { this.publish({ queue: rest }); void this.send(next.text); }
+    if (next) { this.publish({ queue: rest }); this.#saveQueue(this.#state.activeId, rest); void this.send(next.text); }
   }
 
   /** Sends a waiting message now (after a Stop paused the queue). */
@@ -521,6 +534,7 @@ export class ConversationsController {
     const item = this.#state.queue.find(q => q.key === key);
     if (!item || this.#state.runId || this.#state.starting) return;
     this.publish({ queue: this.#state.queue.filter(q => q.key !== key), queuePaused: false });
+    this.#saveQueue(this.#state.activeId, this.#state.queue);
     void this.send(item.text);
   }
 
@@ -539,10 +553,10 @@ export class ConversationsController {
     try { await this.call('POST', `/api/chat/runs/${runId}/stop`); } catch { this.publish({ stopping: false, notice: 'Stop did not reach the server. Try again.' }); }
   }
 
-  removeQueued(key: string) { const queue = this.#state.queue.filter(q => q.key !== key); this.publish({ queue, queuePaused: this.#state.queuePaused && queue.length > 0 }); }
+  removeQueued(key: string) { const queue = this.#state.queue.filter(q => q.key !== key); this.publish({ queue, queuePaused: this.#state.queuePaused && queue.length > 0 }); this.#saveQueue(this.#state.activeId, queue); }
   editQueued(key: string) {
     const item = this.#state.queue.find(q => q.key === key);
-    if (item) this.publish({ queue: this.#state.queue.filter(q => q.key !== key), draft: this.#state.draft ? `${this.#state.draft}\n${item.text}` : item.text });
+    if (item) { this.publish({ queue: this.#state.queue.filter(q => q.key !== key), draft: this.#state.draft ? `${this.#state.draft}\n${item.text}` : item.text }); this.#saveQueue(this.#state.activeId, this.#state.queue); }
   }
 
   async rename(id: string, title: string) {
@@ -573,6 +587,42 @@ export class ConversationsController {
 
   /** A changed chat from the server; its live status (working, waiting) stays until the next list. */
   private replace(c: Conversation) { this.publish({ conversations: this.#state.conversations.map(x => (x.id === c.id ? { ...(x.running ? { running: true } : {}), ...(x.waiting ? { waiting: x.waiting } : {}), ...c } : x)) }); }
+
+  /** CHAT-BUILD-01 stage 3 (CH3): Mode and Thinking are saved for the chat (a new chat takes them on its first message). */
+  async setMode(mode: ChatMode) { await this.#setChatField('mode', mode); }
+  async setThinking(thinking: ChatThinking) { await this.#setChatField('thinking', thinking); }
+  async #setChatField(field: 'mode' | 'thinking', value: string) {
+    if (!this.live()) return;
+    const before = this.#state[field];
+    this.publish({ [field]: value } as Partial<ConversationsState>);
+    const id = this.#state.activeId;
+    if (!id) return;
+    try {
+      const r = await this.call('PUT', `/api/chat/conversations/${id}`, { [field]: value });
+      if (r.status !== 200 || !record(r.body) || !record(r.body.conversation)) throw Error();
+      if (this.live()) this.replace(r.body.conversation as Conversation);
+    } catch { if (this.live() && this.#state.activeId === id) this.publish({ [field]: before, notice: field === 'mode' ? 'The mode was not saved.' : 'The thinking choice was not saved.' } as Partial<ConversationsState>); }
+  }
+  /** Saves the waiting messages with the chat so a reload or a switch never loses them. */
+  #saveQueue(id: string | null, queue: ConversationsState['queue']) {
+    if (!id || !this.live()) return;
+    void this.call('PUT', `/api/chat/conversations/${id}`, { queued: queue.map(q => ({ key: q.key, text: q.text })) }).catch(() => undefined);
+  }
+
+  /** CHAT-BUILD-01 stage 3 (CH5): a project's variables (names only; values never come back). */
+  async variables(projectId: string): Promise<string[] | null> {
+    try { const r = await this.call('GET', `/api/chat/projects/${projectId}/variables`); return r.status === 200 && record(r.body) && Array.isArray(r.body.variables) ? r.body.variables as string[] : null; } catch { return null; }
+  }
+  async setVariable(projectId: string, name: string, value: string): Promise<string | null> {
+    if (!/^[A-Z_][A-Z0-9_]{0,63}$/.test(name)) return 'Use capital letters, digits and _ (like API_URL).';
+    try {
+      const r = await this.call('PUT', `/api/chat/projects/${projectId}/variables/${name}`, { value });
+      return r.status === 200 ? null : r.status === 400 ? `${name} cannot be saved: names like PATH or HOME are not allowed, and a value is 1-8000 characters.` : 'The variable was not saved.';
+    } catch { return 'The variable was not saved (no connection).'; }
+  }
+  async deleteVariable(projectId: string, name: string): Promise<boolean> {
+    try { return (await this.call('DELETE', `/api/chat/projects/${projectId}/variables/${name}`)).status === 200; } catch { return false; }
+  }
 
   /** CHAT-BUILD-01 stage 2 (CH9): the person's sidebar layout (the usual one until it loads). */
   async loadSidebar() {

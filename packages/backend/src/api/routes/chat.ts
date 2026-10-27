@@ -368,6 +368,14 @@ export function capMiddle(text: string, max: number): string {
 /** A notice frame: shown in the chat while the turn runs, never stored as answer text. */
 export const noticeFrame = (code: string, extra: Record<string, unknown> = {}) => `data: ${JSON.stringify({ type: 'notice', code, ...extra })}\n\n`;
 
+/** CHAT-BUILD-01 stage 3: the chat's Thinking choice for a local model (Quick = off, Deep = on, Normal = the server default). */
+function chatThinkOption(): { think?: boolean; thinkOptional?: boolean } {
+  const t = currentChatRun()?.thinking;
+  if (t === 'deep') return { think: true, thinkOptional: true };
+  if (t === 'quick') return { think: false, thinkOptional: true };
+  return ollamaThinkOption();
+}
+
 export interface ChatTurnInput {
   agentId?: string;
   messages: ChatMessage[];
@@ -398,6 +406,8 @@ export interface ChatTurnInput {
    * only the fallback.
    */
   conversation?: { turns: HistoryTurn[] };
+  /** CHAT-BUILD-01 stage 3: the project's added folders a coding app may change (Mode "Accept edits"). */
+  writeFolders?: string[];
   /** CORE-MEM-HANDOFF: the newest handoff note of the conversation (part of the cached context pack). */
   handoff?: { id: string; scope: string; text: string } | null;
 }
@@ -475,7 +485,8 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         let toolStep=0;
         const answer=await subscriptionToolLoop({prompt:subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history),signal:abort.signal,
           tools:registry.getAll().map(t=>({name:t.name,description:t.description,input_schema:t.input_schema})),
-          reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,{appToolsOnly:true}),
+          // CHAT-BUILD-01 stage 3: "Accept edits" lets the coding app edit files in the chat's folders (its write folders too).
+          reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,currentChatRun()?.chatMode==='accept_edits'?{editsOnly:true,addDirs:input.writeFolders??[]}:{appToolsOnly:true}),
           execute:(name,args)=>{toolStep++;if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_start',step:toolStep,tools:[{id:`subscription-${toolStep}`,name,input:JSON.stringify(args)}]})}\n\n`);return registry.execute(name,args);},
           onTool:(name,result)=>{if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_result',step:toolStep,results:[{id:`subscription-${toolStep}`,name,output:result.content.filter(b=>b.type==='text').map(b=>b.text??'').join('\n').slice(0,2000),isError:!!result.error}]})}\n\n`);},
         });
@@ -883,7 +894,7 @@ async function streamChat(
   });
 
   // Get real tools from the tools registry (11 tools: exec, read, write, browser×4, memory×2, desktop)
-  const toolsRegistry = await createAgentToolsRegistry({ userId, sessionId, workspaceDir: process.cwd(), toolPolicy, agentId, memoryDrawers, chatPlan: !toolPolicy, ...(fileReadRoot ? { fileReadRoot } : {}) });
+  const toolsRegistry = await createAgentToolsRegistry({ userId, sessionId, workspaceDir: process.cwd(), toolPolicy, agentId, memoryDrawers, chatPlan: !toolPolicy, ...(fileReadRoot ? { fileReadRoot } : {}), ...(currentChatRun()?.readRoots?.length ? { extraReadRoots: currentChatRun()!.readRoots } : {}) });
   const tools = localModelOnly() && !localModelTools() ? [] : toolsRegistry.getToolsForAPI();
 
   console.log('[Chat] 🔧 Available tools:', tools.length);
@@ -1102,7 +1113,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
       signal: upstreamAbort.signal,
       temperature,
       maxTokens,
-      ...ollamaThinkOption(),
+      ...chatThinkOption(),
       // MEM-CACHE-01: a fixed window and a kept-loaded model let Ollama reuse the prompt prefix.
       numCtx: contextBudget().numCtx,
       keepAlive: keepAliveValue(),

@@ -1,4 +1,4 @@
-import {ProjectFolderPicker} from './ProjectFolderPicker';
+import { ProjectSheet } from './ChatComposerControls';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import type { ConversationsController, Conversation } from './conversations';
@@ -89,7 +89,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   const projectItems = (p: { id: string; name: string; folder?: string | null }): MenuItem[] => [
     { label: 'New chat here', icon: 'compose', run: () => { controller.filterProject(p.id); controller.newChat(); onOpen(); } },
     { label: prefs.folded.includes(p.id) ? 'Unfold' : 'Fold', icon: 'chevron', run: () => fold(p.id) },
-    { label: 'Rename, folder or repo…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
+    { label: 'Folders and variables…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
   ];
   const sectionItems: MenuItem[] = [{ label: 'Edit sidebar…', icon: 'sliders', run: () => setEditing(true) }];
   const fold = (id: string) => setPrefs({ ...prefs, folded: prefs.folded.includes(id) ? prefs.folded.filter(x => x !== id) : [...prefs.folded, id] });
@@ -156,7 +156,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   </div>;
   return <div className="conversations chat-sidebar">
     {header}
-    {projectForm && <ProjectForm controller={controller} id={projectForm.id} onClose={() => setProjectForm(null)}/>}
+    {projectForm && <ProjectSheet controller={controller} id={projectForm.id} onClose={() => setProjectForm(null)}/>}
     {editing ? <SidebarEditor prefs={prefs} onDone={p => { setPrefs(p); setEditing(false); }} onCancel={() => setEditing(false)}/>
       : searching ? <SearchResults state={found} projectName={projectName} onOpen={openHit}/>
       : !s.conversations.length ? <p className="session-empty">No chats yet. Start one with New chat.</p>
@@ -227,33 +227,4 @@ function SidebarEditor({ prefs, onDone, onCancel }: { prefs: SidebarPrefs; onDon
       <button type="button" className="primary" onClick={() => onDone(draft)}>Done</button>
     </div>
   </div>;
-}
-
-/** New project or edit one (name, folder, repo); the project sheet of the composer stage replaces it. */
-function ProjectForm({ controller, id, onClose }: { controller: ConversationsController; id: string | null; onClose: () => void }) {
-  const s = controller.getSnapshot();
-  const current = id ? s.projects.find(p => p.id === id) : undefined;
-  const [form, setForm] = useState({ name: current?.name ?? '', folder: current?.folder ?? '', repoUrl: current?.repoUrl ?? '' });
-  const [picking, setPicking] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  return <form className="project-form" aria-label={id ? 'Edit project' : 'New project'} onSubmit={async e => {
-    e.preventDefault(); setBusy(true); const err = id ? await controller.editProject(id, form) : await controller.createProject(form); setBusy(false);
-    if (err) setError(err); else onClose();
-  }} onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } }}>
-    <input autoFocus placeholder="Project name" aria-label="Project name" value={form.name} maxLength={80} onChange={e => setForm({ ...form, name: e.target.value })}/>
-    <input readOnly placeholder="Choose a working folder" aria-label="Project folder" value={form.folder} dir="ltr"/>
-    <button type="button" className="link-button" disabled={busy} onClick={() => setPicking(true)}>{form.folder ? 'Change folder…' : 'Choose folder…'}</button>
-    {picking && <ProjectFolderPicker controller={controller} onClose={() => setPicking(false)} onSelect={folder => { setForm({ ...form, folder }); setPicking(false); }}/>}
-    <input placeholder="Git repo (optional)" aria-label="Git repository" value={form.repoUrl} onChange={e => setForm({ ...form, repoUrl: e.target.value })} dir="ltr"/>
-    {error && <p className="project-error" role="alert">{error}</p>}
-    <div className="project-form-actions">
-      <button type="submit" className="link-button" disabled={busy || !form.name.trim() || (!id && !form.folder.trim())}>{id ? 'Save' : 'Create'}</button>
-      <button type="button" className="link-button" onClick={onClose}>Cancel</button>
-      {id && (confirmDelete
-        ? <span className="project-delete">Delete the project? Its chats stay. <button type="button" className="link-button danger" disabled={busy} onClick={async () => { setBusy(true); await controller.removeProject(id); setBusy(false); onClose(); }}>Yes, delete</button></span>
-        : <button type="button" className="link-button danger" onClick={() => setConfirmDelete(true)}>Delete</button>)}
-    </div>
-  </form>;
 }

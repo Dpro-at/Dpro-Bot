@@ -31,6 +31,16 @@ const selfOnlyOffered = (tool: Tool, context: ToolExecutionContext) => HANDOFF_T
   ? !context.toolPolicy && context.handoffTools !== false && (context.chatPlan === true || (!!context.taskId && !context.delegatedFrom?.length && context.agentId !== 'small-local-agent'))
   : context.chatPlan === true;
 
+/** Tools that only read, or keep text in Girru's own owner-reviewed stores, never ask because of the chat mode. */
+const MODE_FREE = new Set(['read', 'search', 'list', 'plan_steps', 'board_suggest_card', 'memory_save', 'memory_search', 'memory_recall', 'team_list', 'team_results', 'web_fetch', 'web_search']);
+const isFileEdit = (name: string) => name === 'write' || name === 'edit' || /_(write|edit)_?file$|^(write|edit)_file$/.test(name);
+/** CHAT-BUILD-01 stage 3: does this tool change something (files, messages, settings, money, programs)? */
+export function changesSomething(tool: Pick<Tool, 'name'> & { mcp?: unknown; execClass?: boolean }): boolean {
+  if (MODE_FREE.has(tool.name)) return false;
+  if (isToolExecClass(tool as Tool) || approvalCategory(tool as Tool) || (permissionCategory(tool) && permissionCategory(tool) !== 'network' && permissionCategory(tool) !== 'browser')) return true;
+  return /(^|_)(write|edit|create|update|delete|remove|send|save|set|move|install|run|start|stop|apply|publish|post|upload|rename|archive)($|_)/.test(tool.name) || !!tool.mcp || tool.name.startsWith('mcp__') || /^browser_/.test(tool.name) && !/^browser_(read|snapshot|screenshot|get)/.test(tool.name);
+}
+
 export class ToolsRegistry {
   private tools = new Map<string, Tool>();
   private context: ToolExecutionContext;
@@ -174,6 +184,10 @@ export class ToolsRegistry {
     catch { return {content:[{type:'text',text:'The action was not run: human review rules are unavailable.'}],error:'Human review rules unavailable'}; }
     if (reviewerRequired) category=category??'other';
     if (currentChatRun()?.reviewTools) category = category ?? 'other';
+    // CHAT-BUILD-01 stage 3: in "Ask me" and "Plan first" every tool that changes something asks first.
+    const chatMode = currentChatRun()?.chatMode;
+    // "Accept edits": file edits follow the agent's own rules; anything else that changes something asks.
+    if ((chatMode === 'ask' || chatMode === 'plan' || (chatMode === 'accept_edits' && !isFileEdit(toolName))) && changesSomething(tool)) category = category ?? modeCategory ?? 'other';
     if (category && (reviewerRequired || !isConfinedChannelReply(policy, toolName)) && !consumeApprovalTicket(options.approvalTicket, toolName)) {
       try {
         return await requestApproval(tool, params, this.context, category);

@@ -6,6 +6,7 @@
  * code; realpath containment, always-deny list, size limit).
  */
 
+import path from 'node:path';
 import type { Tool, ToolResult } from '../types.js';
 import { FileSandboxError, MAX_READ_BYTES, readRootFor, sandboxedReadFile } from './file-sandbox.js';
 
@@ -30,8 +31,14 @@ export const readTool: Tool = {
   async execute(params, context): Promise<ToolResult> {
     const filePath = params?.path;
     try {
-      const root = readRootFor(context);
-      const r = sandboxedReadFile(root, filePath);
+      let root = readRootFor(context);
+      let rel = filePath;
+      // CHAT-BUILD-01 stage 3: an absolute path inside the main folder or one of the project's added folders.
+      if (typeof filePath === 'string' && path.isAbsolute(filePath)) {
+        const hit = [root, ...(context?.extraReadRoots ?? [])].find((r) => { const x = path.relative(r, filePath); return !!x && !x.startsWith('..') && !path.isAbsolute(x); });
+        if (hit) { root = hit; rel = path.relative(hit, filePath); }
+      }
+      const r = sandboxedReadFile(root, rel);
       return {
         content: [{ type: 'text', text: r.content }],
         details: { path: r.rel, size: r.size, modified: r.modified },

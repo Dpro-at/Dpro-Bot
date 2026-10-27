@@ -72,3 +72,16 @@ test('a delegated agent gets 120 s per model call; Stop with nothing delegated s
   assert.equal(CHILD_CALL_MS, 120_000);
   assert.equal(stopDelegations('no-such-conversation'), 0);
 });
+
+test('Accept edits: a coding app may edit files (its write folders too) but never runs commands', () => {
+  const codex = subscriptionArgs('codex', undefined, undefined, false, false, true, ['/tmp/brand']);
+  assert.equal(codex[codex.indexOf('--sandbox') + 1], 'workspace-write');
+  assert.ok(codex.includes('shell_tool') && codex.includes('unified_exec'));
+  assert.equal(codex[codex.indexOf('--add-dir') + 1], '/tmp/brand');
+  const claude = subscriptionArgs('claude', undefined, undefined, false, false, true, ['/tmp/brand']);
+  assert.equal(claude[claude.indexOf('--tools') + 1], 'Read,Write,Edit,Glob,Grep');
+  assert.equal(claude[claude.indexOf('--add-dir') + 1], '/tmp/brand');
+  const reply = subscriptionArgs('claude', undefined, undefined, true, false, true, ['/tmp/brand']);
+  assert.equal(reply[reply.indexOf('--tools') + 1], '', 'the usual reply path keeps no native tools');
+  assert.ok(!reply.includes('--add-dir'));
+});

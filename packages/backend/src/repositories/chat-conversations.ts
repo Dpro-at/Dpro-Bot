@@ -40,7 +40,17 @@ export interface Conversation {
   archived?: boolean;
   /** The chat an agent opened this one from (shown under it in the sidebar). */
   parentId?: string | null;
+  /** CHAT-BUILD-01 stage 3 (CH3): Mode and Thinking of this chat (absent = auto / normal). */
+  mode?: ChatMode;
+  thinking?: ChatThinking;
+  /** Messages waiting to be sent after the running reply (kept across reloads). */
+  queued?: { key: string; text: string }[];
 }
+export type ChatMode = 'auto' | 'ask' | 'accept_edits' | 'plan';
+export type ChatThinking = 'quick' | 'normal' | 'deep';
+export const CHAT_MODES: readonly ChatMode[] = ['auto', 'ask', 'accept_edits', 'plan'];
+export const CHAT_THINKING: readonly ChatThinking[] = ['quick', 'normal', 'deep'];
+const parseQueue = (raw: string | null | undefined) => { try { const v = JSON.parse(raw ?? '[]'); return Array.isArray(v) ? v.filter((x) => x && typeof x.key === 'string' && typeof x.text === 'string').slice(0, 20) : []; } catch { return []; } };
 
 export interface ConversationMessage {
   id: string;
@@ -56,7 +66,7 @@ export interface ConversationMessage {
   agentId?: string | null;
 }
 
-interface SessionRow { archived_at?: string | null; parent_id?: string | null; model?: string; id: string; user_id: string; title: string | null; agent_id: string | null; project_id?: string | null; pinned: number; created_at: string; updated_at: string; preview?: string | null }
+interface SessionRow { mode?: string | null; thinking?: string | null; queued?: string | null; archived_at?: string | null; parent_id?: string | null; model?: string; id: string; user_id: string; title: string | null; agent_id: string | null; project_id?: string | null; pinned: number; created_at: string; updated_at: string; preview?: string | null }
 interface MessageRow { id: string; role: ConversationMessage['role']; content: string; parts: string | null; status: TurnStatus | null; run_id: string | null; duration_ms: number | null; created_at: string; agent_id?: string | null; error_code?: string | null }
 
 const PREVIEW_CHARS = 140;
@@ -68,6 +78,9 @@ function toConversation(r: SessionRow): Conversation {
     preview: (r.preview ?? '').replace(/\s+/g, ' ').trim().slice(0, PREVIEW_CHARS),
     createdAt: r.created_at, updatedAt: r.updated_at,
     ...(r.archived_at ? { archived: true } : {}), ...(r.parent_id ? { parentId: r.parent_id } : {}),
+    ...(r.mode && r.mode !== 'auto' && (CHAT_MODES as readonly string[]).includes(r.mode) ? { mode: r.mode as ChatMode } : {}),
+    ...(r.thinking && r.thinking !== 'normal' && (CHAT_THINKING as readonly string[]).includes(r.thinking) ? { thinking: r.thinking as ChatThinking } : {}),
+    ...(r.queued && parseQueue(r.queued).length ? { queued: parseQueue(r.queued) } : {}),
   };
 }
 
@@ -90,7 +103,8 @@ export async function listConversations(userId: string, limit = 200): Promise<Co
   const rows = await q.all<SessionRow>(
     `SELECT s.*, ${PREVIEW_SQL} AS preview FROM chat_sessions s WHERE s.user_id = ? ORDER BY s.pinned DESC, s.updated_at DESC, s.id DESC LIMIT ?`,
     userId, limit);
-  return rows.map(toConversation);
+  // The waiting messages travel with one open chat only, never in the list.
+  return rows.map(toConversation).map(({ queued: _queued, ...c }) => c);
 }
 
 /** The conversation if it belongs to the caller (else undefined: the route answers 404). */
@@ -107,13 +121,16 @@ export async function createConversation(userId: string, input: { title?: string
 }
 
 /** Rename and/or pin. Renaming bumps nothing else; pinning does not reorder by time. */
-export async function patchConversation(userId: string, id: string, patch: { title?: string | null; pinned?: boolean; projectId?: string | null; model?: string; archived?: boolean }): Promise<Conversation | undefined> {
+export async function patchConversation(userId: string, id: string, patch: { title?: string | null; pinned?: boolean; projectId?: string | null; model?: string; archived?: boolean; mode?: ChatMode; thinking?: ChatThinking; queued?: { key: string; text: string }[] }): Promise<Conversation | undefined> {
   const fields: string[] = [];
   const params: Array<string | number | null> = [];
   if (patch.model !== undefined) { fields.push('model = ?'); params.push(patch.model || 'default'); }
   if (patch.title !== undefined) { fields.push('title = ?'); params.push(patch.title?.trim() || null); }
   if (patch.pinned !== undefined) { fields.push('pinned = ?'); params.push(patch.pinned ? 1 : 0); }
   if (patch.projectId !== undefined) { fields.push('project_id = ?'); params.push(patch.projectId); }
+  if (patch.mode !== undefined) { fields.push('mode = ?'); params.push(patch.mode); }
+  if (patch.thinking !== undefined) { fields.push('thinking = ?'); params.push(patch.thinking); }
+  if (patch.queued !== undefined) { fields.push('queued = ?'); params.push(patch.queued.length ? JSON.stringify(patch.queued) : null); }
   if (patch.archived !== undefined) fields.push(patch.archived ? 'archived_at = COALESCE(archived_at, CURRENT_TIMESTAMP)' : 'archived_at = NULL');
   if (fields.length) await q.run(`UPDATE chat_sessions SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, ...params, id, userId);
   return findConversation(userId, id);
@@ -192,9 +209,27 @@ export async function addAssistantMessage(sessionId: string, input: { runId: str
 
 // ---- projects (CHAT-PRO-02 A) ----------------------------------------------
 
-export interface Project { id: string; name: string; slug: string; folder: string | null; repoUrl: string | null; createdAt: string; updatedAt: string }
-interface ProjectRow { id: string; user_id: string; name: string; slug: string; folder: string | null; repo_url: string | null; created_at: string; updated_at: string }
-const toProject = (r: ProjectRow): Project => ({ id: r.id, name: r.name, slug: r.slug, folder: r.folder, repoUrl: r.repo_url, createdAt: r.created_at, updatedAt: r.updated_at });
+/** CHAT-BUILD-01 stage 3 (CH5): a folder added to a project besides its main one; read only unless `write`. */
+export interface ProjectFolder { path: string; write: boolean }
+export interface Project { id: string; name: string; slug: string; folder: string | null; repoUrl: string | null; createdAt: string; updatedAt: string; folders: ProjectFolder[] }
+interface ProjectRow { id: string; user_id: string; name: string; slug: string; folder: string | null; repo_url: string | null; created_at: string; updated_at: string; extra_folders?: string | null }
+const MAX_FOLDERS = 8;
+function parseFolders(raw: string | null | undefined): ProjectFolder[] {
+  try { const v = JSON.parse(raw ?? '[]'); return Array.isArray(v) ? v.filter((f) => f && typeof f.path === 'string').slice(0, MAX_FOLDERS).map((f) => ({ path: f.path, write: f.write === true })) : []; } catch { return []; }
+}
+const toProject = (r: ProjectRow): Project => ({ id: r.id, name: r.name, slug: r.slug, folder: r.folder, repoUrl: r.repo_url, createdAt: r.created_at, updatedAt: r.updated_at, folders: parseFolders(r.extra_folders) });
+/** Checked added folders: real directories, not the main folder, no repeats. */
+export function checkFolders(list: unknown, main: string | null): ProjectFolder[] {
+  if (!Array.isArray(list) || list.length > MAX_FOLDERS) throw new ProjectInputError(`A project can have at most ${MAX_FOLDERS} added folders`);
+  const out: ProjectFolder[] = [];
+  for (const f of list) {
+    if (!f || typeof f !== 'object' || typeof (f as any).path !== 'string' || ((f as any).write !== undefined && typeof (f as any).write !== 'boolean')) throw new ProjectInputError('Each added folder needs a path');
+    const real = checkFolder((f as any).path);
+    if (real === main || out.some((o) => o.path === real)) continue;
+    out.push({ path: real, write: (f as any).write === true });
+  }
+  return out;
+}
 
 export class ProjectInputError extends Error {}
 
@@ -229,7 +264,7 @@ export async function findProject(userId: string, id: string): Promise<Project |
   return r ? toProject(r) : undefined;
 }
 
-export async function createProject(userId: string, input: { name: string; folder?: string | null; repoUrl?: string | null }): Promise<Project> {
+export async function createProject(userId: string, input: { name: string; folder?: string | null; repoUrl?: string | null; folders?: unknown }): Promise<Project> {
   const name = input.name.trim().slice(0, 80);
   if (!name) throw new ProjectInputError('Give the project a name');
   const folder = input.folder?.trim() ? checkFolder(input.folder) : null;
@@ -238,15 +273,20 @@ export async function createProject(userId: string, input: { name: string; folde
   let slug = projectSlug(name);
   for (let n = 2; await q.one('SELECT 1 AS x FROM chat_projects WHERE user_id = ? AND slug = ?', userId, slug); n++) slug = `${projectSlug(name)}-${n}`;
   const id = randomUUID();
-  await q.run('INSERT INTO chat_projects (id, user_id, name, slug, folder, repo_url) VALUES (?, ?, ?, ?, ?, ?)', id, userId, name, slug, folder, repo);
+  const folders = input.folders === undefined ? [] : checkFolders(input.folders, folder);
+  await q.run('INSERT INTO chat_projects (id, user_id, name, slug, folder, repo_url, extra_folders) VALUES (?, ?, ?, ?, ?, ?, ?)', id, userId, name, slug, folder, repo, JSON.stringify(folders));
   return (await findProject(userId, id))!;
 }
 
-export async function patchProject(userId: string, id: string, patch: { name?: string; folder?: string | null; repoUrl?: string | null }): Promise<Project | undefined> {
+export async function patchProject(userId: string, id: string, patch: { name?: string; folder?: string | null; repoUrl?: string | null; folders?: unknown }): Promise<Project | undefined> {
   const fields: string[] = []; const params: Array<string | null> = [];
   if (patch.name !== undefined) { const n = patch.name.trim().slice(0, 80); if (!n) throw new ProjectInputError('Give the project a name'); fields.push('name = ?'); params.push(n); }
   if (patch.folder !== undefined) { fields.push('folder = ?'); params.push(patch.folder?.trim() ? checkFolder(patch.folder) : null); }
   if (patch.repoUrl !== undefined) { const r = patch.repoUrl?.trim() || null; if (r && !repoOk(r)) throw new ProjectInputError('The repo must be an https:// or git@ address'); fields.push('repo_url = ?'); params.push(r); }
+  if (patch.folders !== undefined) {
+    const main = patch.folder !== undefined ? (patch.folder?.trim() ? checkFolder(patch.folder) : null) : (await findProject(userId, id))?.folder ?? null;
+    fields.push('extra_folders = ?'); params.push(JSON.stringify(checkFolders(patch.folders, main)));
+  }
   if (fields.length) await q.run(`UPDATE chat_projects SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`, ...params, id, userId);
   return findProject(userId, id);
 }
