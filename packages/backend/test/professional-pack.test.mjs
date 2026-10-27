@@ -62,7 +62,7 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 39);
+ assert.equal(recommendations.profiles.length, 46);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
  const frontend = await templates.get(frontendId);
@@ -93,8 +93,13 @@ test('pilot recommendations save as versioned templates without changing agent a
    const skill = db.prepare('SELECT id FROM central_skills WHERE name=?').get(profile.package);
    assert.ok(skill, 'Resolve the actual fixture skill ID');
    assert.ok([current.config.primarySkill,...current.config.skills].includes(skill.id),'Preserve the existing role package binding');
-   for (const resource of new Set(['SKILL.md',...(current.instructions.match(/(?:references|assets)\/[a-z0-9_-]+\.md/g)||[])])) assert.ok(fs.existsSync(path.join(source,profile.package,resource)),resource);
-   for (const resource of profile.references) assert.ok(fs.existsSync(path.join(source, profile.package, resource)));
+   const portableSkill = pack.skills.find(item=>item.name===profile.package);
+   assert.ok(portableSkill,'Bound package must be present in the portable pack');
+   const portablePaths = new Set(portableSkill.files.map(file=>file.path));
+   for (const resource of new Set(['SKILL.md',...profile.references,...(current.instructions.match(/(?:references|assets)\/[a-z0-9_-]+\.md/g)||[])])) {
+    assert.ok(fs.existsSync(path.join(source,profile.package,resource)),resource);
+    assert.ok(portablePaths.has(resource),'Portable resource missing: '+profile.package+'/'+resource);
+   }
    const config = {
     primarySkill: skill.id, skills: [], tools: profile.tools,
     memoryRead: profile.memoryRead, memoryWrite: profile.memoryWrite,

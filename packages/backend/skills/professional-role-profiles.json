@@ -2069,6 +2069,384 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Data scientist",
+      "package": "statistical-modeling",
+      "references": [
+        "references/study-design.md",
+        "references/splits-leakage.md",
+        "references/method-selection.md",
+        "references/evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database administrator",
+      "package": "database-engineering",
+      "references": [
+        "references/operations-recovery.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database developer",
+      "package": "database-engineering",
+      "references": [
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database performance specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/measured-performance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database tuning changes when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Machine learning engineer",
+      "package": "statistical-modeling",
+      "references": [
+        "references/ml-engineering.md",
+        "references/splits-leakage.md",
+        "references/evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "MySQL specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/mysql-mode.md",
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "PostgreSQL specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/postgresql-mode.md",
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
