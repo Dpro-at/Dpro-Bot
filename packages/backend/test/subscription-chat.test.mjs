@@ -52,7 +52,7 @@ test('ask_coding_app: owner approval always; desktop only; project folder only; 
  const old=process.env.DPRO_SUBSCRIPTION_CHAT,iso=process.env.AGENT_PLAYER_ISOLATED;
  try{
   delete process.env.DPRO_SUBSCRIPTION_CHAT;delete process.env.AGENT_PLAYER_ISOLATED;
-  assert.match(text(await askCodingAppTool.execute({app:'claude',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/only in the Dpro desktop app/);
+  assert.match(text(await askCodingAppTool.execute({app:'claude',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/only in the Girru desktop app/);
   process.env.DPRO_SUBSCRIPTION_CHAT='1';
   assert.match(text(await askCodingAppTool.execute({app:'claude',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp'})),/Only the owner/,'no owner turn → refused before anything starts');
   assert.match(text(await askCodingAppTool.execute({app:'codex',request:'hi'},{workspaceDir:'/tmp',fileReadRoot:'/tmp',toolPolicy:{channel:'telegram'}})),/not available for outside senders/);

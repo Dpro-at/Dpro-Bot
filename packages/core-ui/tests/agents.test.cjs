@@ -230,7 +230,7 @@ test('signed-out live and mock entry keep the account form behind the public she
   for (const mode of ['live', 'mock']) {
     const client = new SessionClient({ [mode]: createLoginMock() }); client.selectMode(mode); await client.discoverSetup();
     const html = renderToStaticMarkup(React.createElement(AuthBoundary, { client }, 'fixture'));
-    assert.match(html, /Welcome to Dpro/);
+    assert.match(html, /Welcome to Girru/);
     assert.doesNotMatch(html, /name="password"|name="username"|method="post"/);
   }
 });

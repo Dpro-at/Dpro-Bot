@@ -11,12 +11,12 @@ function checkConnection(origin) {
           const value = JSON.parse(body);
           if (res.statusCode !== 200 || typeof value.setupComplete !== 'boolean' || value.setupRequired !== !value.setupComplete) throw new Error();
           resolve();
-        } catch { reject(new Error('This address did not return a Dpro setup response. Check its address and connection.')); }
+        } catch { reject(new Error('This address did not return a Girru setup response. Check its address and connection.')); }
       });
       res.on('error', reject);
     });
     req.setTimeout(8000, () => req.destroy(new Error('Connection timed out. Check the address and try again.')));
-    req.on('error', () => reject(new Error('Could not verify the Dpro connection. Your current workspace was not changed.')));
+    req.on('error', () => reject(new Error('Could not verify the Girru connection. Your current workspace was not changed.')));
   });
 }
 module.exports = { checkConnection };

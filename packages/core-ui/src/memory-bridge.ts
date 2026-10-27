@@ -18,13 +18,13 @@ export type BridgeState = Readonly<{
 
 const NOTICES: Record<string, string> = {
   preview_stale: 'The file changed after this preview. Nothing was written; here is a new preview.',
-  conflict: 'Dpro cannot change this file safely (see the preview). Nothing was written.',
+  conflict: 'Girru cannot change this file safely (see the preview). Nothing was written.',
   config_unparsable: 'The app’s config file cannot be read as its format. Nothing was written.',
-  markers_broken: 'Dpro’s markers in a managed file are broken. Fix or remove them, then preview again.',
+  markers_broken: 'Girru’s markers in a managed file are broken. Fix or remove them, then preview again.',
   folder_missing: 'The project folder does not exist on this computer.',
   no_folder: 'This project has no folder yet.',
   already_undone: 'This registration was already undone.',
-  backup_missing: 'The backup is missing; Dpro removed only its own entry.',
+  backup_missing: 'The backup is missing; Girru removed only its own entry.',
   not_found: 'It no longer exists.',
 };
 
@@ -53,7 +53,7 @@ export class MemoryBridgeController extends Store<BridgeState> {
     } catch { this.publish({ busy: false, notice: 'The switch did not change (no connection).' }); }
   }
 
-  /** Step 1 of 2: what Dpro would add to the app's config (changes nothing). */
+  /** Step 1 of 2: what Girru would add to the app's config (changes nothing). */
   async previewRegistration(client: BridgeClient) {
     this.publish({ previewBusy: true, notice: undefined, result: undefined, confirmUndo: null });
     try {
@@ -62,7 +62,7 @@ export class MemoryBridgeController extends Store<BridgeState> {
       this.publish({ previewBusy: false, preview: { kind: 'registration', client, preview: (r.body as { preview: RegistrationPreview }).preview } });
     } catch { this.publish({ previewBusy: false, notice: 'The preview could not be made (no connection).' }); }
   }
-  /** Step 1 of 2 for a folder: Dpro's sections in AGENTS.md / CLAUDE.md / GEMINI.md. */
+  /** Step 1 of 2 for a folder: Girru's sections in AGENTS.md / CLAUDE.md / GEMINI.md. */
   async previewFiles(projectId: string) {
     this.publish({ previewBusy: true, notice: undefined, result: undefined, confirmUndo: null });
     try {
@@ -88,13 +88,13 @@ export class MemoryBridgeController extends Store<BridgeState> {
         return;
       }
       const name = p.kind === 'registration' ? p.preview.name : this.getSnapshot().status?.projects.find(x => x.projectId === p.projectId)?.name ?? 'the project';
-      this.publish({ previewBusy: false, preview: null, result: p.kind === 'registration' ? `Dpro memory registered in ${name}. A backup of the config was kept.` : `Managed files written for ${name}; Dpro keeps them in sync.` });
+      this.publish({ previewBusy: false, preview: null, result: p.kind === 'registration' ? `Girru memory registered in ${name}. A backup of the config was kept.` : `Managed files written for ${name}; Girru keeps them in sync.` });
       await this.load();
     } catch { this.publish({ previewBusy: false, notice: 'The result is unknown (no connection). Open the preview again.' }); }
   }
 
   askUndo(client: BridgeClient | null) { this.publish({ confirmUndo: client, result: undefined }); }
-  /** Restores the backup (or removes only Dpro's entry when the app changed its config since). */
+  /** Restores the backup (or removes only Girru's entry when the app changed its config since). */
   async undo(client: BridgeClient) {
     const id = this.getSnapshot().status?.clients.find(x => x.client === client)?.registrationId;
     if (!id) return;
@@ -103,7 +103,7 @@ export class MemoryBridgeController extends Store<BridgeState> {
       const r = await this.req('POST', bridgeUndoPath(id));
       if (r.status !== 200) { this.fail(r, 'The registration was not undone.'); return; }
       const mode = (r.body as { mode: string }).mode;
-      this.publish({ busy: false, confirmUndo: null, result: mode === 'restored' ? 'Registration undone: the config is back as it was.' : 'Registration undone: Dpro’s entry was removed (the app changed its config since).' });
+      this.publish({ busy: false, confirmUndo: null, result: mode === 'restored' ? 'Registration undone: the config is back as it was.' : 'Registration undone: Girru’s entry was removed (the app changed its config since).' });
       await this.load();
     } catch { this.publish({ busy: false, notice: 'The registration was not undone (no connection).' }); }
   }
@@ -136,7 +136,7 @@ const READ: Record<string, (p: string) => string> = {
 };
 /** One activity line in plain words. */
 export function activityText(e: BridgeEntry, projectName: (id: string) => string): string {
-  const app = e.client ? APP[e.client] : 'Dpro';
+  const app = e.client ? APP[e.client] : 'Girru';
   const p = e.projectId ? projectName(e.projectId) : 'a project';
   switch (e.action) {
     case 'mcp-read': return `${app} ${(READ[e.detail ?? ''] ?? (() => `read ${p}`))(p)}`;

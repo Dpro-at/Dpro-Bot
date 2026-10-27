@@ -82,20 +82,20 @@ export async function startCommand(options: StartOptions = {}, deps: StartDeps =
     while (Date.now() < until) {
       const lock = readLock(lockFile);
       if (lock && lockIsLive(lock, ops)) {
-        log(chalk.green(`Dpro Bot started in the background (pid ${lock.pid}). Web UI: http://${LOOPBACK_HOST}:${FRONTEND_PORT}`));
+        log(chalk.green(`Girru started in the background (pid ${lock.pid}). Web UI: http://${LOOPBACK_HOST}:${FRONTEND_PORT}`));
         log(chalk.gray(`Log: ${logFile}   Stop: agent-player stop`));
         return 0;
       }
       await new Promise((r) => setTimeout(r, 100));
     }
-    log(chalk.red(`Dpro Bot did not start; see ${logFile}`));
+    log(chalk.red(`Girru did not start; see ${logFile}`));
     return 1;
   }
 
-  log(chalk.gray(`Starting Dpro Bot (${mode}) from ${paths.root}. Press Ctrl+C to stop.`));
+  log(chalk.gray(`Starting Girru (${mode}) from ${paths.root}. Press Ctrl+C to stop.`));
   try {
     const code = await supervise({ paths, mode, entry, ops, spawn: deps.spawn, log });
-    log(code === 0 ? chalk.green('Dpro Bot stopped') : chalk.red(`Dpro Bot stopped (exit code ${code})`));
+    log(code === 0 ? chalk.green('Girru stopped') : chalk.red(`Girru stopped (exit code ${code})`));
     return code;
   } catch (err: any) {
     log(chalk.red(err?.message ?? String(err)));

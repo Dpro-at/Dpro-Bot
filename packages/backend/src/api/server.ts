@@ -9,7 +9,7 @@ if (!process.env.NODE_ENV) {
 }
 
 /**
- * Dpro Bot Backend Server
+ * Girru Backend Server
  * Fastify-based REST API
  */
 
@@ -89,7 +89,7 @@ async function start() {
 
     console.log(`
 ╔══════════════════════════════════════════════════════╗
-║            Dpro Bot Backend v1.3.0               ║
+║            Girru Backend v1.3.0               ║
 ╠══════════════════════════════════════════════════════╣
 ║  🌐 Frontend:  ${config.frontendUrl.padEnd(32)}║
 ║  ⚙️  Backend:   http://${HOST}:${PORT}${' '.repeat(Math.max(0, 32 - (HOST.length + PORT.toString().length + 10)))}║

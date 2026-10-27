@@ -1,5 +1,5 @@
 /**
- * Settings → Connections: applications linked to this Dpro through an account
+ * Settings → Connections: applications linked to this Girru through an account
  * grant (owner only). Today: Genvr worlds. Tokens never appear in a response.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';

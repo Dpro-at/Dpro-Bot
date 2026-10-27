@@ -2,7 +2,7 @@
 // a project's design (Tailwind, CSS variables, brand kit, DESIGN.md rules, logos)
 // and its local databases (SQLite table names from a copy, .env DB_* names,
 // compose services) and adds them to the project on its own; only a real
-// conflict waits for the owner; DESIGN.md is written between Dpro's markers;
+// conflict waits for the owner; DESIGN.md is written between Girru's markers;
 // never a row, never a password. Each section asks discovery for its own kinds.
 // Run: node --import tsx --test test/memory-design-db.test.mjs
 // Throwaway DB + HOME, fake files, no network.
@@ -144,7 +144,7 @@ test('design view: colours, fonts, logos, rules; the main-colour conflict waits 
   assert.equal((await call('GET', `/api/memory/projects/${SLUG}/design`, undefined, 'dd-user')).statusCode, 403);
   assert.equal((await call('GET', '/api/memory/projects/no-such-project/design')).statusCode, 404);
 
-  // DESIGN.md: Dpro's section between its markers, the owner's text kept.
+  // DESIGN.md: Girru's section between its markers, the owner's text kept.
   const text = designFile();
   assert.ok(text.startsWith('# Design\n\nOwner notes stay here.\n\n- Keep buttons rounded.\n'), 'owner text kept byte for byte');
   assert.match(text, /<!-- dpro-design:start[\s\S]*- primary: `#003f4d`[\s\S]*Open question for the owner[\s\S]*<!-- dpro-design:end -->/);
@@ -231,7 +231,7 @@ test('databases: metadata and table names only, the original file untouched, lev
 test('agent tools: project open or the owner\'s turn; outsiders never; changes need approval', async () => {
   const d = await T.projectDesignTool.execute({}, ctx);
   assert.ok(!d.error, d.error);
-  assert.match(d.content[0].text, /## Design \(found by Dpro\)/);
+  assert.match(d.content[0].text, /## Design \(found by Girru\)/);
   assert.ok((await T.projectDesignTool.execute({}, { ...ctx, toolPolicy: { channel: 'telegram' } })).error, 'outsider turn');
   assert.ok((await T.projectDesignTool.execute({}, { ...ctx, userId: 'dd-user' })).error, 'not the owner');
   const boardRun = { ...ctx, userId: 'dd-agent', accessOwnerId: OWNER, memoryDrawers: [{ kind: 'owner' }] };

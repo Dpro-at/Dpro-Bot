@@ -1,6 +1,6 @@
-# Dpro Bot Testing Checklist
+# Girru Testing Checklist
 
-Comprehensive testing checklist for Dpro Bot v1.3.0 installer across all platforms and deployment modes.
+Comprehensive testing checklist for Girru v1.3.0 installer across all platforms and deployment modes.
 
 ## Table of Contents
 
@@ -193,7 +193,7 @@ sha256sum -c checksums.txt
 
 #### 6. System Tray Icon
 
-- [ ] System tray icon appears: **Dpro Bot**
+- [ ] System tray icon appears: **Girru**
 - [ ] Left-click shows menu:
   - [ ] Open Dashboard
   - [ ] Start Services (grayed out - already running)
@@ -231,7 +231,7 @@ sha256sum -c checksums.txt
   - [ ] No errors in console
 
 - [ ] **Test Tool Usage:**
-  - [ ] Send: `Search the web for Dpro Bot documentation`
+  - [ ] Send: `Search the web for Girru documentation`
   - [ ] Tool call appears: `web_fetch`
   - [ ] Tool result displays
   - [ ] Response includes search results
@@ -292,7 +292,7 @@ sha256sum -c checksums.txt
 #### 12. Uninstallation Testing
 
 - [ ] Right-click tray icon → **Settings** → **Uninstall**
-- [ ] OR: Control Panel → Programs → Uninstall Dpro Bot
+- [ ] OR: Control Panel → Programs → Uninstall Girru
 - [ ] Uninstaller window opens
 - [ ] Options displayed:
   - [ ] ✅ Remove application files (checked, disabled)
@@ -541,10 +541,10 @@ curl -LO https://github.com/your-org/agent-player/releases/download/v1.3.0/agent
 #### 3. Install
 
 - [ ] Double-click `.dmg` file
-- [ ] Drag **Dpro Bot Installer** to **Applications**
+- [ ] Drag **Girru Installer** to **Applications**
 - [ ] Eject DMG
 - [ ] Open **Applications** folder
-- [ ] Right-click **Dpro Bot Installer** → **Open**
+- [ ] Right-click **Girru Installer** → **Open**
 - [ ] If Gatekeeper blocks:
   - [ ] **System Settings** → **Privacy & Security**
   - [ ] Scroll down → **Open Anyway**
@@ -552,7 +552,7 @@ curl -LO https://github.com/your-org/agent-player/releases/download/v1.3.0/agent
 #### 4. Installation Wizard
 
 - [ ] Same 8 steps as Windows/Linux
-- [ ] Default path: `/Applications/Dpro Bot.app/Contents/Resources`
+- [ ] Default path: `/Applications/Girru.app/Contents/Resources`
 - [ ] Services: launchd plists
 
 #### 5. Service Verification
@@ -579,7 +579,7 @@ launchctl list | grep agentplayer
   ```
 - [ ] Verify removal:
   ```bash
-  ls "/Applications/Dpro Bot.app"
+  ls "/Applications/Girru.app"
   # Should show: No such file or directory
   ```
 

@@ -89,7 +89,7 @@ export function allowedMemoryDesktop(method, path, body) {
       return method === 'PUT' && record(body) && onlyKeys(body, ['projects']) && Array.isArray(body.projects) && body.projects.length <= MAX_GROUP_PROJECTS && body.projects.every(slug) && new Set(body.projects).size === body.projects.length;
     case 'design':
       if(method==='PATCH'&&record(body)&&(Object.hasOwn(body,'approvedRules')||Object.hasOwn(body,'confirmRules')))return ruleReviewBody(body);
-      // A logo is named by its id or its shown path; mainLogo null = Dpro picks; mainColour = one of the found colours.
+      // A logo is named by its id or its shown path; mainLogo null = Girru picks; mainColour = one of the found colours.
       return get || (method === 'PATCH' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['mainLogo', 'notLogo', 'mainColour', 'writeFile'])
         && (body.mainLogo === undefined || body.mainLogo === null || filePath(body.mainLogo)) && (body.notLogo === undefined || filePath(body.notLogo))
         && (body.mainColour === undefined || colourValue(body.mainColour)) && (body.writeFile === undefined || typeof body.writeFile === 'boolean'));

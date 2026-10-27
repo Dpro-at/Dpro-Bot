@@ -3,7 +3,7 @@
   "name": "Public Chat Rooms",
   "version": "1.0.0",
   "description": "Multi-user chat rooms with AI agents and customizable avatars",
-  "author": "Dpro Bot Team",
+  "author": "Dpro",
   "type": "app",
   "main": "src/index.js",
   "routeAccess": "authenticated",

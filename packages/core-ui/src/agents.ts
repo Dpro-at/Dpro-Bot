@@ -5,7 +5,7 @@ import type { SessionClient, WireResponse } from './session';
 import { orgFields, type Placed } from './org-contract.js';
 
 export type AgentProfile = { role?: 'main' | 'manager' | 'specialist' | 'evaluator' | null; department?: string | null; description?: string; emoji?: string; isPrimary?: boolean; model?: string; provider?: string;
-  /** AGENTS-ORG-01: the owner's choice (null: Dpro places it), whose sub-agent it is, its manager in the chart and how it got there. */
+  /** AGENTS-ORG-01: the owner's choice (null: Girru places it), whose sub-agent it is, its manager in the chart and how it got there. */
   reportsTo?: string | null; subAgentOf?: string | null; manager?: string | null; placed?: Placed };
 export type PublicAgent = Readonly<{ id: string; version: number } & AgentProfile & ({ name: string; nameUnavailable?: never } | { name?: never; nameUnavailable: true })>;
 const ROLES = ['main', 'manager', 'specialist', 'evaluator'];
@@ -183,7 +183,7 @@ export class AgentsController {
   async duplicate(id: string) { return this.#act(id, 'POST', `/api/agents/${id}/duplicate`, n => `A copy of ${n} joined the team.`); }
   async remove(id: string) { return this.#act(id, 'DELETE', `/api/agents/${id}`, n => `${n} was removed.`); }
   /**
-   * OC2: who an agent reports to (null: Dpro places it). One request, then the team is read again.
+   * OC2: who an agent reports to (null: Girru places it). One request, then the team is read again.
    * Returns the previous choice so the caller can offer Undo.
    */
   async setReportsTo(id: string, reportsTo: string | null): Promise<{ ok: boolean; notice: string; before?: string | null }> {
@@ -199,7 +199,7 @@ export class AgentsController {
           : code === 'sub_agent' ? 'A sub-agent stays with the agent it belongs to.' : code === 'version_conflict' ? 'The team changed meanwhile. It was read again; try once more.' : 'Nothing was changed.';
         await this.list(); this.#publish({ notice }); return { ok: false, notice };
       }
-      const notice = reportsTo ? `${agent.name ?? 'The agent'} now reports to ${target?.name ?? 'that agent'}` : `Dpro places ${agent.name ?? 'the agent'} again`;
+      const notice = reportsTo ? `${agent.name ?? 'The agent'} now reports to ${target?.name ?? 'that agent'}` : `Girru places ${agent.name ?? 'the agent'} again`;
       await this.list(); this.#publish({ notice });
       return { ok: true, notice, before: agent.placed === 'set' ? agent.reportsTo ?? null : null };
     } catch (error) {

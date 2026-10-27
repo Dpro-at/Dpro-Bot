@@ -318,7 +318,7 @@ test('owner setting: e-mail / phone redaction', async () => {
 });
 
 test('preview: chunked by heading, proposed drawers/types, duplicates flagged; hash lock + immutable versions', async () => {
-  const doc = '# About me\n\nI work on Dpro Bot.\n\n## Lessons learned\n\nAlways run the tests before a commit.\n\n## Again\n\nI work on Dpro Bot.\n\n# Empty\n\n## Code\n\n```\n# not a heading\nline\n```\n';
+  const doc = '# About me\n\nI work on Girru.\n\n## Lessons learned\n\nAlways run the tests before a commit.\n\n## Again\n\nI work on Girru.\n\n# Empty\n\n## Code\n\n```\n# not a heading\nline\n```\n';
   const res = await preview([file('CLAUDE.md', doc), file('SKILL.md', '# Deploy skill\n\nHow to deploy the backend.')], { source: 'claude-code' });
   assert.equal(res.statusCode, 201, res.body);
   const v1 = res.json();
@@ -372,7 +372,7 @@ test('preview: chunked by heading, proposed drawers/types, duplicates flagged; h
   assert.equal((await call('POST', `${base}/revise`, { version: 2, contentHash: v2.contentHash, items: [{ id: 'nope', include: true }] })).statusCode, 400);
   assert.equal((await call('POST', `${base}/revise`, { version: 2, contentHash: v2.contentHash, items: [{ id: 'i1', include: true }] })).statusCode, 400, 'nothing changed');
   // A tampered stored version fails its integrity check.
-  db.prepare(`UPDATE memory_import_previews SET items = replace(items, 'Dpro Bot', 'Agent Pl4yer') WHERE batch_id = ? AND version = 1`).run(v1.batchId);
+  db.prepare(`UPDATE memory_import_previews SET items = replace(items, 'Girru', 'Agent Pl4yer') WHERE batch_id = ? AND version = 1`).run(v1.batchId);
   assert.equal((await call('GET', `${base}?version=1`)).statusCode, 500);
   db.prepare(`UPDATE memory_import_previews SET items = ? WHERE batch_id = ? AND version = 1`).run(stored1.items, v1.batchId);
 
@@ -483,7 +483,7 @@ test('audit: every stage recorded with counts only (no content, names or secrets
   }
   const text = rows.map((r) => `${r.metadata} ${r.resource_id}`).join('\n');
   for (const value of Object.values(SECRETS)) assert.ok(!text.includes(value));
-  for (const s of ['project-notes.md', 'CLAUDE.md', 'We deploy', 'Dpro Bot', 'anna@example.test', 'REDACTED:']) assert.ok(!text.includes(s), `audit contains ${s}`);
+  for (const s of ['project-notes.md', 'CLAUDE.md', 'We deploy', 'Girru', 'anna@example.test', 'REDACTED:']) assert.ok(!text.includes(s), `audit contains ${s}`);
   const commit = JSON.parse(rows.find((r) => r.action === 'memory_import.commit').metadata);
   assert.ok(Number.isInteger(commit.proposals) && /^[0-9a-f]{64}$/.test(commit.contentHash));
 });

@@ -51,7 +51,7 @@ async function run(tool: string, fn: () => Promise<ToolResult>): Promise<ToolRes
 
 export const projectDesignTool: Tool = {
   name: 'project_design',
-  description: `The design Dpro found for a project (colours with the main one marked, fonts, logos, quoted repository rule references and owner confirmation status,
+  description: `The design Girru found for a project (colours with the main one marked, fonts, logos, quoted repository rule references and owner confirmation status,
 open questions). Read it before you change any screen of the project; DESIGN.md in the project folder holds the same section.
 project: the project slug (default: the project open in this conversation).`,
   input_schema: { type: 'object', properties: { project: { type: 'string' } } },
@@ -74,7 +74,7 @@ main_colour (a colour value from project_design: answers "which colour is the ma
 write_file (true/false: keep DESIGN.md in the project folder), undo (true: the last automatic change goes back).`,
   input_schema: {
     type: 'object',
-    properties: { project: { type: 'string' }, main_logo: { type: 'string', description: 'logo id, or "none" to let Dpro pick' }, not_logo: { type: 'string' }, main_colour: { type: 'string', description: 'colour value, or "none"' }, write_file: { type: 'boolean' }, undo: { type: 'boolean' } },
+    properties: { project: { type: 'string' }, main_logo: { type: 'string', description: 'logo id, or "none" to let Girru pick' }, not_logo: { type: 'string' }, main_colour: { type: 'string', description: 'colour value, or "none"' }, write_file: { type: 'boolean' }, undo: { type: 'boolean' } },
     required: ['project'],
   },
   async execute(params: Record<string, unknown>, context?: ToolExecutionContext): Promise<ToolResult> {
@@ -101,7 +101,7 @@ write_file (true/false: keep DESIGN.md in the project folder), undo (true: the l
 
 export const projectDatabasesTool: Tool = {
   name: 'project_databases',
-  description: `The local databases Dpro found for a project, as much as the owner lets this agent see:
+  description: `The local databases Girru found for a project, as much as the owner lets this agent see:
 "exists" (engine, name, place), "tables" (+ table names) or "data" (+ rows only by asking the owner each time).
 Never a row and never a password here. project: the slug (default: the project open in this conversation).`,
   input_schema: { type: 'object', properties: { project: { type: 'string' } } },

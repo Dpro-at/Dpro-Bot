@@ -148,7 +148,7 @@ export function ActionDialog({ c }: { c: MemoryScopesController }) {
         <button type="button" className={forget ? 'danger-solid' : 'primary'} disabled={s.previewBusy || (forget && typed.trim() !== p.name)} onClick={() => void c.applyAction()}>Confirm: {verb[a].toLowerCase()}</button>
         <button type="button" onClick={() => c.cancelAction()} disabled={s.previewBusy}>Cancel</button>
       </div>
-      <p className="fine-print">Nothing changes until you confirm. If the project changes meanwhile, Dpro asks you to look again.</p>
+      <p className="fine-print">Nothing changes until you confirm. If the project changes meanwhile, Girru asks you to look again.</p>
     </>}
     {s.previewNotice && <p className="card-notice" role="alert">{s.previewNotice}</p>}
   </div>;

@@ -2,7 +2,7 @@
  * `agent-player update` for a git checkout install (INST-11).
  *
  * Order:
- *  1. refuse while Dpro Bot runs (or stop it first with --stop, through
+ *  1. refuse while Girru runs (or stop it first with --stop, through
  *     the pid/lock file from INST-04a);
  *  2. refuse when the checkout has uncommitted changes to tracked files;
  *  3. pick the target: `--to <ref>` or the branch's upstream. Network is used
@@ -348,7 +348,7 @@ export interface UpdateOptions {
   to?: string;
   /** Allow `git fetch` (network) before resolving the target. */
   fetch?: boolean;
-  /** Stop a running Dpro Bot first instead of refusing. */
+  /** Stop a running Girru first instead of refusing. */
   stop?: boolean;
 }
 
@@ -402,12 +402,12 @@ export async function runUpdate(options: UpdateOptions, deps: UpdateDeps): Promi
   // 2. not while running
   const lock = readLock(lockFilePath(paths));
   if (lockIsLive(lock, ops)) {
-    if (!options.stop) return refuse(`Dpro Bot is running (pid ${lock!.pid}). Stop it first, or pass --stop.`);
+    if (!options.stop) return refuse(`Girru is running (pid ${lock!.pid}). Stop it first, or pass --stop.`);
     const stopped = await stopRunning(paths, { ops, timeoutMs: deps.stopTimeoutMs });
     if (stopped.state !== 'stopped' && stopped.state !== 'stale' && stopped.state !== 'not-running') {
-      return refuse(`Dpro Bot (pid ${stopped.pid}) did not stop in time.`);
+      return refuse(`Girru (pid ${stopped.pid}) did not stop in time.`);
     }
-    log('Stopped the running Dpro Bot.');
+    log('Stopped the running Girru.');
   }
 
   // 3. clean tracked files

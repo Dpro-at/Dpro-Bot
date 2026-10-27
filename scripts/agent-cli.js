@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Dpro Bot CLI
- * Command-line interface for Dpro Bot
+ * Girru CLI
+ * Command-line interface for Girru
  */
 
 const BACKEND_URL = 'http://localhost:41522';
@@ -174,7 +174,7 @@ const commands = {
   },
 
   help() {
-    log('\n📖 Dpro Bot CLI - Available Commands:\n', 'cyan');
+    log('\n📖 Girru CLI - Available Commands:\n', 'cyan');
     log('  skills              - List all local skills', 'green');
     log('  agents              - List all agents', 'green');
     log('  marketplace         - Browse skills marketplace', 'green');

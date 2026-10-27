@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "app",
   "description": "Universal server monitoring and management dashboard for WHM/cPanel, Linux, AWS S3, and SSH-enabled infrastructure",
-  "author": "Dpro Bot Team",
+  "author": "Dpro",
   "main": "src/index.js",
   "permissions": ["routes", "tools"],
 

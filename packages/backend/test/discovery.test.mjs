@@ -178,7 +178,7 @@ test('ignore / undo, remove (the file stays), gone → keep', async () => {
   assert.equal(find((await call('GET', BASE)).json(), 'ssh', 'build').state, 'new');
   const lang = find(v, 'memory', 'owner-language');
   assert.equal((await call('POST', `${BASE}/items/${lang.id}/remove`)).statusCode, 200);
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM memories WHERE drawer_kind = 'owner' AND user_id = 'dc-owner' AND (status IS NULL OR status = 'active')").get().n, 0, 'taken out of Dpro');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM memories WHERE drawer_kind = 'owner' AND user_id = 'dc-owner' AND (status IS NULL OR status = 'active')").get().n, 0, 'taken out of Girru');
   assert.equal(find((await call('GET', BASE)).json(), 'memory', 'owner-language').state, 'ignored', 'not offered again');
   rmSync(join(cc, 'memory', 'voices.md'));
   v = (await call('POST', `${BASE}/scan`)).json();
@@ -198,7 +198,7 @@ test('a project folder can stop being watched; settings are checked', async () =
 });
 
 test('only what this page added can be removed; a skill with a taken name is not replaced', async () => {
-  // An MCP server that was already in Dpro: importing it again only links it, and Remove refuses.
+  // An MCP server that was already in Girru: importing it again only links it, and Remove refuses.
   const docs = find(v, 'mcp', 'docs'); let p = await previewOf(docs);
   assert.ok((await call('POST', `${BASE}/import`, { items: [{ id: p.id, previewHash: p.previewHash }] })).json().results[0].ok);
   const before = db.prepare('SELECT COUNT(*) AS n FROM mcp_servers').get().n;
@@ -210,7 +210,7 @@ test('only what this page added can be removed; a skill with a taken name is not
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM mcp_servers').get().n, before);
   assert.equal((await call('POST', `${BASE}/items/${p.id}/remove`)).json().code, 'not_imported', 'the existing server is never removed from here');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM mcp_servers').get().n, before);
-  // A different skill named "writer" already in Dpro (added elsewhere): blocked, not replaced.
+  // A different skill named "writer" already in Girru (added elsewhere): blocked, not replaced.
   db.prepare("UPDATE discovery_items SET ref = NULL WHERE kind = 'skill'").run();
   w(join(home, '.claude', 'skills', 'writer', 'SKILL.md'), '---\nname: writer\ndescription: "Write posts"\n---\n\nLonger posts now.\n');
   db.prepare("DELETE FROM discovery_items WHERE kind = 'skill'").run();
@@ -255,7 +255,7 @@ test('merge two project folders into one project (the folders stay), then separa
   assert.deepEqual(g.group.members.map((m) => m.name).sort(), ['myshop', 'shop']);
   assert.ok(!v.roots.some((x) => x.id === shopRoot.id || x.id === my.id), 'shown once, as the merged project');
   assert.ok(v.items.filter((i) => i.rootId === g.id).length >= 5);
-  const mem = find(v, 'memory', 'brand-colors'); assert.equal(mem.to, 'Projects · shop-all', 'no Dpro project among them: the merged project\'s own drawer');
+  const mem = find(v, 'memory', 'brand-colors'); assert.equal(mem.to, 'Projects · shop-all', 'no Girru project among them: the merged project\'s own drawer');
   assert.equal((await call('DELETE', `${BASE}/groups/${g.id}`)).statusCode, 200);
   v = (await call('GET', BASE)).json();
   assert.ok(v.roots.some((x) => x.id === shopRoot.id) && v.roots.some((x) => x.id === my.id));

@@ -1,7 +1,7 @@
 'use strict';
 /**
- * Desktop app settings: run Dpro on this computer ("local", default) or open
- * an existing Dpro elsewhere ("remote"). Stored as <userData>/desktop.json (0600).
+ * Desktop app settings: run Girru on this computer ("local", default) or open
+ * an existing Girru elsewhere ("remote"). Stored as <userData>/desktop.json (0600).
  *
  * A remote address must be https, or plain http only on this computer
  * (127.0.0.1 / localhost / ::1, e.g. an SSH tunnel). No user name, password,

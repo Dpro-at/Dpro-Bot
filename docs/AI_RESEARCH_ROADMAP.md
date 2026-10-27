@@ -1,7 +1,7 @@
 # AI Agent Research Roadmap 2026
 ## Missing Systems Based on Scientific Research
 
-This document outlines critical systems identified from 2026 AI agent research that are currently missing from Dpro Bot.
+This document outlines critical systems identified from 2026 AI agent research that are currently missing from Girru.
 
 ---
 

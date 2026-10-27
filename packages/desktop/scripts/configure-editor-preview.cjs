@@ -1,5 +1,5 @@
 'use strict';
-/** Attach an existing Electron app to the local Dpro development checkout. No downloads. */
+/** Attach an existing Electron app to the local Girru development checkout. No downloads. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { compatibleRuntime, loopbackOrigin } = require('../src/nabu-editor.cjs');
@@ -13,7 +13,7 @@ function initializeSettings(settings, origin) {
 
 function configure({ appDir, runtimeRoot, node, profile, origin }) {
   if (process.platform !== 'darwin') throw Error('This local preview launcher requires macOS');
-  if (!loopbackOrigin(origin)) throw Error('The preview requires a loopback Dpro address');
+  if (!loopbackOrigin(origin)) throw Error('The preview requires a loopback Girru address');
   if (!compatibleRuntime(runtimeRoot)) throw Error('Compatible editor runtime not found');
   for (const value of [appDir, runtimeRoot, node, profile]) if (!value || !path.isAbsolute(value)) throw Error('Absolute paths required');
   if (!fs.statSync(node).isFile()) throw Error('Node runtime not found');
@@ -26,7 +26,7 @@ function configure({ appDir, runtimeRoot, node, profile, origin }) {
   const settings = path.join(profile, 'desktop.json');
   initializeSettings(settings, origin);
   fs.mkdirSync(destination);
-  fs.writeFileSync(path.join(destination, 'package.json'), JSON.stringify({ name: 'dpro-local-preview', productName: 'Dpro Agent', version: require('../package.json').version, main: 'bootstrap.cjs', private: true }));
+  fs.writeFileSync(path.join(destination, 'package.json'), JSON.stringify({ name: 'dpro-local-preview', productName: 'Girru', version: require('../package.json').version, main: 'bootstrap.cjs', private: true }));
   fs.writeFileSync(path.join(destination, 'bootstrap.cjs'), `'use strict';\nObject.assign(process.env,${JSON.stringify({ DPRO_NABU_ROOT: runtimeRoot, DPRO_DESKTOP_NODE: node, DPRO_DESKTOP_PROFILE_DIR: profile })});\nrequire(${JSON.stringify(main)});\n`);
   return appDir;
 }

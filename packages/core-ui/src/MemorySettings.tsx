@@ -47,7 +47,7 @@ export function MemorySettings({ client, pane, onOpenMemory }: { client: Session
   return <section className="mem-settings" aria-label={`Memory: ${title}`}>
     <h3>{title}</h3>
     {pane === 'rules' && health && <RulesPane client={client} health={health} scopes={scopes}/>}
-    {pane === 'folders' && disc && <><p className="fine-print">Tick folders, drives or partitions (several at once). Everything inside is read, also new folders. Dpro only reads; your files never change. On Windows: C:, D:, E: and USB drives show here the same way.</p><FolderTree c={disc}/></>}
+    {pane === 'folders' && disc && <><p className="fine-print">Tick folders, drives or partitions (several at once). Everything inside is read, also new folders. Girru only reads; your files never change. On Windows: C:, D:, E: and USB drives show here the same way.</p><FolderTree c={disc}/></>}
     {pane === 'sources' && <SourcesPane client={client} disc={disc}/>}
     {pane === 'projects' && scopes && disc && <ProjectsPane client={client} scopes={scopes} disc={disc}/>}
     {pane === 'access' && <AccessPane client={client} tree={ss?.tree ?? null}/>}
@@ -66,8 +66,8 @@ function HealthLoader({ c, part, onReview, onFiles }: { c: MemoryHealthControlle
 // ---------------------------------------------------------------- Rules
 const STANDING = [
   ['Reads the project’s memory and DESIGN.md before it starts', 'colours, logos, fonts, rules, decisions'],
-  ['Keeps DESIGN.md in the project up to date', 'written only between Dpro’s markers, your text stays'],
-  ['Keeps the project’s documents in Dpro’s order', 'README for people, DESIGN.md, decisions and handoff notes'],
+  ['Keeps DESIGN.md in the project up to date', 'written only between Girru’s markers, your text stays'],
+  ['Keeps the project’s documents in Girru’s order', 'README for people, DESIGN.md, decisions and handoff notes'],
   ['Saves what it learns in the right project on its own', 'routine facts saved; important or conflicting ones wait in Needs you'],
   ['Follows the design it found', 'never invents colours or logos when the project has them'],
   ['Leaves a handoff note when it stops', 'done, left, next'],
@@ -101,9 +101,9 @@ function RulesPane({ client, health, scopes }: { client: SessionClient; health: 
       <select value={trashDays ?? 30} disabled={trashDays === null} onChange={e => void setTrash(Number(e.target.value))}><option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option><option value={0}>Never on its own</option></select></label>
     {saved && <p className="fine-print" role="status">{saved}</p>}
     <details className="preference-help"><summary>Default project behaviour</summary><h4>What every agent does in a project, without being told</h4>
-    <p className="fine-print">This comes with Dpro’s skill for every agent and coding app. It is on for all projects; you never have to remind it.</p>
+    <p className="fine-print">This comes with Girru’s skill for every agent and coding app. It is on for all projects; you never have to remind it.</p>
     <ul className="mem-standing">{STANDING.map(([a, b]) => <li key={a}><UiIcon name="check" size={13}/><span><b>{a}</b><span className="fine-print">{b}</span></span></li>)}</ul>
-    <p className="fine-print">DESIGN.md is written into each project folder (only between Dpro's markers). Switch it off per project in Memory › the project › Design.</p></details>
+    <p className="fine-print">DESIGN.md is written into each project folder (only between Girru's markers). Switch it off per project in Memory › the project › Design.</p></details>
   </div>;
 }
 
@@ -118,7 +118,7 @@ function SourcesPane({ client, disc }: { client: SessionClient; disc?: Discovery
     {tab === 'computer' && disc && <><DiscoveryView c={disc} active kinds={['memory', 'note', 'tool', 'design', 'database']} noFolders/>
       <p className="fine-print">Skills, MCP servers and SSH hosts found by the same scan go to their own sections (Skills, MCP connections, Terminal), not here. Folders: Settings › Memory › Folders and drives.</p></>}
     {tab === 'conversations' && <LocalImport client={client} active onReview={() => {}}/>}
-    {tab === 'apps' && bridge && <><p className="fine-print">When you allow memory from this computer, Dpro connects the coding apps it finds. They read the memory of the project they work in and can only suggest new memories. Per project: right-click a project in Settings › Projects.</p><BridgeView c={bridge}/></>}
+    {tab === 'apps' && bridge && <><p className="fine-print">When you allow memory from this computer, Girru connects the coding apps it finds. They read the memory of the project they work in and can only suggest new memories. Per project: right-click a project in Settings › Projects.</p><BridgeView c={bridge}/></>}
   </div>;
 }
 
@@ -147,7 +147,7 @@ function ProjectsPane({ client, scopes, disc }: { client: SessionClient; scopes:
   const grouped = new Set(groups.flatMap(g => g.projects));
   const sugg = ds?.view?.suggestions ?? [];
   return <div className="mem-settings-body">
-    <p className="fine-print">Groups of projects (a client, a team) and which folders make one project. Dpro joins folders by git or the same name, or you join them; it asks when not sure. Drag projects between groups in the Memory sidebar.</p>
+    <p className="fine-print">Groups of projects (a client, a team) and which folders make one project. Girru joins folders by git or the same name, or you join them; it asks when not sure. Drag projects between groups in the Memory sidebar.</p>
     {sugg.map(s => <div key={s.key} className="dk-ask"><p>Same project? <b>{s.a.name}</b> and <b>{s.b.name}</b>{s.reason ? <span className="fine-print"> · {s.reason}</span> : null}</p>
       <div className="actions"><button type="button" className="primary" onClick={() => disc.startMerge([s.a.id, s.b.id], s.a.name)}>Join</button><button type="button" onClick={() => void disc.dismissSuggestion(s)}>Not the same</button></div></div>)}
     {ds?.merge && <div className="dk-ask"><label className="dk-field">One project named<input value={ds.merge.name} onChange={e => disc.setMerge({ name: e.target.value })}/></label>
@@ -190,7 +190,7 @@ function SchedulePane({ client, disc, health }: { client: SessionClient; disc: D
   }
   const v = ds?.view; const id = hs?.importDraft;
   return <div className="mem-settings-body">
-    <p className="fine-print">One place for everything Dpro does on its own. (Was set in three places before: Health, Project files, Found on this computer.)</p>
+    <p className="fine-print">One place for everything Girru does on its own. (Was set in three places before: Health, Project files, Found on this computer.)</p>
     <label className="settings-row"><span>Read this computer again<span className="fine-print">finds new and changed files; imports nothing on its own</span></span>
       <select value={v ? (v.settings.watch ? v.settings.intervalMinutes : 0) : 0} disabled={!v} onChange={e => { const n = Number(e.target.value); void disc.setWatch(n > 0, (n || v!.settings.intervalMinutes) as 15 | 30 | 60); }}>
         <option value={0}>Only when I scan</option><option value={15}>Every 15 minutes</option><option value={30}>Every 30 minutes</option><option value={60}>Every 60 minutes</option></select></label>

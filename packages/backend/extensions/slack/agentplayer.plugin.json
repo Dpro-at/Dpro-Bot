@@ -4,7 +4,7 @@
   "description": "Slack workspace integration - send and receive messages via Slack bot",
   "version": "2.0.0",
   "type": "channel",
-  "author": "Dpro Bot Team",
+  "author": "Dpro",
   "main": "index.js",
   "publicRoutes": ["/webhook"],
   "permissions": ["network", "database", "tools"],

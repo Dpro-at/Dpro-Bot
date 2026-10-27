@@ -7,7 +7,7 @@
  *   CLAUDE.md   thin adapter: `@AGENTS.md` (Claude Code import syntax)
  *   GEMINI.md   thin adapter: `@./AGENTS.md` (Gemini CLI import syntax)
  *
- * Dpro writes ONLY between its two markers. Text outside them is the owner's
+ * Girru writes ONLY between its two markers. Text outside them is the owner's
  * (or another agent's) and is kept byte for byte; a file without markers gets
  * the section appended. Broken markers (one missing, or more than one pair),
  * a symlink or an oversized file is a conflict: nothing is written to that
@@ -15,7 +15,7 @@
  * carries the preview hash, so a file that changed in between is refused.
  * The brief is redacted (brief.ts) and checked again here: a block that
  * still holds anything the secret scan finds is never written.
- * Files Dpro creates are listed in `.git/info/exclude` (inside its own
+ * Files Girru creates are listed in `.git/info/exclude` (inside its own
  * markers) unless the owner turns that off.
  */
 import fs from 'node:fs';
@@ -41,11 +41,11 @@ export class ManagedFileError extends Error {
 }
 
 type Split = { before: string; inside: string; after: string };
-/** A pair of Dpro markers: the memory section here, the design section in DESIGN.md (DESIGN-FIND-01). */
+/** A pair of Girru markers: the memory section here, the design section in DESIGN.md (DESIGN-FIND-01). */
 export interface Marks { start: string; end: string; startRe: RegExp; endRe: RegExp }
 const MEMORY_MARKS: Marks = { start: MARK_START, end: MARK_END, startRe: START_RE, endRe: END_RE };
 
-/** The text around Dpro's section; null when there is none, 'broken' when the markers are not exactly one ordered pair. */
+/** The text around Girru's section; null when there is none, 'broken' when the markers are not exactly one ordered pair. */
 export function splitManaged(text: string, marks: Marks = MEMORY_MARKS): Split | null | 'broken' {
   const starts = [...text.matchAll(marks.startRe)];
   const ends = [...text.matchAll(marks.endRe)];
@@ -56,17 +56,17 @@ export function splitManaged(text: string, marks: Marks = MEMORY_MARKS): Split |
   return { before: text.slice(0, s.index!), inside: text.slice(s.index! + s[0].length, e.index!), after: text.slice(e.index! + e[0].length) };
 }
 
-/** `text` with Dpro's section set to `block`; outside text unchanged. */
+/** `text` with Girru's section set to `block`; outside text unchanged. */
 export function replaceManaged(text: string, block: string, marks: Marks = MEMORY_MARKS): string {
   const section = `${marks.start}\n${block.trim()}\n${marks.end}`;
   const split = splitManaged(text, marks);
-  if (split === 'broken') throw new ManagedFileError('The Dpro markers in this file are broken', 409, 'markers_broken');
+  if (split === 'broken') throw new ManagedFileError('The Girru markers in this file are broken', 409, 'markers_broken');
   if (split) return split.before + section + split.after;
   if (!text) return `${section}\n`;
   return `${text}${text.endsWith('\n') ? '' : '\n'}\n${section}\n`;
 }
 
-/** The owner's own text: everything outside Dpro's section. */
+/** The owner's own text: everything outside Girru's section. */
 export function outsideManaged(text: string): string {
   const split = splitManaged(text);
   if (!split || split === 'broken') return text;
@@ -74,8 +74,8 @@ export function outsideManaged(text: string): string {
 }
 
 export function adapterBlock(name: ManagedName): string {
-  if (name === 'CLAUDE.md') return `@AGENTS.md\n\nThe Dpro project memory for this folder is in AGENTS.md (imported above). Live tools: the \`${SERVER_NAME}\` MCP server.`;
-  return `@./AGENTS.md\n\nThe Dpro project memory for this folder is in AGENTS.md (imported above). Live tools: the \`${SERVER_NAME}\` MCP server.`;
+  if (name === 'CLAUDE.md') return `@AGENTS.md\n\nThe Girru project memory for this folder is in AGENTS.md (imported above). Live tools: the \`${SERVER_NAME}\` MCP server.`;
+  return `@./AGENTS.md\n\nThe Girru project memory for this folder is in AGENTS.md (imported above). Live tools: the \`${SERVER_NAME}\` MCP server.`;
 }
 
 const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
@@ -88,7 +88,7 @@ export interface FilePlan {
   reason?: string;
   beforeSha256: string | null;
   afterSha256: string | null;
-  /** Dpro's section before (-) and after (+); outside text is never part of a change. */
+  /** Girru's section before (-) and after (+); outside text is never part of a change. */
   diff: string;
 }
 export interface FilesPreview { projectId: string; folder: string; files: FilePlan[]; previewHash: string; conflicts: number; changes: number }
@@ -118,14 +118,14 @@ function planFile(folder: string, relative: string, block: string): Planned {
   const base = { name: path.basename(relative), relative, abs, mode: cur.mode };
   if (cur.problem) return { ...base, action: 'conflict', reason: `${relative} ${cur.problem}`, beforeSha256: null, afterSha256: null, diff: '', after: null };
   const split = cur.text === null ? null : splitManaged(cur.text);
-  if (split === 'broken') return { ...base, action: 'conflict', reason: `${relative} has broken Dpro markers; fix or remove them by hand`, beforeSha256: sha(cur.text!), afterSha256: null, diff: '', after: null };
+  if (split === 'broken') return { ...base, action: 'conflict', reason: `${relative} has broken Girru markers; fix or remove them by hand`, beforeSha256: sha(cur.text!), afterSha256: null, diff: '', after: null };
   const after = replaceManaged(cur.text ?? '', block);
   const before = cur.text;
   const action = before === null ? 'create' : before === after ? 'unchanged' : 'update';
   return { ...base, action, beforeSha256: before === null ? null : sha(before), afterSha256: sha(after), diff: action === 'unchanged' ? '' : blockDiff(split ? split.inside : null, block), after };
 }
 
-/** `.git/info/exclude` with Dpro's list of files it created (only when the folder is a git work tree). */
+/** `.git/info/exclude` with Girru's list of files it created (only when the folder is a git work tree). */
 function planGitExclude(folder: string, created: string[]): Planned | null {
   const gitDir = path.join(folder, '.git');
   try { if (!fs.lstatSync(gitDir).isDirectory()) return null; } catch { return null; }
@@ -204,7 +204,7 @@ export function applyFiles(projectId: string, brief: ProjectBrief, folder: strin
 }
 
 /**
- * Write one Dpro section into one file (DESIGN-FIND-01: DESIGN.md), between
+ * Write one Girru section into one file (DESIGN-FIND-01: DESIGN.md), between
  * `marks`: the same rules as the managed memory files (outside text kept byte
  * for byte, a symlink / non-text / oversized file or broken markers = conflict,
  * nothing written) and the same secret check. Atomic.
@@ -215,7 +215,7 @@ export function writeSection(folderRaw: string | null, relative: string, block: 
   const abs = path.join(folder, relative);
   const cur = readExisting(abs);
   if (cur.problem) throw new ManagedFileError(`${relative} ${cur.problem}`, 409, 'conflict');
-  if (cur.text !== null && splitManaged(cur.text, marks) === 'broken') throw new ManagedFileError(`${relative} has broken Dpro markers; fix or remove them by hand`, 409, 'markers_broken');
+  if (cur.text !== null && splitManaged(cur.text, marks) === 'broken') throw new ManagedFileError(`${relative} has broken Girru markers; fix or remove them by hand`, 409, 'markers_broken');
   const after = replaceManaged(cur.text ?? '', block, marks);
   if (cur.text === after) return { action: 'unchanged', file: abs };
   writeAtomic(abs, after, cur.mode);

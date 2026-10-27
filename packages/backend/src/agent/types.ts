@@ -1,6 +1,6 @@
 /**
  * Agent System - TypeScript Type Definitions
- * Professional, type-safe architecture for Dpro Bot
+ * Professional, type-safe architecture for Girru
  */
 
 // ============================================

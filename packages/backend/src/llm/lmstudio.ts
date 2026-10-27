@@ -1,7 +1,7 @@
 /**
  * LM Studio as a local model provider (CHAT-PRO-02 G).
  *
- * LM Studio serves an OpenAI-compatible API on this computer. Dpro talks to
+ * LM Studio serves an OpenAI-compatible API on this computer. Girru talks to
  * it on the IPv4 loopback only: `LMSTUDIO_API_URL` is used when it is a
  * loopback http URL (the isolated launcher sets it), anything else is
  * ignored, so a model call can never leave the machine. Default

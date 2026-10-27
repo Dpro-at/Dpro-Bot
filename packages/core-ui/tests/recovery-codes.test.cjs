@@ -32,5 +32,5 @@ test('cancel wipes codes, and late lifecycle replies cannot repopulate a cancell
 test('acknowledgment returns directly to sign-in rather than the public welcome page',async()=>{
  const {client}=await fixture();await client.request({method:'POST',path:P+'/confirm',body:{password:'fiction-password',code:'012345'}});client.finishRecoveryCodes();
  const html=renderToStaticMarkup(React.createElement(AuthBoundary,{client,initialPage:'home'},'fiction'));
- assert.match(html,/auth-password/);assert.doesNotMatch(html,/Save your recovery codes|Welcome to Dpro Agent/);
+ assert.match(html,/auth-password/);assert.doesNotMatch(html,/Save your recovery codes|Welcome to Girru/);
 });

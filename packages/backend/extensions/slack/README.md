@@ -1,6 +1,6 @@
 # Slack Extension
 
-Connect Dpro Bot to Slack workspaces.
+Connect Girru to Slack workspaces.
 
 ## Setup
 
@@ -8,7 +8,7 @@ Connect Dpro Bot to Slack workspaces.
 2. Add Bot Token Scopes
 3. Install to workspace
 4. Get Bot Token and Signing Secret
-5. Configure in Dpro Bot settings
+5. Configure in Girru settings
 
 ## Configuration
 

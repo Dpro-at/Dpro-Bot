@@ -2,7 +2,7 @@
  * AI Service for SEO
  *
  * Provides AI-powered keyword research and content analysis
- * Uses existing Dpro Bot models (Claude, GPT, Gemini) via tools
+ * Uses existing Girru models (Claude, GPT, Gemini) via tools
  */
 
 export class AIService {
@@ -20,7 +20,7 @@ export class AIService {
    */
   async generateKeywordIdeas(seedKeyword, niche, count = 20) {
     try {
-      // This would integrate with existing Dpro Bot AI models
+      // This would integrate with existing Girru AI models
       // For now, return template-based suggestions
       const ideas = [
         `${seedKeyword} guide`,
@@ -60,7 +60,7 @@ export class AIService {
    */
   async analyzeSERP(serpResults, userDomain) {
     try {
-      // This would use Dpro Bot's AI tools for actual analysis
+      // This would use Girru's AI tools for actual analysis
       // For now, return template analysis
       const topDomains = serpResults.slice(0, 5).map(r => r.domain).join(', ');
 

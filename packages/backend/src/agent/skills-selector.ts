@@ -9,7 +9,7 @@
  *
  * Returns top 2-5 most relevant skills based on confidence scoring
  *
- * @author Dpro Bot Team
+ * @author Dpro Team
  * @license MIT
  */
 

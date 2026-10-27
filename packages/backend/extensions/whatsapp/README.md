@@ -1,6 +1,6 @@
 # WhatsApp Extension
 
-Connect Dpro Bot to WhatsApp Business API.
+Connect Girru to WhatsApp Business API.
 
 ## Setup
 

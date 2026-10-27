@@ -1,27 +1,27 @@
-# Agent Connect — Dpro Bot Integration
+# Agent Connect — Girru Integration
 
-## Dpro Bot integration
+## Girru integration
 
 The Fastify extension host is in `channel-host.js`. Telegram and Discord extension entry points pass their SDK API to it. The existing extension configuration JSON is the single source of configuration. Old provider-specific configuration tables remain untouched but are no longer read. Existing message tables remain preserved; new messages are stored in `channel_events`. The existing legacy `/api/channels` registry is separate and is not the administration endpoint for these two extensions.
 
 The backend imports the published `agent-connect-dpro@0.2.0` npm package. From the backend directory, run `pnpm install --frozen-lockfile` (or `npm run setup:channels`) before starting it. Include production dependencies and `backend/extensions` in a deployed backend; copying only `backend/dist` is insufficient. The local `packages/channels` source remains available for package development, but is not the runtime import. Additional adapters require an isolated Python environment and provider-specific setup documented in the package channel guide. Run one backend instance per bot token. Polling and Gateway connections require a persistent Node.js process, not a short-lived Next.js serverless function.
 
-1. Sign in to Dpro Bot with an active owner or admin account.
+1. Sign in to Girru with an active owner or admin account.
 2. Open `/dashboard/channels/telegram` or `/dashboard/channels/discord`.
 3. If the extension is disabled, enable it, restart the backend, then reload the page. Re-enabling after disable also requires a restart under the existing extension lifecycle.
 4. Save a bot token and allowed sender IDs. For Discord, also save allowed channel IDs. An empty sender list blocks all incoming messages; an empty Discord channel list also blocks incoming messages.
-5. Automatic agent replies are off by default. Enable them explicitly to route authorized messages through Dpro Bot's configured primary agent and real `/api/chat` provider/tool path. The account saving settings becomes the channel owner; only trusted external IDs should act under that account. Multi-user account bindings and selecting different agents per channel are future extensions.
+5. Automatic agent replies are off by default. Enable them explicitly to route authorized messages through Girru's configured primary agent and real `/api/chat` provider/tool path. The account saving settings becomes the channel owner; only trusted external IDs should act under that account. Multi-user account bindings and selecting different agents per channel are future extensions.
 6. Use the test message form and check the connection and recent messages. Confirm actual receipt in the provider before considering live setup complete.
 
 Telegram uses grammY long polling. It checks for an existing webhook and refuses to start instead of deleting it. Remove the webhook in your bot's existing deployment before migrating. Start a conversation with the bot to obtain a usable private chat ID. In groups, Telegram's privacy settings determine which messages reach the bot. See the [grammY guide](https://grammy.dev/guide/getting-started).
 
 Discord uses discord.js Gateway events for guild text messages. Enable Message Content Intent in the Developer Portal and invite the bot with View Channel and Send Messages permissions. Direct messages, attachments, reactions, custom slash commands, and rich embeds are outside this first release. See the [discord.js Client documentation](https://discord.js.org/docs/packages/discord.js/main/Client:Class).
 
-The reusable React panel is `../../../../src/components/channels/ChannelPanel.tsx`; its props supply the backend URL, channel ID and token accessor. Thin Next.js page wrappers provide Dpro Bot's authentication token. This panel has no Next.js dependency and can be extracted into a separate React package later.
+The reusable React panel is `../../../../src/components/channels/ChannelPanel.tsx`; its props supply the backend URL, channel ID and token accessor. Thin Next.js page wrappers provide Girru's authentication token. This panel has no Next.js dependency and can be extracted into a separate React package later.
 
 ## Host API
 
-All endpoints below use `/api/ext/{telegram|discord}` and require a Bearer JWT belonging to an active owner/admin. Browser calls also follow Dpro Bot's existing CORS and CSRF origin policy.
+All endpoints below use `/api/ext/{telegram|discord}` and require a Bearer JWT belonging to an active owner/admin. Browser calls also follow Girru's existing CORS and CSRF origin policy.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |
@@ -48,4 +48,4 @@ Config fields: `bot_token`, `allowed_users` (comma-separated IDs or string array
 
 Run `npm test` from `packages/channels` for standalone library tests. After building the library, run `npm run test:channels` from `packages/backend` for the application adapter and agent response tests.
 
-Automated tests use fake provider clients and an isolated in-memory SQLite/Fastify host. They cover transport normalization, startup/shutdown, credential redaction, authentication, incoming access lists, deduplication, delivery failure, disablement and JSON/SSE agent response parsing. They do not send external messages or call a paid model. Live verification requires configured bot accounts and a configured Dpro Bot model/provider.
+Automated tests use fake provider clients and an isolated in-memory SQLite/Fastify host. They cover transport normalization, startup/shutdown, credential redaction, authentication, incoming access lists, deduplication, delivery failure, disablement and JSON/SSE agent response parsing. They do not send external messages or call a paid model. Live verification requires configured bot accounts and a configured Girru model/provider.

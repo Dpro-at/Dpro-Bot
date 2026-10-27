@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Dpro Bot CLI
- * Command-line interface for Dpro Bot
+ * Girru CLI
+ * Command-line interface for Girru
  */
 
 import { Command } from 'commander';
@@ -17,7 +17,7 @@ const program = new Command();
 
 program
   .name('agent')
-  .description('Dpro Bot CLI - AI Assistant')
+  .description('Girru CLI - AI Assistant')
   .version('0.1.0');
 
 // ============================================
@@ -29,7 +29,7 @@ program
   .option('-p, --port <port>', 'Port number', '3001')
   .action(async (options) => {
     process.env.PORT = options.port;
-    console.log(chalk.blue('Starting Dpro Bot Backend...'));
+    console.log(chalk.blue('Starting Girru Backend...'));
     await import('../api/server.js');
   });
 
@@ -92,7 +92,7 @@ program
       process.exit(1);
     }
 
-    console.log(chalk.blue(`\nDpro Bot Chat (model: ${model})`));
+    console.log(chalk.blue(`\nGirru Chat (model: ${model})`));
     console.log(chalk.gray('Type "exit" or Ctrl+C to quit\n'));
 
     const messages: { role: string; content: string }[] = [];

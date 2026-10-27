@@ -61,7 +61,7 @@ test('4: Always ask first uses the MCP connection switch; built-in tools show it
  assert.deepEqual(actions.mcpToolTarget('mcp__github__list',servers),{serverId:servers[0].id,tool:'list'});
  assert.equal(actions.mcpToolTarget('mcp__gitlab__list',servers),null);assert.equal(actions.mcpToolTarget('web_fetch',servers),null);
  const s=src('PermissionCoverage.tsx');assert.match(s,/method:'PUT',path:`\$\{CONNECTORS_PATH\}\/\$\{target\.serverId\}\/tools\/\$\{encodeURIComponent\(target\.tool\)\}`,body:\{requiresApproval:true\}/);
- assert.match(s,/label:`Always ask first · \$\{t\.origin==='builtin'\?'built into Dpro':'set by the extension'\}`,icon:'shield',disabled:true/);
+ assert.match(s,/label:`Always ask first · \$\{t\.origin==='builtin'\?'built into Girru':'set by the extension'\}`,icon:'shield',disabled:true/);
  const {separatePathsLine}=require('../src/PermissionCoverage.tsx');assert.equal(separatePathsLine(['coding_apps','terminal','workspace_scheduler']),'Coding apps, the terminal and schedules use their own checks and are not listed here.');assert.equal(separatePathsLine([]),'');
 });
 test('11: one ⋯ menu for a rule; right-click adds Edit… and Turn off, which still goes through the code sheet',()=>{

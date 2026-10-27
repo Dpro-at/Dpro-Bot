@@ -3,7 +3,7 @@
  *
  * Who reports to whom:
  *  - agents_config.reports_to (migration 144) is the owner's choice; empty
- *    means Dpro places the agent: a manager under the main agent, anyone else
+ *    means Girru places the agent: a manager under the main agent, anyone else
  *    under the manager of its department, else under the main agent.
  *  - The main agent reports to nobody. A sub-agent always sits under the
  *    agent it belongs to (agent_grant_profiles.parent_agent_id, migration 053)
@@ -36,7 +36,7 @@ export interface OrgRow {
   parent_agent_id: string | null;
 }
 
-/** How an agent got its place: the main agent, set by the owner, placed by Dpro, a sub-agent, or outside the chart. */
+/** How an agent got its place: the main agent, set by the owner, placed by Girru, a sub-agent, or outside the chart. */
 export type Placed = 'main' | 'set' | 'auto' | 'sub' | 'none';
 export interface Placement { manager: string | null; placed: Placed }
 
@@ -112,7 +112,7 @@ export function orgFields(rows: readonly OrgRow[]): Map<string, { reportsTo: str
 
 /**
  * Change who an agent reports to (owner only). `reportsTo` null or '' hands
- * the place back to Dpro. Returns the new agents_config version.
+ * the place back to Girru. Returns the new agents_config version.
  */
 export async function setReportsTo(id: string, input: unknown): Promise<{ id: string; reportsTo: string | null; version: number }> {
   const body = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null;

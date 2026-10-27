@@ -190,5 +190,5 @@
 .apps-inspector-head .dk-tile{border-radius:12px;flex:none;font-weight:700}
 /* A plugin listed in its app's settings but not found on disk (A9). */
 .apps-addon-card li>small[data-state=missing]{color:var(--mem-warn,var(--muted))}
-/* Store › Catalogue (Dpro): "Comes with Dpro" and "Dpro's registry" labels above their rows. */
+/* Store › Catalogue (Girru): "Comes with Girru" and "Girru's registry" labels above their rows. */
 .apps-list [role=group]>.apps-group-name{margin:0;padding:14px 20px 4px}

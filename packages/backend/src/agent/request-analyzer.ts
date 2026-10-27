@@ -11,7 +11,7 @@
  *
  * Innovation: Smart analysis to load only needed context (vs loading everything)
  *
- * @author Dpro Bot Team
+ * @author Dpro Team
  * @license MIT
  */
 

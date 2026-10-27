@@ -1,6 +1,6 @@
 /**
  * Plugin System Types
- * Dpro Bot Plugin System
+ * Girru Plugin System
  */
 
 /**

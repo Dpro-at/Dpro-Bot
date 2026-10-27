@@ -14,11 +14,11 @@ const ago = (iso: string | null) => {
 };
 const ACTION: Record<DiscoveryItem['state'], string> = { new: 'Import', changed: 'Update', decision: 'Review', imported: 'Remove', ignored: 'Undo', gone: 'Keep' };
 const RULES = [
-  'Dpro only reads. It never changes, moves or deletes a file here.',
+  'Girru only reads. It never changes, moves or deletes a file here.',
   'Never read: private SSH keys, .env files, browser, keychain and wallet data.',
   'A token or password goes only to encrypted Credentials, after your OK.',
   'Skills and MCP servers start off; an agent gets them only by grant.',
-  'Remove from Dpro keeps the file here and the memory history.',
+  'Remove from Girru keeps the file here and the memory history.',
 ];
 
 export function Discovery({ client, active }: { client: SessionClient; active: boolean }) {
@@ -27,7 +27,7 @@ export function Discovery({ client, active }: { client: SessionClient; active: b
   return c ? <DiscoveryView c={c} active={active}/> : <p className="fine-print" role="status">Reading this computer…</p>;
 }
 
-/** DISCOVER-02 (board M18): the folders and drives Dpro may read; tick several, then allow them at once. */
+/** DISCOVER-02 (board M18): the folders and drives Girru may read; tick several, then allow them at once. */
 export function FolderTree({ c }: { c: DiscoveryController }) {
   const s = useSyncExternalStore(c.subscribe, c.getSnapshot, c.getSnapshot);
   const [adding, setAdding] = useState(false); const [folder, setFolder] = useState('');
@@ -38,14 +38,14 @@ export function FolderTree({ c }: { c: DiscoveryController }) {
     return <li key={pl.id}>
       <div className="disc-place" style={{ paddingInlineStart: 4 + depth * 16 }}>
         {pl.hasChildren ? <button type="button" className="disc-caret" aria-expanded={open} aria-label={`${open ? 'Close' : 'Open'} ${pl.name}`} onClick={() => void c.openPlace(pl.id)}>{open ? '▾' : '▸'}</button> : <span className="disc-caret" aria-hidden="true"/>}
-        <label className="check"><input type="checkbox" checked={on} onChange={e => c.tick(pl, e.target.checked)} aria-label={`Dpro may read ${pl.name}`}/><span className="disc-place-name"><b dir="auto">{pl.name}</b><span className="fine-print" dir="auto">{s.places.counts[pl.id] ?? note}{pl.id in s.places.ticks ? ' · changed' : ''}</span></span></label>
+        <label className="check"><input type="checkbox" checked={on} onChange={e => c.tick(pl, e.target.checked)} aria-label={`Girru may read ${pl.name}`}/><span className="disc-place-name"><b dir="auto">{pl.name}</b><span className="fine-print" dir="auto">{s.places.counts[pl.id] ?? note}{pl.id in s.places.ticks ? ' · changed' : ''}</span></span></label>
         {!(pl.id in s.places.counts) && <button type="button" className="link-button disc-count" onClick={() => void c.count(pl.id)}>Count</button>}
       </div>
       {open && kids && <ul>{kids.map(k => row(k, depth + 1))}</ul>}
     </li>;
   };
-  return <section className="disc-folders" aria-label="Folders Dpro may read">
-    <h4>Folders Dpro may read</h4>
+  return <section className="disc-folders" aria-label="Folders Girru may read">
+    <h4>Folders Girru may read</h4>
     <p className="fine-print">Tick folders, then allow them at once. Everything inside is read, also new subfolders. Untick to stop.</p>
     {!s.places.top ? <p className="fine-print" role="status">Listing folders…</p> : <ul className="disc-tree">{s.places.top.map(pl => row(pl, 0))}</ul>}
     {changes > 0 && <div className="disc-allow"><span className="fine-print">{changes} change{changes === 1 ? '' : 's'}</span><button type="button" className="primary" disabled={s.busy} onClick={() => void c.applyPlaces()}>{pending.allow.length && !pending.deny.length && !pending.exclude.length ? `Allow ${pending.allow.length} folder${pending.allow.length === 1 ? '' : 's'}` : 'Save folders'}</button></div>}
@@ -91,7 +91,7 @@ export function DiscoveryView({ c, active, kinds, noFolders = false }: { c: Disc
     </div>
     <section className="disc-main" aria-label="Found on this computer">
       <div className="disc-head">
-        <div><h3>Found on this computer</h3><p className="fine-print">What coding agents left here: memory files, project notes, commands, skills, MCP servers, SSH hosts. Dpro only reads; your files never change.{v.leftOut > 0 ? ` ${v.leftOut} files were left out: copies, archives and other people's code.` : ''}{v.allowedFolders === 0 ? ' Tick folders on the left to find more projects.' : ''}</p></div>
+        <div><h3>Found on this computer</h3><p className="fine-print">What coding agents left here: memory files, project notes, commands, skills, MCP servers, SSH hosts. Girru only reads; your files never change.{v.leftOut > 0 ? ` ${v.leftOut} files were left out: copies, archives and other people's code.` : ''}{v.allowedFolders === 0 ? ' Tick folders on the left to find more projects.' : ''}</p></div>
         <span className="fine-print">Last scan {ago(v.scannedAt)}{v.ms ? ` · ${(v.ms / 1000).toFixed(1)} s` : ''}</span>
         <button type="button" disabled={s.scanning} onClick={() => void c.scan()}>{s.scanning ? 'Scanning…' : 'Scan now'}</button>
         <label className="term-check check"><input type="checkbox" checked={v.settings.watch} disabled={s.busy} onChange={e => void c.setWatch(e.target.checked, v.settings.intervalMinutes)}/>Watch</label>
@@ -146,14 +146,14 @@ export function DiscoveryView({ c, active, kinds, noFolders = false }: { c: Disc
       {m && <section className="disc-merge" aria-label="Merge folders">
         <span className="fine-print">Show as one project</span>
         <h4>Merge {m.ids.length} folder{m.ids.length === 1 ? '' : 's'}</h4>
-        <span className="fine-print">Only how Dpro shows them changes. The folders stay where they are.</span>
+        <span className="fine-print">Only how Girru shows them changes. The folders stay where they are.</span>
         <ul>{m.ids.map(id => { const r = v.roots.find(x => x.id === id); return <li key={id}><b dir="auto">{r?.name ?? id}</b><span className="fine-print" dir="ltr">{r?.path}</span>{m.ids.length > 1 && <button type="button" className="link-button" onClick={() => c.setMerge({ ids: m.ids.filter(x => x !== id) })}>Remove</button>}</li>; })}</ul>
         <label className="disc-field">Add a project<select value="" onChange={e => e.target.value && c.setMerge({ ids: [...m.ids, e.target.value] })}><option value="">Choose…</option>{otherRoots.filter(r => !m.ids.includes(r.id)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
         <label className="disc-field">Project name<input value={m.name} maxLength={80} onChange={e => c.setMerge({ name: e.target.value })}/></label>
         <div className="actions"><button type="button" className="primary" disabled={m.ids.length < 2 || !m.name.trim() || s.busy} onClick={() => void c.merge()}>Merge into one project</button><button type="button" onClick={() => c.cancelMerge()}>Cancel</button></div>
       </section>}
       {!m && s.previewLoading && <p className="fine-print" role="status">Opening…</p>}
-      {!m && !p && !s.previewLoading && <p className="fine-print">Open an item to see it before it goes into Dpro.</p>}
+      {!m && !p && !s.previewLoading && <p className="fine-print">Open an item to see it before it goes into Girru.</p>}
       {!m && p && <>
         <div className="disc-preview-head">
           <span className="fine-print" data-tone={p.state}>{STATE_LABEL[p.state]}</span>
@@ -174,7 +174,7 @@ export function DiscoveryView({ c, active, kinds, noFolders = false }: { c: Disc
         <div className="actions">
           {(p.state === 'new' || p.state === 'changed' || p.state === 'decision' || (p.kind === 'note' && p.state === 'imported')) && !p.blocked &&
             <button type="button" className="primary" disabled={s.busy} onClick={() => void c.importOpen()}>{p.kind === 'mcp' ? 'Add server (off)' : p.kind === 'skill' ? 'Add skill (off)' : p.state === 'changed' ? 'Update' : p.state === 'imported' ? 'Read again' : 'Import'}</button>}
-          {p.state === 'imported' && p.kind !== 'note' && <button type="button" disabled={s.busy} onClick={() => void c.remove(p.id)}>Remove from Dpro</button>}
+          {p.state === 'imported' && p.kind !== 'note' && <button type="button" disabled={s.busy} onClick={() => void c.remove(p.id)}>Remove from Girru</button>}
           {p.state !== 'ignored' && p.state !== 'imported' && <button type="button" disabled={s.busy} onClick={() => void c.ignore(p.id, true)}>Ignore</button>}
           <button type="button" className="link-button" onClick={() => c.close()}>Close</button>
         </div>

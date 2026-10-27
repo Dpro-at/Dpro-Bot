@@ -4,7 +4,7 @@
  * Layered architecture: Core + Context + User + Session
  * Token-efficient, context-aware prompt building
  *
- * @author Dpro Bot Team
+ * @author Dpro Team
  * @license MIT
  */
 
@@ -99,9 +99,9 @@ export class SmartPromptBuilder {
    * Always included - defines who the agent is
    */
   private buildCoreLayer(): string {
-    return `# Dpro Bot - AI Assistant
+    return `# Girru - AI Assistant
 
-You are Dpro Bot, an intelligent AI assistant designed to help users accomplish tasks efficiently.
+You are Girru, an intelligent AI assistant designed to help users accomplish tasks efficiently.
 
 ## Core Capabilities
 - Natural conversation in English and Arabic

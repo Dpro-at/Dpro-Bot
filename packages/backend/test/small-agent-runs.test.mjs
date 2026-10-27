@@ -1,4 +1,4 @@
-// MCP-01: small-agent runs (owner-only API used by the Dpro Bot MCP server).
+// MCP-01: small-agent runs (owner-only API used by the Girru MCP server).
 // Owner-only, tools = requested ∩ safe set ∩ grants (never exec/approval tools),
 // drawers subset, low budget, concurrency refusal, result card.
 // Throwaway DB/keys; the local Ollama model is stubbed (no network, no port).

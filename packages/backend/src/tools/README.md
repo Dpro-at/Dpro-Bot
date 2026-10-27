@@ -1,4 +1,4 @@
-# Dpro Bot — Professional Tools System
+# Girru — Professional Tools System
 
 **19 professional tools** with examples-driven design for maximum AI accuracy and performance.
 

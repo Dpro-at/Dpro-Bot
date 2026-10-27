@@ -45,10 +45,10 @@ export function createBackendClient(env: NodeJS.ProcessEnv = process.env, timeou
         });
         verified = res.ok && proofMatches(instance, nonce, await res.json().catch(() => null));
       } catch {
-        throw new BackendError(`Cannot reach the Dpro Bot backend at ${session.backendUrl}. Is it running?`, 0);
+        throw new BackendError(`Cannot reach the Girru backend at ${session.backendUrl}. Is it running?`, 0);
       }
       if (!verified) {
-        throw new BackendError(`The service at ${session.backendUrl} could not prove it is this machine's Dpro Bot backend, so the token was not sent. If the backend was reinstalled, restart it; otherwise check what is listening on that port.`, 0);
+        throw new BackendError(`The service at ${session.backendUrl} could not prove it is this machine's Girru backend, so the token was not sent. If the backend was reinstalled, restart it; otherwise check what is listening on that port.`, 0);
       }
       const headers: Record<string, string> = { Authorization: `Bearer ${session.token}`, Accept: 'application/json' };
       if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -62,7 +62,7 @@ export function createBackendClient(env: NodeJS.ProcessEnv = process.env, timeou
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch {
-        throw new BackendError(`Cannot reach the Dpro Bot backend at ${session.backendUrl}. Is it running?`, 0);
+        throw new BackendError(`Cannot reach the Girru backend at ${session.backendUrl}. Is it running?`, 0);
       }
       const text = await res.text();
       let data: any;
@@ -73,9 +73,9 @@ export function createBackendClient(env: NodeJS.ProcessEnv = process.env, timeou
       }
       if (!res.ok) {
         if (res.status === 401) throw new BackendError(NOT_SIGNED_IN, 401);
-        if (res.status === 403) throw new BackendError('The saved Dpro Bot session is not the owner account; these tools are owner-only.', 403);
+        if (res.status === 403) throw new BackendError('The saved Girru session is not the owner account; these tools are owner-only.', 403);
         const detail = data && typeof data.error === 'string' ? data.error.slice(0, 300) : '';
-        throw new BackendError(`Dpro Bot backend refused the request (${res.status})${detail ? `: ${detail}` : ''}`, res.status, data);
+        throw new BackendError(`Girru backend refused the request (${res.status})${detail ? `: ${detail}` : ''}`, res.status, data);
       }
       return data;
     },

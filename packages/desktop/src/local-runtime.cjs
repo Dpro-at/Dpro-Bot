@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Dpro on this computer: the UI bridge plus the backend, started and stopped
+ * Girru on this computer: the UI bridge plus the backend, started and stopped
  * together (INSTALLER-05). No Electron here, so it is tested with plain Node.
  *
  * start():

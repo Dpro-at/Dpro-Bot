@@ -4,15 +4,15 @@
  *
  *   preview   the exact new file text (and a diff of the server entry); nothing written
  *   apply     only with the preview hash and confirm: the original file is copied
- *             first (0600, Dpro data folder), then the new text replaces it atomically
+ *             first (0600, Girru data folder), then the new text replaces it atomically
  *   undo      restores the backup byte for byte when the file is still exactly what
- *             Dpro wrote; if the CLI changed the file since, only Dpro's entry is
+ *             Girru wrote; if the CLI changed the file since, only Girru's entry is
  *             taken out and everything else the CLI wrote stays
  *
  * Formats (official docs, 2026-10-21): JSON `mcpServers` for Claude Code
  * (~/.claude.json, user scope, `type: "stdio"`), Gemini CLI (settings.json)
  * and Antigravity (mcp_config.json); TOML `[mcp_servers.<name>]` for Codex.
- * The TOML table goes between Dpro's comment markers so undo can find it.
+ * The TOML table goes between Girru's comment markers so undo can find it.
  * No token or secret is ever written: the server fetches its own token from
  * the backend at start (auth.ts).
  */
@@ -39,7 +39,7 @@ export interface RegistrationPreview {
   configPath: string;
   action: 'create' | 'update' | 'unchanged' | 'conflict';
   reason?: string;
-  /** The server entry Dpro adds (no secret in it). */
+  /** The server entry Girru adds (no secret in it). */
   entry: Record<string, unknown>;
   /** Server entry before (-) and after (+). */
   diff: string;
@@ -88,7 +88,7 @@ export function tomlBlock(l: ServerLaunch): string {
 function tomlRange(text: string): { start: number; end: number } | null {
   const s = text.indexOf(TOML_START), e = text.indexOf(TOML_END);
   if (s < 0 && e < 0) return null;
-  if (s < 0 || e < s || text.indexOf(TOML_START, s + 1) >= 0) throw new RegistrationError(`Dpro's markers in the Codex config are broken; remove the ${SERVER_NAME} block by hand`, 409, 'markers_broken');
+  if (s < 0 || e < s || text.indexOf(TOML_START, s + 1) >= 0) throw new RegistrationError(`Girru's markers in the Codex config are broken; remove the ${SERVER_NAME} block by hand`, 409, 'markers_broken');
   return { start: s, end: e + TOML_END.length };
 }
 
@@ -172,7 +172,7 @@ export async function applyRegistration(ownerId: string, client: BridgeClient, i
   return { registration, preview: p };
 }
 
-/** Only Dpro's entry taken out of the current text (the CLI changed the file after Dpro wrote it). */
+/** Only Girru's entry taken out of the current text (the CLI changed the file after Girru wrote it). */
 function withoutEntry(client: BridgeClient, text: string): string {
   if (client === 'codex') {
     const r = tomlRange(text);

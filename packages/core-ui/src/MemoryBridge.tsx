@@ -42,7 +42,7 @@ export function BridgeView({ c, onChangeFolder }: { c: MemoryBridgeController; o
           <div className="mem-bridge-app-head">
             <span className="mem-handoff-mark mem-bridge-mark">{MARK[a.client]}</span>
             <span className="mem-bridge-app-name"><span>{a.name}</span><span className="fine-print">{a.configPath}</span></span>
-            <label className="check"><input type="checkbox" checked={a.enabled} disabled={s.busy} aria-label={`${a.name} may use Dpro memory`} onChange={e => void c.setEnabled(a.client, e.target.checked)}/>On</label>
+            <label className="check"><input type="checkbox" checked={a.enabled} disabled={s.busy} aria-label={`${a.name} may use Girru memory`} onChange={e => void c.setEnabled(a.client, e.target.checked)}/>On</label>
           </div>
           <div className="mem-chips"><span className="mem-pill" data-health={x.tone === 'ok' ? undefined : x.tone === 'bad' ? 'problem' : 'attention'}>{x.reg}</span><span className="mem-pill mem-pill-quiet">{x.last}</span></div>
           <div className="actions">
@@ -70,26 +70,26 @@ export function BridgeView({ c, onChangeFolder }: { c: MemoryBridgeController; o
               : <button type="button" className="primary" disabled={s.previewBusy} onClick={() => void c.previewFiles(f.projectId)}>Preview &amp; turn on</button>}
           </div>;
         })}
-        <span className="fine-print">Dpro writes only between its own markers in AGENTS.md / CLAUDE.md / GEMINI.md. Your own text in those files is never changed. App notes come back as reviews, never as saved facts.</span>
+        <span className="fine-print">Girru writes only between its own markers in AGENTS.md / CLAUDE.md / GEMINI.md. Your own text in those files is never changed. App notes come back as reviews, never as saved facts.</span>
       </section>
     </div>
     <aside className="mem-bridge-side" aria-label="Registration preview">
       {s.previewBusy && !p && <p role="status" className="fine-print">Making the preview…</p>}
       {p?.kind === 'registration' && <>
-        <div className="mem-bridge-step"><span className="mem-link-text fine-print">Step 1 of 2 · Preview</span><h3>Register Dpro memory in {p.preview.name}</h3><span className="fine-print">{p.preview.configPath} · a backup is kept first</span></div>
-        {p.preview.action === 'unchanged' ? <p className="memory-status">Already registered: the config has exactly Dpro’s entry.</p>
-          : p.preview.action === 'conflict' ? <p className="card-notice">Dpro cannot change this file safely: {p.preview.reason ?? 'conflict'}.</p> : <Diff text={p.preview.diff}/>}
+        <div className="mem-bridge-step"><span className="mem-link-text fine-print">Step 1 of 2 · Preview</span><h3>Register Girru memory in {p.preview.name}</h3><span className="fine-print">{p.preview.configPath} · a backup is kept first</span></div>
+        {p.preview.action === 'unchanged' ? <p className="memory-status">Already registered: the config has exactly Girru’s entry.</p>
+          : p.preview.action === 'conflict' ? <p className="card-notice">Girru cannot change this file safely: {p.preview.reason ?? 'conflict'}.</p> : <Diff text={p.preview.diff}/>}
         <div className="mem-bridge-notes">
           <span>Tools {p.preview.name} gets: project brief · pinned facts · latest handoff · search · propose a fact · write a handoff</span>
           <span data-tone="ok">No key, password or token goes into this file.</span>
-          <span className="fine-print">{p.preview.name} asks Dpro for a short-lived pass each session; turning {p.preview.name} off stops it at once.</span>
+          <span className="fine-print">{p.preview.name} asks Girru for a short-lived pass each session; turning {p.preview.name} off stops it at once.</span>
           {p.preview.warnings.map((w, i) => <span key={i} data-tone="warn">{w}</span>)}
         </div>
         <div className="actions">
           <button type="button" className="primary" disabled={s.previewBusy || p.preview.action === 'conflict' || p.preview.action === 'unchanged'} onClick={() => void c.confirm()}>Confirm and register</button>
           <button type="button" onClick={() => c.cancelPreview()}>Cancel</button>
         </div>
-        <p className="mem-bridge-warn">If the file changed after this preview, Dpro stops and shows a new preview.</p>
+        <p className="mem-bridge-warn">If the file changed after this preview, Girru stops and shows a new preview.</p>
       </>}
       {p?.kind === 'files' && <>
         <div className="mem-bridge-step"><span className="mem-link-text fine-print">Step 1 of 2 · Preview</span><h3>Turn on managed files for {projectName(p.projectId)}</h3><span className="fine-print">{p.preview.folder}</span></div>
@@ -98,7 +98,7 @@ export function BridgeView({ c, onChangeFolder }: { c: MemoryBridgeController; o
           <button type="button" className="primary" disabled={s.previewBusy || p.preview.conflicts > 0} onClick={() => void c.confirm()}>Confirm and turn on</button>
           <button type="button" onClick={() => c.cancelPreview()}>Cancel</button>
         </div>
-        <p className="mem-bridge-warn">Only Dpro’s section changes. If a file changed after this preview, Dpro stops and shows a new preview.</p>
+        <p className="mem-bridge-warn">Only Girru’s section changes. If a file changed after this preview, Girru stops and shows a new preview.</p>
       </>}
       {!p && !s.previewBusy && <p className="fine-print">Pick “Register…” on an app or “Preview &amp; turn on” on a folder to see the exact change first.</p>}
       <h4 id="bridge-audit" className="mem-handoff-history-head">Recent bridge activity</h4>

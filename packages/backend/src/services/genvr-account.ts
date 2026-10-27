@@ -1,7 +1,7 @@
 /**
  * Genvr account link for the owner (device consent, then a scoped bearer grant).
  *
- * The owner signs in and approves on the Genvr website; Dpro never sees the
+ * The owner signs in and approves on the Genvr website; Girru never sees the
  * Genvr password. The access token is kept only in the encrypted credential
  * store (never in a response, log, prompt or world file). The device code
  * stays in this process. Only the account's display name, scopes and expiry
@@ -16,7 +16,7 @@ import { logAudit } from './audit-logger.js';
 export const GENVR_API = 'https://api.genvr.net';
 export const GENVR_WEB = 'https://genvr.net';
 export const GENVR_SCOPES = ['worlds:read', 'worlds:write', 'worlds:publish', 'worlds:join'] as const;
-const CLIENT_NAME = 'Dpro Agent';
+const CLIENT_NAME = 'Girru';
 const SECRET_NAME = 'genvr-account';
 const SECRET_SKILL = 'genvr-account';
 

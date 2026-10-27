@@ -1,5 +1,5 @@
 /**
- * SEO Extension for Dpro Bot
+ * SEO Extension for Girru
  *
  * Professional SEO suite with keyword tracking, SERP scraping, Google Search Console,
  * competitor analysis, AI-powered insights, and WordPress publishing.

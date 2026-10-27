@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This document lists all third-party open-source packages used in Dpro Bot,
+This document lists all third-party open-source packages used in Girru,
 grouped by layer (Frontend, Backend, Python).
 
 ---
@@ -62,7 +62,7 @@ grouped by layer (Frontend, Backend, Python).
 | `grammy` | MIT | Telegram Bot API client |
 | `@whiskeysockets/baileys` | **GPL-3.0** | WhatsApp Web API client |
 
-> ⚠️ **GPL-3.0 Note**: `@whiskeysockets/baileys` is GPL-3.0. If you distribute this software, the combined work must comply with GPL-3.0 terms. Since Dpro Bot is open-source, this is compatible.
+> ⚠️ **GPL-3.0 Note**: `@whiskeysockets/baileys` is GPL-3.0. If you distribute this software, the combined work must comply with GPL-3.0 terms. Since Girru is open-source, this is compatible.
 
 ---
 

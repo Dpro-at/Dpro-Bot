@@ -1,12 +1,12 @@
 'use strict';
 /**
- * Dpro Agent desktop app, Electron main process (INSTALLER-05, D-INSTALL-SHELL).
+ * Girru desktop app, Electron main process (INSTALLER-05, D-INSTALL-SHELL).
  *
  * - One instance only; a second launch focuses the open window.
  * - "This computer" (default): the bundled backend + UI bridge on 127.0.0.1,
  *   random ports, per-launch token (local-runtime.cjs). First run opens the
  *   owner setup with a one-time code in the URL fragment (INSTALLER-07).
- * - "Existing Dpro Agent": the window opens another Dpro Agent's address (https, or http
+ * - "Existing Girru": the window opens another Girru's address (https, or http
  *   on this computer); nothing runs locally.
  * - Quit (menu, Cmd/Ctrl+Q, last window closed) stops the backend first.
  */
@@ -71,7 +71,7 @@ function openExternal(url) {
 function createMainWindow() {
   const win = new BrowserWindow({
     width: 1280, height: 860, minWidth: 900, minHeight: 600,
-    title: 'Dpro Agent', show: false, backgroundColor: '#111111',
+    title: 'Girru', show: false, backgroundColor: '#111111',
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: true, preload: path.join(__dirname, 'preload.cjs') },
   });
   win.once('ready-to-show', () => win.show());
@@ -111,7 +111,7 @@ async function startLocal() {
     onLog: line => log.write(line),
     onBackendExit: ({ code, signal }) => {
       log.write(`backend stopped unexpectedly (${signal || code})`);
-      if (!quitting && mainWindow) showPage('failed.html', { reason: 'The Dpro Agent engine stopped unexpectedly.' });
+      if (!quitting && mainWindow) showPage('failed.html', { reason: 'The Girru engine stopped unexpectedly.' });
       runtime = null;
     },
   });
@@ -209,7 +209,7 @@ function openConnectWindow() {
   if (connectWindow) return connectWindow.focus();
   connectWindow = new BrowserWindow({
     parent: mainWindow || undefined, modal: Boolean(mainWindow), width: 520, height: 360, resizable: false,
-    title: 'Connect to an existing Dpro Agent', show: false,
+    title: 'Connect to an existing Girru', show: false,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.cjs') },
   });
   connectWindow.setMenu(null);
@@ -270,14 +270,14 @@ async function chooseWorkspace() {
 function buildMenu() {
   const mac = process.platform === 'darwin';
   const settings = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => navigate('settings') };
-  const about = { label: 'About Dpro Agent', click: () => app.showAboutPanel() };
-  app.setAboutPanelOptions({ applicationName: 'Dpro Agent', applicationVersion: app.getVersion() });
+  const about = { label: 'About Girru', click: () => app.showAboutPanel() };
+  app.setAboutPanelOptions({ applicationName: 'Girru', applicationVersion: app.getVersion() });
   const template = [
-    ...(mac ? [{ label: 'Dpro Agent', submenu: [about, settings, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }] : []),
+    ...(mac ? [{ label: 'Girru', submenu: [about, settings, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }] : []),
     { label: 'File', submenu: [
       { label: 'Choose Workspace…', click: chooseWorkspace },
-      { label: 'Use Dpro Agent on This Computer', click: async () => { saveSettings(settingsDir(), { ...loadSettings(settingsDir()), mode: 'local' }); await applyMode(); } },
-      { label: 'Connect to an Existing Dpro Agent…', click: openConnectWindow },
+      { label: 'Use Girru on This Computer', click: async () => { saveSettings(settingsDir(), { ...loadSettings(settingsDir()), mode: 'local' }); await applyMode(); } },
+      { label: 'Connect to an Existing Girru…', click: openConnectWindow },
       { type: 'separator' }, { label: 'Account…', click: () => navigate('account') },
       ...(!mac ? [settings, about, { role: 'quit' }] : []),
     ] },
@@ -285,7 +285,7 @@ function buildMenu() {
     { label: 'View', submenu: [{ label: 'Welcome / Workspace', click: () => navigate('home') }, { type: 'separator' }, { role: 'reload' }, { role: 'forceReload' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' }])] },
     { role: 'windowMenu' },
     { label: 'Help', submenu: [
-      { label: 'Getting Started', click: () => dialog.showMessageBox(mainWindow, { message: 'Getting started with Dpro Agent', detail: 'Open your existing workspace from File, then sign in with its existing account. Conversations and tools stay locked until sign-in. Settings contains appearance, account access and version information.' }) },
+      { label: 'Getting Started', click: () => dialog.showMessageBox(mainWindow, { message: 'Getting started with Girru', detail: 'Open your existing workspace from File, then sign in with its existing account. Conversations and tools stay locked until sign-in. Settings contains appearance, account access and version information.' }) },
       { label: 'Show Log Folder', click: () => shell.openPath(path.join(app.getPath('userData'), 'logs')) },
       { label: 'Version & Updates', click: () => navigate('about') },
     ] },
@@ -294,7 +294,7 @@ function buildMenu() {
 }
 
 async function boot() {
-  // From source the dock shows Electron's icon; a packaged app has the Dpro icon from build/.
+  // From source the dock shows Electron's icon; a packaged app has the Girru icon from build/.
   if (!app.isPackaged && process.platform === 'darwin') { try { app.dock?.setIcon(path.join(__dirname, '..', 'build', 'icon.png')); } catch { /* keep the default */ } }
   fs.mkdirSync(settingsDir(), { recursive: true, mode: 0o700 });
   hardenSession();

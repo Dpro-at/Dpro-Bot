@@ -7,7 +7,7 @@
  * - Smart skill selection
  * - Learning capabilities
  *
- * @author Dpro Bot Team
+ * @author Dpro Team
  * @license MIT
  */
 

@@ -5,7 +5,7 @@ type Voice = { id: string; name: string; language: string | null };
 type Choices = { voiceId: string; speak: boolean; size: 's' | 'm' | 'l' };
 type Phase = 'loading' | 'ready' | 'thinking' | 'preparing' | 'speaking' | 'unavailable';
 const DEFAULTS: Choices = { voiceId: '', speak: true, size: 'm' };
-// The owner's choices come from the package's own Avatar Live Settings window. Dpro keeps them
+// The owner's choices come from the package's own Avatar Live Settings window. Girru keeps them
 // in memory for this session only (no browser storage); a saved per-agent voice belongs to the agent's server record.
 const remembered = new Map<string, Choices>();
 const readChoices = (agentId: string): Choices => remembered.get(agentId || 'default') ?? DEFAULTS;
@@ -58,7 +58,7 @@ export function ChatAvatar({ turns, agentId, agentName, onClose }: { turns: read
     if (choices.speak && voice && text) post({ operation: 'speak', text, voiceId: voice.id, language: voice.language ?? 'ar' });
   }, [last?.key, last?.status, phase === 'loading', voices, choices.speak, choices.voiceId]);
   const voice = voices.find(v => v.id === choices.voiceId);
-  // Settings is the package's own window; while it is open the frame fills the Dpro window so it has room.
+  // Settings is the package's own window; while it is open the frame fills the Girru window so it has room.
   const wide = settingsOpen;
   return <section className={`chat-avatar${wide ? ' is-full' : ''}`} aria-label={`${agentName} avatar`} style={wide ? undefined : { height: HEIGHT[choices.size] }}>
     <iframe ref={frame} title={`${agentName} avatar`} className="chat-avatar-frame" src={`/genvr/avatar.html#${channel.current}`} sandbox="allow-scripts allow-same-origin"/>

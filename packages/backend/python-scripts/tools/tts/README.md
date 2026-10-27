@@ -1,6 +1,6 @@
 # TTS Tools
 
-Text-to-Speech integration scripts for Dpro Bot.
+Text-to-Speech integration scripts for Girru.
 
 ## Supported Providers
 

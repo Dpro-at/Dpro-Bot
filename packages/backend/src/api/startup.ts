@@ -75,7 +75,7 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
   // Initialize Skills Registry
   const { getSkillsRegistry } = await import('../skills/registry.js');
   const skillsRegistry = getSkillsRegistry();
-  // GenVR SDK skills first: an SDK skill wins over an older Dpro copy of the same name.
+  // GenVR SDK skills first: an SDK skill wins over an older Girru copy of the same name.
   await skillsRegistry.load([fileURLToPath(new URL('../../../core-ui/vendor/genvr/package/skills/', import.meta.url)), './skills']);
   if (background) skillsRegistry.watch(); // Enable hot reload
   console.log(`[Server] ✅ Loaded ${skillsRegistry.getAll().length} skills\n`);

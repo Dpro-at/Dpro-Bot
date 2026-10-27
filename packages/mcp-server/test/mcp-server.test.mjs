@@ -1,4 +1,4 @@
-// MCP-01: the Dpro Bot MCP server over stdio.
+// MCP-01: the Girru MCP server over stdio.
 // Each test starts the real server in a child process and speaks MCP
 // JSON-RPC (initialize, tools/list, tools/call) on its stdin/stdout. The
 // backend is an in-process fake fetch preloaded into the child

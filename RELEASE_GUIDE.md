@@ -1,4 +1,4 @@
-# 🚀 Dpro Bot - Automated Release Guide
+# 🚀 Girru - Automated Release Guide
 
 ## Overview
 
@@ -84,7 +84,7 @@ git push origin v1.3.0
 
 ### Step 6: Watch the Magic Happen ✨
 
-Go to: https://github.com/9mtm/Agent-Player/actions
+Go to: https://github.com/Dpro-at/Girru/actions
 
 You'll see 5 jobs running in parallel:
 1. 🗜️ **Create Application Files ZIP** (Windows runner) - ~2 min
@@ -97,7 +97,7 @@ You'll see 5 jobs running in parallel:
 
 ### Step 7: Verify Release
 
-Once complete, go to: https://github.com/9mtm/Agent-Player/releases/tag/v1.3.0
+Once complete, go to: https://github.com/Dpro-at/Girru/releases/tag/v1.3.0
 
 You should see:
 - ✅ `agent-player-installer-1.3.0-win-x64.msi` (~3 MB)
@@ -146,7 +146,7 @@ cd installer
 cargo tauri build
 ```
 
-Output: `installer\target\release\bundle\msi\Dpro Bot_1.3.0_x64_en-US.msi`
+Output: `installer\target\release\bundle\msi\Girru_1.3.0_x64_en-US.msi`
 
 ### 3. Build Linux/macOS (requires VM or Docker)
 ```bash
@@ -169,9 +169,9 @@ sha256sum *.msi *.AppImage *.dmg *.zip > checksums.txt
 ```
 
 ### 5. Create GitHub Release Manually
-1. Go to: https://github.com/9mtm/Agent-Player/releases/new
+1. Go to: https://github.com/Dpro-at/Girru/releases/new
 2. Tag: `v1.3.0`
-3. Title: `Dpro Bot v1.3.0`
+3. Title: `Girru v1.3.0`
 4. Description: Copy from release-notes template
 5. Upload files:
    - `agent-player-installer-1.3.0-win-x64.msi`
@@ -189,7 +189,7 @@ sha256sum *.msi *.AppImage *.dmg *.zip > checksums.txt
 
 **Check logs:**
 ```
-https://github.com/9mtm/Agent-Player/actions
+https://github.com/Dpro-at/Girru/actions
 ```
 
 **Common issues:**
@@ -228,7 +228,7 @@ git push origin v1.3.0
 ### Release Download Fails
 
 If installer can't download `agent-player-files.zip`:
-1. Check URL: `https://github.com/9mtm/Agent-Player/releases/download/v1.3.0/agent-player-files.zip`
+1. Check URL: `https://github.com/Dpro-at/Girru/releases/download/v1.3.0/agent-player-files.zip`
 2. Verify file exists in release
 3. Check GitHub is accessible (not blocked by firewall)
 4. Try increasing timeout in `bundler.rs` (currently 5 minutes)
@@ -271,8 +271,8 @@ git push origin main
 git tag -a v$version -m "Release v$version"
 git push origin v$version
 
-# Watch: https://github.com/9mtm/Agent-Player/actions
-# Result: https://github.com/9mtm/Agent-Player/releases/tag/v$version
+# Watch: https://github.com/Dpro-at/Girru/actions
+# Result: https://github.com/Dpro-at/Girru/releases/tag/v$version
 ```
 
 ---

@@ -9,7 +9,7 @@
  *   GET  /api/small-agent/runs        ?status=&limit=  -> { runs, capacity }
  *   GET  /api/small-agent/runs/:id    -> { card }   (the result card, see services/small-agent.ts)
  *
- * Used by the Dpro Bot MCP server (packages/mcp-server) with the owner's
+ * Used by the Girru MCP server (packages/mcp-server) with the owner's
  * CLI token. Cancel a run with POST /api/task-runs/:id/cancel.
  * Tools are never wider than the small-agent safe set and the agent's grants;
  * the task text is not logged (audit metadata holds only counts and names).

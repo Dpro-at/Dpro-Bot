@@ -130,7 +130,7 @@ export function addMissingSecrets(dataDir: string, names: readonly string[]): st
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   let next = text;
   if (!next) {
-    next = '# Dpro Bot secrets: created automatically, private to this user (0600).\n'
+    next = '# Girru secrets: created automatically, private to this user (0600).\n'
       + '# Do not share or commit this file. Values set in .env take precedence.\n';
   } else if (!next.endsWith('\n')) {
     next += '\n';

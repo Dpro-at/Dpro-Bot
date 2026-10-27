@@ -49,7 +49,7 @@ export async function uninstallCommand(options: UninstallOptions = {}, deps: Uni
   const lock = readLock(lockFilePath(paths));
   if (lockIsLive(lock, ops)) {
     if (!(apply && options.stop)) {
-      const msg = `Dpro Bot is running (pid ${lock!.pid}).`;
+      const msg = `Girru is running (pid ${lock!.pid}).`;
       if (apply) {
         log(chalk.red(`${msg} Stop it first, or pass --stop.`));
         return 1;
@@ -58,15 +58,15 @@ export async function uninstallCommand(options: UninstallOptions = {}, deps: Uni
     } else {
       const r = await stopRunning(paths, { ops, timeoutMs: deps.stopTimeoutMs });
       if (r.state === 'timeout') {
-        log(chalk.red(`Dpro Bot (pid ${r.pid}) did not stop in time; nothing was removed.`));
+        log(chalk.red(`Girru (pid ${r.pid}) did not stop in time; nothing was removed.`));
         return 1;
       }
-      log('Stopped the running Dpro Bot.');
+      log('Stopped the running Girru.');
     }
   }
 
   const plan = planUninstall(paths, { home, configDir, deleteData: !!options.deleteData });
-  log(chalk.bold(`Dpro Bot uninstall — ${paths.root}${apply ? '' : ' (dry run: nothing is removed)'}`));
+  log(chalk.bold(`Girru uninstall — ${paths.root}${apply ? '' : ' (dry run: nothing is removed)'}`));
   log(apply ? 'Removing:' : 'Would remove:');
   log(plan.remove.length ? plan.remove.map(line).join('\n') : '  (nothing)');
   log('Kept:');

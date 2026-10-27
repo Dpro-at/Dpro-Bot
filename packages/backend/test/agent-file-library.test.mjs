@@ -75,7 +75,7 @@ test('remove goes to Removed files and comes back with Restore', async () => {
   await assert.rejects(lib.restoreFile('fa-one', '../x'), e => e.code === 'invalid_id');
 });
 
-test('Who it is: the Personality block stays as Dpro wrote it; the hand-written text is saved', async () => {
+test('Who it is: the Personality block stays as Girru wrote it; the hand-written text is saved', async () => {
   const block = `${EXPORT_BEGIN}\n## Personality settings (version 3)\n- Preset: calm\n${EXPORT_END}`;
   await files.writePersonality('fa-two', `# Mine\nHello\n\n${block}\n`);
   const who = await lib.readFile('fa-two', 'PERSONALITY.md');

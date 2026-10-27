@@ -113,7 +113,7 @@ const facts = {};
 test('1. one source of pinned facts: scope facts are in the cached pack and in the reply trace', async () => {
   await ok('POST', `/api/memory/scopes/projects/${project.slug}/preview`, { action: 'move', departmentId: dept.id }).then((p) =>
     ok('POST', `/api/memory/scopes/projects/${project.slug}/apply`, { action: 'move', departmentId: dept.id, expectedPreviewHash: p.previewHash, confirm: true }));
-  facts.company = (await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Dpro.' }, 201)).fact;
+  facts.company = (await ok('POST', '/api/memory/scopes/pinned', { scope: 'company', text: 'We are Girru.' }, 201)).fact;
   facts.dept = (await ok('POST', '/api/memory/scopes/pinned', { scope: `department:${dept.id}`, text: 'Engineering ships on Fridays.' }, 201)).fact;
   facts.project = (await ok('POST', '/api/memory/scopes/pinned', { scope: `project:${project.slug}`, text: 'Alpha runs on PostgreSQL 16.' }, 201)).fact;
   const important = await remember({ content: 'The owner likes short answers.', importance: 10 });
@@ -121,7 +121,7 @@ test('1. one source of pinned facts: scope facts are in the cached pack and in t
   const first = await turn(conv.id, 'Which database does Alpha use?');
   const sys = system(first.body);
   assert.equal(sys.match(/Pinned facts/g)?.length, 1, 'one "Pinned facts" block in the reply');
-  assert.match(sys, /## Pinned facts[\s\S]*Company:\n- We are Dpro\.[\s\S]*Department "Engineering":\n- Engineering ships on Fridays\.[\s\S]*Project "Alpha":\n- Alpha runs on PostgreSQL 16\./);
+  assert.match(sys, /## Pinned facts[\s\S]*Company:\n- We are Girru\.[\s\S]*Department "Engineering":\n- Engineering ships on Fridays\.[\s\S]*Project "Alpha":\n- Alpha runs on PostgreSQL 16\./);
   assert.match(sys, /Important memories:\n- The owner likes short answers\./);
   const byId = (t, id) => t.items.find((i) => i.id === id);
   for (const [f, scope] of [[facts.company, 'company'], [facts.dept, `department:${dept.id}`], [facts.project, `project:${project.slug}`]]) {
@@ -176,10 +176,10 @@ test('3. board task runs get the pinned facts of their scope, with the same acce
   };
   // A run in the project: company, department and project facts.
   const inProject = await runWith(['owner', `project:${project.slug}`]);
-  assert.match(inProject, /## Pinned facts[\s\S]*We are Dpro\.[\s\S]*Engineering ships on Fridays\.[\s\S]*Alpha runs on PostgreSQL 17\./);
+  assert.match(inProject, /## Pinned facts[\s\S]*We are Girru\.[\s\S]*Engineering ships on Fridays\.[\s\S]*Alpha runs on PostgreSQL 17\./);
   // Only the project drawer open: no company facts (they follow the owner drawer).
   const projectOnly = await runWith([`project:${project.slug}`]);
-  assert.doesNotMatch(projectOnly, /We are Dpro\./);
+  assert.doesNotMatch(projectOnly, /We are Girru\./);
   assert.match(projectOnly, /Alpha runs on PostgreSQL 17\./);
   // No drawers at all: no facts.
   assert.doesNotMatch(await runWith([]), /Pinned facts/);
@@ -194,24 +194,24 @@ test('3. board task runs get the pinned facts of their scope, with the same acce
   db.prepare(`INSERT INTO board_cards (id, board_id, column_id, title, position, task_id, created_by, conversation_id) VALUES ('card-mg', ?, ?, 'Status', 0, 'task-mg', ?, ?)`).run(board, col, OWNER, conv.id);
   const base = { ownerId: OWNER, agentId: 'mg-main', taskId: 'task-mg' };
   const viaCard = await taskRunPinnedFacts({ ...base, drawers: [{ kind: 'owner' }] });
-  assert.match(viaCard, /We are Dpro\.[\s\S]*Alpha runs on PostgreSQL 17\./);
+  assert.match(viaCard, /We are Girru\.[\s\S]*Alpha runs on PostgreSQL 17\./);
   // A contract that narrowed the drawers to no project drawer: company facts only.
   const narrowed = await taskRunPinnedFacts({ ...base, drawers: [{ kind: 'owner' }], drawersNarrowed: true });
-  assert.match(narrowed, /We are Dpro\./);
+  assert.match(narrowed, /We are Girru\./);
   assert.doesNotMatch(narrowed, /PostgreSQL/);
   // Another owner's task: nothing. The agent may not read project drawers: no project facts.
   assert.equal(await taskRunPinnedFacts({ ...base, ownerId: 'mg-user', drawers: [{ kind: 'owner' }] }), '');
   db.prepare(`INSERT INTO agent_permissions (agent_id, memory_read, memory_write, shared_memory, modes, version) VALUES ('mg-main', '["owner"]', '[]', 0, '{}', 1)
     ON CONFLICT (agent_id) DO UPDATE SET memory_read = excluded.memory_read`).run();
   const noProject = await taskRunPinnedFacts({ ...base, drawers: [{ kind: 'owner' }, { kind: 'project', key: project.slug }] });
-  assert.match(noProject, /We are Dpro\./);
+  assert.match(noProject, /We are Girru\./);
   assert.doesNotMatch(noProject, /PostgreSQL|Fridays/);
   db.prepare("DELETE FROM agent_permissions WHERE agent_id = 'mg-main'").run();
   // An archived project adds nothing; the company still applies.
   const pv = await ok('POST', `/api/memory/scopes/projects/${project.slug}/preview`, { action: 'archive' });
   await ok('POST', `/api/memory/scopes/projects/${project.slug}/apply`, { action: 'archive', expectedPreviewHash: pv.previewHash, confirm: true });
   const archived = await taskRunPinnedFacts({ ...base, drawers: [{ kind: 'owner' }] });
-  assert.match(archived, /We are Dpro\./);
+  assert.match(archived, /We are Girru\./);
   assert.doesNotMatch(archived, /PostgreSQL/);
   const pu = await ok('POST', `/api/memory/scopes/projects/${project.slug}/preview`, { action: 'unarchive' });
   await ok('POST', `/api/memory/scopes/projects/${project.slug}/apply`, { action: 'unarchive', expectedPreviewHash: pu.previewHash, confirm: true });
@@ -278,7 +278,7 @@ test('4. agent tools: decide a conflict, review a pending link, read its own rep
   const latest = await T.memoryRecallTool.execute({ op: 'trace' }, ctx);
   assert.ok(latest.data?.success, latest.error);
   assert.ok(latest.data.trace.items.some((i) => i.kind === 'fact' && i.id === facts.company.id));
-  assert.match(latest.content[0].text, /pinned fact \[company\]: We are Dpro\./);
+  assert.match(latest.content[0].text, /pinned fact \[company\]: We are Girru\./);
   const msg = db.prepare("SELECT m.id FROM chat_messages m WHERE m.session_id = ? AND m.role = 'assistant' ORDER BY m.created_at ASC LIMIT 1").get(conv.id);
   assert.ok((await T.memoryRecallTool.execute({ op: 'trace', message_id: msg.id }, ctx)).data?.success);
   assert.ok((await T.memoryRecallTool.execute({ op: 'trace', message_id: msg.id }, { ...ctx, agentId: 'other-agent' })).error, 'not its reply');
@@ -286,7 +286,7 @@ test('4. agent tools: decide a conflict, review a pending link, read its own rep
   const narrow = await T.memoryRecallTool.execute({ op: 'trace', message_id: msg.id }, { ...ctx, memoryDrawers: [{ kind: 'experience' }] });
   assert.ok(narrow.data.trace.items.length > 0);
   assert.ok(narrow.data.trace.items.filter((i) => i.kind !== 'handoff').every((i) => i.preview === undefined && i.hidden === true));
-  assert.doesNotMatch(narrow.content[0].text, /We are Dpro|PostgreSQL|short answers/);
+  assert.doesNotMatch(narrow.content[0].text, /We are Girru|PostgreSQL|short answers/);
   // Another project open: its own department's facts only, never this one's.
   const otherDept = (await ok('POST', '/api/memory/scopes/departments', { name: 'Sales' }, 201)).department;
   await remember({ content: 'Beta is the sales project.', drawer: { kind: 'project', key: 'beta-sales' } });
@@ -312,7 +312,7 @@ test('6. bridge: activity log and "hide managed files from Git" through the API 
   assert.equal(approvalCategory({ name: 'memory_bridge_apply' }), 'settings');
   assert.equal(approvalCategory({ name: 'memory_bridge' }), null);
 
-  // Default: the files Dpro would create are listed in .git/info/exclude.
+  // Default: the files Girru would create are listed in .git/info/exclude.
   const before = await T.memoryBridgeTool.execute({ action: 'preview_files', project_id: project.id }, ctx);
   assert.ok(before.data.files.some((f) => f.relative.endsWith('exclude')), before.content[0].text);
   const off = await T.memoryBridgeApplyTool.execute({ action: 'set_git_exclude', project_id: project.id, enabled: false }, ctx);
@@ -451,5 +451,5 @@ test('8. "Clear cache": owner only, needs confirm, drops only this owner\'s cach
   assert.ok(db.prepare("SELECT 1 FROM audit_logs WHERE action = 'memory_cache.clear'").get());
   const fresh = await turn(conv.id, 'Status of Alpha?');
   assert.equal(fresh.trace.context.fromCache.pack, false);
-  assert.match(system(fresh.body), /We are Dpro\./);
+  assert.match(system(fresh.body), /We are Girru\./);
 });

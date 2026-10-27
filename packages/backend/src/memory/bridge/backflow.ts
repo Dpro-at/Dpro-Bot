@@ -1,13 +1,13 @@
 /**
  * Back-flow (MEM-BRIDGE-01): what Claude Code, Codex, Gemini CLI or
  * Antigravity write into their OWN memory files for a known project comes
- * back to Dpro as review proposals, never as direct writes.
+ * back to Girru as review proposals, never as direct writes.
  *
  * Files read (read only, regular files ≤ 1 MiB, no symlinks), per project folder:
- *   claude-code  CLAUDE.md (outside Dpro's markers), CLAUDE.local.md, .claude/CLAUDE.md,
+ *   claude-code  CLAUDE.md (outside Girru's markers), CLAUDE.local.md, .claude/CLAUDE.md,
  *                .claude/rules/*.md, and its auto memory ~/.claude/projects/<folder>/memory/*.md
- *   codex        AGENTS.md (outside Dpro's markers), AGENTS.override.md
- *   gemini-cli   GEMINI.md (outside Dpro's markers)
+ *   codex        AGENTS.md (outside Girru's markers), AGENTS.override.md
+ *   gemini-cli   GEMINI.md (outside Girru's markers)
  *   antigravity  .agents/AGENTS.md, .agents/GEMINI.md, .agents/rules/*.md, .agent/rules/*.md
  *
  * Each file goes through the import pipeline's secret scan and Markdown
@@ -57,7 +57,7 @@ export function backflowSources(folder: string, home = os.homedir()): BackflowSo
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
-/** Lines that only point elsewhere (imports, Dpro's adapter) are not facts. */
+/** Lines that only point elsewhere (imports, Girru's adapter) are not facts. */
 const pointerOnly = (s: string) => s.split('\n').every((l) => !l.trim() || /^@\S+$/.test(l.trim()) || /^#+\s/.test(l.trim()));
 
 export interface BackflowResult { files: number; proposed: number; known: number; skipped: number; proposalIds: string[] }

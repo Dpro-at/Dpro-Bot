@@ -1,5 +1,5 @@
 // Chat avatar frame: one live avatar (SDK mountAvatarLive) that speaks the agent's replies
-// with a saved voice from the local voice service. Same origin as Dpro; the parent page
+// with a saved voice from the local voice service. Same origin as Girru; the parent page
 // only sends text and display choices, never files or credentials.
 const channel=location.hash.slice(1);
 const send=value=>parent.postMessage({type:'dpro-avatar',channel,...value},location.origin);

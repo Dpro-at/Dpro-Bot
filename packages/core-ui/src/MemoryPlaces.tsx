@@ -96,8 +96,8 @@ export function DesignView({ d, slug, client }: { d: MemoryDesktopController; sl
   if (s.design === null) return <p className="dk-empty" role="status">Looking at the design…</p>;
   const x = s.design;
   const writeSwitch = <label className="dk-switch dk-pad"><input type="checkbox" role="switch" checked={x.writeFile} onChange={e => void d.setWriteFile(slug, e.target.checked)}/>
-    <span><b>Keep DESIGN.md in the project folder</b><span className="fine-print">{x.writeFile ? (x.file.problem ? `Not written: ${x.file.problem}` : x.file.writtenAt ? `Written ${ago(x.file.writtenAt)}, only between Dpro's markers; your text stays.` : 'Written between Dpro\'s markers; your text stays.') : 'Off: kept only inside Dpro.'}</span></span></label>;
-  if (!x.colours.length && !x.logos.length && !x.fonts.length && !x.rules.length) return <div className="dk-list"><div className="dk-empty"><UiIcon name="palette" size={20}/><p>No design found in this project yet. Dpro looks for design tokens, Tailwind and CSS colours, brand kits and logo files, and adds them here on its own.</p></div>{writeSwitch}</div>;
+    <span><b>Keep DESIGN.md in the project folder</b><span className="fine-print">{x.writeFile ? (x.file.problem ? `Not written: ${x.file.problem}` : x.file.writtenAt ? `Written ${ago(x.file.writtenAt)}, only between Girru's markers; your text stays.` : 'Written between Girru\'s markers; your text stays.') : 'Off: kept only inside Girru.'}</span></span></label>;
+  if (!x.colours.length && !x.logos.length && !x.fonts.length && !x.rules.length) return <div className="dk-list"><div className="dk-empty"><UiIcon name="palette" size={20}/><p>No design found in this project yet. Girru looks for design tokens, Tailwind and CSS colours, brand kits and logo files, and adds them here on its own.</p></div>{writeSwitch}</div>;
   const logo = x.logos.find(l => l.id === s.logoOpen) ?? null;
   return <div className="dk-split">
     <div className="dk-list dk-design">
@@ -116,10 +116,10 @@ export function DesignView({ d, slug, client }: { d: MemoryDesktopController; sl
       <div className="dk-logo-preview"><UiIcon name="image" size={40}/></div>
       <dl className="dk-facts"><dt>File</dt><dd className="dk-path" title={logo.path}>{logo.path}</dd><dt>Size</dt><dd>{logo.kind.toUpperCase()}{logo.bytes ? ` · ${kb(logo.bytes)}` : ''}</dd>{x.colours[0] && <><dt>Colours</dt><dd>{x.colours.filter(c => c.main).concat(x.colours.filter(c => !c.main)).slice(0, 2).map(c => <Swatch key={c.value} value={c.value}/>)}</dd></>}</dl>
       <div className="dk-insp-icons">
-        <IconButton icon="check" label={logo.main ? 'The main logo (click: let Dpro pick)' : 'Set as the main logo'} pressed={logo.main} onClick={() => void d.setMainLogo(slug, logo.main ? null : logo.id)}/>
+        <IconButton icon="check" label={logo.main ? 'The main logo (click: let Girru pick)' : 'Set as the main logo'} pressed={logo.main} onClick={() => void d.setMainLogo(slug, logo.main ? null : logo.id)}/>
         <IconButton icon="close" label="Not a logo" onClick={() => void d.notLogo(slug, logo.id)}/>
       </div>
-      <p className="fine-print">Dpro keeps a link and a small preview. Your file is never moved or changed.</p>
+      <p className="fine-print">Girru keeps a link and a small preview. Your file is never moved or changed.</p>
     </div>}</aside>
     {reviewRule?.slug===slug&&client&&<DesignRuleReviewSheet key={slug+reviewRule.id} client={client} slug={slug} ruleId={reviewRule.id} onClose={()=>{setReviewRule(null);void d.loadDesign(slug);}}/>}
   </div>;
@@ -159,7 +159,7 @@ export function DatabasesView({ d, slug, agents }: { d: MemoryDesktopController;
         <select aria-label={`What ${agents[a.agentId] ?? a.agentId} may do`} value={a.level} onChange={e => void d.setLevel(slug, a.agentId, e.target.value as 'exists')}>{Object.entries(LEVEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <IconButton icon="close" label="Back to the default" onClick={() => void d.setLevel(slug, a.agentId, null)}/></li>)}</ul>
       {others.length > 0 && <label className="dk-field">Let an agent see more<select value="" onChange={e => { if (e.target.value) void d.setLevel(slug, e.target.value, 'tables'); }}><option value="">Choose an agent…</option>{others.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></label>}
-      <p className="fine-print">These levels hold for all of this project's databases. Dpro reads only the table names, from a copy, never the rows. Passwords and connection keys are never shown or saved.</p>
+      <p className="fine-print">These levels hold for all of this project's databases. Girru reads only the table names, from a copy, never the rows. Passwords and connection keys are never shown or saved.</p>
     </div>}</aside>
   </div>;
 }

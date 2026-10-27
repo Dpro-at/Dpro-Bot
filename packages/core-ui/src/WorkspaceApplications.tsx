@@ -6,7 +6,7 @@ import {ContextMenu,useMenu} from './desktop-ui';
 import type {MenuItem} from './desktop-ui';
 import {WORKSPACE_APPS_PATH,type WorkspaceApp} from './apps-contract.js';
 
-export const builtinApps=[{id:'trading',name:'Trading preview',icon:'chart',summary:'Local paper practice with fictional money and prices.'},{id:'terminal',name:'Terminal',icon:'terminal',summary:'Command sessions on this computer.'},{id:'genvr',name:'GenVR',icon:'globe',summary:'Virtual worlds and connected experiences.'},{id:'code',name:'Code',icon:'code',summary:'The project editor beside your chats, in the Dpro desktop app.'}] as const;
+export const builtinApps=[{id:'trading',name:'Trading preview',icon:'chart',summary:'Local paper practice with fictional money and prices.'},{id:'terminal',name:'Terminal',icon:'terminal',summary:'Command sessions on this computer.'},{id:'genvr',name:'GenVR',icon:'globe',summary:'Virtual worlds and connected experiences.'},{id:'code',name:'Code',icon:'code',summary:'The project editor beside your chats, in the Girru desktop app.'}] as const;
 const kinds={builtin:'Built-in',mcp:'MCP connection',api:'Account connection'};
 const states:Record<WorkspaceApp['state'],string>={included:'Included',disabled:'Off',connected:'Connected',connecting:'Connecting…',disconnected:'Disconnected',attention:'Needs attention',not_connected:'Account not connected',expired:'Connect again'};
 const icon=(app:WorkspaceApp)=>app.id==='terminal'?'terminal':app.id==='trading'?'chart':app.id==='genvr'?'globe':app.id==='code'?'code':'layers';
@@ -25,7 +25,7 @@ export function tileActions(app:Pick<WorkspaceApp,'id'|'kind'|'name'>,{owner}:{o
 }
 const publicApp:WorkspaceApp={id:'genvr',name:'GenVR',kind:'api',version:null,summary:'Virtual worlds and connected experiences.',state:'included',sourceId:'genvr',permissions:[],tools:0,removable:false};
 /** Code is in the server's app list; it opens only where the desktop app has the editor. */
-export const CODE_ELSEWHERE='Opens in the Dpro desktop app that has the editor';
+export const CODE_ELSEWHERE='Opens in the Girru desktop app that has the editor';
 const stateOf=(app:WorkspaceApp,canCode:boolean)=>app.id==='trading'?'Included preview':app.id==='code'&&!canCode?'Desktop app only':states[app.state];
 
 /** My apps (AA1): the installed apps as big icons, like a launcher. MCP connections are not listed here (Settings › MCP connections). */

@@ -59,7 +59,7 @@ test('workspace_apps reads channels, accounts, addons and catalogue with GET onl
  for(const operation of ['channels','accounts','addons','catalogue']){const r=await callTool('workspace_apps',{operation},{backend});assert.notEqual(r.isError,true,operation);results.push(r);}
  assert.ok(calls.every(c=>c.method==='GET'&&c.body===undefined));
  assert.deepEqual(calls.map(c=>c.path),['/api/agent-connect/catalog','/api/connections','/api/chat/addons','/api/apps','/api/marketplace/search?limit=100&offset=0','/api/chat/addons/catalogue']);
- assert.deepEqual(results[3].structuredContent.included.map(x=>x.id),['code'],'included lists the apps that come with Dpro, not MCP connections');
+ assert.deepEqual(results[3].structuredContent.included.map(x=>x.id),['code'],'included lists the apps that come with Girru, not MCP connections');
  for(const r of results)assert.doesNotMatch(JSON.stringify(r),SECRET);
  const ch=results[0].structuredContent.channels.channels[0];assert.equal(ch.label,'Telegram');assert.equal(ch.hasSecrets,true);assert.equal(ch.environment,undefined);
  assert.equal(results[1].structuredContent.accounts.connections[0].pending.verificationUri,'https://genvr.example/link');

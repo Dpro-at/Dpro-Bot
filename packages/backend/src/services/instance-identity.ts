@@ -1,7 +1,7 @@
 /**
  * Backend instance identity (MCP-01b).
  *
- * Local clients that send the owner's token (the Dpro Bot MCP server)
+ * Local clients that send the owner's token (the Girru MCP server)
  * first check that the process on the loopback port really is this
  * install's backend and not some other local program that took the port.
  *

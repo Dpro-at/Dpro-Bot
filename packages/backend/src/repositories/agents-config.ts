@@ -76,7 +76,7 @@ export interface AgentConfigRow {
   role?: string | null;
   /** CORE-01c: normalized lowercase department, or null. */
   department?: string | null;
-  /** AGENTS-ORG-01: the agent this one reports to, or null (Dpro places it; migration 144). */
+  /** AGENTS-ORG-01: the agent this one reports to, or null (Girru places it; migration 144). */
   reports_to?: string | null;
   created_at: string;
   updated_at: string;

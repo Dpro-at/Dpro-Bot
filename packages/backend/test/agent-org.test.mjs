@@ -44,7 +44,7 @@ const hire = async (name, role, department) => { const r = await call('POST', '/
 const list = async () => new Map((await call('GET', '/api/agents', 'og-owner')).json().agents.map(a => [a.id, a]));
 
 const ids = {};
-test('Dpro places everyone: managers under the main agent, people under their department manager, else the main agent', async () => {
+test('Girru places everyone: managers under the main agent, people under their department manager, else the main agent', async () => {
   ids.main = await hire('Fictional Lead', 'main', null);
   assert.equal((await call('POST', `/api/agents/${ids.main}/set-primary`, 'og-owner')).statusCode, 200);
   ids.dev = await hire('Fictional Dev Lead', 'manager', 'development');
@@ -158,7 +158,7 @@ test('removing an agent: its people move up to its manager, its sub-agents go wi
   assert.equal((await call('DELETE', `/api/agents/${ids.dev}`, 'og-owner')).statusCode, 200);
   let a = await list();
   assert.equal(a.get(ids.writer).reportsTo, ids.main, 'moved up to the removed agent\'s manager');
-  assert.equal(a.get(ids.coder).manager, ids.main, 'placed by Dpro again');
+  assert.equal(a.get(ids.coder).manager, ids.main, 'placed by Girru again');
   assert.equal((await call('DELETE', `/api/agents/${ids.coder}`, 'og-owner')).statusCode, 200);
   a = await list();
   assert.equal(a.has(ids.helper), false, 'its sub-agent is removed too');

@@ -1,4 +1,4 @@
-# Python Scripts — Dpro Bot Tools
+# Python Scripts — Girru Tools
 
 أدوات Python مجانية 100% للصوت والفيديو.
 

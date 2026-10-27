@@ -290,7 +290,7 @@ export async function claudeLocalRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // ── POST /api/claude-local/import/:slug/:id ───────────────────────────────
-  // Import a Claude Code session into Dpro Bot's chat_sessions + chat_messages tables.
+  // Import a Claude Code session into Girru's chat_sessions + chat_messages tables.
   // Returns the new sessionId so the frontend can navigate to /chat.
   fastify.post<{ Params: { slug: string; id: string } }>(
     '/api/claude-local/import/:slug/:id',
@@ -357,7 +357,7 @@ export async function claudeLocalRoutes(fastify: FastifyInstance): Promise<void>
         ? `[Claude Code] ${firstUserMsg.content.slice(0, 60)}${firstUserMsg.content.length > 60 ? '…' : ''}`
         : `[Claude Code] ${slug}`;
 
-      // Insert into Dpro Bot's database (process driver, one transaction).
+      // Insert into Girru's database (process driver, one transaction).
       // B2.2d-9: the session belongs to the signed-in owner (the auth gate
       // allows owners only here); it used a fixed 'default' user, which the
       // owner-scoped sessions API never shows and the users FK refuses.

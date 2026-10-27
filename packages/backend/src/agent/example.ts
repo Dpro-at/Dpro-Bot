@@ -3,7 +3,7 @@
  *
  * Demonstrates how to use the agent system
  *
- * @author Dpro Bot Team
+ * @author Dpro Team
  */
 
 import { AgentRuntime, Skill } from './index';
@@ -361,7 +361,7 @@ async function example7_ExportImport() {
 
 async function runAllExamples() {
   console.log('╔═══════════════════════════════════════╗');
-  console.log('║   Dpro Bot - System Examples     ║');
+  console.log('║   Girru - System Examples     ║');
   console.log('╚═══════════════════════════════════════╝');
 
   try {

@@ -177,7 +177,7 @@ test('conversations are grouped by project folder, with where project facts go; 
   assert.equal(c.getSnapshot().sessions[0].project.linked, true);
   const { LocalImportView } = require('../src/LocalImport.tsx');
   const html = renderToStaticMarkup(React.createElement(LocalImportView, { controller: c, active: false, onReview: () => {} }));
-  for (const words of ['<b dir="ltr">shop</b> · 30 conversations · Dpro project Shop', '~/htdocs/shop', 'Showing the newest 25 of 30', '~/htdocs/shop-wt/fix',
+  for (const words of ['<b dir="ltr">shop</b> · 30 conversations · Girru project Shop', '~/htdocs/shop', 'Showing the newest 25 of 30', '~/htdocs/shop-wt/fix',
     '<b dir="ltr">rare-pals</b> · 1 conversation · project facts go to Projects · rare-pals', '3.0 MB', '<b dir="ltr">No folder</b> · 1 conversation · project facts go to About you'])
     assert.ok(html.includes(words), words);
   assert.equal((html.match(/Select Shop talk/g) ?? []).length, 25, 'at most 25 rows per project');

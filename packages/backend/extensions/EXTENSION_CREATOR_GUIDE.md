@@ -47,7 +47,7 @@ cd my-extension
 
 ## UI Development with JSON Render
 
-**Dpro Bot has a built-in UI system with 61 pre-built components**. You DON'T need to write React code!
+**Girru has a built-in UI system with 61 pre-built components**. You DON'T need to write React code!
 
 ### Why JSON Render?
 
@@ -743,7 +743,7 @@ const __dirname = dirname(__filename);
 
 async function runPythonScript(scriptName, args) {
   return new Promise((resolve, reject) => {
-    const pythonPath = 'C:\\Users\\Dpro GmbH\\AppData\\Local\\Programs\\Python\\Python312\\python.exe';
+    const pythonPath = 'C:\\Users\\Girru GmbH\\AppData\\Local\\Programs\\Python\\Python312\\python.exe';
     const scriptPath = join(__dirname, 'python', scriptName);
 
     const process = spawn(pythonPath, [scriptPath, JSON.stringify(args)]);

@@ -10,7 +10,7 @@ export function skillTitle(name:string){
  return properWords((words.charAt(0).toUpperCase()+words.slice(1)));
 }
 /** Names that have their own spelling ("Github" → "GitHub", "Json" → "JSON"). */
-const PROPER:Record<string,string>=Object.fromEntries(['AI','API','CLI','LSP','PHP','SVG','PNG','MD','CSS','CSV','HTML','JSON','MCP','PDF','PR','QA','SDK','SEO','SQL','SSH','UI','UX','URL','GenVR','GitHub','GitLab','iOS','macOS','OpenAI','YouTube','LinkedIn','TikTok','WhatsApp','PostgreSQL','SQLite','TypeScript','JavaScript','Dpro'].map(w=>[w.toLowerCase(),w]));
+const PROPER:Record<string,string>=Object.fromEntries(['AI','API','CLI','LSP','PHP','SVG','PNG','MD','CSS','CSV','HTML','JSON','MCP','PDF','PR','QA','SDK','SEO','SQL','SSH','UI','UX','URL','GenVR','GitHub','GitLab','iOS','macOS','OpenAI','YouTube','LinkedIn','TikTok','WhatsApp','PostgreSQL','SQLite','TypeScript','JavaScript','Girru'].map(w=>[w.toLowerCase(),w]));
 export function properWords(text:string){return text.replace(/[A-Za-z]+/g,w=>PROPER[w.toLowerCase()]??w);}
 
 /** A SKILL.md as the owner reads it: the description from its front matter, and the text after it. */
@@ -28,8 +28,8 @@ export function skillFileSummary(text:string){
 /** Why a found item cannot be added, in plain words (codes never reach the screen). */
 export function blockedReason(code:string){
  const say:Record<string,string>={
-  skill_name_taken:'Dpro already has another skill with this name. It is not replaced from here; compare them in Skills.',
-  unsupported_configuration:'Its settings use a form Dpro cannot run yet, so it cannot be added.',
+  skill_name_taken:'Girru already has another skill with this name. It is not replaced from here; compare them in Skills.',
+  unsupported_configuration:'Its settings use a form Girru cannot run yet, so it cannot be added.',
  };
  return say[code]??`It cannot be added here (${code.replace(/_/g,' ')}).`;
 }
@@ -37,9 +37,9 @@ export function blockedReason(code:string){
 export type SkillSource={key:string;group:string;line:string;icon:UiIconName;app?:string};
 const SOURCES:Record<string,SkillSource>={
  workspace:{key:'workspace',group:'Made in this workspace',line:'Made in this workspace',icon:'pencil'},
- bundled:{key:'bundled',group:'Comes with Dpro',line:'Comes with Dpro',icon:'box'},
+ bundled:{key:'bundled',group:'Comes with Girru',line:'Comes with Girru',icon:'box'},
  genvr:{key:'genvr',group:'From GenVR',line:'From GenVR',icon:'dice'},
- catalogue:{key:'catalogue',group:'From Dpro’s catalogue',line:'From Dpro’s catalogue',icon:'download'},
+ catalogue:{key:'catalogue',group:'From Girru’s catalogue',line:'From Girru’s catalogue',icon:'download'},
  claude:{key:'claude',group:'From Claude Code',line:'From Claude Code',icon:'code',app:'Claude Code'},
  codex:{key:'codex',group:'From Codex',line:'From Codex',icon:'code',app:'Codex'},
  shared:{key:'shared',group:'From shared agent skills',line:'From shared agent skills',icon:'code',app:'Shared agent skills'},

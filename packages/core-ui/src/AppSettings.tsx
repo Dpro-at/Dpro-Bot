@@ -89,7 +89,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
     {q&&!groups.some(g=>g.keys.some(k=>found(ROWS[k])))&&<p className="settings-search-empty">No setting matches “{query.trim()}”.</p>}
     {!signedIn&&<div className="settings-signin-note"><p>Sign in to see your account, keys and workspace settings.</p><button type="button" onClick={onAccount}>Sign in</button></div>}
   </nav>;
-  const label=aboutOnly?'About Dpro':active_==='memory'?`Memory · ${MEMORY_PANES.find(p=>p.key===pane)?.label??'Settings'}`:ROWS[active_].label;
+  const label=aboutOnly?'About Girru':active_==='memory'?`Memory · ${MEMORY_PANES.find(p=>p.key===pane)?.label??'Settings'}`:ROWS[active_].label;
   const ownTitle=active_==='schedules'||active_==='memory'||active_==='mcp';
   const signIn=(title:string,description:string)=><PreferenceGroup title={title}><PreferenceRow title="Sign in required" description={description} icon="contact"><button type="button" onClick={onAccount}>Sign in</button></PreferenceRow></PreferenceGroup>;
   const page=<div id="settings-view-panel" aria-label={label} className="settings-content settings-st" data-pane={active_}><div className="preferences-page">
@@ -121,7 +121,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='mcp'&&owner&&<McpSection client={client!} active={active} nav={mcpNav} openId={mcpOpenId} onOpenAgents={onAgents}/>}
       {active_==='schedules'&&owner&&<ScheduledTasks client={client!} active={active} onOpenConnections={()=>setTab('channels')}/>}
       {active_==='about'&&<>
-        <div className="settings-about-head"><span className="settings-about-mark" aria-hidden="true">D</span><div><strong>Dpro</strong><small>Version {info?.version??'development preview'} · {info?(info.connection==='local'?'runs on this computer':'connected installation'):'local browser preview'}</small></div></div>
+        <div className="settings-about-head"><span className="settings-about-mark" aria-hidden="true">G</span><div><strong>Girru</strong><small>Version {info?.version??'development preview'} · {info?(info.connection==='local'?'runs on this computer':'connected installation'):'local browser preview'}</small></div></div>
         {live&&owner?<UpdateSettings client={client!}/>:<PreferenceGroup title="Updates"><PreferenceRow title="Manual updates" description="Automatic updates are not available in this build. Install a new version by hand." icon="refresh"><span className="preference-status">Not available</span></PreferenceRow></PreferenceGroup>}
         <PreferenceGroup title="This installation" note="The log folder and the workspace choice stay in the program menu (Help, File)."><PreferenceRow title="Connection" icon="link"><span className="preference-status">{info?(info.connection==='local'?'This computer':'Connected installation'):'Local browser preview'}</span></PreferenceRow></PreferenceGroup>
       </>}

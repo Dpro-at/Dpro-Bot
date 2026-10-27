@@ -2,11 +2,11 @@
 
 ## Overview
 
-This is the **intelligent agent system** for Dpro Bot.
+This is the **intelligent agent system** for Girru.
 
 ### Key Features
 
-| Feature | Dpro Bot |
+| Feature | Girru |
 |---------|--------------|
 | **Prompt Size** | **500-800 tokens (efficient)** |
 | **Skill Loading** | **2-5 relevant only (smart selection)** |
@@ -129,7 +129,7 @@ const result = await selector.select(analysis, availableSkills);
 **Layers**:
 
 1. **Core Layer** (200 tokens, always included)
-   - Identity: "You are Dpro Bot"
+   - Identity: "You are Girru"
    - Core capabilities
    - Behavior guidelines
 
@@ -167,7 +167,7 @@ const prompt = await builder.build({
 
 // Result:
 {
-  core: "# Dpro Bot - AI Assistant ...",
+  core: "# Girru - AI Assistant ...",
   full: "... (complete prompt) ...",
   metadata: {
     tokenCount: 650,
@@ -417,4 +417,4 @@ When adding new features:
 
 ## License
 
-MIT License - Dpro Bot Team
+MIT License - Girru Team

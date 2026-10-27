@@ -17,7 +17,7 @@ test('P-4: the "Update N agents" review uses the editor’s own words',()=>{
  assert.deepEqual(lib.profileChanges(profile,after).find(c=>c.label==='Pace'),{label:'Pace',before:'Deliberate',after:'Fast'});
  assert.deepEqual(lib.profileChanges(profile,{...profile,traits:{...traits,doubt:85}}),[{label:'Confidence',before:'50',after:'15'}]);
 });
-test('P-6: the library inspector says "Starter" for a personality shipped with Dpro',()=>{
+test('P-6: the library inspector says "Starter" for a personality shipped with Girru',()=>{
  const props={team:null,busy:false,onOpen(){},onGive(){},onRestore(){},onMenu(){},onClose(){}};
  assert.match(render(lib.Inspector,{...props,entry:{id:'calm',revision:1,profile,archived:false,usedBy:2,starter:true}}),/Starter · used by 2 agents/);
  const mine=render(lib.Inspector,{...props,entry:{id:'mine',revision:1,profile,archived:false,usedBy:1,starter:false}});

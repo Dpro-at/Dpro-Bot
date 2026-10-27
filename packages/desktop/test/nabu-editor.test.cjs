@@ -65,7 +65,7 @@ test('choosing Chat during startup never switches back when startup completes', 
   await f.select('chat'); resolve({ origin: 'http://127.0.0.1:42630', url: 'http://127.0.0.1:42630/?tkn=private-token' });
   await pending; assert.equal(f.views.length, 0); assert.equal(f.controller.state().mode, 'chat'); await f.controller.stop();
 });
-test('Code and Chat shortcuts work from the editor without granting Dpro IPC to it', async () => {
+test('Code and Chat shortcuts work from the editor without granting Girru IPC to it', async () => {
   const f = fixture(); await f.select('code');
   const v = f.views[0]; v.webContents.emit('before-input-event', { preventDefault() {} }, { type: 'keyDown', code: 'Digit2', key: '™', meta: true, alt: true });
   assert.equal(v.visible, false); assert.equal(f.controller.state().mode, 'chat');
@@ -91,7 +91,7 @@ test('closing during startup stops the owned host and ignores its late ready eve
   assert.equal(f.views.length, 0); assert.equal(f.stops(), 1);
 });
 
-// The surrounding Dpro navigation must remain reachable while editing.
+// The surrounding Girru navigation must remain reachable while editing.
 test('editor bounds preserve the footer and follow zoom without reloading the editor',async()=>{
  const f=fixture();await f.select('code');const view=f.views[0];
  f.win.webContents.getZoomFactor=()=>1.25;
@@ -102,7 +102,7 @@ test('editor bounds preserve the footer and follow zoom without reloading the ed
  assert.equal(view.webContents.loads,1);await f.controller.stop();
 });
 
-test('reloading or losing the Dpro renderer hides the local editor',async()=>{
+test('reloading or losing the Girru renderer hides the local editor',async()=>{
  const f=fixture();await f.select('code');const view=f.views[0];
  f.win.webContents.emit('did-start-navigation',{},'http://127.0.0.1:42522/',false,true);
  assert.equal(view.visible,false);assert.equal(f.controller.state().mode,'chat');

@@ -158,7 +158,7 @@ function ReportsToPicker({agent,agents,onMove,onClose}:{agent:PublicAgent;agents
   <label className="dk-search"><UiIcon name="search" size={12}/><input autoFocus type="search" aria-label="Find an agent" placeholder="Find an agent" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();onClose();}}}/></label>
   <div role="listbox" aria-label="Reports to">{list.map(a=>{const off=below.has(a.id)||!canMoveUnder(agent,a,agents)&&agent.manager!==a.id;
    return <button type="button" role="option" key={a.id} aria-selected={agent.manager===a.id} disabled={off} title={below.has(a.id)?`${a.name??'It'} is under ${agent.name??'this agent'}`:undefined} onClick={()=>onMove(a.id)}><Avatar name={a.name??'?'} size={18}/><span className="oc-pick-name"><bdi>{a.name??'Agent'}</bdi></span>{agent.manager===a.id&&<UiIcon name="check" size={13}/>}{a.placed==='main'&&<small>main agent</small>}</button>;})}</div>
-  {agent.placed==='set'&&<button type="button" className="ghost" onClick={()=>onMove(null)}>Let Dpro place it</button>}
+  {agent.placed==='set'&&<button type="button" className="ghost" onClick={()=>onMove(null)}>Let Girru place it</button>}
  </div>;
 }
 
@@ -179,7 +179,7 @@ function Inspector({controller,agent,owner,onOpen,onChat,onMenu,onClose,picking,
   <p className="ag-insp-text" dir="auto">{agent.description||'No responsibilities yet.'}</p>
   <hr/>
   {agent.placed&&agent.placed!=='none'&&agent.placed!=='main'&&<span className="ag-anchor oc-reports" data-popover-anchor>
-   <button type="button" className="ag-fact" disabled={!movableHere} title={agent.placed==='sub'?'A sub-agent stays with the agent it belongs to':undefined} onClick={()=>onPick(!picking)}><UiIcon name="arrow-up" size={16}/><span><small>{agent.placed==='sub'?'Sub-agent of':'Reports to'}</small><span>{manager?<><Avatar name={manager.name??'?'} size={14}/> <bdi>{manager.name??'Agent'}</bdi>{agent.placed==='auto'?' · placed by Dpro':''}</>:'Nobody yet'}</span></span><UiIcon name="chevron" size={12}/></button>
+   <button type="button" className="ag-fact" disabled={!movableHere} title={agent.placed==='sub'?'A sub-agent stays with the agent it belongs to':undefined} onClick={()=>onPick(!picking)}><UiIcon name="arrow-up" size={16}/><span><small>{agent.placed==='sub'?'Sub-agent of':'Reports to'}</small><span>{manager?<><Avatar name={manager.name??'?'} size={14}/> <bdi>{manager.name??'Agent'}</bdi>{agent.placed==='auto'?' · placed by Girru':''}</>:'Nobody yet'}</span></span><UiIcon name="chevron" size={12}/></button>
    <Popover open={picking&&movableHere} onClose={()=>onPick(false)} label="Reports to"><ReportsToPicker agent={agent} agents={all} onMove={onMove} onClose={()=>onPick(false)}/></Popover></span>}
   {owner&&agent.placed!=='sub'&&agent.placed!=='none'&&<button type="button" className="ag-fact" onClick={()=>onOpen(agent.id,'subs')}><UiIcon name="sub-agent" size={16}/><span><small>Sub-agents</small><span>{subs.length?subs.map(x=>x.name??'helper').join(' · '):'None yet'}</span></span><UiIcon name="chevron" size={12}/></button>}
   {!owner?<p className="ag-muted">Only the owner sees and changes how this agent works.</p>:facts===undefined?<p className="ag-muted" role="status">Reading what makes it…</p>:facts===null?<p className="ag-muted" role="status">What makes it could not be read. <button type="button" className="link-button" onClick={()=>retryFacts(controller.client,agent.id)}>Try again</button></p>:

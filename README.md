@@ -1,12 +1,14 @@
 <div align="center">
 
-# Dpro
+# Girru
 
 ### 🚀 **Your Company of AI Employees** 🚀
 
 **Ask once. The right agent takes it, decides, and gets it done with you.**
 
 **Work WITH AI, not replaced by it.**
+
+*Made by Dpro.*
 
 ![Desktop App](https://img.shields.io/badge/💻-Desktop%20App-blue?style=for-the-badge)
 ![Open Source](https://img.shields.io/badge/📖-Open%20Source-brightgreen?style=for-the-badge)
@@ -21,7 +23,7 @@
 
 ---
 
-Dpro works the way a real professional team works. You do not pick a tool or write a prompt for every step. You make a request, Dpro routes it to the agent whose job it is, and that agent decides how to do it, asks you when it needs to, and reports back. Each agent has its own **role**, **personality**, **memory** and **permissions**. Together they are your company.
+Girru works the way a real professional team works. You do not pick a tool or write a prompt for every step. You make a request, Girru routes it to the agent whose job it is, and that agent decides how to do it, asks you when it needs to, and reports back. Each agent has its own **role**, **personality**, **memory** and **permissions**. Together they are your company.
 
 **Two ways to get it:**
 - 💻 **Install the desktop app** on Windows, macOS or Linux and start working.
@@ -70,7 +72,7 @@ Your request ──► Routing ──► The right agent ──► Decision ─�
 ```
 
 1. **You ask** in the app, from your phone, or from a channel you already use.
-2. **Dpro routes** the request to the agent whose role fits it.
+2. **Girru routes** the request to the agent whose role fits it.
 3. **The agent decides**: it plans, splits the work into tasks, and hands steps to other agents when needed.
 4. **Everyone works on one task board**, yours and the agents', so you always see who is doing what.
 5. **You stay in control**: agents ask before sensitive actions and act only within the permissions you give them.
@@ -98,11 +100,11 @@ Your request ──► Routing ──► The right agent ──► Decision ─�
 
 ## 🔑 Use the AI You Already Pay For
 
-Dpro does not ask you for another API bill. It works through the official **Claude Code** and **Codex** tools on your machine, signed in with **your own** Claude or ChatGPT subscription.
+Girru does not ask you for another API bill. It works through the official **Claude Code** and **Codex** tools on your machine, signed in with **your own** Claude or ChatGPT subscription.
 
 - 💸 **Saves tokens by design** - Lookups, summaries, sorting and first drafts go to a small local model, so your plan is spent on the hard parts.
 - 📥 **Brings your history with you** - Import your past chats and memory so your team already knows how you work *(in development)*.
-- 📈 **Grows with you** - Studios and heavy users move to a higher plan or add credit directly with Claude or ChatGPT. Dpro never resells or shares accounts.
+- 📈 **Grows with you** - Studios and heavy users move to a higher plan or add credit directly with Claude or ChatGPT. Girru never resells or shares accounts.
 
 > Usage stays subject to each provider's own plan limits and terms.
 
@@ -110,7 +112,7 @@ Dpro does not ask you for another API bill. It works through the official **Clau
 
 ## 🌍 GenVR: Worlds, Games & Films
 
-Dpro is being connected to **GenVR**, our own open-source world platform. With it your agents work inside 3D worlds with you:
+Girru is being connected to **GenVR**, our own open-source world platform. With it your agents work inside 3D worlds with you:
 
 - 🏗️ **Build worlds** - Terrain, roads, water, houses and thousands of items; design characters and control every detail.
 - 🎮 **Make games without code** - Zones, vehicles, counters, rules and rankings. Open worlds, VR metaverse spaces, and later console games.
@@ -133,7 +135,7 @@ They build on **[Web Respect](https://github.com/9mtm/Web-Respect)**, our free, 
 
 ## 💡 Who It Is For
 
-| You are | What Dpro gives you |
+| You are | What Girru gives you |
 |---|---|
 | 🙋 **An individual** | A personal team that works for you, a task board and your phone |
 | 👨‍💻 **A developer** | API, CLI and MCP, extensions, and the freedom to use local or cloud models |
@@ -143,7 +145,7 @@ They build on **[Web Respect](https://github.com/9mtm/Web-Respect)**, our free, 
 | 🏢 **A company** | Agent employees with roles and permissions; every request goes to the right specialist, including compliance reviews |
 | 🎞️ **A studio or heavy user** | The same team on your own Claude or ChatGPT plan, with local models taking the routine load |
 
-> Trading involves risk. Dpro does not give financial advice; every trading decision is yours. Start in paper mode.
+> Trading involves risk. Girru does not give financial advice; every trading decision is yours. Start in paper mode.
 
 ---
 
@@ -151,13 +153,13 @@ They build on **[Web Respect](https://github.com/9mtm/Web-Respect)**, our free, 
 
 ## 💻 Install the Desktop App
 
-Download the installer for your system (all versions on the **[Releases page](https://github.com/9mtm/Agent-Player/releases)**):
+Download the installer for your system (all versions on the **[Releases page](https://github.com/Dpro-at/Girru/releases)**):
 
 | System | Download | How |
 |---|---|---|
-| 🪟 **Windows** | 👉 **[Download .msi](https://github.com/9mtm/Agent-Player/releases/download/v1.3.1/agent-player-installer-1.3.1-win-x64.msi)** | Run it and follow the setup wizard |
-| 🍎 **macOS** | 👉 **[Download .dmg](https://github.com/9mtm/Agent-Player/releases/download/v1.3.1/agent-player-installer-1.3.1-macos-x64.dmg)** | Open it and drag the app to Applications |
-| 🐧 **Linux** | 👉 **[Download .AppImage](https://github.com/9mtm/Agent-Player/releases/download/v1.3.1/agent-player-installer-1.3.1-x86_64.AppImage)** | Make it executable and run it |
+| 🪟 **Windows** | 👉 **[Download .msi](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-win-x64.msi)** | Run it and follow the setup wizard |
+| 🍎 **macOS** | 👉 **[Download .dmg](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-macos-x64.dmg)** | Open it and drag the app to Applications |
+| 🐧 **Linux** | 👉 **[Download .AppImage](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-x86_64.AppImage)** | Make it executable and run it |
 
 ```bash
 # Linux
@@ -184,8 +186,8 @@ Want to run it yourself, change it, or build on it? The full source is here.
 **Requirements:** Node.js 20+, pnpm 8+, Git. Python 3.12+ only for voice features.
 
 ```bash
-git clone https://github.com/9mtm/Agent-Player.git dpro
-cd dpro
+git clone https://github.com/Dpro-at/Girru.git girru
+cd girru
 pnpm install
 
 cd packages/backend
@@ -212,7 +214,7 @@ pnpm dev
 ```text
 packages/
   backend/     API, agents, tools, memory and extensions (Fastify + SQLite)
-  core-ui/     The new Dpro interface: Chat, Agents, Memory, Tasks, Settings, Channels
+  core-ui/     The new Girru interface: Chat, Agents, Memory, Tasks, Settings, Channels
   cli/         Command-line client
   mcp-server/  MCP server for outside AI clients
   channels/    Channel connector package
@@ -229,7 +231,7 @@ docs/          Documentation
 
 ## 🤝 Contribute
 
-Dpro is built in the open, and every contribution counts: code, extensions, translations, bug reports and ideas.
+Girru is built in the open, and every contribution counts: code, extensions, translations, bug reports and ideas.
 
 1. 🍴 **Fork** the repository and create a branch.
 2. 🛠️ **Make your change** and run the checks.

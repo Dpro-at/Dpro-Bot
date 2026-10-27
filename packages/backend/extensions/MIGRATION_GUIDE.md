@@ -87,7 +87,7 @@ async function sendMessage(chatId, content) {
   "name": "Discord Channel",
   "description": "Discord messaging integration",
   "version": "1.0.0",
-  "author": "Dpro Bot",
+  "author": "Dpro",
   "channels": ["discord"],
   "configSchema": {
     "type": "object",
@@ -110,7 +110,7 @@ async function sendMessage(chatId, content) {
   "description": "Discord messaging integration",
   "version": "1.0.0",
   "type": "channel",
-  "author": "Dpro Bot",
+  "author": "Dpro",
   "main": "index.js",
   "permissions": ["network", "database"]
 }

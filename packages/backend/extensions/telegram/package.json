@@ -1,10 +1,10 @@
 {
   "name": "@agent-player/extension-telegram",
   "version": "1.0.0",
-  "description": "Telegram messaging channel for Dpro Bot",
+  "description": "Telegram messaging channel for Girru",
   "type": "module",
   "main": "index.ts",
-  "author": "Dpro Bot Team",
+  "author": "Dpro",
   "license": "MIT",
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0"

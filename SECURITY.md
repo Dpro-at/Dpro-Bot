@@ -22,7 +22,7 @@ We currently support the following versions with security updates:
 
 Please report security vulnerabilities via **GitHub Security Advisories**:
 
-1. Go to: https://github.com/9mtm/Agent-Player/security/advisories
+1. Go to: https://github.com/Dpro-at/Girru/security/advisories
 2. Click "Report a vulnerability"
 3. Fill in the details:
    - Description of the vulnerability
@@ -52,7 +52,7 @@ Please report security vulnerabilities via **GitHub Security Advisories**:
 
 ## Security Features
 
-Dpro Bot implements multiple security layers:
+Girru implements multiple security layers:
 
 ### 1. Authentication & Authorization
 
@@ -106,7 +106,7 @@ Dpro Bot implements multiple security layers:
 ### Installation
 
 1. **Use official sources only**
-   - Clone from: https://github.com/9mtm/Agent-Player
+   - Clone from: https://github.com/Dpro-at/Girru
    - Don't use unofficial forks or mirrors
 
 2. **Verify integrity**
@@ -192,7 +192,7 @@ Dpro Bot implements multiple security layers:
 
 ### Local-Only Design
 
-Dpro Bot is designed for **local deployment**:
+Girru is designed for **local deployment**:
 - ✅ Frontend: `localhost:41521`
 - ✅ Backend: `localhost:41522`
 - ✅ Database: SQLite (file-based)
@@ -205,7 +205,7 @@ Dpro Bot is designed for **local deployment**:
 
 ### AI Provider APIs
 
-Dpro Bot sends messages to external AI providers:
+Girru sends messages to external AI providers:
 - Anthropic Claude API
 - OpenAI API (optional)
 - Google Gemini API (optional)
@@ -288,7 +288,7 @@ We follow **coordinated disclosure**:
 
 ## Security Hall of Fame
 
-Thank you to security researchers who have helped improve Dpro Bot:
+Thank you to security researchers who have helped improve Girru:
 
 <!-- Add researchers here after coordinated disclosure -->
 

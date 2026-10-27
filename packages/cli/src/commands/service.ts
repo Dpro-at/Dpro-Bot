@@ -32,7 +32,7 @@ export function servicePrintCommand(
   const c = platform === 'macos' ? ['<!--', '-->'] : ['#', ''];
   const comment = (line: string) => (platform === 'macos' ? `${c[0]} ${line.replace(/--/g, '- -')} ${c[1]}` : `# ${line}`);
   const header = [
-    comment('Dpro Bot service template (printed only; nothing was installed).'),
+    comment('Girru service template (printed only; nothing was installed).'),
     comment(`Save as: ${hint.file}`),
     comment(`Load/unload (needs your OK): ${hint.commands.join('  |  ')}`),
     ...(spec.fromSource ? [comment('The CLI is not built; this unit runs it from source through tsx.')] : []),

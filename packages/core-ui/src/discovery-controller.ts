@@ -29,9 +29,9 @@ export const KIND_SHORT: Record<DiscoveryKind, string> = { memory: 'Memory', not
 export const STATE_LABEL: Record<DiscoveryState, string> = { new: 'New', changed: 'Changed', decision: 'Needs your decision', imported: 'Imported', ignored: 'Ignored', gone: 'Gone from this computer' };
 const CODE_TEXT: Record<string, string> = {
   preview_changed: 'the file changed since you opened it', import_running: 'another import is not finished yet', name_conflict: 'an MCP server with this name exists',
-  version_conflict: 'the skill changed in Dpro', skill_in_use: 'an agent still uses this skill', not_removable: 'project notes cannot be taken out one by one',
+  version_conflict: 'the skill changed in Girru', skill_in_use: 'an agent still uses this skill', not_removable: 'project notes cannot be taken out one by one',
   inline_secret_requires_manual_setup: 'it has a secret in its command; add it by hand', memory_refused: 'memory refused the change',
-  not_imported: 'it was already in Dpro before this page; change it on its own page', skill_name_taken: 'Dpro already has another skill with this name',
+  not_imported: 'it was already in Girru before this page; change it on its own page', skill_name_taken: 'Girru already has another skill with this name',
   system_folder: 'system folders are never read', not_found: 'that folder is not there',
 };
 export const codeText = (code?: string) => (code ? CODE_TEXT[code] ?? code.replace(/_/g, ' ') : 'it could not be done');
@@ -152,8 +152,8 @@ export class DiscoveryController {
     finally { this.publish({ busy: false }); }
   }
   ignore(id: string, on: boolean) { return this.act(`${DISCOVERY_PATH}/items/${id}/ignore`, { on }, on ? 'Ignored. It is not offered again.' : 'No longer ignored.'); }
-  async remove(id: string) { const ok = await this.act(`${DISCOVERY_PATH}/items/${id}/remove`, undefined, 'Taken out of Dpro. The file on this computer is unchanged.'); if (ok) this.close(); }
-  keep(id: string) { return this.act(`${DISCOVERY_PATH}/items/${id}/keep`, undefined, 'Kept in Dpro.'); }
+  async remove(id: string) { const ok = await this.act(`${DISCOVERY_PATH}/items/${id}/remove`, undefined, 'Taken out of Girru. The file on this computer is unchanged.'); if (ok) this.close(); }
+  keep(id: string) { return this.act(`${DISCOVERY_PATH}/items/${id}/keep`, undefined, 'Kept in Girru.'); }
   setWatch(watch: boolean, intervalMinutes: 15 | 30 | 60) { return this.act(`${DISCOVERY_PATH}/settings`, { watch, intervalMinutes }, watch ? `Watching: a fresh read every ${intervalMinutes} min (nothing is imported on its own).` : 'Watching is off.'); }
   setRootWatch(id: string, watch: boolean) { return this.act(`${DISCOVERY_PATH}/roots/${id}`, { watch }, watch ? 'Watching this folder again.' : 'This folder is no longer watched.'); }
   // ---- DISCOVER-02: folders you allow ----

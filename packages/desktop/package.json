@@ -1,9 +1,9 @@
 {
   "name": "@agent-player/desktop",
-  "productName": "Dpro Agent",
+  "productName": "Girru",
   "version": "1.3.2",
   "private": true,
-  "description": "Dpro Agent desktop app",
+  "description": "Girru desktop app",
   "license": "MIT",
   "author": "Mohamed Alarade",
   "main": "src/main.cjs",
@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "app.dpro.desktop",
-    "productName": "Dpro Agent",
+    "productName": "Girru",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -59,7 +59,7 @@
       "identity": null,
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Dpro Agent uses the microphone only when you press the microphone button to dictate a message."
+        "NSMicrophoneUsageDescription": "Girru uses the microphone only when you press the microphone button to dictate a message."
       },
       "icon": "build/icon.icns"
     },
@@ -79,7 +79,7 @@
       ],
       "category": "Development"
     },
-    "executableName": "Dpro"
+    "executableName": "Girru"
   },
   "overrides": {
     "@electron/get": "5.1.0"

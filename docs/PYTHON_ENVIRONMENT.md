@@ -1,6 +1,6 @@
 # Python Environment
 
-Dpro Bot uses Python scripts for audio processing (TTS/STT), desktop control, and media editing. The project includes an automated setup system that downloads and configures a **portable Python** — no pre-installed Python required.
+Girru uses Python scripts for audio processing (TTS/STT), desktop control, and media editing. The project includes an automated setup system that downloads and configures a **portable Python** — no pre-installed Python required.
 
 ---
 

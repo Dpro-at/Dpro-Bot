@@ -129,7 +129,7 @@ export class LocalMcpImport {
   }catch{skipped++;}
   return {servers,skipped};
  }
- /** The id of a Dpro MCP server with exactly this launch configuration, if any. */
+ /** The id of a Girru MCP server with exactly this launch configuration, if any. */
  existing(input:ServerInput){return this.duplicate(input);}
  /** DISCOVER-01: add a found server, switched off; `keepSecrets` false leaves its env / header values out (the owner adds them later). */
  async importFound(owner:string,found:FoundMcp,hash:string,keepSecrets=true){

@@ -1,6 +1,6 @@
 /**
  * API Documentation Module
- * OpenAPI/Swagger documentation for Dpro Bot API
+ * OpenAPI/Swagger documentation for Girru API
  */
 
 export * from './schemas.js';

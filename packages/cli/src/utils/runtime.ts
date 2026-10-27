@@ -47,7 +47,7 @@ export interface LockInfo {
 
 export class AlreadyRunningError extends Error {
   constructor(public readonly pid: number) {
-    super(`Dpro Bot is already running (supervisor pid ${pid}). Use "agent-player stop" first.`);
+    super(`Girru is already running (supervisor pid ${pid}). Use "agent-player stop" first.`);
     this.name = 'AlreadyRunningError';
   }
 }
@@ -259,7 +259,7 @@ export async function supervise(options: SuperviseOptions): Promise<number> {
   const stopAll = (reason: string) => {
     if (stopping) return;
     stopping = true;
-    log(`Stopping Dpro Bot (${reason})...`);
+    log(`Stopping Girru (${reason})...`);
     for (const child of children.values()) {
       if (child.exitCode === null && child.signalCode === null) {
         try { child.kill('SIGTERM'); } catch { /* gone */ }
