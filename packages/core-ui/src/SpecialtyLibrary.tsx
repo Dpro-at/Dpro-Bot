@@ -1,4 +1,5 @@
 import {PersonalityPicker} from './PersonalityLibrary';
+import {properWords} from './skill-display';
 import {defaultLibraryId,type Entry as PersonalityEntry} from './personality-library';
 import {createPortal} from 'react-dom';
 import {useEffect,useRef,useState} from 'react';
@@ -48,6 +49,8 @@ const actionNames:Record<string,[string,UiIconName]>={browser:['Use the browser'
 const accessState:Record<string,[string,string]>={unavailable:['Not in Dpro','soon'],blocked:['Blocked','warn'],review_required:['Check it again','warn'],needs_grant:['Not given yet','warn'],ask:['Asks each time','ask'],allowed:['Allowed','ok']};
 const partList:{id:Part;name:string;icon:UiIconName}[]=[{id:'overview',name:'Overview',icon:'info'},{id:'instructions',name:'Instructions',icon:'file'},{id:'skills',name:'Skills',icon:'star'},{id:'tools',name:'Tools',icon:'tool'},{id:'memory',name:'Memory',icon:'database'},{id:'permissions',name:'Permissions',icon:'lock'},{id:'agents',name:'Agents',icon:'users'},{id:'versions',name:'Versions',icon:'history'}];
 const emptyConfig=():SpecialtyConfig=>({primarySkill:null,skills:[],tools:[],requirements:[],memoryRead:[],memoryWrite:[],sharedMemory:false,modes:Object.fromEntries(templateCategories.map(c=>[c,'ask']))});
+/** A group name as a heading: "acting_performance_and_presenting" → "Acting performance and presenting". */
+const sentence=(s:string)=>{const t=s.replaceAll('_',' ').replace(/\s+/g,' ').trim().toLowerCase();return properWords(t.charAt(0).toUpperCase()+t.slice(1));};
 const readable=(s:string)=>s.replace(/^mcp__[^_]+__/,'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const plural=(n:number,word:string)=>`${n} ${word}${n===1?'':'s'}`;
 const uuidLike=(id:string)=>/^[a-f0-9-]{36}$/.test(id);
@@ -102,7 +105,7 @@ export function SpecialtyLibrary({client,hire=false,onHired,sidebarSlot,active=t
  const matchesQuery=(t:Summary)=>`${t.name} ${t.description??''} ${groupsOf(t).join(' ')} ${groupsOf(t).map(g=>familyOf(g).name).join(' ')}`.toLowerCase().includes(query.trim().toLowerCase());
  const inPlace=(t:Summary)=>place==='team'?!!t.agents?.length:place==='soon'?!!t.planned:place.startsWith('dept:')?groupsOf(t).some(g=>familyOf(g).name===place.slice(5)):true;
  const shown=list.filter(t=>inPlace(t)&&matchesQuery(t)&&(availability==='all'||(availability==='planned'?t.planned:!t.planned))).sort((a,b)=>sort==='use'?(b.agents?.length??0)-(a.agents?.length??0)||a.name.localeCompare(b.name):a.name.localeCompare(b.name));
- const headingOf=(t:Summary)=>{const g=groupsOf(t),d=place.startsWith('dept:')?g.find(x=>familyOf(x).name===place.slice(5))??g[0]:g[0];return readable(d);};
+ const headingOf=(t:Summary)=>{const g=groupsOf(t),d=place.startsWith('dept:')?g.find(x=>familyOf(x).name===place.slice(5))??g[0]:g[0];return sentence(d);};
  const grouped=[...shown.reduce((m,t)=>{const h=headingOf(t);m.set(h,[...(m.get(h)??[]),t]);return m;},new Map<string,Summary[]>())].sort(([a],[b])=>a.localeCompare(b));
  const linked=agents.filter(a=>a.linked);
  const refreshSummary=(t:Template,current=linked)=>setList(old=>{const summary={id:t.id,planned:false,groups:t.groups,kind:t.kind,name:t.name,department:t.department,description:t.description,revision:t.revision,agents:current.map(a=>({id:a.id,name:a.name}))};return old.some(s=>s.id===t.id)?old.map(s=>s.id===t.id?summary:s):[...old,summary];});

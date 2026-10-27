@@ -1,4 +1,5 @@
 import {ChatAgentPicker} from './ChatAgentPicker';
+import { modelDisplayName } from './model-names';
 import {ChatAddons} from './ChatAddons';
 import {DocumentEditor} from './DocumentEditor';
 import { RecoveryApprovals } from './RecoveryApprovals';
@@ -252,7 +253,7 @@ export function ChatView({ controller, mode, productName = 'Dpro Agent', client,
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
           : 'Choose who replies, add a project if needed, and write your message.'}</p>
-        <details className="chat-starting-ideas"><summary>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
+        <details className="chat-starting-ideas"><summary><UiIcon name="chevron" size={12}/>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
           <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}><UiIcon name="compose" size={14}/>{t}</button>)}</div></details>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
         {s.turns.map((t, i) => t.role === 'user'
@@ -382,7 +383,7 @@ function ChatSidePanel({ controller, client, onAddConnector, memory, onOpenMemor
   const tokens = approxTokens(s.turns);
   const agent = s.agents.find(a => a.id === (conv?.agentId ?? s.agentId))?.name ?? 'Main agent';
   const who = whoAnswers(s.model, s.models);
-  const model = who.app ? who.text : s.model ? `Saved model: ${s.model}` : "Agent's own model";
+  const model = who.app ? who.text : s.model ? `Saved model: ${modelDisplayName(s.model)}` : "Agent's own model";
   const replies = s.turns.filter(t => t.role === 'assistant');
   const worked = replies.reduce((n, t) => n + (t.durationMs ?? 0), 0);
   const tools = workSummary(s.turns.flatMap(t => withoutPlan(t.parts)));

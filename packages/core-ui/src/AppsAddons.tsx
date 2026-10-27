@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import type {SessionClient} from './session';
 import {UiIcon} from './ui-icons';
+import {addonName} from './skill-display';
 import {ClaudeCodeIcon,CodexIcon} from './brand-icons';
 import {CHAT_ADDONS_PATH} from './chat-addons-contract.js';
 type Addon={name:string;source:'claude-code'|'codex';kind:'plugin'|'hook';enabled:boolean|null;installed:boolean|null;count:number;label?:string};
@@ -23,7 +24,7 @@ export function AppsAddons({client,refresh,query='',onConnections,onSkills}:{cli
   {!data&&!error&&<p role="status" className="apps-empty">Reading add-ons…</p>}
   {data&&<div className="apps-addon-cards">{APPS.map(({source,name,Icon})=>{const all=data.items.filter(x=>x.source===source),items=matchAddons(all,query),plugins=items.filter(x=>x.kind==='plugin').length,hooks=items.filter(x=>x.kind==='hook').length,missing=data.sources.find(x=>x.source===source)?.status==='missing';
    return <section key={source} className="apps-addon-card" aria-label={name}><header><Icon size={22}/><strong>{name}</strong><small>{query.trim()&&all.length?`${items.length} of ${all.length} match`:items.length?[plugins&&plural(plugins,'plugin'),hooks&&plural(hooks,'hook group')].filter(Boolean).join(' · '):missing?'Not on this computer':'Nothing installed'}</small></header>
-    {items.length?<ul>{items.map((x,i)=><li key={x.name+i}><UiIcon name={x.kind==='hook'?'history':'puzzle'} size={14}/><span title={x.name}>{x.kind==='hook'?`${x.label??x.name} (${plural(x.count,'rule')})`:x.label??x.name}</span><small data-state={x.installed===false&&x.kind!=='hook'?'missing':undefined}>{addonState(x)}</small></li>)}</ul>:<p className="fine-print">{query.trim()&&all.length?'No add-on matches your search.':missing?`${name} was not found in this computer’s home folder.`:'No plugins or hooks found.'}</p>}
+    {items.length?<ul>{items.map((x,i)=><li key={x.name+i}><UiIcon name={x.kind==='hook'?'history':'puzzle'} size={14}/><span title={x.name}>{x.kind==='hook'?`${x.label??x.name} (${plural(x.count,'rule')})`:addonName(x.label??x.name)}</span><small data-state={x.installed===false&&x.kind!=='hook'?'missing':undefined}>{addonState(x)}</small></li>)}</ul>:<p className="fine-print">{query.trim()&&all.length?'No add-on matches your search.':missing?`${name} was not found in this computer’s home folder.`:'No plugins or hooks found.'}</p>}
    </section>;})}</div>}
   <p className="apps-help">Dpro’s own: <button type="button" className="link-button" onClick={onConnections}>MCP connections</button>{onSkills&&<> · <button type="button" className="link-button" onClick={onSkills}>Skills</button></>} · Which coding apps can answer in Chat: Settings › Replies.</p>
  </div>;

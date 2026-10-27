@@ -1,4 +1,5 @@
 import type {CardTab} from './agent-card';
+import {modelDisplayName} from './model-names';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import type {KeyboardEvent as ReactKeyboardEvent,MouseEvent as ReactMouseEvent} from 'react';
 import type {AgentsController,PublicAgent} from './agents';
@@ -124,7 +125,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
    {shown.map(a=><button type="button" key={a.id} role="option" aria-selected={selected===a.id} tabIndex={selected===a.id||!agent&&shown[0]?.id===a.id?0:-1} className="ag-row" onClick={()=>select(a.id)} onDoubleClick={()=>onOpen(a.id)} onKeyDown={e=>rowKey(e,a)} onContextMenu={(e:ReactMouseEvent)=>{select(a.id);menu.at(e,items(a));}}>
     <AgentFace agent={a} face={owner?faces[a.id]:undefined} profile={owner&&faces[a.id]?library?.find(e=>e.profile.name===faces[a.id])?.profile:undefined}/>
     <span className="ag-row-text"><span className="ag-row-name">{a.subAgentOf&&<UiIcon name="sub-agent" size={12}/>}<bdi>{a.name??'Name unavailable'}</bdi>{a.isPrimary&&<span className="ag-tag">Main agent</span>}</span><span className="ag-row-sub">{a.isPrimary?'Talks to you first':a.subAgentOf?`Sub-agent of ${s.agents.find(x=>x.id===a.subAgentOf)?.name??'its agent'}`:roleWord(a.role)}</span></span>
-    <span className="ag-row-dept"><DepartmentTile department={a.department}/>{departmentName(a.department)}</span>
+    <span className="ag-row-dept">{a.department&&<><DepartmentTile department={a.department}/>{departmentName(a.department)}</>}</span>
    </button>)}
    {!shown.length&&<div className="ag-empty"><UiIcon name="users" size={28}/><p>{s.phase==='listing'||s.phase==='idle'?'Loading the team…':s.phase==='error'?'The team could not be loaded.':s.agents.length?'No one here matches.':'Hire your first agent.'}</p>{s.phase==='error'&&<button type="button" onClick={()=>void controller.list()}>Try again</button>}{s.phase==='ready'&&!s.agents.length&&onHire&&<button type="button" className="primary" onClick={onHire}>Hire agent</button>}</div>}
   </div>}
@@ -170,7 +171,7 @@ function Inspector({controller,agent,owner,onOpen,onChat,onMenu,onClose,picking,
   {icon:'layers',title:'Specialties',text:facts.specialties.map(x=>x.name).join(' · ')||'No specialty yet',section:'skills'},
   {icon:'star',title:'Skills',text:facts.inherited+facts.extra?`${facts.inherited} from its specialties · ${facts.extra} extra`:'No skills yet',section:'skills'},
   {icon:'lock',title:'Permissions',text:permissionLine(facts.modes),section:'permissions'},
-  {icon:'cpu',title:'Answers with',text:agent.model?`${agent.model}${agent.provider==='claude'?' · Claude':' · on this computer'}`:'The default model',section:'profile'},
+  {icon:'cpu',title:'Answers with',text:agent.model?`${modelDisplayName(agent.model)}${agent.provider==='claude'?(modelDisplayName(agent.model).startsWith('Claude')?'':' · Claude'):' · on this computer'}`:'The default model',section:'profile'},
  ]:[];
  return <div className="ag-insp">
   <div className="ag-insp-head"><span className="ag-insp-back"><IconButton icon="arrow-left" label="Back to the list" onClick={onClose}/></span><Avatar name={agent.name??'?'} size={52}/><span><b><bdi>{agent.name??'Agent'}</bdi></b><small>{roleWord(agent.role)} · {departmentName(agent.department)}</small></span></div>

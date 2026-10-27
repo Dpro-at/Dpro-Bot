@@ -38,7 +38,7 @@ export function AppsWorkspace({client,active,sidebarSlot,onOpen,onConnections,on
  const searchable=place==='mine'||place==='addons'||place==='catalogue';
  // Store has two views, nested under it while it is open (like Memory in Settings).
  const store=place==='catalogue'||place==='addons';
- const row=(id:AppsPlace,label:string,icon:UiIconName,nested=false)=><button type="button" className="nav-item dk-place" key={id} data-nested={nested||undefined} aria-current={place===id?'page':undefined} onClick={()=>change(id)}>{!nested&&<UiIcon name={icon} size={15}/>}<span className="dk-place-name">{label}</span></button>;
+ const row=(id:AppsPlace,label:string,icon:UiIconName,nested=false)=><button type="button" className="nav-item dk-place" key={id} data-nested={nested||undefined} aria-current={place===id?'page':undefined} onClick={()=>change(id)}><UiIcon name={icon} size={nested?13:15}/><span className="dk-place-name">{label}</span></button>;
  const nav=<nav className="dk-sidebar apps-places" aria-label="Apps places">
   <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={searchInput} type="search" aria-label="Search apps" disabled={!searchable} value={query} onChange={e=>setQuery(e.target.value)} placeholder={searchable?'Search  ⌘F':'Search'}/></label></div>
   {row('mine','My apps','layers')}

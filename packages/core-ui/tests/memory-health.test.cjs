@@ -44,13 +44,13 @@ test('health check names the doctor kinds; the M13 dialog fixes only the ticked 
   const c = new MemoryHealthController(client);
   await c.load();
   const html = renderToStaticMarkup(React.createElement(HealthView, { c, conflicts: 2, onReview: () => {}, onFiles: () => {} }));
-  for (const words of ['Health check', 'Duplicate copies', 'Expired working items', 'every memory indexed with qwen3-embedding:0.6b', 'Broken drawer', 'Map leftovers', 'Open conflicts', 'Review safe fixes (18)…', 'Rules', 'for the whole company',
-    'Routine facts', 'Save automatically', 'Weekly summary', 'Monday', '09:00', 'Keep Tasks drawer items', 'Every 15 minutes', 'Secrets are never saved to memory', 'Speed: cache and context', 'Context pack', '82%', '1.4 s', '32k', 'nothing to clear by hand', 'Export all'])
+  for (const words of ['Health check', 'Duplicate copies', 'Expired working items', 'Indexed with qwen3-embedding:0.6b', 'Missing project', 'Unused map links', 'Open conflicts', 'Review safe fixes (18)…', 'Rules', 'for the whole company',
+    'Routine facts', 'Save automatically', 'Weekly summary', 'Monday', '09:00', 'Keep task notes', 'Every 15 minutes', 'Secrets are never saved to memory', 'Speed', 'Context pack', '82%', '1.4 s', '32k', 'nothing to clear by hand', 'Export all'])
     assert.ok(html.includes(words), words);
   assert.ok(!html.includes('Clear cache'), 'M16: no clear-cache button (caches clear on their own)');
   c.startFix();
   const dialog = renderToStaticMarkup(React.createElement(SafeFixDialog, { c }));
-  for (const words of ['Review safe fixes', 'Pick what to fix. Deleted copies keep their history and can be brought back.', 'Keep the one with a topic key', 'Delete working / experience items past their expiry', 'Missing meaning index', 'Old meaning index', 'Loose history', 'Topic key not in standard form', 'Show the 2 duplicate groups', 'Fix 4 kinds · 18 items', 'Cancel'])
+  for (const words of ['Review safe fixes', 'Pick what to fix. Deleted copies keep their history and can be brought back.', 'Keep the one with a topic key', 'Delete working / experience items past their expiry', 'Missing meaning index', 'Old meaning index', 'History without its memory', 'Badly named topics', 'Show the 2 duplicate groups', 'Fix 4 kinds · 18 items', 'Cancel'])
     assert.ok(dialog.includes(words), words);
   c.toggleKind('expired'); c.toggleKind('embedding-stale'); c.toggleKind('broken-drawer');
   await c.fix();

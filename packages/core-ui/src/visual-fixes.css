@@ -1,0 +1,146 @@
+/* Visual check 2026-10-26: fixes found at 1280, 1440, 1728 and 800 px in light and dark. */
+
+/* Footer: the connection dot is round, not a pill (the status-bar span height does not apply to it). */
+.statusbar .status-dot { min-block-size:0; block-size:6px; inline-size:6px; flex:none; margin-inline-end:0; }
+.app-shell .statusbar .status-dot-only { margin-inline-end:0; }
+
+/* 1 · Settings › Memory › Sources: the three panes use the whole page and stack when it is narrow. */
+.app-shell .app-settings .mem-settings:has(.disc), .app-shell .preferences-page:has(.disc) { max-inline-size:none; }
+.app-shell .disc-side .disc-roots { flex-direction:column; flex-wrap:nowrap; }
+.app-shell .mem-settings-body:has(> .disc), .app-shell .local-import:has(> .disc) { container-type:inline-size; }
+.app-shell .disc-roots .disc-root { block-size:auto; min-block-size:44px; flex-shrink:0; }
+.app-shell .disc-root-count { flex-shrink:0; }
+.app-shell .disc-row { grid-template-columns:22px 56px minmax(0,1fr) minmax(0,160px) auto auto; }
+.app-shell .disc-acts { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+.app-shell .disc-acts button { white-space:nowrap; }
+.app-shell .disc-head > div { min-inline-size:min(220px,100%); }
+@container (max-width:1180px) {
+  .app-shell .disc { grid-template-columns:240px minmax(0,1fr); }
+  .app-shell .disc-preview { grid-column:1 / -1; position:static; }
+}
+@container (max-width:760px) {
+  .app-shell .disc { grid-template-columns:minmax(0,1fr); }
+  .app-shell .disc-side .disc-roots { max-block-size:240px; }
+  .app-shell .disc-row { grid-template-columns:22px minmax(0,1fr) auto; }
+  .app-shell .disc-row .disc-kind, .app-shell .disc-row .disc-to { display:none; }
+  .app-shell .disc-row .disc-acts { grid-column:2 / -1; justify-content:flex-end; }
+}
+.app-shell .disc-row .disc-item { box-shadow:none; background:transparent; padding:0; }
+.app-shell .disc-row .disc-item:hover b { text-decoration:underline; }
+.app-shell .disc-every { white-space:nowrap; }
+
+/* 3 · Approvals: the place fills the window; an empty list shows one empty state, not two. */
+.app-shell .page-approvals > div:not([hidden]) { flex:1; min-inline-size:0; display:flex; flex-direction:column; min-block-size:0; }
+.app-shell .approval-panes:has(.approval-list-pane .approval-empty):not([data-selected="true"]) { grid-template-columns:minmax(0,1fr); }
+.app-shell .approval-panes:has(.approval-list-pane .approval-empty):not([data-selected="true"]) .approval-inspector { display:none; }
+
+/* 4 · Reviews asked of me / Approval rules: blocked by account verification shows one clear callout, not an empty two-pane page. */
+.app-shell .blocked-callout { display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; margin:48px auto; max-inline-size:420px; color:var(--muted); }
+.app-shell .blocked-callout > svg { color:var(--accent); }
+.app-shell .blocked-callout p { margin:0; color:var(--text); line-height:1.6; }
+.app-shell .blocked-callout button { align-self:center; }
+.app-shell [data-blocked] > .human-review-panes, .app-shell [data-blocked] > .human-policy-picker, .app-shell [data-blocked] > .human-review-toolbar label, .app-shell [data-blocked] > .human-review-empty { display:none; }
+.app-shell .human-review-toolbar input[type="search"] { block-size:28px; min-block-size:28px; padding-block:0; line-height:26px; }
+
+/* 5 · Settings › Saved keys: the page shows its keys in the page, not in a card pinned to the window edge. */
+.app-shell .saved-keys[data-page] { position:static; inset:auto; z-index:auto; inline-size:auto; max-inline-size:640px; max-block-size:none; overflow:visible; box-shadow:none; border:0; background:transparent; padding:0; }
+
+/* 6 · A notice while signed in (too many requests, …) sits quietly at the bottom of the page, never over the toolbar. */
+.app-shell .page-notice.workspace-notice { position:fixed; z-index:60; inset-block-end:36px; inset-inline-start:50%; transform:translateX(-50%); margin:0; display:flex; align-items:center; gap:10px; max-inline-size:min(520px,calc(100vw - 32px)); padding:6px 6px 6px 12px; border-radius:8px; background:var(--surface); color:var(--text); box-shadow:inset 0 0 0 1px var(--border), 0 8px 24px #0003; }
+.app-shell .page-notice.workspace-notice .tool { flex:none; min-block-size:22px; block-size:22px; inline-size:22px; padding:0; background:transparent; }
+
+/* 7 · Memory › Needs you: each colour is a swatch with a plain name and its own button; warning text passes 4.5:1 in light. */
+.shell:not([data-theme="dark"]) { --mem-warn:#7A520A; }
+.app-shell .dk-colour-choice { display:grid; gap:10px; align-content:start; }
+.app-shell .dk-colour-choice > p { display:flex; align-items:center; gap:10px; margin:0; }
+.app-shell .dk-colour-choice > p > span:last-child { display:grid; gap:2px; min-inline-size:0; }
+.app-shell .dk-colour-choice button { justify-self:start; }
+
+/* 30, 31 · Main agent pill passes 4.5:1 in light; the per-agent department menus stay quiet until pointed at. */
+.shell:not([data-theme="dark"]) .ag-tag { color:#5F3BB8; }
+.app-shell .dept-agent select { border-color:transparent; background:transparent; color:var(--muted); }
+.app-shell .dept-agent:hover select, .app-shell .dept-agent select:focus-visible { border-color:var(--control); color:var(--text); }
+
+/* 12 · Agent › Activity: a line opened in Approvals keeps its title above its detail, next to its date. */
+.app-shell .ag-timeline li > .ag-activity-open { justify-self:start; justify-content:flex-start; text-align:start; padding:0; min-block-size:0; block-size:auto; color:inherit; }
+.app-shell .ag-timeline li > .ag-activity-open > span { display:grid; gap:2px; padding-block-start:3px; font-size:13px; }
+.app-shell .ag-timeline li > .ag-activity-open:hover > span > span:first-child { text-decoration:underline; }
+
+/* 8 · Agent › Files: the file uses the page width, opens as a preview, and the part Personality wrote stays folded. */
+.app-shell .ag-part.af-part { max-inline-size:1280px; }
+.app-shell .af-doc { container-type:inline-size; }
+@container (max-width:860px) { .app-shell .af-doc .doc-workspace { grid-template-columns:minmax(0,1fr); } .app-shell .af-doc .doc-mode-split .doc-workspace { grid-template-columns:minmax(0,1fr) minmax(0,1fr); } .app-shell .af-doc .doc-outline { display:none; } }
+.app-shell details.af-managed > summary { display:flex; align-items:center; gap:8px; cursor:default; list-style:none; }
+.app-shell details.af-managed > summary::-webkit-details-marker { display:none; }
+.app-shell details.af-managed > summary small { margin-inline-start:auto; color:var(--text-3); }
+.app-shell details.af-managed[open] > summary small { display:none; }
+.app-shell details.af-managed > .link-button { justify-self:start; }
+
+/* 9, 10 · Settings › Channels and › Accounts: list + inspector use the page width as one framed pane, like the other settings lists. */
+.app-shell .preferences-page:has(.apps-panes, .channel-workspace) { max-inline-size:1200px; }
+.app-shell .channel-workspace { grid-template-columns:minmax(240px,300px) minmax(0,1fr); }
+.app-shell .channel-service-list [role="option"] strong, .app-shell .channel-service-list [role="option"] b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .apps-accounts .apps-panes { grid-template-columns:minmax(260px,340px) minmax(0,1fr); border:1px solid var(--border); border-radius:9px; overflow:hidden; background:var(--surface); min-block-size:420px; }
+.app-shell .apps-accounts .apps-inspector { border-inline-start:1px solid var(--border); }
+.app-shell .apps-accounts .connection-card { border:0; padding:0; margin:0; background:transparent; box-shadow:none; }
+
+/* 25 · A hidden file picker stays hidden (Share settings drop area). */
+.app-shell input[type="file"][hidden] { display:none !important; }
+
+/* 34 · Settings › General: each theme swatch is a small window picture, so Dark shows on a dark page too. */
+.app-shell .settings-theme-picture { box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text) 28%,transparent); }
+.app-shell [data-theme-choice=light] .settings-theme-picture { background:linear-gradient(#D7DDE8,#D7DDE8) 0 0/100% 8px no-repeat, linear-gradient(#C3CBD9,#C3CBD9) 8px 15px/30px 4px no-repeat, linear-gradient(#C3CBD9,#C3CBD9) 8px 23px/20px 4px no-repeat, #F7F9FC; }
+.app-shell [data-theme-choice=dark] .settings-theme-picture { background:linear-gradient(#2B313C,#2B313C) 0 0/100% 8px no-repeat, linear-gradient(#46505F,#46505F) 8px 15px/30px 4px no-repeat, linear-gradient(#46505F,#46505F) 8px 23px/20px 4px no-repeat, #101318; }
+.app-shell [data-theme-choice=system] .settings-theme-picture { background:linear-gradient(90deg,transparent 50%,#101318 50%), linear-gradient(#D7DDE8,#D7DDE8) 0 0/100% 8px no-repeat, #F7F9FC; }
+
+/* 23 · Library › Skills › Found on this computer: the skill's own description first; its file stays folded. */
+.app-shell .sk-found-about { margin:0; max-inline-size:72ch; font-size:13px; line-height:1.6; }
+.app-shell .sk-found-file > summary { cursor:default; color:var(--text-2, var(--muted)); font-size:12px; margin-block-end:8px; }
+
+/* 21, 22 · Apps › Store: nested places carry an icon and an indent; add-on names end in "…" and the cards share the width. */
+.app-shell .dk-sidebar .dk-place[data-nested] { padding-inline-start:26px; font-size:12px; }
+.app-shell .apps-addon-cards { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+.app-shell .apps-addon-card li > span { flex:1; min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .apps-addon-card li > small { flex:none; white-space:nowrap; }
+
+/* 14 · Board: the usual five columns share the window width (no half column at the edge); empty boards show no "0". */
+.app-shell .board-columns .board-column { flex:1 0 210px; min-inline-size:210px; max-inline-size:340px; }
+.app-shell .board-rail-item { min-inline-size:0; }
+.app-shell .board-rail-name { min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .board-rail-item .board-count { flex:none; }
+
+/* 11 · Agents › Chart: the hint and the zoom/line buttons sit in a bar under the chart, never over the last row; the fold arrow has its own room on the card. */
+.app-shell .oc-wrap { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:minmax(0,1fr) auto; }
+.app-shell .oc-wrap > .oc-plane { grid-column:1 / -1; grid-row:1; }
+.app-shell .oc-wrap > .oc-hint { position:static; grid-row:2; grid-column:1; align-self:center; padding:6px 16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .oc-wrap > .oc-zoom { position:static; grid-row:2; grid-column:2; margin:6px 14px 8px; }
+.app-shell .oc-slot:has(> .oc-fold) > .oc-card { padding-inline-end:28px; }
+
+/* 26 · Terminal › Sessions: the empty state's button is centred with its sentence. */
+.app-shell .dk-empty > button { justify-self:center; }
+
+/* 35 · Chat: "Start with a task" opens with a chevron, not a text arrow. */
+.app-shell .chat-starting-ideas > summary { list-style:none; display:inline-flex; align-items:center; gap:6px; cursor:default; }
+.app-shell .chat-starting-ideas > summary::-webkit-details-marker { display:none; }
+.app-shell .chat-starting-ideas > summary > svg { transition:rotate .12s; }
+.app-shell .chat-starting-ideas[open] > summary > svg { rotate:90deg; }
+
+/* 37 · Agent › Personality: the green "Now" label passes 4.5:1 in light. */
+.shell:not([data-theme="dark"]) .ag-ok { color:#1B7346 !important; }
+.app-shell label.check.mem-rule { justify-content:flex-start; align-items:center; }
+
+/* 36 · The account chip keeps its role on one line ("Owner of this workspace" ends in "…" when narrow). */
+.app-shell .user-chip .user-name { min-inline-size:0; }
+.app-shell .user-chip .user-name > bdi, .app-shell .user-chip .user-name > small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* 40 · Approvals › Tools without a rule: the name in code and the extra note stay folded. */
+.app-shell .coverage-more > summary { cursor:default; font-size:12px; color:var(--muted); margin-block:8px 4px; }
+
+/* 38 · Library › Personalities below 1100 px: while there is room the inspector sits beside the list instead of over it. */
+.app-shell :has(> .pl-panes) { container-type:inline-size; }
+@media (max-width:1100px) {
+  @container (min-width:560px) {
+    .app-shell .pl-panes[data-inspector] { grid-template-columns:minmax(0,1fr) 270px; }
+    .app-shell .pl-panes[data-inspector] > .pl-insp { position:static; inline-size:auto; box-shadow:none; border-inline-start:1px solid var(--border); }
+  }
+}

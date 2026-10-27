@@ -27,7 +27,7 @@ test('Agents sidebar is the team only: All staff and Main agent; no Departments 
  const {CardView}=require('../src/AgentCard.tsx');assert.ok(CardView);
  assert.match(src('AgentCard.tsx'),/title=\{`Open \$\{label\} in Library`\}/);
  // The department still shows as a chip on each staff row.
- assert.match(src('StaffDirectory.tsx'),/className="ag-row-dept"><DepartmentTile department=\{a\.department\}\/>/);
+ assert.match(src('StaffDirectory.tsx'),/className="ag-row-dept">\{a\.department&&<><DepartmentTile department=\{a\.department\}\/>/);
 });
 
 test('Settings has Accounts, Channels, MCP connections and Departments; Library and Apps stay jump rows',()=>{

@@ -1,4 +1,5 @@
 import {AgentMemoryList} from './AgentMemoryList';
+import { modelDisplayName } from './model-names';
 import {MemoryExplorerController} from './memory-explorer';
 import {AgentPersonalityLibrary} from './AgentPersonalityLibrary';
 import {AgentSpecialtiesSkills} from './AgentSpecialtiesSkills';
@@ -169,7 +170,7 @@ function AnswersWith({ card, busy, onPick }: { card: AgentCardController; busy: 
   const claudeWithoutKey = s.agent?.provider === 'claude' && !models.some(m => m.provider === 'claude');
   return <label className="ag-field">Answers with<span className="ag-picker"><UiIcon name={s.agent?.provider==='claude'?'sparkle':'screen'} size={14}/>
     <select aria-label="Answers with" value={current} disabled={busy || !models.length} onChange={e => { const m = models.find(x => x.id === e.target.value); onPick(e.target.value, m?.label ?? e.target.value); }}>
-      {!known && <option value={current}>{current || 'Not set'}{claudeWithoutKey ? ' (no Claude key: answers use the local model)' : ''}</option>}
+      {!known && <option value={current}>{modelDisplayName(current) || 'Not set'}{claudeWithoutKey ? ' · no key' : ''}</option>}
       {models.some(m => m.provider === 'ollama') && <optgroup label="On this computer">{models.filter(m => m.provider === 'ollama').map(m => <option key={m.id} value={m.id}>{m.label}{m.size ? ` · ${m.size}` : ''}</option>)}</optgroup>}
       {models.some(m => m.provider === 'claude') && <optgroup label="Claude (paid)">{models.filter(m => m.provider === 'claude').map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</optgroup>}
     </select></span>

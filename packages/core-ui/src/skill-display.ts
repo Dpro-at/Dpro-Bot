@@ -7,7 +7,31 @@ export function skillTitle(name:string){
  const clean=name.trim();if(!clean)return 'Untitled skill';
  if(/[A-Z ]/.test(clean)&&!/[-_]/.test(clean))return clean;
  const words=clean.replace(/\.md$/i,'').replace(/[-_]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
- return words.charAt(0).toUpperCase()+words.slice(1);
+ return properWords((words.charAt(0).toUpperCase()+words.slice(1)));
+}
+/** Names that have their own spelling ("Github" → "GitHub", "Json" → "JSON"). */
+const PROPER:Record<string,string>=Object.fromEntries(['AI','API','CLI','LSP','PHP','SVG','PNG','MD','CSS','CSV','HTML','JSON','MCP','PDF','PR','QA','SDK','SEO','SQL','SSH','UI','UX','URL','GenVR','GitHub','GitLab','iOS','macOS','OpenAI','YouTube','LinkedIn','TikTok','WhatsApp','PostgreSQL','SQLite','TypeScript','JavaScript','Dpro'].map(w=>[w.toLowerCase(),w]));
+export function properWords(text:string){return text.replace(/[A-Za-z]+/g,w=>PROPER[w.toLowerCase()]??w);}
+
+/** A SKILL.md as the owner reads it: the description from its front matter, and the text after it. */
+export function skillFileSummary(text:string){
+ const m=/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
+ if(!m)return {description:'',body:text};
+ const lines=m[1].split(/\r?\n/),at=lines.findIndex(l=>/^description\s*:/.test(l));
+ let description='';
+ if(at>=0){const first=lines[at].replace(/^description\s*:\s*/,'').trim();
+  const rest:string[]=[];for(const l of lines.slice(at+1)){if(/^\S/.test(l))break;rest.push(l.trim());}
+  description=(/^[>|][+-]?$/.test(first)?rest:[first,...rest]).join(' ').replace(/^["']|["']$/g,'').replace(/\s+/g,' ').trim();}
+ return {description,body:text.slice(m[0].length)};
+}
+
+/** Why a found item cannot be added, in plain words (codes never reach the screen). */
+export function blockedReason(code:string){
+ const say:Record<string,string>={
+  skill_name_taken:'Dpro already has another skill with this name. It is not replaced from here; compare them in Skills.',
+  unsupported_configuration:'Its settings use a form Dpro cannot run yet, so it cannot be added.',
+ };
+ return say[code]??`It cannot be added here (${code.replace(/_/g,' ')}).`;
 }
 
 export type SkillSource={key:string;group:string;line:string;icon:UiIconName;app?:string};
@@ -53,3 +77,11 @@ export function fileTitle(path:string){
  const base=path.split('/').pop()??path;return skillTitle(base.replace(/\.md$/i,''));
 }
 export function folderTitle(path:string){const parts=path.split('/');return parts.length>1?skillTitle(parts.slice(0,-1).join(' › ')):'';}
+
+/** A marketplace or plugin id as words: "claude-plugins-official" → "Official Claude Code plugins". */
+export function publisherName(id:string){
+ const known:Record<string,string>={'claude-plugins-official':'Official Claude Code plugins'};
+ return known[id]??skillTitle(id);
+}
+/** "name@marketplace" (a coding-app plugin) as its own name, without the marketplace id. */
+export function addonName(id:string){const at=id.lastIndexOf('@');return skillTitle(at>0?id.slice(0,at):id);}

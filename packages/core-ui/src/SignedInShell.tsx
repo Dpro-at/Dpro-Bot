@@ -191,7 +191,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       </div>
     </aside>
     <main id="content" className="page-area">
-      {notice && <p className="page-notice" role="status">{notice}</p>}
+      {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
         {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}

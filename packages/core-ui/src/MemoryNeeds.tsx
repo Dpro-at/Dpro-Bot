@@ -64,7 +64,8 @@ function Question({ c, onOpenChat }: { c: MemoryReviewController; onOpenChat?: (
     <p className="fine-print">Found in {l.memoryIds.length} {l.memoryIds.length === 1 ? 'memory' : 'memories'} · {ago(l.createdAt)}. An approved link helps replies connect people, projects and decisions.</p>
     <div className="actions"><button type="button" onClick={() => void c.approve('reject')} disabled={s.busy}>Reject</button><button type="button" className="primary" onClick={() => void c.approve('approve')} disabled={s.busy}>Approve</button></div>
   </article>; }
-  if (s.detailBusy || !s.detail) return <p className="dk-empty" role="status">Reading…</p>;
+  if (s.detailBusy) return <p className="dk-empty" role="status">Reading…</p>;
+  if (!s.detail) return <div className="dk-empty"><button type="button" onClick={() => void c.load()}>Read the questions again</button></div>;
   const d = s.detail;
   if (d.conflictWith) {
     const ch = d.changes[0];
@@ -147,6 +148,19 @@ function NeedsList({ c, keys }: { c: MemoryReviewController; keys: (e: KeyboardE
   </div>;
 }
 
+const fileName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+/** A plain name for a colour code ("Dark blue"), so the choice reads as words, not a code. */
+function colourName(hex: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return 'Colour';
+  const n = parseInt(m[1], 16), [r, g, b] = [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (sat < 0.15) return l < 0.15 ? 'Black' : l > 0.9 ? 'White' : l < 0.4 ? 'Dark grey' : l > 0.7 ? 'Light grey' : 'Grey';
+  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  const hue = h < 15 || h >= 345 ? 'red' : h < 40 ? 'orange' : h < 65 ? 'yellow' : h < 160 ? 'green' : h < 190 ? 'teal' : h < 255 ? 'blue' : h < 290 ? 'purple' : 'pink';
+  const word = l < 0.35 ? `Dark ${hue}` : l > 0.7 ? `Light ${hue}` : hue[0].toUpperCase() + hue.slice(1);
+  return word;
+}
 /** Board M31 J4: only a real disagreement in a project's design asks (two main colours), one question each. */
 function DesignQuestions({ d }: { d: MemoryDesktopController }) {
   const [list, setList] = useState<Awaited<ReturnType<MemoryDesktopController['designConflicts']>> | null>(null);
@@ -155,8 +169,10 @@ function DesignQuestions({ d }: { d: MemoryDesktopController }) {
   const q = list[0];
   return <article className="dk-question">
     <h3><UiIcon name="palette" size={15}/>Two main colours for {q.project}</h3>
-    <div className="dk-versus">{q.options.slice(0, 2).map(o => <div key={o.value}><span className="fine-print">{o.source}</span><p><span className="dk-swatch dk-swatch-big" style={{ background: o.value }} aria-hidden="true"/> Main: {o.value}</p></div>)}</div>
-    <div className="actions">{q.options.map((o, i) => <button key={o.value} type="button" className={i === 0 ? 'primary' : undefined} onClick={() => void d.setMainColour(q.project, o.value).then(ok => { if (ok) setList(list.slice(1)); })}>Use {o.value}</button>)}</div>
+    <div className="dk-versus">{q.options.slice(0, 2).map((o, i) => <div key={o.value} className="dk-colour-choice">
+      <p><span className="dk-swatch dk-swatch-big" style={{ background: o.value }} aria-hidden="true"/><span><b>{colourName(o.value)}</b><span className="fine-print" title={o.source}>From {fileName(o.source)} · <span dir="ltr">{o.value}</span></span></span></p>
+      <button type="button" className={i === 0 ? 'primary' : undefined} aria-label={`Use ${colourName(o.value).toLowerCase()} ${o.value} from ${fileName(o.source)}`} onClick={() => void d.setMainColour(q.project, o.value).then(ok => { if (ok) setList(list.slice(1)); })}>Use this colour</button>
+    </div>)}</div>
     <p className="fine-print">Only a real disagreement asks you. Everything else is added on its own.</p>
   </article>;
 }

@@ -37,7 +37,7 @@ export function SavedKeys({ client, owner, highlight, onClose, page = false }: {
       : keys === 'error' ? <p className="chat-export-note" role="alert">The saved keys could not be read.</p>
         : keys.length === 0 ? <p className="chat-export-hint">No keys saved from the chat yet.</p>
           : <ul className="saved-keys-list">{keys.map(k => <li key={k.id} data-highlight={k.id === highlight || undefined}>
-            <span className="saved-key-name"><b>{secretLabel(k.type)}</b><code dir="ltr">{k.id}</code></span>
+            <span className="saved-key-name"><b>{secretLabel(k.type)}</b><code dir="ltr" title={k.id} aria-label={`ending in ${k.id.slice(-4)}`}>···{k.id.slice(-4)}</code></span>
             <span className="saved-key-when">{when(k.createdAt)}{k.lastUsed ? ` · used ${when(k.lastUsed)}` : ''}</span>
             <button type="button" className="tool" onClick={() => void remove(k)} aria-label={`Delete ${secretLabel(k.type)} ${k.id}`}><UiIcon name="trash" size={12}/></button>
           </li>)}</ul>}

@@ -62,11 +62,25 @@ export function AuthBoundary({ client: supplied, children, initialPage }: { clie
     {state.mode === 'fixture' ? (liveOnly ? null : children) : <SessionWorkspace key={`${state.mode}:${state.epoch}`} client={client} setupCode={setupCode} initialPage={initialPage}/>}
   </div>;
 }
+/**
+ * A notice while signed in: a quiet note at the bottom, never over the toolbar.
+ * "Too many requests" counts down and goes away by itself; the others stay until closed.
+ */
+function WorkspaceNotice({ notice, seconds }: { notice: keyof typeof notices; seconds?: number }) {
+  const limited = notice === 'rate_limited' || notice === 'limited';
+  const [left, setLeft] = useState(limited ? seconds ?? 30 : 0), [closed, setClosed] = useState(false);
+  useEffect(() => { if (!limited || left <= 0) return; const t = setTimeout(() => setLeft(n => n - 1), 1000); return () => clearTimeout(t); }, [limited, left]);
+  if (closed || (limited && left <= 0)) return null;
+  return <p className="page-notice workspace-notice" role="status">
+    <span>{limited ? `Too many requests at once. Try again in ${left} s.` : <>{notices[notice]}{retryAfterNotice(seconds)}</>}</span>
+    <button type="button" className="tool" aria-label="Close this notice" title="Close" onClick={() => setClosed(true)}><UiIcon name="close" size={12}/></button>
+  </p>;
+}
 function SessionWorkspace({ client, setupCode, initialPage }: { client: SessionClient; setupCode: string | null; initialPage?: 'home' | 'account' }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   // Signed in: the full workspace (sidebar, chat, agents, memory, account).
-  if (state.phase === 'authenticated' && state.user) return <SignedInShell client={client} notice={state.notice ? <>{notices[state.notice]}{retryAfterNotice(state.retryAfterSeconds)}</> : null}/>;
+  if (state.phase === 'authenticated' && state.user) return <SignedInShell client={client} notice={state.notice ? <WorkspaceNotice key={`${state.notice}:${state.retryAfterSeconds ?? ''}`} notice={state.notice} seconds={state.retryAfterSeconds}/> : null}/>;
   if(state.phase==='recovery-codes')return <PublicShell setup="login" initialPage="account" blocking><RecoveryCodes client={client}/></PublicShell>;
   return <PublicShell setup={state.setup} initialPage={initialPage} accountStep={state.phase==='signing-in'||!!state.verification||!!state.notice}><section className="auth-workspace" aria-label="Account sign-in" lang="en" dir="ltr">
     <h1>Dpro Agent · {state.mode === 'mock' ? 'Offline login exercise' : 'Account'}</h1>
