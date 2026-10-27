@@ -3162,6 +3162,498 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Account manager",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/account-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to account/contract records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized account record update or customer commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Lead qualification specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/lead-qualification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to lead records and supplied fit/intent evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized lead record or ownership change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sales operations specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/sales-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to pipeline/forecast snapshots when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized CRM or sales automation change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sales representative",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/sales-representation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to assigned prospect/account evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized outbound message or commercial commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Inventory specialist",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/inventory-planning.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to SKU/location stock and order records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized stock adjustment, reservation or purchase when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Process analyst",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/process-analysis.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to process evidence and approved procedures when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized process publication or workflow activation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Project coordinator",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/project-coordination.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to project status and dependency records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized tracker assignment or stakeholder notification when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Purchasing specialist",
+      "package": "operations-delivery",
+      "references": [
+        "references/purchasing.md",
+        "references/inventory-planning.md",
+        "references/operating-contract.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to requisitions, supplier quotes and orders when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized purchase-order issue or purchasing record change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Scheduling coordinator",
+      "package": "operations-delivery",
+      "references": [
+        "references/scheduling.md",
+        "references/operating-contract.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to named calendar availability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact calendar event write with attendee notification scope when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
