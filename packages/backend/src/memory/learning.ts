@@ -37,6 +37,7 @@
  * a negation or opposite of it is a conflict proposal instead.
  */
 
+import { redactImportText } from './import/redact.js';
 import { v4 as uuidv4 } from 'uuid';
 import { one, sql } from '../repositories/sql-steps.js';
 import { getMemoryStorage } from './storage.js';
@@ -59,6 +60,8 @@ import { TopicKeyTakenError } from './storage.js';
 import { ALWAYS_ASK, rulesForDrawer, type EffectiveRules } from './scopes/rules.js';
 
 export const MAX_LEARNED_CONTENT = 50_000;
+/** CHAT-BUILD-01 (M1): importance an agent may give by itself; above it the owner decides. */
+export const AGENT_SELF_IMPORTANCE = 7;
 /** Confidence below this needs review. */
 export const LOW_CONFIDENCE = 0.6;
 /** Similarity at or above this, with different text, is a possible contradiction. */
@@ -546,7 +549,8 @@ export async function agentChange(input: {
   const after: VersionEntry | null = input.op === 'delete' ? null : {
     type: typeof input.updates?.type === 'string' && TYPE.test(input.updates.type) ? input.updates.type : before.type,
     importance: input.updates?.importance !== undefined ? clampImportance(input.updates.importance) : before.importance,
-    content: typeof input.updates?.content === 'string' && input.updates.content.trim() ? input.updates.content : before.content,
+    // CHAT-BUILD-01 (M2): secrets in an agent's new text are removed before it is stored.
+    content: typeof input.updates?.content === 'string' && input.updates.content.trim() ? redactImportText(input.updates.content).text : before.content,
   };
   if (after && after.content.length > MAX_LEARNED_CONTENT) return { status: 'refused', reason: 'Content is too long' };
   let topicKey: string | null | undefined;
@@ -575,6 +579,11 @@ export async function agentChange(input: {
     origin: input.outsider ? 'outsider' : 'agent',
     replaces: { id: old.id, content: before.content, type: before.type, important: before.importance >= 9 },
   });
+  // CHAT-BUILD-01 (M1): an agent cannot raise a memory above AGENT_SELF_IMPORTANCE by itself (it would be pinned).
+  if (after && after.importance > AGENT_SELF_IMPORTANCE && after.importance > before.importance) {
+    if (cls.kind === 'routine') cls.kind = 'important';
+    if (!cls.reasons.includes('high-importance')) cls.reasons.push('high-importance');
+  }
   const reasonText = (input.reason || '').slice(0, 200) || null;
   if (cls.kind === 'routine') {
     const actorReason = `agent:${input.op}${reasonText ? `: ${reasonText}` : ''}`;

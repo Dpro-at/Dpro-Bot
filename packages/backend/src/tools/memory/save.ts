@@ -15,8 +15,7 @@ import { toolMemoryActor } from '../../repositories/actor.js';
 import { isUserConversation, linkAgentProposal } from '../../services/chat-memory.js';
 import { redactImportText } from '../../memory/import/redact.js';
 
-/** CHAT-BUILD-01 (M1): an agent may not pin its own memory; importance above this waits for the owner. */
-export const AGENT_SELF_IMPORTANCE = 7;
+import { AGENT_SELF_IMPORTANCE } from '../../memory/learning.js';
 /** Metadata keys only the owner or the system sets (pinning, origin). */
 const RESERVED_METADATA = new Set(['pinned', 'pin', 'source', 'learned', 'origin', 'owner', 'importance']);
 import { DrawerInputError, defaultDrawerForType, parseDrawerId, sameDrawer, type DrawerRef } from '../../memory/drawers.js';

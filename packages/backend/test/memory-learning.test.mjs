@@ -197,8 +197,12 @@ test('CHAT-BUILD-01: an agent cannot pin its own memory; secrets it saves are re
   const m = JSON.parse(row.metadata);
   assert.equal(m.pinned, undefined); assert.equal(m.pin, undefined); assert.notEqual(m.source, 'owner'); assert.equal(m.note, 'kept');
   assert.ok(row.importance_score < 0.9, 'never in the pinned block');
+  const raise = await run(memoryEditTool, { id: meta.data.memoryId, importance: 10 }, ownerCtx);
+  assert.equal(raise.data?.pendingApproval ?? raise.data?.proposalId !== undefined, true, JSON.stringify(raise));
+  assert.ok(db.prepare('SELECT importance_score FROM memories WHERE id = ?').get(meta.data.memoryId).importance_score < 0.9, 'memory_edit cannot pin it either');
   const secret = 'ghp_' + 'Q1w2E3r4T5y6U7i8O9p0A1s2D3f4G5h6J7k8';
   const red = await run(memorySaveTool, { content: `Alpha CI token is ${secret}`, type: 'fact', drawer: 'project:alpha' }, ownerCtx);
+  await run(memoryEditTool, { id: meta.data.memoryId, content: `Alpha lint token ${secret}` }, ownerCtx);
   const all = db.prepare('SELECT content FROM memories').all().map((r) => r.content).join('\n') + JSON.stringify(red);
   assert.ok(!all.includes(secret), 'the raw secret is never stored or echoed');
 });
