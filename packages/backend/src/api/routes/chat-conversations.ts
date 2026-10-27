@@ -181,6 +181,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   if (existing) return existing.userId === userId && existing.sessionId === c.id ? replay() : send(409, { error: 'runId already used', code: 'run_id_reused' });
   const busy = chatRuns.activeFor(c.id);
   if (busy) return send(409, { error: 'This conversation is still answering', code: 'conversation_busy', runId: busy.id });
+  if (undoing.has(c.id)) return send(409, { error: 'Changes are being undone', code: 'conversation_busy' });
   if (chatRuns.runningCount(userId) >= MAX_RUNNING_PER_USER) {
     return { code: 429, body: { error: 'Too many chat turns are running', code: 'rate_limited' }, retryAfter: '10' };
   }
@@ -368,6 +369,8 @@ let approvalListener = false;
 const starting = new Set<string>();
 /** A 'running' row younger than this is never taken for stale (a start in another request may still be on its way). */
 const STALE_AFTER_MS = 10_000;
+/** Chats whose files an Undo or Redo is putting back right now: no new turn starts meanwhile. */
+const undoing = new Set<string>();
 export async function chatConversationRoutes(fastify: FastifyInstance) {
   if (!approvalListener) {
     approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); });
@@ -720,8 +723,11 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!m?.checkpoint_before || !m.checkpoint_after) return notFound(reply);
     const redo = b.redo === true;
     if (!!m.checkpoint_undone === !redo) return reply.code(409).send({ error: redo ? 'Nothing to redo' : 'Already undone', code: 'checkpoint_state' });
+    if (undoing.has(c.id)) return reply.code(409).send({ error: 'Already undoing', code: 'conversation_busy' });
+    undoing.add(c.id);
     try { await restore(redo ? m.checkpoint_before : m.checkpoint_after, redo ? m.checkpoint_after : m.checkpoint_before); }
     catch (err) { if (err instanceof CheckpointError) return reply.code(409).send({ error: err.message, code: 'checkpoint_changed' }); throw err; }
+    finally { undoing.delete(c.id); }
     await q.run('UPDATE chat_messages SET checkpoint_undone = ? WHERE id = ?', redo ? 0 : 1, (request.params as any).messageId);
     return { ok: true, undone: !redo };
   });

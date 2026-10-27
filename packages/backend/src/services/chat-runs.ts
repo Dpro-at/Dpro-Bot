@@ -200,7 +200,11 @@ export class ChatRun {
       const call = part?.calls.find((c: ToolCallPart) => c.id === r?.id) ?? part?.calls[i];
       const output = typeof r?.output === 'string' ? r.output : '';
       // CHAT-BUILD-01 stage 5: a call waiting for the owner carries its approval id, so the chat can show Allow once / Deny.
-      const approvalId = /^Waiting for owner approval: [\s\S]*?Approval request ([A-Za-z0-9-]{8,64}) is pending/.exec(output)?.[1];
+      // Only the approval gate's own text for this very tool counts (a page cannot make a card for another request);
+      // the card also checks the stored request's tool and chat before Allow once.
+      const toolName = typeof r?.name === 'string' ? r.name : call?.name ?? '';
+      const gate = /^Waiting for owner approval: "([^"]{1,128})" was NOT run\. Approval request ([A-Za-z0-9-]{8,64}) is pending;/.exec(output);
+      const approvalId = gate && gate[1] === toolName ? gate[2] : undefined;
       const res = { id: call?.id ?? (typeof r?.id === 'string' ? r.id : `s${step}-${i}`), name: typeof r?.name === 'string' ? r.name : call?.name ?? 'tool',
         output, isError: r?.isError === true, ms: Number.isFinite(r?.ms) ? Number(r.ms) : undefined, ...(approvalId ? { approvalId } : {}) };
       if (call) Object.assign(call, { output: res.output, isError: res.isError, ...(res.ms !== undefined ? { ms: res.ms } : {}), ...(approvalId ? { approvalId } : {}) });

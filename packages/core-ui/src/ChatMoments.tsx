@@ -9,7 +9,7 @@ import type { Part, ToolCall, Turn } from './turns';
 import { turnPlan } from './turns';
 import { UiIcon } from './ui-icons';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
-import { requestTitle } from './ApprovalPage';
+import { paramView, requestTitle } from './ApprovalPage';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
@@ -41,43 +41,56 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
   </div>;
 }
 
-/** CH1/CH6: an agent waits for you — Allow once / Deny right in the chat (also in Approvals). */
+/** CH1/CH6: an agent waits for you — review what it wants, then Allow once / Deny right in the chat (also in Approvals).
+ * The stored request must be this call's tool in this chat; its parameters are shown before Allow once. */
+type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean };
 export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
-  const { client } = useContext(MomentsContext);
-  const [state, setState] = useState<'waiting' | 'busy' | 'allowed' | 'denied' | 'gone'>('waiting');
+  const { client, conversationId } = useContext(MomentsContext);
+  const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'allowed' | 'denied' | 'gone'>('waiting');
+  const [detail, setDetail] = useState<Detail | null>(null);
   const [notice, setNotice] = useState('');
-  const [verify, setVerify] = useState<{ id: string; hash: string } | null>(null);
+  const [verify, setVerify] = useState(false);
   if (!client || !call.approvalId) return null;
   const id = call.approvalId;
   const send = async (path: string, body?: unknown) => client.request(body === undefined ? { method: 'POST', path } as never : { method: 'POST', path, body } as never);
-  const allow = async () => {
+  const review = async () => {
     setState('busy'); setNotice('');
     try {
       const d = await client.request({ method: 'GET', path: `/api/approvals/${id}` } as never);
-      const detail = (d.body as any)?.approval;
-      if (d.status !== 200 || !detail) { setState('gone'); return; }
-      if (detail.status !== 'pending') { setState(detail.status === 'denied' ? 'denied' : 'allowed'); return; }
-      if (detail.verificationRequired) { setVerify({ id, hash: detail.paramsHash }); setState('waiting'); return; }
-      const r = await send(`/api/approvals/${id}/approve`, { paramsHash: detail.paramsHash });
-      if (r.status === 200) setState('allowed');
-      else { setState('waiting'); setNotice('It was not allowed. Open Approvals to check it.'); }
+      const v = (d.body as any)?.approval as Detail | undefined;
+      if (d.status !== 200 || !v) { setState('gone'); return; }
+      if (v.toolName !== call.name || (conversationId && v.sessionId && v.sessionId !== conversationId)) { setState('gone'); setNotice('This card does not match the request it names. Check it in Approvals.'); return; }
+      if (v.status !== 'pending') { setState(v.status === 'denied' ? 'denied' : 'allowed'); return; }
+      setDetail(v); setState('review');
     } catch { setState('waiting'); setNotice('No connection. Try again.'); }
+  };
+  const allow = async (receipt?: string) => {
+    if (!detail) return;
+    setState('busy');
+    try {
+      const r = await send(`/api/approvals/${id}/approve`, { paramsHash: detail.paramsHash, ...(receipt ? { verificationReceipt: receipt } : {}) });
+      if (r.status === 200) setState('allowed'); else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
+    } catch { setState('review'); setNotice('No connection. Try again.'); }
   };
   const deny = async () => { setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); } catch { setState('waiting'); } };
   const title = requestTitle(call.name, null);
   if (state === 'allowed') return <p className="moment-line"><UiIcon name="check" size={12}/>Allowed: {title}. The chat carries on with the result.</p>;
   if (state === 'denied') return <p className="moment-line"><UiIcon name="close" size={12}/>Denied: {title}. It did not run.</p>;
-  if (state === 'gone') return <p className="moment-line">This request is no longer waiting. See Approvals.</p>;
+  if (state === 'gone') return <p className="moment-line">{notice || 'This request is no longer waiting. See Approvals.'}</p>;
+  const view = detail ? paramView(detail.params, detail.maskedFields ?? []) : null;
   return <div className="moment-card" data-tone="needs">
     <p><UiIcon name="alert" size={14}/><span><b>{who ?? 'The agent'}</b> wants to: {title}</span></p>
+    {view && (view.complete ? <dl className="approval-plain">{view.rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd dir="auto">{v}</dd></div>)}</dl>
+      : <p className="moment-hint">The full request is too long to show here. Check it in Approvals.</p>)}
     <div className="moment-actions">
-      <button type="button" className="moment-main" disabled={state === 'busy'} onClick={() => void allow()}>Allow once</button>
+      {state === 'review' && view?.complete
+        ? <button type="button" className="moment-main" onClick={() => (detail?.verificationRequired ? setVerify(true) : void allow())}>Allow once</button>
+        : <button type="button" className="moment-main" disabled={state === 'busy'} onClick={() => void review()}>Review…</button>}
       <button type="button" className="link-button" disabled={state === 'busy'} onClick={() => void deny()}>Deny</button>
       <span className="moment-hint">Also in Approvals</span>
     </div>
     {notice && <p className="moment-hint" role="status">{notice}</p>}
-    {verify && <ApprovalVerificationSheet client={client} id={verify.id} paramsHash={verify.hash} toolName={title} onClose={() => setVerify(null)}
-      onApprove={receipt => { const v = verify; setVerify(null); setState('busy'); void send(`/api/approvals/${v.id}/approve`, { paramsHash: v.hash, verificationReceipt: receipt }).then(r => setState(r.status === 200 ? 'allowed' : 'waiting'), () => setState('waiting')); }}/>}
+    {verify && detail && <ApprovalVerificationSheet client={client} id={detail.id} paramsHash={detail.paramsHash} toolName={title} onClose={() => setVerify(false)} onApprove={receipt => { setVerify(false); void allow(receipt); }}/>}
   </div>;
 }
 
