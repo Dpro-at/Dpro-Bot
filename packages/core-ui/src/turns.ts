@@ -4,11 +4,13 @@
 // its work (reasoning, tools, interim notes) and its final answer.
 import type { RunEvent, WireMessage, WirePart } from './conversation-contract.js';
 
-export type ToolCall = Readonly<{ id: string; name: string; input: string; output?: string; isError?: boolean; ms?: number; running: boolean }>;
+export type ToolCall = Readonly<{ id: string; name: string; input: string; output?: string; isError?: boolean; ms?: number; running: boolean; approvalId?: string }>;
 export type Part =
   | Readonly<{ kind: 'reasoning'; text: string; startedAt?: number; endedAt?: number }>
   | Readonly<{ kind: 'text'; text: string }>
-  | Readonly<{ kind: 'tools'; step: number; calls: readonly ToolCall[] }>;
+  | Readonly<{ kind: 'tools'; step: number; calls: readonly ToolCall[] }>
+  | Readonly<{ kind: 'steer'; text: string; step: number }>
+  | Readonly<{ kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit'; text?: string }>;
 export type TurnStatus = 'running' | 'complete' | 'stopped' | 'error';
 export type Turn = Readonly<{
   key: string; role: 'user' | 'assistant'; content: string; parts: readonly Part[]; status: TurnStatus;
@@ -17,6 +19,12 @@ export type Turn = Readonly<{
   base?: number;
   /** CHAT-PRO-02 I: the agent that wrote this reply (absent = the conversation's agent). */
   agentId?: string;
+  /** CHAT-BUILD-01 stage 5: files this reply changed (Undo / Redo). */
+  changes?: Readonly<{ files: number; undone: boolean }>;
+  /** CHAT-BUILD-01 stage 5: what the reply has written so far, shown live until its checked events arrive. */
+  preview?: string;
+  /** The tool it runs right now (live). */
+  previewTool?: string;
 }>;
 
 export function userTurn(key: string, content: string, runId: string | null, pending = false): Turn {
@@ -30,17 +38,19 @@ export function liveTurn(runId: string, now: number, agentId?: string): Turn {
 function fromWirePart(p: WirePart): Part {
   if (p.kind === 'tools') return { kind: 'tools', step: p.step, calls: p.calls.map(c => ({ ...c, running: false })) };
   if (p.kind === 'reasoning') return p.ms !== undefined ? { kind: 'reasoning', text: p.text, startedAt: 0, endedAt: p.ms } : { kind: 'reasoning', text: p.text };
+  if (p.kind === 'steer' || p.kind === 'notice') return p;
   return { kind: 'text', text: p.text };
 }
 
 /** A stored message as a transcript turn. */
 export function fromWire(m: WireMessage): Turn {
   const parts = m.role === 'assistant' ? (m.parts?.length ? m.parts.map(fromWirePart) : m.content ? [{ kind: 'text' as const, text: m.content }] : []) : [];
-  return Object.freeze({ key: m.id, role: m.role === 'user' ? 'user' : 'assistant', content: m.content, parts, status: m.status, runId: m.runId, durationMs: m.durationMs, lastSeq: 0, ...(m.code ? { code: m.code } : {}), ...(m.agentId ? { agentId: m.agentId } : {}) });
+  return Object.freeze({ key: m.id, role: m.role === 'user' ? 'user' : 'assistant', content: m.content, parts, status: m.status, runId: m.runId, durationMs: m.durationMs, lastSeq: 0, ...(m.code ? { code: m.code } : {}), ...(m.agentId ? { agentId: m.agentId } : {}), ...(m.changes ? { changes: m.changes } : {}) });
 }
 
 /** Applies one run event to the live assistant turn (events at or below lastSeq are ignored). */
 export function applyEvent(turn: Turn, e: RunEvent, received: number): Turn {
+  if (e.type === 'preview') return turn.status === 'running' ? Object.freeze({ ...turn, preview: e.content, previewTool: e.tool }) : turn;
   if (e.seq <= turn.lastSeq) return turn;
   // Server time when known: replayed events keep their real spacing.
   const base = turn.base ?? (e.at !== undefined ? received - e.at : undefined);
@@ -80,15 +90,22 @@ export function applyEvent(turn: Turn, e: RunEvent, received: number): Turn {
         const p = parts[i] as Extract<Part, { kind: 'tools' }>;
         parts[i] = { ...p, calls: p.calls.map((c, k) => {
           const r = e.results.find(x => x.id === c.id) ?? e.results[k];
-          return r ? { ...c, output: r.output, isError: r.isError, ms: r.ms, running: false } : c;
+          return r ? { ...c, output: r.output, isError: r.isError, ms: r.ms, running: false, ...(r.approvalId ? { approvalId: r.approvalId } : {}) } : c;
         }) };
       }
       break;
     }
+    case 'steer':
+      closeReasoning();
+      parts.push({ kind: 'steer', text: e.content, step: e.step });
+      break;
+    case 'notice':
+      if ((e.code === 'injection' || e.code === 'summarized' || e.code === 'plan_limit') && !parts.some(p => p.kind === 'notice' && p.code === e.code)) parts.push({ kind: 'notice', code: e.code, ...(e.text ? { text: e.text } : {}) });
+      break;
     case 'end':
       closeReasoning();
       return Object.freeze({ ...turn, parts: parts.map(p => (p.kind === 'tools' ? { ...p, calls: p.calls.map(c => (c.running ? { ...c, running: false } : c)) } : p)),
-        content, status: e.status, durationMs: e.ms, lastSeq: e.seq, ...(e.code ? { code: e.code } : {}) });
+        content, status: e.status, durationMs: e.ms, lastSeq: e.seq, preview: undefined, previewTool: undefined, ...(e.code ? { code: e.code } : {}) });
   }
   return Object.freeze({ ...turn, parts, content, lastSeq: e.seq });
 }

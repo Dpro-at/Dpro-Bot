@@ -14,6 +14,7 @@
  */
 
 import { stallGuard, type StallGuard } from './model-stall.js';
+import { currentChatRun } from './chat-run-context.js';
 import {
   LOCAL_MAX_STEPS, TOOL_INPUT_CHARS, TOOL_OUTPUT_CHARS, TOOL_OUTPUT_MODEL_CHARS,
   ModelUnavailable, toOllamaTools, toolResultText,
@@ -74,6 +75,8 @@ export async function runLmStudioAgentLoop(o: LmStudioLoopOptions): Promise<{ st
     while (true) {
       if (o.signal.aborted) throw new Aborted();
       step++;
+      // CHAT-BUILD-01 stage 5 (Steer now): the owner's messages sent while it works go in before this step.
+      for (const text of currentChatRun()?.takeSteers?.() ?? []) messages.push({ role: 'user', content: text });
       const { content, calls } = await streamOne();
       if (!calls.length) { answer = content; break; }
       messages.push({ role: 'assistant', content, tool_calls: calls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args) } })) });

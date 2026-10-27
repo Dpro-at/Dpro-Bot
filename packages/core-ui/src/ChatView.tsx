@@ -1,4 +1,5 @@
 import { ChatDetails, DetailsRail } from './ChatDetails';
+import { ApprovalCard, ChangesLine, DelegationCard, MomentsContext, NoticeCard, SteerLine, TaskList } from './ChatMoments';
 import { ScheduleSheet } from './ScheduleSheet';
 import { KeysSheet, ModeButton, ModelButton, PlusButton, ProjectChip, ProjectSheet, SlashList, WhoButton, slashMatches } from './ChatComposerControls';
 import { modelDisplayName } from './model-names';
@@ -193,6 +194,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setPick(p => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length); return; }
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(suggestions[Math.min(pick, suggestions.length - 1)].name); return; }
     }
+    // CHAT-BUILD-01 stage 5 (CH10): while the agent works, Enter steers it now; ⌥Enter waits until it finishes.
+    if (e.key === 'Enter' && !e.shiftKey && running && !e.altKey && s.draft.trim()) { e.preventDefault(); if (!e.repeat) void controller.steer(); return; }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!e.repeat) submit(); return; }
     if (e.key === 'Escape' && running) { e.preventDefault(); void controller.stop(); return; }
     if (e.key === 'ArrowUp' && !s.draft) { const last = controller.recall(); if (last) { e.preventDefault(); controller.edit(last); } }
@@ -290,7 +293,11 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     ...(panes ? [{ name: 'changes' as const, icon: 'diff' as const, label: 'Changes' }, { name: 'files' as const, icon: 'folder' as const, label: 'Files' }] : []),
   ];
   const previewFile=s.attachments.find(f=>f.name===attachmentPreview);
-  return <div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
+  // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
+  const moments = { client, conversationId: s.activeId, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
+    onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
+    onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
+  return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
     <div className="chat-topbar">
       {project ? <ProjectBar name={project.name} folder={project.folder} repoUrl={project.repoUrl} git={s.git}/> : <span className="project-bar-item" aria-label="Chat context">General chat · no project folder</span>}
@@ -332,6 +339,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} onClose={() => setProjectSheet(null)}/>}
     {longDraft&&<DocumentEditor title="Message draft" files={[{id:'message',name:'message.md',content:s.draft}]} maxLength={100000} onChange={(_,text)=>controller.edit(text)} onClose={()=>setLongDraft(false)}/>}
     <div className="chat-dock">
+      <TaskList turns={s.turns} who={nameOf(convAgentId)}/>
       {s.notice && <p className="chat-notice" role="status">{s.notice}</p>}
       {mem?.notice && !remember && <p className="chat-notice" role="status">{mem.notice} <button type="button" className="link-button" onClick={() => memCtl?.clearNotice()}>OK</button></p>}
       {remember && memCtl && <RememberForm key={remember.key} controller={memCtl} seed={remember} project={project?.name ?? null} agent={convAgentName} onClose={() => setRemember(null)}/>}
@@ -362,7 +370,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           <li key={a.id} role="option" aria-selected={i === Math.min(pick, suggestions.length - 1)}><button type="button" onMouseDown={e => { e.preventDefault(); choose(a.name); }}>
             <span className="avatar" aria-hidden="true">{a.name.slice(0, 1).toUpperCase()}</span>{a.name}</button></li>)}</ul>}
         <textarea id="chat-input" ref={input} rows={1} dir="auto" value={s.draft} maxLength={100000}
-          placeholder={running ? 'Type the next message; it is sent when this reply ends' : agentName ? `Message ${agentName}` : s.turns.length ? 'Send a follow-up' : 'Write a message…'}
+          placeholder={running ? 'Steer the work now, or ⌥Enter to send it after this reply' : agentName ? `Message ${agentName}` : s.turns.length ? 'Send a follow-up' : 'Write a message…'}
           onChange={e => controller.edit(e.target.value)} onPaste={e=>{if(e.clipboardData.files.length){e.preventDefault();void onFiles(e.clipboardData.files);}}} onKeyDown={onKeyDown} disabled={s.access === 'denied'}/>
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
@@ -397,7 +405,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {pane === 'changes' ? <ChangesPane panes={panes}/> : <FilesPane panes={panes}/>}
   </aside>}
 
-  </div>;
+  </div></MomentsContext.Provider>;
 }
 
 const TERMINAL_APPS = [{ id: 'subscription:claude', label: 'Claude Code' }, { id: 'subscription:codex', label: 'Codex' }, { id: 'subscription:gemini', label: 'Google Gemini' }] as const;
@@ -555,15 +563,23 @@ function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRem
   const [quiet, since] = useQuiet(turn, live);
   return <article className="chat-assistant" aria-busy={live || undefined} data-message-id={turn.key} data-highlight={highlight || undefined}>
     {writer ? <p className="reply-writer"><span className="avatar" aria-hidden="true">{writer.slice(0, 1).toUpperCase()}</span>{writer}</p> : <p className="sr-only">Agent</p>}
-    {plan && <PlanCard steps={plan} live={live} status={turn.status}/>}
+    {/* CHAT-BUILD-01 stage 5 (CH1): the plan's steps live in Tasks above the box; here only one quiet line. */}
+    {plan && <p className="moment-line"><UiIcon name="list" size={12}/>Plan: {plan.length} {plan.length === 1 ? 'step' : 'steps'}, {plan.filter(s => s.status === 'done').length} done · the steps are in Tasks above the box</p>}
     {live
       ? <>{parts.map((p, i) => <PartView key={i} part={p} live last={i === parts.length - 1}/>)}
-        {(quiet || parts.length === 0) && <WorkingRow since={since} label={parts.length ? 'Working' : 'Thinking'}/>}</>
+        {/* CHAT-BUILD-01 stage 5: the reply as it is written (checked text replaces it at the end). */}
+        {!parts.some(p => p.kind === 'text') && turn.preview && <div className="chat-prose turn-text md-host chat-live" aria-live="off"><Markdown text={turn.preview}/></div>}
+        {(quiet || parts.length === 0) && <WorkingRow since={since} label={turn.previewTool ? `Using ${turn.previewTool}` : turn.preview ? 'Writing' : parts.length ? 'Working' : 'Thinking'}/>}</>
       : <>
         {tools > 0
           ? <WorkedRow parts={work} ms={turn.durationMs}/>
           : work.map((p, i) => <PartView key={i} part={p}/>)}
+        {/* CHAT-BUILD-01 stage 5: hand-offs, what waits for you and notices stay in view when the work is folded. */}
+        {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.name === 'team_delegate').map(c => <DelegationCard key={`h${c.id}`} call={c}/>)}
+        {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.approvalId && c.name !== 'team_delegate').map(c => <ApprovalCard key={`p${c.id}`} call={c}/>)}
+        {tools > 0 && work.filter(p => p.kind === 'steer' || p.kind === 'notice').map((p, i) => <PartView key={`n${i}`} part={p}/>)}
         {answer.map((p, i) => <PartView key={`a${i}`} part={p}/>)}
+        {turn.changes && <ChangesLine turn={turn} messageId={turn.key}/>}
         {turn.status === 'error' && <div className="chat-error" role="alert">
           <strong>{turn.code === 'run_interrupted' ? 'Work interrupted by restart' : turn.code === 'subscription_org_blocked' ? 'Claude subscription access is disabled' : turn.code === 'lmstudio_not_running' ? 'LM Studio is not running' : turn.code === 'local_model_missing' ? 'The local model is not installed' : turn.code === 'model_unavailable' ? 'The model could not be reached' : 'This reply failed'}</strong>
           <span>{turn.code === 'run_interrupted' ? 'Your request and tool checkpoints are saved. Continue safely after reviewing them; previous actions are not replayed automatically.' : turn.code === 'subscription_org_blocked' ? 'Your organization has disabled Claude Code subscription access. Ask its administrator to enable access, or choose another signed-in coding app.' : turn.code === 'lmstudio_not_running' ? 'Open LM Studio, load the model and start its local server (port 1234), then try again.' : turn.code === 'local_model_missing' ? 'This agent answers with a local model that is not on this computer. Pick an installed model or add a Claude key in Settings, then try again.' : turn.code === 'model_unavailable' ? 'Check that the model is running, then try again.' : 'Anything above was written before the failure.'}</span>
@@ -710,6 +726,8 @@ function useQuiet(turn: Turn, live: boolean): [boolean, number] {
 function PartView({ part, live = false, last = false }: { part: Part; live?: boolean; last?: boolean }) {
   if (part.kind === 'text') return part.text ? <div className="chat-prose turn-text md-host"><Markdown text={part.text}/></div> : null;
   if (part.kind === 'reasoning') return part.text.trim() ? <Thinking part={part} live={live && last && part.endedAt === undefined}/> : null;
+  if (part.kind === 'steer') return <SteerLine part={part}/>;
+  if (part.kind === 'notice') return <NoticeCard part={part}/>;
   return <ToolStep calls={part.calls} live={live}/>;
 }
 
@@ -736,7 +754,7 @@ function ToolStep({ calls, live }: { calls: readonly ToolCall[]; live: boolean }
   const hidden = live && !all && calls.length > LIVE_ROWS ? calls.length - LIVE_ROWS : 0;
   return <div className="scaffold tool-step">
     {hidden > 0 && <button type="button" className="scaffold-row muted" onClick={() => setAll(true)}>{hidden} earlier {hidden === 1 ? 'step' : 'steps'}</button>}
-    {calls.slice(hidden).map(c => <ToolRow key={c.id} call={c}/>)}
+    {calls.slice(hidden).map(c => live && c.name === 'team_delegate' ? <DelegationCard key={c.id} call={c}/> : <div key={c.id}><ToolRow call={c}/>{live && c.approvalId && <ApprovalCard call={c}/>}</div>)}
   </div>;
 }
 

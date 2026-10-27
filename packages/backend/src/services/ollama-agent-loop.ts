@@ -18,6 +18,7 @@
  */
 
 import { stallGuard, type StallGuard } from './model-stall.js';
+import { currentChatRun } from './chat-run-context.js';
 import type { ToolResult } from '../tools/types.js';
 
 /** Step limit for one turn; the model is asked to continue in a new turn after it. */
@@ -105,6 +106,8 @@ export async function runOllamaAgentLoop(o: OllamaLoopOptions): Promise<{ steps:
     while (true) {
       if (o.signal.aborted) throw new Aborted();
       step++;
+      // CHAT-BUILD-01 stage 5 (Steer now): the owner's messages sent while it works go in before this step.
+      for (const text of currentChatRun()?.takeSteers?.() ?? []) messages.push({ role: 'user', content: text });
       const { content, thinking, calls } = await streamOne();
       if (!calls.length) { answer = content; break; }
       messages.push({ role: 'assistant', content, ...(thinking ? { thinking } : {}), tool_calls: calls.map((c) => ({ function: { name: c.name, arguments: c.args } })) });

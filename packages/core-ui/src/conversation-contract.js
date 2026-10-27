@@ -152,14 +152,18 @@ function call(x) {
   if (!record(x)) throw Error('protocol');
   return { id: str(x.id, 128), name: str(x.name, 128), input: str(x.input, 8000),
     ...(typeof x.output === 'string' ? { output: x.output.slice(0, 12000) } : {}),
-    ...(typeof x.isError === 'boolean' ? { isError: x.isError } : {}), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}) };
+    ...(typeof x.isError === 'boolean' ? { isError: x.isError } : {}), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}), ...(typeof x.approvalId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(x.approvalId) ? { approvalId: x.approvalId } : {}) };
 }
+/** CHAT-BUILD-01 stage 5: notices kept with a reply, and their codes. */
+const KEPT_NOTICES = ['injection', 'summarized', 'plan_limit'];
 
 function part(x) {
   if (!record(x)) throw Error('protocol');
   if (x.kind === 'text') return { kind: 'text', text: str(x.text, 1000000) };
   if (x.kind === 'reasoning') return { kind: 'reasoning', text: str(x.text, 1000000), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}) };
   if (x.kind === 'tools' && Array.isArray(x.calls) && x.calls.length <= 200) return { kind: 'tools', step: num(x.step) ?? 0, calls: x.calls.map(call) };
+  if (x.kind === 'steer') return { kind: 'steer', text: str(x.text, 4000), step: num(x.step) ?? 0 };
+  if (x.kind === 'notice' && KEPT_NOTICES.includes(x.code)) return { kind: 'notice', code: x.code, ...(typeof x.text === 'string' ? { text: x.text.slice(0, 300) } : {}) };
   return null;
 }
 
@@ -170,7 +174,8 @@ function message(x) {
     status: ['complete', 'stopped', 'error'].includes(x.status) ? x.status : 'complete',
     runId: validRunId(x.runId) ? x.runId : null, durationMs: num(x.durationMs) ?? null, createdAt: str(x.createdAt, 40),
     ...(x.code === 'run_interrupted' ? { code: 'run_interrupted' } : {}),
-    ...(agentId(x.agentId) ? { agentId: x.agentId } : {}) };
+    ...(agentId(x.agentId) ? { agentId: x.agentId } : {}),
+    ...(record(x.changes) && num(x.changes.files) ? { changes: { files: num(x.changes.files), undone: x.changes.undone === true } } : {}) };
 }
 
 function project(x) {
@@ -266,7 +271,7 @@ export function projectRunEvent(x) {
 /** Typed reasons a run may end with (CHAT-PRO-02 G: LM Studio not running). */
 const END_CODES = ['model_unavailable', 'local_model_missing', 'lmstudio_not_running', 'subscription_org_blocked'];
 /** Notices a running turn may show (CHAT-BUILD-01); never part of the answer. */
-const NOTICE_CODES = ['rate_limited', 'claude_key_missing', 'local_model_slow'];
+const NOTICE_CODES = ['rate_limited', 'claude_key_missing', 'local_model_slow', 'injection', 'summarized', 'plan_limit'];
 function projectEvent(x) {
   if (!record(x) || !Number.isSafeInteger(x.seq) || x.seq < 1) throw Error('protocol');
   const seq = x.seq;
@@ -275,11 +280,12 @@ function projectEvent(x) {
     return { seq, type: 'tool_start', step: num(x.step) ?? 0, tools: x.tools.map(t => ({ id: str(t?.id, 128), name: str(t?.name, 128), input: str(t?.input, 8000) })) };
   }
   if (x.type === 'tool_result' && Array.isArray(x.results) && x.results.length <= 64) {
-    return { seq, type: 'tool_result', step: num(x.step) ?? 0, results: x.results.map(r => ({ id: str(r?.id, 128), name: str(r?.name, 128), output: str(r?.output, 12000), isError: r?.isError === true, ...(num(r?.ms) !== undefined ? { ms: num(r.ms) } : {}) })) };
+    return { seq, type: 'tool_result', step: num(x.step) ?? 0, results: x.results.map(r => ({ id: str(r?.id, 128), name: str(r?.name, 128), output: str(r?.output, 12000), isError: r?.isError === true, ...(num(r?.ms) !== undefined ? { ms: num(r.ms) } : {}), ...(typeof r?.approvalId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(r.approvalId) ? { approvalId: r.approvalId } : {}) })) };
   }
   if (x.type === 'notice' && NOTICE_CODES.includes(x.code)) {
-    return { seq, type: 'notice', code: x.code, ...(num(x.waitSec) !== undefined ? { waitSec: num(x.waitSec) } : {}), ...(typeof x.model === 'string' ? { model: str(x.model, 100) } : {}) };
+    return { seq, type: 'notice', code: x.code, ...(num(x.waitSec) !== undefined ? { waitSec: num(x.waitSec) } : {}), ...(typeof x.model === 'string' ? { model: str(x.model, 100) } : {}), ...(typeof x.text === 'string' ? { text: str(x.text, 300) } : {}) };
   }
+  if (x.type === 'steer') return { seq, type: 'steer', content: str(x.content, 4000), step: num(x.step) ?? 0 };
   if (x.type === 'end' && ['complete', 'stopped', 'error'].includes(x.status)) {
     return { seq, type: 'end', status: x.status, ms: num(x.ms) ?? 0, ...(END_CODES.includes(x.code) ? { code: x.code } : {}) };
   }
@@ -297,8 +303,11 @@ export class RunEventParser {
       if (ch === '\r' || ch === '\n') {
         if (this.line === '') {
           if (this.data.length) {
-            const frame = projectRunEvent(JSON.parse(this.data.join('\n')));
+            const raw = JSON.parse(this.data.join('\n'));
             this.data = []; this.size = 0;
+            // CHAT-BUILD-01 stage 5: the live preview has no number; it never moves the resume point.
+            if (raw && raw.type === 'preview' && raw.seq === undefined) { if (!this.ended) out.push({ seq: 0, type: 'preview', content: str(raw.content, RUN_FRAME_BYTES), ...(typeof raw.tool === 'string' ? { tool: raw.tool.slice(0, 128) } : {}) }); }
+            const frame = raw && raw.type === 'preview' && raw.seq === undefined ? undefined : projectRunEvent(raw);
             if (frame && frame.seq > this.last) {
               if (this.ended) throw Error('protocol');
               this.last = frame.seq; if (frame.type === 'end') this.ended = true; out.push(frame);
