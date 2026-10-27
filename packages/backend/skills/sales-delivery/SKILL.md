@@ -1,11 +1,11 @@
 ---
 name: sales-delivery
-description: Develop evidence-based account plans, qualify leads, audit sales operations and prepare discovery, outreach and deal follow-through. Use for account management, lead prioritization, CRM hygiene, pipeline reviews or sales conversations using authorized records or supplied exports.
+description: Prepare account plans, qualification, pipeline operations, sales conversations and evidence-backed tender responses from authorized records. Drafting does not contact customers, change CRM records or submit bids.
 license: MIT
 compatibility: Provider-neutral instructions for Codex, Claude and Gemini; connectors are optional and require actual host permissions.
 metadata:
   agent-player:
-    version: 1.0.0
+    version: 1.1.0
 ---
 # Sales delivery
 
@@ -23,3 +23,7 @@ Use [the account plan](assets/account-plan.md), [qualification register](assets/
 Deliver the requested artifact with source/snapshot coverage, decisions and concrete next actions. A recommendation, saved draft, sent message, changed record and confirmed customer commitment are separate outcomes. No automatic role assignment, outbound campaign, contact enrichment purchase or CRM mutation follows from loading this skill.
 
 Read [acceptance scenarios](references/acceptance.md) for future behavioral checks and [design notes](references/design-notes.md) for upstream comparison and limitations. Provider discovery and Markdown parsing do not establish effective selling or CRM correctness. Follow [the runtime contract](references/runtime-contract.md).
+
+## Proposal / Tender specialist mode
+
+For proposal / tender specialist work, read [Proposal / Tender specialist](references/proposal-tender.md) and use [the output record](assets/bid-evidence.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.

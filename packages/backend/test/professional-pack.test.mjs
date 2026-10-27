@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'professional-pack-'));
 process.env.AGENT_PLAYER_DATA_DIR = root;
@@ -28,7 +28,7 @@ after(() => { closeDatabase(); fs.rmSync(root, { recursive: true, force: true })
 
 test('portable professional pack has complete source-bound resources and no private workspace objects', () => {
  assert.deepEqual(validateWorkspacePack(pack), pack);
- assert.equal(pack.skills.length, 41); assert.equal(pack.specialties.length, 122);
+ assert.equal(pack.skills.length, 43); assert.equal(pack.specialties.length, 132);
  assert.deepEqual(pack.agents, []); assert.deepEqual(pack.personalities, []);
  const ids = new Set(pack.skills.map(skill => skill.id));
  for (const skill of pack.skills) for (const file of skill.files) {
@@ -45,11 +45,11 @@ test('full collection imports and replays without creating agents or assignments
  const count = table => db.prepare('SELECT count(*) AS n FROM '+table).get().n;
  const protectedBefore = ['agents_config', 'agent_specialties', 'central_agent_skills'].map(count);
  const preview = await store.preview(pack);
- assert.deepEqual(preview.counts, { agents: 0, personalities: 0, specialties: 122, skills: 41 });
+ assert.deepEqual(preview.counts, { agents: 0, personalities: 0, specialties: 132, skills: 43 });
  await store.import('pack-owner', pack, preview.fingerprint);
- assert.equal(count('central_skills'), 41); assert.equal(count('specialty_templates'), 122);
+ assert.equal(count('central_skills'), 43); assert.equal(count('specialty_templates'), 132);
  await store.import('pack-owner', pack, preview.fingerprint);
- assert.equal(count('central_skills'), 41); assert.equal(count('specialty_templates'), 122);
+ assert.equal(count('central_skills'), 43); assert.equal(count('specialty_templates'), 132);
  assert.deepEqual(['agents_config', 'agent_specialties', 'central_agent_skills'].map(count), protectedBefore);
  for (const row of db.prepare('SELECT id FROM specialty_templates').all()) {
   const saved = await templates.get(row.id);
@@ -57,4 +57,135 @@ test('full collection imports and replays without creating agents or assignments
   assert.deepEqual(saved.config.tools, []);
   assert.ok(Object.values(saved.config.modes).every(mode => mode === 'ask'));
  }
+});
+
+
+test('pilot recommendations save as versioned templates without changing agent authority', async () => {
+ const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
+ assert.equal(recommendations.profiles.length, 127);
+ assert.equal(pack.specialties.filter(item=>item.department==='wellness').length,5);
+ assert.equal(new Set(pack.specialties.map(item=>item.name)).size,132);
+ assert.deepEqual(new Set(recommendations.profiles.map(profile=>profile.name)),new Set(pack.specialties.filter(item=>item.department!=='wellness').map(item=>item.name)));
+ assert.equal(new Set(recommendations.profiles.map(profile=>profile.name)).size,recommendations.profiles.length);
+ assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
+ const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
+ const frontend = await templates.get(frontendId);
+ const fixtureAgent = await templates.hire('pack-owner', {
+  templateId: frontendId, revision: frontend.revision, requestId: randomUUID(),
+  name: 'Pilot Fixture Developer', confirmed: true, confirmRisky: false, linked: true,
+ });
+ assert.ok(fixtureAgent.id);
+ assert.equal(db.prepare('SELECT count(*) n FROM agent_specialties WHERE agent_id=?').get(fixtureAgent.id).n, 1);
+ const {setAgentGrants} = await import('../src/tools/grants.ts');
+ const {createAgentToolsRegistry} = await import('../src/tools/index.ts');
+ const {loadAgentPermissions,setAgentPermissions,permissionCategory} = await import('../src/tools/agent-permissions.ts');
+ await setAgentGrants(fixtureAgent.id,{grants:['read']},'pack-owner',(await createAgentToolsRegistry({workspaceDir:root})).listRegistered());
+ assert.equal(permissionCategory({name:'web_fetch'}),'network');
+ const initialPermissions = await loadAgentPermissions(fixtureAgent.id);
+ await setAgentPermissions(fixtureAgent.id,{memoryRead:['task'],memoryWrite:[],sharedMemory:false,modes:initialPermissions.modes},initialPermissions.version,'pack-owner');
+ assert.ok(db.prepare('SELECT count(*) n FROM agent_tool_grants WHERE agent_id=?').get(fixtureAgent.id).n>0);
+ assert.ok(db.prepare('SELECT count(*) n FROM agent_permissions WHERE agent_id=?').get(fixtureAgent.id).n>0);
+ const protectedTables = ['agents_config', 'agent_specialties', 'central_agent_skills', 'agent_permissions', 'agent_tool_grants'];
+ const before = protectedTables.map(table => db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all());
+ const previousExec = process.env.AGENT_EXEC_TOOLS;
+ process.env.AGENT_EXEC_TOOLS = 'true'; // Catalogue fixture only; no tool execution.
+ try {
+  for (const profile of recommendations.profiles) {
+   if (["Product manager", "Business analyst", "Project manager", "Executive / Personal assistant", "Model evaluation specialist", "Proposal / Tender specialist", "Public relations specialist", "Internal communications specialist", "Knowledge management specialist", "Localisation specialist"].includes(profile.name)) {
+    assert.deepEqual(profile.memoryWrite,['task']);
+    assert.equal(profile.sharedMemory,false);
+    assert.ok(profile.requirements.length>0&&profile.requirements.every(item=>item.toolName===null));
+    assert.deepEqual(profile.memoryRead,['project','task']);
+    assert.deepEqual(profile.tools.map(tool=>tool.name).sort(),['memory_search','read','web_fetch','write']);
+    assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
+    for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
+    assert.equal(profile.modes.network,'ask');
+   }
+   if (profile.package==='language-coaching'||['Course designer','Professional skills trainer','Learning coach','Mathematics tutor','Programming teacher','Science tutor','Translator'].includes(profile.name)) {
+    assert.deepEqual(profile.memoryWrite,['task']);
+    assert.equal(profile.sharedMemory,false);
+    assert.ok(profile.requirements.every(item=>item.toolName===null));
+   }
+   if (['Brand strategist','Campaign analyst','Community manager','Content creator','Email marketing specialist','SEO specialist','Social media manager','Virtual influencer'].includes(profile.name)) {
+    assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
+    for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
+    assert.equal(profile.modes.network,'ask');
+   }
+   if (['Animation specialist','Podcast producer','Scriptwriter','Sound editor','Video editor','Virtual actor','Virtual presenter','Voice performer'].includes(profile.name)) {
+    assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
+    for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
+    assert.equal(profile.modes.network,'ask');
+   }
+   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design','language-coaching','learning-support','translation-delivery','product-management','communications-operations'].includes(profile.package)) {
+    for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
+    assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
+    assert.equal(profile.modes.network,profile.tools.some(tool=>tool.name==='web_fetch')?'ask':'off');
+   }
+   const row = db.prepare('SELECT id FROM specialty_templates WHERE name=?').get(profile.name);
+   assert.ok(row);
+   const current = await templates.get(row.id);
+   const skill = db.prepare('SELECT id FROM central_skills WHERE name=?').get(profile.package);
+   assert.ok(skill, 'Resolve the actual fixture skill ID');
+   assert.ok([current.config.primarySkill,...current.config.skills].includes(skill.id),'Preserve the existing role package binding');
+   for (const resource of profile.references) assert.ok(current.instructions.includes(resource),'Recommended route must appear in role instructions: '+resource);
+   const portableSkill = pack.skills.find(item=>item.name===profile.package);
+   assert.ok(portableSkill,'Bound package must be present in the portable pack');
+   const portablePaths = new Set(portableSkill.files.map(file=>file.path));
+   for (const resource of new Set(['SKILL.md',...profile.references,...(current.instructions.match(/(?:references|assets)\/[a-z0-9_-]+\.md/g)||[])])) {
+    assert.ok(fs.existsSync(path.join(source,profile.package,resource)),resource);
+    assert.ok(portablePaths.has(resource),'Portable resource missing: '+profile.package+'/'+resource);
+   }
+   const config = {
+    primarySkill: skill.id, skills: [], tools: profile.tools,
+    memoryRead: profile.memoryRead, memoryWrite: profile.memoryWrite,
+    sharedMemory: profile.sharedMemory, modes: profile.modes,
+    requirements: profile.requirements.map((item, index) => ({
+     id: 'f00d0000-0000-4000-a000-'+String(index+1).padStart(12,'0'),
+     name: item.name, toolName: item.toolName, server: null,
+    })),
+   };
+   const draft = {name: current.name, department: current.department, description: current.description,
+    instructions: current.instructions, revision: current.revision, config};
+   const impact = await templates.impact(current.id, draft);
+   if (profile.name==='Frontend developer') {
+    assert.ok(impact.agents.some(agent=>agent.id===fixtureAgent.id),'Linked fixture agent must be in the impact');
+    await assert.rejects(templates.save(current.id, draft), error => error.code === 'impact_confirmation_required');
+    await assert.rejects(templates.save(current.id, {...draft, instructions: draft.instructions+' Unreviewed change.', confirmImpact: impact.confirmation}), error => error.code === 'impact_confirmation_required');
+   }
+   else assert.equal(impact.agents.length,0);
+   if (profile.tools.some(tool=>tool.name==='ask_coding_app')) {
+    delete process.env.AGENT_EXEC_TOOLS;
+    try { await assert.rejects(templates.save(current.id,{...draft,confirmImpact:impact.confirmation}),error=>error.code==='tools_changed'); }
+    finally { process.env.AGENT_EXEC_TOOLS='true'; }
+    assert.deepEqual(await templates.get(current.id),current);
+   }
+   const updated = await templates.save(current.id, {...draft, confirmImpact: impact.confirmation});
+   assert.equal(updated.revision, current.revision+1);
+   assert.equal(updated.config.primarySkill, skill.id);
+   assert.deepEqual(updated.config.tools, profile.tools);
+   assert.deepEqual(updated.config.modes, profile.modes);
+   assert.deepEqual(updated.config.memoryRead,profile.memoryRead);
+   assert.deepEqual(updated.config.memoryWrite,profile.memoryWrite);
+   assert.equal(updated.config.sharedMemory,profile.sharedMemory);
+   assert.deepEqual(updated.config.requirements,config.requirements);
+   const history = await templates.version(current.id, String(current.revision));
+   assert.deepEqual(history.config, current.config);
+   assert.equal(history.instructions, current.instructions);
+   await assert.rejects(templates.save(current.id, draft), error => error.code === 'version_conflict');
+   assert.equal((await templates.get(current.id)).revision, updated.revision);
+  }
+ } finally {
+  if (previousExec === undefined) delete process.env.AGENT_EXEC_TOOLS;
+  else process.env.AGENT_EXEC_TOOLS = previousExec;
+ }
+ assert.deepEqual(protectedTables.map(table => db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()), before);
+});
+
+test('pilot recommendation bindings reject unknown tools and preserve the prior template', async () => {
+ const row = db.prepare("SELECT id FROM specialty_templates WHERE name='Copywriter'").get();
+ const current = await templates.get(row.id);
+ const {id, ...draft} = current;
+ draft.config = {...current.config, tools: [{name:'nonexistent_fixture_capability',fingerprint:null}]};
+ await assert.rejects(templates.save(id, draft), error => error.code === 'tools_changed');
+ assert.deepEqual(await templates.get(id), current);
 });

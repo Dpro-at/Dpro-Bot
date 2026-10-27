@@ -8,3 +8,9 @@ Unexecuted task briefs for each provider:
 4. Escalation: provide a blocked workflow without known root cause or SLA. Expect an evidence-rich handoff and honest next-update proposal;reject a fabricated fix ETA or claim that a ticket was actually routed.
 
 Parsing,discovery and draft quality checks do not establish actual resolution,customer satisfaction or live connector behavior.
+
+## Additional specialty task trials
+
+- [Knowledge management](knowledge-management.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+
+These are future trials, not executed results; structural package checks do not establish task quality or live action.

@@ -1,11 +1,11 @@
 ---
 name: translation-delivery
-description: Translate or review text while preserving meaning, terminology, claim strength and required document tokens. Use for faithful translation, bilingual revision and target-language polishing with explicit source and locale constraints.
+description: Translate and review meaning, terminology and protected tokens, including contextual software localisation/localization and locale QA. Text review does not certify rendered behavior or invoke external translation services.
 license: MIT
 compatibility: Provider-neutral instructions for Codex, Claude and Gemini;actual file, calculation, ledger and external capabilities depend on the host.
 metadata:
   agent-player:
-    version: 1.0.0
+    version: 1.1.0
 ---
 
 # Translation delivery
@@ -35,3 +35,7 @@ Use actual source/target coverage and token checks to support claims. A structur
 ## Deliver
 
 Provide the requested clean text, file or review with meaningful ambiguities and not-reviewed portions explicit. Keep private source material out of shared glossaries or portable settings unless authorized. No external translation API, paid service, publication or message sending is implied. [Acceptance briefs](references/acceptance.md) define future trials;[Design notes](references/design-notes.md) state comparison scope.
+
+## Localisation specialist mode
+
+For localisation specialist work, read [Localisation specialist](references/software-localisation.md) and use [the output record](assets/locale-qa.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.

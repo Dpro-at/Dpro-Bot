@@ -1,11 +1,11 @@
 ---
 name: support-delivery
-description: Prepare customer onboarding and evidence-grounded support case resolution with clear ownership, safe troubleshooting and truthful customer communication. Use for onboarding plans, support tickets, escalations and customer follow-through.
+description: Prepare customer onboarding, support diagnosis, knowledge-base content and knowledge lifecycle/retrieval plans from scoped evidence. No account action, source ingestion or publication is implied.
 license: MIT
 compatibility: Provider-neutral instructions for Codex, Claude and Gemini; supplied case records work without a support connector.
 metadata:
   agent-player:
-    version: 1.1.0
+    version: 1.2.0
 ---
 # Support delivery
 
@@ -18,3 +18,7 @@ See [future acceptance](references/acceptance.md),[comparison](references/design
 ## Knowledge and technical support
 
 For reusable help content use [knowledge-base editing](references/knowledge-base.md) and the [article record](assets/article-record.md). For diagnosis use [technical support](references/technical-support.md) and the [diagnostic record](assets/diagnostic-record.md). Read [technical acceptance and comparison](references/technical-acceptance.md).
+
+## Knowledge management specialist mode
+
+For knowledge management specialist work, read [Knowledge management specialist](references/knowledge-management.md) and use [the output record](assets/knowledge-lifecycle.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.

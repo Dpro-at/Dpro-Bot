@@ -1,0 +1,6902 @@
+{
+  "format": "professional-role-recommendations",
+  "version": 1,
+  "activation": "Review-only recommendations. Not a workspace-pack import or automatic grants/seed upgrade. Resolve installed skill IDs and tool catalogue before owner-reviewed template save. Profiles containing ask_coding_app require the exec-class tool catalogue to be enabled; no tool execution or approval bypass is implied.",
+  "profiles": [
+    {
+      "name": "Frontend developer",
+      "package": "frontend-delivery",
+      "references": [
+        "references/accessibility-and-states.md",
+        "references/product-review.md",
+        "references/interface-design.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "UI designer",
+      "package": "frontend-delivery",
+      "references": [
+        "references/interface-design.md",
+        "references/product-review.md",
+        "references/accessibility-and-states.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "QA engineer",
+      "package": "web-quality",
+      "references": [
+        "references/browser-review.md",
+        "references/receipt-format.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "Test automation engineer",
+      "package": "test-automation",
+      "references": [
+        "references/test-design.md",
+        "references/isolation-execution.md",
+        "references/reliability-ci.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Full-stack developer",
+      "package": "service-engineering",
+      "references": [
+        "references/application-slice.md",
+        "references/api-agreements.md",
+        "references/durable-behavior.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Copywriter",
+      "package": "content-studio",
+      "references": [
+        "references/conversion-copy.md",
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "AI application developer",
+      "package": "ai-application-engineering",
+      "references": [
+        "references/model-boundary.md",
+        "references/context-retrieval.md",
+        "references/tools-authority.md",
+        "references/evaluation-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "API integration developer",
+      "package": "service-engineering",
+      "references": [
+        "references/external-integration.md",
+        "references/api-agreements.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Backend developer",
+      "package": "service-engineering",
+      "references": [
+        "references/durable-behavior.md",
+        "references/api-agreements.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Mobile developer",
+      "package": "mobile-delivery",
+      "references": [
+        "references/lifecycle-restoration.md",
+        "references/connectivity-data.md",
+        "references/platform-interaction.md",
+        "references/device-validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Software architect",
+      "package": "system-architecture",
+      "references": [
+        "references/requirements-evidence.md",
+        "references/boundaries-flow.md",
+        "references/evolution-validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "Game developer",
+      "package": "game-production",
+      "references": [
+        "references/simulation-interaction.md",
+        "references/persistence-networking.md",
+        "references/content-performance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "3D artist",
+      "package": "three-d-production",
+      "references": [
+        "references/geometry-scale.md",
+        "references/materials-presentation.md",
+        "references/delivery-targets.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "3D authoring, editable scene export and target inspection",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Brand designer",
+      "package": "brand-identity",
+      "references": [
+        "references/discovery-direction.md",
+        "references/identity-system.md",
+        "references/applications-rollout.md",
+        "references/contrast-checks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Editable brand asset authoring and rendered/export inspection",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Graphic designer",
+      "package": "visual-communication",
+      "references": [
+        "references/graphic-composition.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Editable graphic authoring and final output inspection",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Illustrator",
+      "package": "visual-communication",
+      "references": [
+        "references/illustration-craft.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Illustration authoring and actual source/export inspection",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Motion designer",
+      "package": "visual-communication",
+      "references": [
+        "references/motion-timing.md",
+        "references/timeline-manifest.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Motion authoring, rendering and playback inspection",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "UX researcher",
+      "package": "user-research",
+      "references": [
+        "references/research-design.md",
+        "references/sessions-usability.md",
+        "references/synthesis-inference.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "Server administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Linux administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Windows administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/windows-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Network administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/network-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Cloud engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/cloud-iac.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "DevOps engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/delivery-pipelines.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Container platform engineer",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/container-platform.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only platform observation with exact target authorization",
+          "toolName": null
+        },
+        {
+          "name": "Scoped platform change with separate exact target authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "DNS administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/dns.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Storage administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/storage-administration.md",
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Web hosting administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/web-hosting.md",
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Backup and recovery specialist",
+      "package": "recovery-engineering",
+      "references": [
+        "references/scope-objectives.md",
+        "references/backup-design.md",
+        "references/restore-execution.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Disaster recovery specialist",
+      "package": "recovery-engineering",
+      "references": [
+        "references/disaster-recovery.md",
+        "references/scope-objectives.md",
+        "references/restore-execution.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Observability engineer",
+      "package": "observability-engineering",
+      "references": [
+        "references/signal-design.md",
+        "references/telemetry-pipelines.md",
+        "references/queries-dashboards.md",
+        "references/objectives-alerts.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Site reliability engineer",
+      "package": "observability-engineering",
+      "references": [
+        "references/reliability-operations.md",
+        "references/objectives-alerts.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Analytics engineer",
+      "package": "analytics-modeling",
+      "references": [
+        "references/grain-and-joins.md",
+        "references/incremental-history.md",
+        "references/metrics-consumers.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Business intelligence specialist",
+      "package": "data-analysis",
+      "references": [
+        "references/business-intelligence.md",
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data analyst",
+      "package": "data-analysis",
+      "references": [
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data engineer",
+      "package": "data-pipelines",
+      "references": [
+        "references/contracts.md",
+        "references/replay-recovery.md",
+        "references/operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data governance specialist",
+      "package": "data-governance",
+      "references": [
+        "references/ownership-catalogue.md",
+        "references/access-lifecycle.md",
+        "references/quality-lineage.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data integration specialist",
+      "package": "data-pipelines",
+      "references": [
+        "references/contracts.md",
+        "references/integration-behavior.md",
+        "references/replay-recovery.md",
+        "references/operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data quality specialist",
+      "package": "data-quality",
+      "references": [
+        "references/check-design.md",
+        "references/investigation.md",
+        "references/remediation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data scientist",
+      "package": "statistical-modeling",
+      "references": [
+        "references/study-design.md",
+        "references/splits-leakage.md",
+        "references/method-selection.md",
+        "references/evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database administrator",
+      "package": "database-engineering",
+      "references": [
+        "references/operations-recovery.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database developer",
+      "package": "database-engineering",
+      "references": [
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Database performance specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/measured-performance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database tuning changes when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Machine learning engineer",
+      "package": "statistical-modeling",
+      "references": [
+        "references/ml-engineering.md",
+        "references/splits-leakage.md",
+        "references/evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "MySQL specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/mysql-mode.md",
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "PostgreSQL specialist",
+      "package": "database-engineering",
+      "references": [
+        "references/postgresql-mode.md",
+        "references/schema-migrations.md",
+        "references/transactions-concurrency.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped database or model-release mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Application security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/application-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Authorized penetration tester",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/authorized-testing.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Cloud security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/cloud-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/data-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Encryption and key management specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/key-management.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Identity and access specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/identity-access.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Incident response specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/incident-response.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Network security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/network-security.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Privacy specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/privacy-operations.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Security auditor",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/security-audit.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Security awareness trainer",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/security-awareness.md",
+        "references/continuous-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Security operations analyst",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/security-operations.md",
+        "references/continuous-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Vulnerability management specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/vulnerability-management.md",
+        "references/continuous-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Account manager",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/account-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to account/contract records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized account record update or customer commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Lead qualification specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/lead-qualification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to lead records and supplied fit/intent evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized lead record or ownership change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sales operations specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/sales-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to pipeline/forecast snapshots when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized CRM or sales automation change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sales representative",
+      "package": "sales-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/sales-representation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to assigned prospect/account evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized outbound message or commercial commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Inventory specialist",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/inventory-planning.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to SKU/location stock and order records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized stock adjustment, reservation or purchase when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Process analyst",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/process-analysis.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to process evidence and approved procedures when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized process publication or workflow activation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Project coordinator",
+      "package": "operations-delivery",
+      "references": [
+        "references/operating-contract.md",
+        "references/project-coordination.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to project status and dependency records when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized tracker assignment or stakeholder notification when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Purchasing specialist",
+      "package": "operations-delivery",
+      "references": [
+        "references/purchasing.md",
+        "references/inventory-planning.md",
+        "references/operating-contract.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to requisitions, supplier quotes and orders when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized purchase-order issue or purchasing record change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Scheduling coordinator",
+      "package": "operations-delivery",
+      "references": [
+        "references/scheduling.md",
+        "references/operating-contract.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped access to named calendar availability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact calendar event write with attendee notification scope when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Accountant",
+      "package": "financial-operations",
+      "references": [
+        "references/data-controls.md",
+        "references/accounting-workpapers.md",
+        "references/journal-audit.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded financial records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized exact ledger posting or period change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Budget analyst",
+      "package": "financial-operations",
+      "references": [
+        "references/planning-variance.md",
+        "references/data-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded budget/actual records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized budget-system change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Financial reporting specialist",
+      "package": "financial-operations",
+      "references": [
+        "references/financial-reporting.md",
+        "references/data-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded reporting records and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized report filing or publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Invoicing specialist",
+      "package": "financial-operations",
+      "references": [
+        "references/invoicing.md",
+        "references/data-controls.md",
+        "references/accounting-workpapers.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded invoice/order evidence and calculation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized invoice issue, correction or ledger change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Compliance assistant",
+      "package": "compliance-evidence",
+      "references": [
+        "references/scope-sources.md",
+        "references/evidence-assessment.md",
+        "references/review-followup.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded compliance evidence access when supplied records are insufficient",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized control change, evidence request or attestation submission when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Contract assistant",
+      "package": "legal-work",
+      "references": [
+        "references/matter-intake.md",
+        "references/contract-review.md",
+        "references/drafting-review.md",
+        "references/records-authority.md",
+        "references/authority-research.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized complete contract documents and schedules when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized contract-system action or external commitment when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Legal research assistant",
+      "package": "legal-work",
+      "references": [
+        "references/matter-intake.md",
+        "references/authority-research.md",
+        "references/drafting-review.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped research records and qualified current-authority review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only official source retrieval when task interpretation requires it",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized external legal-record action or filing when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Customer onboarding specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/customer-onboarding.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped customer onboarding evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized customer account action or message when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Customer support specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/customer-support.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped support case and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized support record action, refund or customer message when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Knowledge base editor",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/knowledge-base.md",
+        "references/technical-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped help-content and product evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized knowledge-base publication or canonical record change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Technical support specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/case-discipline.md",
+        "references/technical-support.md",
+        "references/technical-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped diagnostic evidence and actual target validation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized target remediation or service action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Employee onboarding specialist",
+      "package": "people-operations",
+      "references": [
+        "references/onboarding.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped employee onboarding and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized HR record, account or onboarding communication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "People operations specialist",
+      "package": "people-operations",
+      "references": [
+        "references/process-policy.md",
+        "references/people-reporting.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped people records and current policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized HR record or policy publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Recruitment specialist",
+      "package": "people-operations",
+      "references": [
+        "references/recruitment.md",
+        "references/people-reporting.md",
+        "references/records-authority.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped candidate and role-related evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized ATS change, candidate message or offer action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Editor",
+      "package": "content-studio",
+      "references": [
+        "references/editorial-delivery.md",
+        "references/editorial-acceptance.md",
+        "references/claims-and-voice.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized editable source and factual/voice evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized publishing or external editorial action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Fact checker",
+      "package": "evidence-research",
+      "references": [
+        "references/fact-checking.md",
+        "references/evidence-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source discovery when supplied citations are insufficient",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only primary-source retrieval when a known source is available",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized restricted-source access or external inquiry when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Research analyst",
+      "package": "evidence-research",
+      "references": [
+        "references/evidence-review.md",
+        "references/ledger-format.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source discovery and bounded comparison/computation when needed",
+          "toolName": null
+        },
+        {
+          "name": "Approved read-only primary-source retrieval when a known source is available",
+          "toolName": "web_fetch"
+        },
+        {
+          "name": "Separately authorized restricted-source access or external inquiry when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Technical writer",
+      "package": "technical-documentation",
+      "references": [
+        "references/documentation-modes.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized product/source evidence and scoped example execution when validation is requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized documentation publication or project-system action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Staff training specialist",
+      "package": "course-design",
+      "references": [
+        "references/staff-training.md",
+        "references/professional-practice.md",
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/delivery-evaluation.md",
+        "references/module-authoring.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learning requirements and learner/facilitator evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized participant pilot, enrollment, LMS publication or learner-data action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Brand strategist",
+      "package": "brand-identity",
+      "references": [
+        "references/brand-strategy.md",
+        "references/discovery-direction.md",
+        "references/applications-rollout.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brand and audience evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized asset production or public brand rollout when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Campaign analyst",
+      "package": "data-analysis",
+      "references": [
+        "references/campaign-analysis.md",
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped campaign data and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized campaign-system or budget change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Community manager",
+      "package": "social-planning",
+      "references": [
+        "references/community-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped community cases and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact community response or moderation action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Content creator",
+      "package": "content-studio",
+      "references": [
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brand/source evidence and asset authoring capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized content generation service or publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Email marketing specialist",
+      "package": "content-studio",
+      "references": [
+        "references/email-marketing.md",
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped email brief, consent/policy and source evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized email-platform enrollment or sending action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "SEO specialist",
+      "package": "search-visibility",
+      "references": [
+        "references/technical-diagnosis.md",
+        "references/content-intent.md",
+        "references/local-international.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded site/render/search evidence and diagnostics when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized site, redirect or business-profile change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Social media manager",
+      "package": "social-planning",
+      "references": [
+        "references/editorial-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped editorial records and channel evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact scheduling or publishing action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual influencer",
+      "package": "social-planning",
+      "references": [
+        "references/synthetic-creator.md",
+        "references/editorial-operations.md",
+        "references/community-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized creator/asset rights and actually available media authoring capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized media generation or public creator-account action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Animation specialist",
+      "package": "visual-communication",
+      "references": [
+        "references/animation-production.md",
+        "references/motion-timing.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized assets and actual animation authoring/render/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized render service or animation publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Podcast producer",
+      "package": "audio-production",
+      "references": [
+        "references/editorial-planning.md",
+        "references/capture-assets.md",
+        "references/editing-mix.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized speakers/assets and recording/editing/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized recording, synthesis, guest contact or release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Scriptwriter",
+      "package": "content-studio",
+      "references": [
+        "references/scriptwriting.md",
+        "references/claims-and-voice.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brief, brand/source material and rights evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized production or publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sound editor",
+      "package": "audio-production",
+      "references": [
+        "references/sound-post-production.md",
+        "references/editing-mix.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source audio and actual editing/export/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized processing service or audio release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Video editor",
+      "package": "visual-communication",
+      "references": [
+        "references/video-post-production.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized footage/assets and actual timeline/render/playback capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized render service or video publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual actor",
+      "package": "social-planning",
+      "references": [
+        "references/virtual-acting.md",
+        "references/synthetic-creator.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized character/asset rights and actual performance production/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized synthesis or performance release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual presenter",
+      "package": "social-planning",
+      "references": [
+        "references/virtual-presenting.md",
+        "references/synthetic-creator.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized presenter assets, voice/likeness rights, disclosure and production/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized presenter generation or publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Voice performer",
+      "package": "audio-production",
+      "references": [
+        "references/voice-performance.md",
+        "references/capture-assets.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized voice/source rights and actual recording/synthesis/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized voice generation or release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Arabic teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/arabic-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "English teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/english-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "French teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/french-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "German teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/german-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Spanish teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/spanish-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Language teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/language-adaptation.md",
+        "references/diagnosis-lesson.md",
+        "references/conversation-practice.md",
+        "references/feedback-progress.md",
+        "references/arabic-pathway.md",
+        "references/english-pathway.md",
+        "references/french-pathway.md",
+        "references/german-pathway.md",
+        "references/spanish-pathway.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Conversation tutor",
+      "package": "language-coaching",
+      "references": [
+        "references/conversation-practice.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Course designer",
+      "package": "course-design",
+      "references": [
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/module-authoring.md",
+        "references/delivery-evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized curriculum/learner evidence and participant pilot capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized LMS publication, enrollment or learner-data action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Professional skills trainer",
+      "package": "course-design",
+      "references": [
+        "references/professional-practice.md",
+        "references/outcomes-scope.md",
+        "references/activities-assessment.md",
+        "references/delivery-evaluation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized role/task evidence and actual learner/facilitator interaction when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized participant delivery, LMS or staff-record action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Learning coach",
+      "package": "learning-support",
+      "references": [
+        "references/learning-coaching.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learning-task evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or reminder action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Mathematics tutor",
+      "package": "learning-support",
+      "references": [
+        "references/mathematics.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized problem context and actual calculation capability when tool validation is needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Programming teacher",
+      "package": "learning-support",
+      "references": [
+        "references/programming.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner code and scoped execution capability when actual example testing is requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learning-platform or learner-record action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Science tutor",
+      "package": "learning-support",
+      "references": [
+        "references/science.md",
+        "references/diagnosis-support.md",
+        "references/progress-evidence.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized problem/evidence context and scoped calculation/simulation capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record or external teaching action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Translator",
+      "package": "translation-delivery",
+      "references": [
+        "references/meaning-terminology.md",
+        "references/document-tokens.md",
+        "references/review-delivery.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized complete source/glossary and required specialist review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized external translation service or publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Product manager",
+      "package": "product-management",
+      "references": [
+        "references/product-decisions.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Business analyst",
+      "package": "operations-delivery",
+      "references": [
+        "references/business-analysis.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Project manager",
+      "package": "operations-delivery",
+      "references": [
+        "references/project-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Executive / Personal assistant",
+      "package": "operations-delivery",
+      "references": [
+        "references/executive-assistance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Model evaluation specialist",
+      "package": "ai-application-engineering",
+      "references": [
+        "references/evaluation-design.md",
+        "references/evaluation-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped evaluation data and actual inference capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized model runs or deployment action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Proposal / Tender specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/proposal-tender.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Public relations specialist",
+      "package": "communications-operations",
+      "references": [
+        "references/public-relations.md",
+        "references/message-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Internal communications specialist",
+      "package": "communications-operations",
+      "references": [
+        "references/internal-change.md",
+        "references/message-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Knowledge management specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/knowledge-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Localisation specialist",
+      "package": "translation-delivery",
+      "references": [
+        "references/software-localisation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    }
+  ]
+}

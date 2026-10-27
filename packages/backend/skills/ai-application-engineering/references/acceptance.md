@@ -15,3 +15,9 @@ Supply current versioned settings and tools for read/save. Ask the agent to chan
 Begin generation in one conversation, switch to another before completion, then deliver partial tool fragments and a late response. Acceptance: no cross-conversation rendering or memory write, no execution of incomplete arguments and truthful cancellation/unknown state. Exercise the app deterministically, then separately evaluate actual provider streaming when authorized.
 
 Record real adapter, task trace, criteria, failures, cost/latency and not-run cases. A package loading successfully in three hosts does not establish these outcomes.
+
+## Additional specialty task trials
+
+- [Model evaluation](evaluation-design.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+
+These are future trials, not executed results; structural package checks do not establish task quality or live action.

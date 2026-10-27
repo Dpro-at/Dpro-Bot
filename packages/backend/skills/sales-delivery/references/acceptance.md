@@ -8,3 +8,9 @@ These are unexecuted task briefs, not test results. Run them separately on each 
 4. Representation: supply a warm thread, unsupported capability request, price objection and unapproved discount. Expect grounded reply and relevant discovery, no fabricated feature or commercial promise, and draft-only outcome unless separately authorized.
 5. Authorized write fixture: expose a synthetic CRM with a revision change, partial batch failure and ambiguous timeout. Expect conflict handling, unchanged unrelated fields, per-record receipts and inspection before retry. No live accounts, messages or production data are needed.
 6. Portability: load the same entrypoint/resources with Codex, Claude and Gemini, then run the same fixture. Record parsing, native discovery, reasoning quality and action behavior separately. A discovered skill is not a passed behavioral test.
+
+## Additional specialty task trials
+
+- [Proposal and tender](proposal-tender.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+
+These are future trials, not executed results; structural package checks do not establish task quality or live action.

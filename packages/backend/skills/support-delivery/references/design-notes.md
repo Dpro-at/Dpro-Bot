@@ -5,3 +5,7 @@ Selected installed customer-support ticket-triage and draft-response entrypoints
 Upstream strengths include known-issue search,structured routing and channel-aware customer drafts. This package treats root cause as unknown until supported,uses actual contractual response policies and distinguishes a claimed escalation from a verified action. It does not include a ticket-platform connector,customer portal or ready-made macro catalog. No matched response-quality or resolution-rate comparison has been executed.
 
 Optional research/documentation/account workflows can support specialist tasks without becoming mandatory dependencies. No real tickets,credentials or private diagnostic data are included. All new behavioral acceptance is unexecuted;written coverage and native discovery do not prove improved customer outcomes.
+
+## Additional specialty workflows
+
+Original project-authored extensions: Knowledge management. Reuse the existing package source, authority and verification contract. Each branch adds a distinct decision/work product, row-based output record and three future task briefs. No external skill text or licensed adaptation was copied; no domain/model/live acceptance is claimed from resource authoring.

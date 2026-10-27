@@ -24,3 +24,7 @@ Complete selected entrypoints reviewed:
 Purchasing source links a buy decision to later bill matching. Our independent extension reuses inventory policy and adds sourcing,total terms,order lifecycle and receiving exceptions without copying fixed velocity defaults or repeated approval rituals. Scheduling source offers calendar/CRM closure. Our general mode adds timezone/DST,recurrence edit scope,notification/readback and unknown-calendar semantics without automatic CRM logging or vendor-specific limitations. No source text/templates/recipes copied;less connector automation is a tradeoff,no actual purchase/calendar acceptance claim.
 
 [Google Calendar concepts](https://developers.google.com/workspace/calendar/api/concepts/events-calendars) informed timed/all-day and recurrence identity distinctions. Exact host/provider schema still governs. No calendar/order/supplier/ledger action ran.
+
+## Additional specialty workflows
+
+Original project-authored extensions: Business analysis, Project management, Executive assistance. Reuse the existing package source, authority and verification contract. Each branch adds a distinct decision/work product, row-based output record and three future task briefs. No external skill text or licensed adaptation was copied; no domain/model/live acceptance is claimed from resource authoring.

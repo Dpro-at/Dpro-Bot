@@ -5,7 +5,7 @@ license: MIT
 compatibility: Provider-neutral instructions for Codex, Claude and Gemini; uses installed project runtimes and available tools without mandatory vendor services.
 metadata:
   agent-player:
-    version: 1.0.0
+    version: 1.1.0
 ---
 
 # AI application engineering
@@ -31,3 +31,7 @@ Validate model-derived structures before consuming them. Schema validation const
 Read [Evaluation and operations](references/evaluation-operations.md). Use [Evaluation matrix](assets/evaluation-matrix.md) for normal, ambiguous, unsupported, adversarial and partial-failure cases. Set task-specific criteria and a baseline before making a quality claim. Record actual model/version/configuration, budgets, environment and failures when inference is authorized.
 
 Complete local deterministic fixtures without implying that real model behavior was tested. Paid inference, model installation, external writes and activation remain separate permissions. Deliver the implementation/contract, observed evidence, cost/latency constraints and remaining acceptance. [Behavioral briefs](references/acceptance.md) are future tasks, not results. [Design notes](references/design-notes.md) record reviewed sources and scope.
+
+## Model evaluation specialist mode
+
+For model evaluation specialist work, read [Model evaluation specialist](references/evaluation-design.md) and use [the output record](assets/evaluation-adjudication.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.
