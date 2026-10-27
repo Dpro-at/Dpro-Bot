@@ -2447,6 +2447,391 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Application security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/application-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Authorized penetration tester",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/authorized-testing.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Cloud security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/cloud-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data security specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/data-security.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Encryption and key management specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/key-management.md",
+        "references/acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Identity and access specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/identity-access.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Incident response specialist",
+      "package": "security-engineering",
+      "references": [
+        "references/assessment-discipline.md",
+        "references/incident-response.md",
+        "references/governance-acceptance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped observation or validation with exact target and method limits when requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped remediation or response action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
