@@ -5610,6 +5610,390 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Arabic teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/arabic-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "English teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/english-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "French teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/french-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "German teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/german-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Spanish teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/spanish-pathway.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Language teacher",
+      "package": "language-coaching",
+      "references": [
+        "references/language-adaptation.md",
+        "references/diagnosis-lesson.md",
+        "references/conversation-practice.md",
+        "references/feedback-progress.md",
+        "references/arabic-pathway.md",
+        "references/english-pathway.md",
+        "references/french-pathway.md",
+        "references/german-pathway.md",
+        "references/spanish-pathway.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Conversation tutor",
+      "package": "language-coaching",
+      "references": [
+        "references/conversation-practice.md",
+        "references/diagnosis-lesson.md",
+        "references/feedback-progress.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized learner evidence and actual audio interaction capability when spoken skills are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized learner-record, reminder or external teaching-platform action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
