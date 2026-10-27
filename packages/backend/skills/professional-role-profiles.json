@@ -1,0 +1,346 @@
+{
+  "format": "professional-role-recommendations",
+  "version": 1,
+  "activation": "Review-only recommendations. Not a workspace-pack import or automatic grants/seed upgrade. Resolve installed skill IDs and tool catalogue before owner-reviewed template save. Profiles containing ask_coding_app require the exec-class tool catalogue to be enabled; no tool execution or approval bypass is implied.",
+  "profiles": [
+    {
+      "name": "Frontend developer",
+      "package": "frontend-delivery",
+      "references": [
+        "references/accessibility-and-states.md",
+        "references/product-review.md",
+        "references/interface-design.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "UI designer",
+      "package": "frontend-delivery",
+      "references": [
+        "references/interface-design.md",
+        "references/product-review.md",
+        "references/accessibility-and-states.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "QA engineer",
+      "package": "web-quality",
+      "references": [
+        "references/browser-review.md",
+        "references/receipt-format.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    },
+    {
+      "name": "Test automation engineer",
+      "package": "test-automation",
+      "references": [
+        "references/test-design.md",
+        "references/isolation-execution.md",
+        "references/reliability-ci.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Full-stack developer",
+      "package": "service-engineering",
+      "references": [
+        "references/application-slice.md",
+        "references/api-agreements.md",
+        "references/durable-behavior.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_navigate",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_extract",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_screenshot",
+          "fingerprint": null
+        },
+        {
+          "name": "browser_interact",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "ask",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorised project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Copywriter",
+      "package": "content-studio",
+      "references": [
+        "references/conversion-copy.md",
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
+    }
+  ]
+}
