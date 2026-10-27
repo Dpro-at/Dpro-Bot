@@ -93,7 +93,7 @@ return weather.join('\n');
 - 10x faster for multi-step tasks
 - 80% reduction in API costs
 - Full JavaScript logic (loops, conditions, etc.)
-- Sandboxed execution (vm2) with 30s timeout
+- Runs in an isolated, permission-restricted process with a 30s timeout
 
 ### Browser Tools (4) — requires Puppeteer
 
@@ -233,7 +233,7 @@ export const myTool: Tool = {
 
 ## Security
 
-- **execute_code**: Runs in isolated VM sandbox (vm2) with timeout and memory limits
+- **execute_code**: Runs in its own Node process with the permission system on (no files, child processes, workers or addons), no environment, no code generation from strings, and time, memory and toolbox-call limits
 - **exec**: Whitelist-only command execution (no arbitrary commands)
 - **File operations**: Path validation to prevent traversal attacks
 - **Credentials**: AES-256-GCM encryption for stored credentials
