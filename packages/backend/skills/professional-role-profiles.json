@@ -341,6 +341,258 @@
         "settings": "off"
       },
       "requirements": []
+    },
+    {
+      "name": "AI application developer",
+      "package": "ai-application-engineering",
+      "references": [
+        "references/model-boundary.md",
+        "references/context-retrieval.md",
+        "references/tools-authority.md",
+        "references/evaluation-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "API integration developer",
+      "package": "service-engineering",
+      "references": [
+        "references/external-integration.md",
+        "references/api-agreements.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Backend developer",
+      "package": "service-engineering",
+      "references": [
+        "references/durable-behavior.md",
+        "references/api-agreements.md",
+        "references/verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Mobile developer",
+      "package": "mobile-delivery",
+      "references": [
+        "references/lifecycle-restoration.md",
+        "references/connectivity-data.md",
+        "references/platform-interaction.md",
+        "references/device-validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "ask_coding_app",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized project editing and installed test execution",
+          "toolName": "ask_coding_app"
+        }
+      ]
+    },
+    {
+      "name": "Software architect",
+      "package": "system-architecture",
+      "references": [
+        "references/requirements-evidence.md",
+        "references/boundaries-flow.md",
+        "references/evolution-validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "off",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": []
     }
   ]
 }

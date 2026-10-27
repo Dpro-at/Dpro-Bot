@@ -62,7 +62,7 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 6);
+ assert.equal(recommendations.profiles.length, 11);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
  const frontend = await templates.get(frontendId);
