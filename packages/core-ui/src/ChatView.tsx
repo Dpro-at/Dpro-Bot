@@ -1,4 +1,4 @@
-import {ChatAgentPicker} from './ChatAgentPicker';
+import { KeysSheet, ModeButton, ModelButton, PlusButton, ProjectChip, ProjectSheet, SlashList, WhoButton, slashMatches } from './ChatComposerControls';
 import { modelDisplayName } from './model-names';
 import {ChatAddons} from './ChatAddons';
 import {DocumentEditor} from './DocumentEditor';
@@ -149,8 +149,44 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const suggestions = mention && s.agents.length > 1 ? s.agents.filter(a => a.name.toLowerCase().startsWith(mention[2].toLowerCase())).slice(0, 6) : [];
   const [pick, setPick] = useState(0);
   const choose = (name: string) => { if (!mention) return; controller.edit(`${s.draft.slice(0, s.draft.length - mention[2].length - 1)}@${name} `); setPick(0); input.current?.focus(); };
+  // CHAT-BUILD-01 stage 3 (CH3): the composer's popovers, the chat's keys and "/" commands.
+  const [popover, setPopover] = useState<'who' | 'model' | 'mode' | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [projectSheet, setProjectSheet] = useState<{ id: string | null } | null>(null);
+  const slashQuery = /^\/[a-z]*$/.test(s.draft) ? s.draft : null;
+  const slash = slashQuery ? slashMatches(slashQuery) : [];
+  const runSlash = (c: string) => {
+    controller.edit('');
+    const last = [...s.turns].reverse().find(t => t.role === 'assistant' && t.status === 'complete');
+    if (c === '/agent') setPopover('who');
+    else if (c === '/model') setPopover('model');
+    else if (c === '/export' && s.activeId) void controller.exportMarkdown(s.activeId);
+    else if (c === '/remember' && last && canRemember) openRemember(last, last.content);
+    else if (c === '/board' && owner && cardsCtl && s.activeId) openCardForm();
+    setPick(0); input.current?.focus();
+  };
+  useEffect(() => {
+    if (!active) return;
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const hit = (fn: () => void) => { e.preventDefault(); fn(); };
+      if (k === 'j' && !e.shiftKey) hit(() => setPopover(p => (p === 'who' ? null : 'who')));
+      else if (k === 'm' && e.shiftKey) hit(() => setPopover(p => (p === 'model' ? null : 'model')));
+      else if (k === 'p' && e.shiftKey) hit(() => setPopover(p => (p === 'mode' ? null : 'mode')));
+      else if (k === 'u' && !e.shiftKey) hit(() => picker.current?.click());
+      else if (k === 'e' && e.shiftKey) hit(() => setLongDraft(true));
+      else if (k === '/') hit(() => setShortcutsOpen(v => !v));
+      else if (k === 'n' && e.shiftKey && client?.getSnapshot().user?.role === 'owner') hit(() => setProjectSheet({ id: null }));
+    };
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  }, [active, client]);
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
+    if (slash.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setPick(p => (p + (e.key === 'ArrowDown' ? 1 : slash.length - 1)) % slash.length); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); runSlash(slash[Math.min(pick, slash.length - 1)].c); return; }
+    }
     if (suggestions.length) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setPick(p => (p + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length); return; }
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(suggestions[Math.min(pick, suggestions.length - 1)].name); return; }
@@ -257,12 +293,13 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     <div className="chat-thread" ref={thread} onScroll={onScroll} aria-label="Conversation">
       {s.threadPhase === 'loading' && <p className="chat-loading" role="status"><span className="pulse" aria-hidden="true"/>Opening the conversation</p>}
       {empty ? <div className="chat-empty">
-        <span className="chat-empty-icon"><UiIcon name="message" size={28}/></span><h2 className="chat-wordmark">New conversation</h2>
+        {/* CHAT-BUILD-01 stage 3 (CH5): one sentence and three ideas. */}
+        <h2 className="chat-wordmark">What should the team do?</h2>
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
-          : 'Choose who replies, add a project if needed, and write your message.'}</p>
-        <details className="chat-starting-ideas"><summary><UiIcon name="chevron" size={12}/>Start with a task</summary><div className="chat-suggestions">{SUGGESTIONS.map(t =>
-          <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}><UiIcon name="compose" size={14}/>{t}</button>)}</div></details>
+          : 'Write it the way you would tell a person. The team picks who does what.'}</p>
+        <div className="chat-suggestions">{SUGGESTIONS.map(t =>
+          <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}>{t}</button>)}</div>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
         {s.hasEarlier && <button type="button" className="ghost-action chat-earlier" disabled={s.loadingEarlier} onClick={() => void controller.loadEarlier()}>{s.loadingEarlier ? 'Loading earlier messages…' : 'Show earlier messages'}</button>}
         {s.turns.map((t, i) => t.role === 'user'
@@ -278,6 +315,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {client && keysOpen !== null && <SavedKeys client={client} owner={owner} highlight={keysOpen || undefined} onClose={() => setKeysOpen(null)}/>}
     {below && !empty && <button type="button" className="chat-jump" onClick={jump} aria-label="Jump to the latest message"><UiIcon name="arrow-down" size={15}/></button>}
     {previewFile&&<DocumentEditor title="Attached file" files={[{id:previewFile.name,name:previewFile.name,content:previewFile.text,readOnly:true}]} maxLength={60000} onChange={()=>{}} onClose={()=>setAttachmentPreview(null)}/>}
+    {shortcutsOpen && <KeysSheet onClose={() => setShortcutsOpen(false)}/>}
+    {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} onClose={() => setProjectSheet(null)}/>}
     {longDraft&&<DocumentEditor title="Message draft" files={[{id:'message',name:'message.md',content:s.draft}]} maxLength={100000} onChange={(_,text)=>controller.edit(text)} onClose={()=>setLongDraft(false)}/>}
     <div className="chat-dock">
       {s.notice && <p className="chat-notice" role="status">{s.notice}</p>}
@@ -301,11 +340,11 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         {attachError && <span className="attach-error" role="alert">{attachError}</span>}
       </div>}
 
-      {!s.activeId&&onChooseContext&&<button type="button" className="composer-context" onClick={onChooseContext}>{project?.folder?'Folder: '+project.name:'General chat · Choose a folder…'}</button>}
       {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app. Girru tools follow the selected agent’s grants and approvals. Stop cancels the local process.</p>}
       <form className="chat-composer" method="post" onSubmit={e => { e.preventDefault(); submit(); }}
         onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); void onFiles(e.dataTransfer.files); } }}>
         <label htmlFor="chat-input" className="sr-only">Message</label>
+        {slash.length > 0 && <SlashList query={slashQuery!} index={pick} onPick={runSlash}/>}
         {suggestions.length > 0 && <ul className="mention-list" role="listbox" aria-label="Agents">{suggestions.map((a, i) =>
           <li key={a.id} role="option" aria-selected={i === Math.min(pick, suggestions.length - 1)}><button type="button" onMouseDown={e => { e.preventDefault(); choose(a.name); }}>
             <span className="avatar" aria-hidden="true">{a.name.slice(0, 1).toUpperCase()}</span>{a.name}</button></li>)}</ul>}
@@ -315,12 +354,16 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
             accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*"/>
-          <button type="button" className="tool composer-attach" aria-label="Attach text files" title="Attach text files (code, notes, CSV…)" onClick={() => picker.current?.click()}><UiIcon name="plus" size={14}/></button>
-          <button type="button" className="tool" aria-label="Expand message editor" title="Write a longer message" onClick={()=>setLongDraft(true)}><UiIcon name="expand" size={14}/></button>
-          {s.agents.length>0&&<ChatAgentPicker agents={s.agents.filter(a=>s.activeId?(a.id!==convAgentId&&!(a.primary&&!convAgentId)):!a.primary)} value={s.activeId?s.replyAgent:s.agentId} currentName={s.activeId?convAgentName:s.agents.find(a=>a.primary)?.name??'Main agent'} label={s.activeId?'Reply from':'Agent'} onChange={id=>s.activeId?controller.setReplyAgent(id):controller.selectAgent(id)}/>}
-          <div className="composer-source"><button type="button" className="composer-source-toggle" popoverTarget="chat-reply-source" title="Choose who answers: agent, Claude Code, Codex or Google Gemini" aria-label="Choose reply source"><span className="composer-source-icon">{who.app?<AppIcon id={who.app.id} size={14}/>:<UiIcon name="cpu" size={14}/>}</span><span>{who.app?who.text:'Agent model'}</span><UiIcon name="chevron" size={11}/></button><div id="chat-reply-source" popover="auto" className="composer-source-popover"><WhoAnswers controller={controller} agent={convAgentName}/><p className="composer-source-note"><UiIcon name="terminal" size={13}/>Coding apps reply through the local CLI connection. The terminal pane is a separate workspace.</p></div></div>
+          <PlusButton onFiles={() => picker.current?.click()} onLong={() => setLongDraft(true)}/>
+          <ModeButton value={s.mode} onChange={m => void controller.setMode(m)} open={popover === 'mode'} setOpen={v => setPopover(v ? 'mode' : null)}/>
+          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
+          <span className="composer-spacer"/>
+          {s.agents.length > 0 && <WhoButton team={{ id: '', name: (s.activeId ? convAgentName : s.agents.find(a => a.primary)?.name) ?? 'Main agent' }}
+            agents={s.agents.filter(a => s.activeId ? (a.id !== convAgentId && !(a.primary && !convAgentId)) : !a.primary).map(a => ({ id: a.id, name: a.name }))}
+            value={s.activeId ? s.replyAgent : s.agentId} label={s.activeId ? convAgentName : 'Team'}
+            onChange={id => (s.activeId ? controller.setReplyAgent(id) : controller.selectAgent(id))} open={popover === 'who'} setOpen={v => setPopover(v ? 'who' : null)}/>}
+          {owner && <ModelButton controller={controller} open={popover === 'model'} setOpen={v => setPopover(v ? 'model' : null)}/>}
           {mic && <MicButton mic={mic}/>}
-          <span className="composer-keys" aria-hidden="true">{running ? 'Esc stops' : 'Enter sends · Shift+Enter new line'}</span>
           {running && !s.draft.trim()
             ? <button type="button" className="round-button stop" onClick={() => void controller.stop()} disabled={s.stopping} aria-label={s.stopping ? 'Stopping' : 'Stop the reply'}><UiIcon name="stop" size={10}/></button>
             : <button type="submit" className="round-button" disabled={(!s.draft.trim() && !s.attachments.length) || s.access === 'denied'} aria-label={busy ? 'Queue the message' : 'Send'}><UiIcon name="arrow-up" size={14}/></button>}
@@ -353,35 +396,6 @@ export function whoAnswers(model: string, models: readonly ModelOption[]): { app
   return { app, base, variant, text: [app.label, base !== app.id ? 'previous session' : '', label].filter(Boolean).join(' · ') };
 }
 
-/** Top of the Details panel: the agent with its own model, or Claude Code / Codex in the terminal with one of their models (CORE-PICKER-02). */
-function WhoAnswers({ controller, agent }: { controller: ConversationsController; agent: string }) {
-  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const project = controller.activeProject();
-  useEffect(() => { void controller.loadModels(true); }, [controller]);
-  const who = whoAnswers(s.model, s.models);
-  const listed = s.models.some(m => m.provider === 'subscription');
-  const variants = who.app ? s.models.find(m => m.id === who.app!.id)?.variants ?? [] : [];
-  return <section className="panel-card who-answers">
-    <h3>Who answers</h3>
-    <div className="who-list" role="radiogroup" aria-label="Who answers">
-      <button type="button" role="radio" aria-checked={!who.app} onClick={() => controller.selectModel('')}>
-        <span className="who-icon"><UiIcon name="brain" size={14}/></span><span className="who-name">{agent}<small>Own model · set in Settings</small></span></button>
-      {TERMINAL_APPS.map(a => {
-        const ready = s.models.some(m => m.id === a.id && m.provider === 'subscription');
-        // CORE-PICKER-03: without a project folder the app works in this chat's own private folder.
-        const why = !ready ? (listed ? 'Not on this computer' : 'Unavailable in this workspace') : project?.folder ? 'In the project folder' : 'In a private chat folder';
-        return <button key={a.id} type="button" role="radio" aria-checked={who.app?.id === a.id} disabled={!ready} onClick={() => controller.selectModel(a.id)}>
-          <span className="who-icon"><AppIcon id={a.id} size={14}/></span><span className="who-name">{a.label}<small>{why}</small></span></button>;
-      })}
-    </div>
-    {who.app && <label className="who-model"><span>Model</span>
-      <select value={who.variant} onChange={e => controller.selectModel(who.base + (e.target.value ? `/${e.target.value}` : ''))}>
-        <option value="">Default</option>
-        {variants.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
-        {who.variant && !variants.some(v => v.id === who.variant) && <option value={who.variant}>{who.variant}</option>}
-      </select></label>}
-  </section>;
-}
 
 /** Details of the open conversation: where it works, how big it is, what it produced. */
 function ChatSidePanel({ controller, client, onAddConnector, memory, onOpenMemory, recall, onClose }: { controller: ConversationsController; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; memory?: ChatMemoryController | null; onOpenMemory?: (drawerId: string, memoryId: string) => void; recall?: ChatRecallController | null;onClose?:()=>void }) {

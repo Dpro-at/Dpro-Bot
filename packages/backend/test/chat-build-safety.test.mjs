@@ -205,3 +205,59 @@ test('stage 2: the sidebar layout is saved per person; bad values are refused', 
   assert.deepEqual((await call('b-other', 'GET', '/api/chat/sidebar')).json().sidebar.hidden, ['archived'], 'another person keeps the usual layout');
   for (const bad of [{}, { order: ['nope'] }, { folded: ['../x'] }, { theme: 'x' }]) assert.equal((await call('b-owner', 'PUT', '/api/chat/sidebar', bad)).statusCode, 400);
 });
+
+test('stage 3: Mode, Thinking and waiting messages are saved per chat; a waiting message never keeps a raw secret', async () => {
+  const c = await newConversation();
+  const put = (body) => call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, body);
+  const r = (await put({ mode: 'plan', thinking: 'deep', queued: [{ key: 'q-12345678', text: 'Next: deploy with ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8' }] })).json().conversation;
+  assert.equal(r.mode, 'plan'); assert.equal(r.thinking, 'deep');
+  assert.equal(r.queued.length, 1);
+  assert.match(r.queued[0].text, /\[SECRET:github_token:/);
+  assert.ok(!JSON.stringify(db.prepare('SELECT queued FROM chat_sessions WHERE id = ?').get(c.id)).includes('A1b2C3d4'), 'no raw secret stored');
+  const listed = (await call('b-owner', 'GET', '/api/chat/conversations')).json().conversations.find((x) => x.id === c.id);
+  assert.equal(listed.queued, undefined, 'waiting messages travel with the open chat only');
+  assert.equal(listed.mode, 'plan');
+  for (const bad of [{ mode: 'yolo' }, { thinking: 'max' }, { queued: 'x' }, { queued: [{ key: 'k', text: 'x' }] }]) assert.equal((await put(bad)).statusCode, 400, JSON.stringify(bad));
+  assert.equal((await put({ mode: 'auto', thinking: 'normal', queued: [] })).json().conversation.mode, undefined);
+});
+
+test('stage 3: in "Ask me" a tool that changes something asks first; reading does not', async () => {
+  const context = await import(join(backendDir, 'src/services/chat-run-context.ts'));
+  const { changesSomething } = await import(join(backendDir, 'src/tools/registry.ts'));
+  assert.equal(changesSomething({ name: 'read' }), false);
+  assert.equal(changesSomething({ name: 'memory_save' }), false);
+  assert.equal(changesSomething({ name: 'x_send_note' }), true);
+  assert.equal(changesSomething({ name: 'file_write' }), true);
+  assert.equal(changesSomething({ name: 'git_commit', extensionId: 'x' }), true, 'an extension tool changes something unless it only reads');
+  assert.equal(changesSomething({ name: 'x_list_items', extensionId: 'x' }), false);
+  assert.equal(changesSomething({ name: 'board_comment' }), true);
+  const made = (await call('b-owner', 'POST', '/api/chat/conversations', { mode: 'plan', thinking: 'quick' })).json().conversation;
+  assert.deepEqual([made.mode, made.thinking], ['plan', 'quick'], 'a new chat is created with its Mode, never run in auto first');
+  assert.equal((await call('b-owner', 'POST', '/api/chat/conversations', { mode: 'yolo' })).statusCode, 400);
+  const c = await newConversation();
+  tools.registerExtensionTool({ name: 'x_rename_file', description: 'renames a file', extensionId: 'x', requiresApproval: false, input_schema: { type: 'object' }, execute: async () => ({ content: [{ type: 'text', text: 'renamed' }] }) });
+  await grants.setAgentGrants('b-agent', { grants: ['x_send_note', 'x_rename_file'] }, 'b-owner', tools.createToolsRegistry({ workspaceDir: dir }).listRegistered());
+  const reg = await tools.createAgentToolsRegistry({ workspaceDir: dir, userId: 'b-owner', sessionId: c.id, agentId: 'b-agent' });
+  const ctx = (chatMode) => ({ reviewTools: false, chatMode, beforeTool: async () => 'i', afterTool: async () => {} });
+  assert.equal((await context.withChatRun(ctx('auto'), () => reg.execute('x_rename_file', {}))).content[0].text, 'renamed');
+  assert.equal((await context.withChatRun(ctx('ask'), () => reg.execute('x_rename_file', {}))).details?.status, 'pending_approval');
+  assert.equal((await context.withChatRun(ctx('plan'), () => reg.execute('x_rename_file', {}))).details?.status, 'pending_approval');
+});
+
+test('stage 3: projects keep added folders; variables are encrypted, listed by name only, refused for reserved names', async () => {
+  const { mkdtempSync } = await import('node:fs');
+  const main = mkdtempSync(join(dir, 'main-')), extra = mkdtempSync(join(dir, 'brand-'));
+  const p = (await call('b-owner', 'POST', '/api/chat/projects', { name: 'Site', folder: main, folders: [{ path: extra, write: true }, { path: main }] })).json().project;
+  assert.deepEqual(p.folders.map((f) => f.write), [true], 'the main folder is never added twice');
+  const v = (await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/API_URL`, { value: 'https://api.example.test/token-value' })).json();
+  assert.deepEqual(v.variables, ['API_URL']);
+  assert.ok(!JSON.stringify(db.prepare('SELECT * FROM credentials').all()).includes('token-value'), 'stored encrypted');
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/PATH`, { value: '/tmp' })).statusCode, 400);
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/lower`, { value: 'x' })).statusCode, 400);
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/ZDOTDIR`, { value: '/tmp' })).statusCode, 400, 'shell start-up names are refused');
+  const env = await (await import(join(backendDir, 'src/services/project-variables.ts'))).variablesEnv('b-owner', p.id);
+  assert.deepEqual(env, { API_URL: 'https://api.example.test/token-value' });
+  assert.equal((await call('b-other', 'GET', `/api/chat/projects/${p.id}/variables`)).statusCode, 403);
+  assert.equal((await call('b-owner', 'DELETE', `/api/chat/projects/${p.id}`)).statusCode, 200);
+  assert.deepEqual(await (await import(join(backendDir, 'src/services/project-variables.ts'))).listVariables('b-owner', p.id), [], 'variables go with the project');
+});

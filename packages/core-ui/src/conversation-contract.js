@@ -7,6 +7,11 @@ import { approvalPath, allowedApproval, approvalResponse } from './recovery-appr
 export const CONVERSATIONS_PATH = '/api/chat/conversations';
 export const PROJECTS_PATH = '/api/chat/projects';
 const folderOk = x => typeof x === 'string' && x.length <= 1024 && !/[\u0000-\u001F]/.test(x);
+/** CHAT-BUILD-01 stage 3 (CH5): a project's added folders, read only unless write. */
+const foldersOk = x => Array.isArray(x) && x.length <= 8 && x.every(f => record(f) && onlyKeys(f, ['path', 'write']) && folderOk(f.path) && f.path.length > 0 && (f.write === undefined || typeof f.write === 'boolean'));
+export const CHAT_MODES = ['auto', 'ask', 'accept_edits', 'plan'];
+export const CHAT_THINKING = ['quick', 'normal', 'deep'];
+const queueOk = x => Array.isArray(x) && x.length <= 20 && x.every(q => record(q) && onlyKeys(q, ['key', 'text']) && typeof q.key === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(q.key) && text(q.text, MAX_MESSAGE) && q.text.trim().length > 0);
 const repoOk = x => typeof x === 'string' && x.length <= 300 && (x === '' || /^(https:\/\/|git@)[A-Za-z0-9.@:/_~%+-]{3,300}$/.test(x));
 export const MAX_MESSAGE = 100000;
 /** CHAT-BUILD-01: request bytes for one message (100,000 Arabic characters are about 200 KB of UTF-8). */
@@ -53,6 +58,10 @@ export function conversationPath(path) {
   if (path === PROJECTS_PATH) return { kind: 'projects' };
   let pm = /^\/api\/chat\/projects\/([^/?#]+)$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project', id: pm[1] } : null;
+  pm = /^\/api\/chat\/projects\/([^/?#]+)\/variables$/.exec(path);
+  if (pm) return uuid(pm[1]) ? { kind: 'variables', id: pm[1] } : null;
+  pm = /^\/api\/chat\/projects\/([^/?#]+)\/variables\/([A-Z_][A-Z0-9_]{0,63})$/.exec(path);
+  if (pm) return uuid(pm[1]) ? { kind: 'variable', id: pm[1], name: pm[2] } : null;
   pm = /^\/api\/chat\/projects\/([^/?#]+)\/git$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project-git', id: pm[1] } : null;
   pm = /^\/api\/chat\/projects\/([^/?#]+)\/changes$/.exec(path);
@@ -91,20 +100,25 @@ export function allowedConversation(method, path, body) {
   if (!p) return false;
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
-  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe'].includes(p.kind);
+  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
   if (method === 'POST' && p.kind === 'transcribe') return record(body) && onlyKeys(body, ['audio', 'language']) && typeof body.audio === 'string' && body.audio.length > 0 && body.audio.length <= MAX_AUDIO_CHARS && /^[A-Za-z0-9+/]+={0,2}$/.test(body.audio)
     && (body.language === undefined || STT_LANGUAGES.includes(body.language));
-  if (method === 'DELETE') return body === undefined && (p.kind === 'one' || p.kind === 'project');
+  if (method === 'DELETE') return body === undefined && (p.kind === 'one' || p.kind === 'project' || p.kind === 'variable');
   if(method==='POST'&&p.kind==='folder-picker')return record(body)&&onlyKeys(body,['path'])&&(body.path===undefined||(typeof body.path==='string'&&body.path.length>0&&body.path.length<=4096&&!/[\x00-\x1f]/.test(body.path)));
-  if (method === 'POST' && p.kind === 'projects') return record(body) && onlyKeys(body, ['name', 'folder', 'repoUrl']) && title(body.name) && body.name.trim().length > 0
+  if (p.kind === 'variables') return method === 'GET' && body === undefined;
+  if (p.kind === 'variable') return method === 'DELETE' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['value']) && typeof body.value === 'string' && body.value.length > 0 && body.value.length <= 8000 && !body.value.includes('\u0000');
+  if ((method === 'POST' && p.kind === 'projects') || (method === 'PUT' && p.kind === 'project')) { if (body?.folders !== undefined && !foldersOk(body.folders)) return false; }
+  if (method === 'POST' && p.kind === 'projects') return record(body) && onlyKeys(body, ['name', 'folder', 'repoUrl', 'folders']) && title(body.name) && body.name.trim().length > 0
     && (body.folder === undefined || folderOk(body.folder)) && (body.repoUrl === undefined || repoOk(body.repoUrl));
-  if (method === 'PUT' && p.kind === 'project') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['name', 'folder', 'repoUrl'])
+  if (method === 'PUT' && p.kind === 'project') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['name', 'folder', 'repoUrl', 'folders'])
     && (body.name === undefined || (title(body.name) && body.name.trim().length > 0)) && (body.folder === undefined || body.folder === null || folderOk(body.folder)) && (body.repoUrl === undefined || body.repoUrl === null || repoOk(body.repoUrl));
-  if (method === 'POST' && p.kind === 'list') return record(body) && onlyKeys(body, ['title', 'agentId', 'projectId', 'model']) && (body.title === undefined || title(body.title)) && (body.agentId === undefined || agentId(body.agentId)) && (body.projectId === undefined || uuid(body.projectId)) && savedModel(body.model);
+  if (method === 'POST' && p.kind === 'list') return record(body) && onlyKeys(body, ['title', 'agentId', 'projectId', 'model', 'mode', 'thinking']) && (body.title === undefined || title(body.title)) && (body.agentId === undefined || agentId(body.agentId)) && (body.projectId === undefined || uuid(body.projectId)) && savedModel(body.model)
+    && (body.mode === undefined || CHAT_MODES.includes(body.mode)) && (body.thinking === undefined || CHAT_THINKING.includes(body.thinking));
   if (method === 'POST' && p.kind === 'runs') return record(body) && onlyKeys(body, ['runId', 'message', 'model', 'agentId']) && (body.agentId === undefined || agentId(body.agentId)) && validRunId(body.runId) && text(body.message, MAX_MESSAGE) && body.message.trim().length > 0
     && (body.model === undefined || (typeof body.model === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(body.model)));
   if (method === 'POST' && p.kind === 'stop') return body === undefined;
-  if (method === 'PUT' && p.kind === 'one') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['title', 'pinned', 'projectId', 'model', 'archived']) && (body.projectId === undefined || body.projectId === null || uuid(body.projectId)) && (body.title === undefined || body.title === null || title(body.title)) && (body.pinned === undefined || typeof body.pinned === 'boolean') && (body.archived === undefined || typeof body.archived === 'boolean') && savedModel(body.model);
+  if (method === 'PUT' && p.kind === 'one') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['title', 'pinned', 'projectId', 'model', 'archived', 'mode', 'thinking', 'queued']) && (body.projectId === undefined || body.projectId === null || uuid(body.projectId)) && (body.title === undefined || body.title === null || title(body.title)) && (body.pinned === undefined || typeof body.pinned === 'boolean') && (body.archived === undefined || typeof body.archived === 'boolean') && savedModel(body.model)
+    && (body.mode === undefined || CHAT_MODES.includes(body.mode)) && (body.thinking === undefined || CHAT_THINKING.includes(body.thinking)) && (body.queued === undefined || queueOk(body.queued));
   return false;
 }
 
@@ -115,7 +129,9 @@ function conversation(x) {
     pinned: x.pinned === true, preview: str(x.preview, 200), createdAt: str(x.createdAt, 40), updatedAt: str(x.updatedAt, 40),
     // CHAT-BUILD-01 stage 2: sidebar state (archived, opened from another chat, working now, approvals waiting).
     ...(x.archived === true ? { archived: true } : {}), ...(uuid(x.parentId) ? { parentId: x.parentId } : {}),
-    ...(x.running === true ? { running: true } : {}), ...(Number.isSafeInteger(x.waiting) && x.waiting > 0 ? { waiting: Math.min(x.waiting, 999) } : {}) };
+    ...(x.running === true ? { running: true } : {}), ...(Number.isSafeInteger(x.waiting) && x.waiting > 0 ? { waiting: Math.min(x.waiting, 999) } : {}),
+    ...(CHAT_MODES.includes(x.mode) && x.mode !== 'auto' ? { mode: x.mode } : {}), ...(CHAT_THINKING.includes(x.thinking) && x.thinking !== 'normal' ? { thinking: x.thinking } : {}),
+    ...(Array.isArray(x.queued) && queueOk(x.queued) && x.queued.length ? { queued: x.queued.map(q => ({ key: q.key, text: q.text })) } : {}) };
 }
 
 function call(x) {
@@ -145,10 +161,11 @@ function message(x) {
 
 function project(x) {
   if (!record(x) || !uuid(x.id) || typeof x.name !== 'string') throw Error('protocol');
-  return { id: x.id, name: x.name.slice(0, 80), slug: str(x.slug, 64), folder: typeof x.folder === 'string' ? x.folder.slice(0, 1024) : null, repoUrl: typeof x.repoUrl === 'string' ? x.repoUrl.slice(0, 300) : null };
+  return { id: x.id, name: x.name.slice(0, 80), slug: str(x.slug, 64), folder: typeof x.folder === 'string' ? x.folder.slice(0, 1024) : null, repoUrl: typeof x.repoUrl === 'string' ? x.repoUrl.slice(0, 300) : null,
+    folders: Array.isArray(x.folders) ? x.folders.slice(0, 8).filter(f => record(f) && typeof f.path === 'string').map(f => ({ path: f.path.slice(0, 1024), write: f.write === true })) : [] };
 }
 
-const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused'], 429: ['rate_limited', 'stt_busy'] };
+const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid', 'invalid_variable'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused'], 429: ['rate_limited', 'stt_busy'] };
 
 /** A link on github.com only (repository, branch or compare page). */
 const githubUrl = x => typeof x === 'string' && x.length <= 600 && /^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}(\/[A-Za-z0-9._~%\/-]*(\.\.\.[A-Za-z0-9._~%\/-]+)?(\?expand=1)?)?$/.test(x);
@@ -169,6 +186,7 @@ export function conversationResponse(path, status, body) {
     if(!valid(body.path)||(body.parent!==null&&!valid(body.parent))||typeof body.selectable!=='boolean'||!Array.isArray(body.entries)||body.entries.length>500||typeof body.truncated!=='boolean')throw Error('protocol');
     return {path:body.path,parent:body.parent,selectable:body.selectable,truncated:body.truncated,entries:body.entries.map(e=>{if(!record(e)||!valid(e.name)||/[\\/]/.test(e.name)||!valid(e.path)||![body.path.replace(/[\\/]$/,'')+'/'+e.name,body.path.replace(/[\\/]$/,'')+'\\'+e.name].includes(e.path))throw Error('protocol');return {name:e.name,path:e.path};})};
   }
+  if (p.kind === 'variables' || p.kind === 'variable') { if (!Array.isArray(body.variables)) throw Error('protocol'); return { variables: body.variables.filter(n => typeof n === 'string' && /^[A-Z_][A-Z0-9_]{0,63}$/.test(n)).slice(0, 32) }; }
   if (p.kind === 'projects' && status === 200) { if (!Array.isArray(body.projects)) throw Error('protocol'); return { projects: body.projects.slice(0, 500).map(project) }; }
   if (p.kind === 'projects' || (p.kind === 'project' && record(body.project))) return { project: project(body.project) };
   if (p.kind === 'project') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }

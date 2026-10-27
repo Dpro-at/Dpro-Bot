@@ -11,18 +11,20 @@ function fake(){const calls=[];return {calls,backend:{async request(method,path,
 test('chats: list and projects read the sidebar; writes go to the one chat with only the asked field',async()=>{
  const {calls,backend}=fake();
  const list=await callTool('chats',{operation:'list'},{backend});
- assert.deepEqual(list.structuredContent.chats,[{id:CID,name:'Plan the site',projectId:PID,pinned:false,archived:true,openedFrom:PID,workingNow:true,waitingForOwner:2,updatedAt:'2026-10-27 10:00:00'}]);
- assert.deepEqual((await callTool('chats',{operation:'projects'},{backend})).structuredContent.projects,[{id:PID,name:'Website',folder:'/Users/me/site'}]);
+ assert.deepEqual(list.structuredContent.chats,[{id:CID,name:'Plan the site',projectId:PID,pinned:false,mode:'auto',thinking:'normal',archived:true,openedFrom:PID,workingNow:true,waitingForOwner:2,updatedAt:'2026-10-27 10:00:00'}]);
+ assert.deepEqual((await callTool('chats',{operation:'projects'},{backend})).structuredContent.projects,[{id:PID,name:'Website',folder:'/Users/me/site',folders:[]}]);
  assert.equal((await callTool('chats',{operation:'rename',id:CID,title:' New name '},{backend})).structuredContent.chat.name,'New name');
  await callTool('chats',{operation:'pin',id:CID,pinned:true},{backend});
  await callTool('chats',{operation:'archive',id:CID,archived:false},{backend});
  await callTool('chats',{operation:'move',id:CID,projectId:null},{backend});
- assert.deepEqual(calls.filter(c=>c.method==='PUT').map(c=>c.body),[{title:'New name'},{pinned:true},{archived:false},{projectId:null}]);
+ await callTool('chats',{operation:'set_mode',id:CID,mode:'ask'},{backend});
+ await callTool('chats',{operation:'set_thinking',id:CID,thinking:'deep'},{backend});
+ assert.deepEqual(calls.filter(c=>c.method==='PUT').map(c=>c.body),[{title:'New name'},{pinned:true},{archived:false},{projectId:null},{mode:'ask'},{thinking:'deep'}]);
 });
 
 test('chats: bad input is refused before the backend; deleting and reading messages are not offered',async()=>{
  const {calls,backend}=fake();
- for(const input of [{operation:'delete',id:CID},{operation:'messages',id:CID},{operation:'rename',id:'../x',title:'a'},{operation:'rename',id:CID,title:''},{operation:'pin',id:CID,pinned:'yes'},{operation:'archive',id:CID},{operation:'move',id:CID,projectId:'a/b'},{operation:'list',id:CID}]){
+ for(const input of [{operation:'delete',id:CID},{operation:'messages',id:CID},{operation:'rename',id:'../x',title:'a'},{operation:'rename',id:CID,title:''},{operation:'pin',id:CID,pinned:'yes'},{operation:'archive',id:CID},{operation:'move',id:CID,projectId:'a/b'},{operation:'list',id:CID},{operation:'set_mode',id:CID,mode:'accept_edits'},{operation:'variables',projectId:'../x'}]){
   const r=await callTool('chats',input,{backend});assert.equal(r.isError,true,JSON.stringify(input));
  }
  assert.equal(calls.length,0);

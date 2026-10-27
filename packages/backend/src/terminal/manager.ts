@@ -137,7 +137,7 @@ export class TerminalManager {
   }
 
   /** `size.cwd`: a folder already checked by the caller (a project folder); otherwise home. */
-  async create(ownerId: string, size: { cols?: unknown; rows?: unknown; cwd?: string } = {}) {
+  async create(ownerId: string, size: { cols?: unknown; rows?: unknown; cwd?: string; extraEnv?: Record<string, string> } = {}) {
     if (!terminalEnabled(this.env)) throw new TerminalError('disabled', 'The terminal is turned off on this server');
     if (this.list(ownerId).length >= MAX_SESSIONS_PER_OWNER) {
       throw new TerminalError('limit', `At most ${MAX_SESSIONS_PER_OWNER} terminals per account`);
@@ -145,7 +145,8 @@ export class TerminalManager {
     const spawn = this.spawnFn ?? (this.spawnFn = await loadNodePty());
     const { cols, rows } = clampSize(size.cols, size.rows);
     const shell = defaultShell(this.os, this.env);
-    const env = shellEnv(this.os, this.env);
+    // CHAT-BUILD-01 stage 3: a project's terminal also gets the project's own variables (checked names).
+    const env = { ...shellEnv(this.os, this.env), ...(size.extraEnv ?? {}) };
     const cwd = size.cwd ?? this.cwd ?? (env.HOME || env.USERPROFILE || homedir());
     const pty = spawn(shell.file, shell.args, { name: 'xterm-256color', cols, rows, cwd, env });
     const session: Session = {

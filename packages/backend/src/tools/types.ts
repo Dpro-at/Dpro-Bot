@@ -109,6 +109,8 @@ export interface ToolExecutionContext {
    * `write` ignores it and always stays in the agent's workspace.
    */
   fileReadRoot?: string;
+  /** CHAT-BUILD-01 stage 3: a project's added folders the `read` tool may also read (absolute paths). Server code only. */
+  extraReadRoots?: string[];
   /** A chat run whose page shows the agent's live plan: self-only tools (plan_steps) are offered. */
   chatPlan?: boolean;
   /** CORE-MEM-HANDOFF: false = the handoff tools are not offered (a task contract that names its tools). */
