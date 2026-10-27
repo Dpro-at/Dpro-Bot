@@ -22,7 +22,8 @@ test('account epoch change clears every ephemeral chat field and blocks stale co
   f.change({phase:'authenticated',epoch:2,user:{id:'owner-b',role:'owner'}});
   const state=c.getSnapshot();
   for(const key of ['conversations','projects','agents','models','turns','queue','attachments'])assert.deepEqual(state[key],[],key);
-  for(const key of ['draft','agentId','replyAgent','model','projectFilter'])assert.equal(state[key],'',key);
+  for(const key of ['draft','agentId','replyAgent','projectFilter'])assert.equal(state[key],'',key);
+  assert.equal(state.model,'auto','CHAT-BUILD-01: the next chat starts on Auto');
   assert.equal(state.git,null);assert.equal(state.focus,null);assert.equal(state.access,'denied');assert.equal(c.recall(),undefined);
   const before=f.calls.length;
   await c.rename('old-chat','Renamed');await c.moveToProject('old-chat','p1');await c.createProject({name:'New',folder:'/private/new',repoUrl:''});
