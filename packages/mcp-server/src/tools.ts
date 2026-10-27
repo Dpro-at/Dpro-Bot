@@ -53,6 +53,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','permissions','departments','rename_department','set_department','org','sub_agents','sub_agent_work','set_reports_to','add_sub_agent','files','file','write_file','chart','set_chart']},id:{type:'string',maxLength:128,description:'agent id'},from:{type:'string',maxLength:64},to:{type:'string',maxLength:64},department:{type:['string','null'],maxLength:64},reportsTo:{type:['string','null'],maxLength:128},name:{type:'string',maxLength:60},startsAs:{type:'string',enum:['copy','empty']},description:{type:'string',maxLength:1000},tools:{type:'array',maxItems:100,items:{type:'string',maxLength:64}},content:{type:'string',maxLength:1048576},view:{type:'string',enum:['list','chart']},mode:{type:'string',enum:['reports','departments']},lines:{type:'string',enum:['elbow','curved','straight']},zoom:{type:'number',minimum:0.3,maximum:1.6}},required:['operation'],additionalProperties:false},
   },
   {
+    name:'chats',title:'Chats (the chat sidebar)',
+    description:'Owner-session only. The chat sidebar: list (every chat: id, name, project, pinned, archived, opened from another chat, working now, approvals waiting for the owner), projects (each project with its folder). Only on the owner\u2019s explicit instruction: rename (id, title), pin (id, pinned), archive (id, archived: false brings it back), move (id, projectId; null = no project). Messages, deleting chats and the owner\u2019s sidebar layout are not available here.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','projects','rename','pin','archive','move']},id:{type:'string',maxLength:64,description:'chat id'},title:{type:'string',maxLength:120},pinned:{type:'boolean'},archived:{type:'boolean'},projectId:{type:['string','null'],maxLength:64}},required:['operation'],additionalProperties:false},
+  },
+  {
     name:'workspace_approvals',title:'Approvals (read only)',
     description:'Owner-session only, read only. waiting: requests waiting for the owner. history: past requests (optional status or agentId). permissions: What agents may do (all agents, or one with agentId). rules: approval rules (reviewer policies; optional cursor). coverage: tools and whether a rule or approval covers them. Codes, hashes and secrets are never returned. Approving, allowing, rejecting, voting, changing or turning off rules and changing permissions are done by the owner in the app; this tool refuses them.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['waiting','history','permissions','rules','coverage']},status:{type:'string',enum:['pending','approved','denied','executed','failed','expired']},agentId:{type:'string',maxLength:100},cursor:{type:'string',maxLength:36}},required:['operation'],additionalProperties:false},
@@ -298,6 +303,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'agents': return await agentsTool(args,deps);
       case 'workspace_approvals': return await workspaceApprovalsTool(args,deps);
+      case 'chats': return await chatsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'account_settings': return await accountSettingsTool(args,deps);
       case 'skill_library': return await skillLibraryTool(args,deps);
@@ -863,6 +869,23 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
 const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
 const APPROVAL_WRITES=new Set(['approve','allow','allow_always','deny','reject','decline','vote','cast','verify','rule_save','save_rule','add_rule','rule_add','rule_change','edit_rule','activate','revoke','rule_off','turn_off','disable_rule','delete_rule','set_permissions','change_permissions','permissions_set','set']);
 const APPROVAL_STATUSES=['pending','approved','denied','executed','failed','expired'];
+const CHAT_ID=/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/;
+const chatId=(v:unknown,name:string)=>{if(typeof v!=='string'||!CHAT_ID.test(v))throw new InputError(`${name} must be a chat id from list`);return v;};
+/** CHAT-BUILD-01 stage 2: the chat sidebar for agents, with the same owner gates as the window (the owner's own session). */
+async function chatsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const chat=(c:any)=>({id:c.id,name:c.title||c.preview||'New chat',projectId:c.projectId??null,pinned:!!c.pinned,...(c.archived?{archived:true}:{}),...(c.parentId?{openedFrom:c.parentId}:{}),...(c.running?{workingNow:true}:{}),...(c.waiting?{waitingForOwner:c.waiting}:{}),updatedAt:c.updatedAt});
+ const put=async(id:string,body:Record<string,unknown>,done:string)=>{const r=obj(await backend.request('PUT',`/api/chat/conversations/${id}`,body));return ok(done,{chat:chat(obj(r.conversation))});};
+ switch(args.operation){
+  case 'list':{only(args,['operation']);const list=(obj(await backend.request('GET','/api/chat/conversations')).conversations as any[]??[]).map(chat);return ok(`${list.length} chats (pinned first, then newest).`,{chats:list});}
+  case 'projects':{only(args,['operation']);const list=(obj(await backend.request('GET','/api/chat/projects')).projects as any[]??[]).map((p:any)=>({id:p.id,name:p.name,folder:p.folder??null}));return ok(`${list.length} projects.`,{projects:list});}
+  case 'rename':{only(args,['operation','id','title']);if(typeof args.title!=='string'||!args.title.trim()||args.title.length>120)throw new InputError('title must be 1-120 characters');return put(chatId(args.id,'id'),{title:args.title.trim()},'Renamed.');}
+  case 'pin':{only(args,['operation','id','pinned']);if(typeof args.pinned!=='boolean')throw new InputError('pinned must be true or false');return put(chatId(args.id,'id'),{pinned:args.pinned},args.pinned?'Pinned.':'Unpinned.');}
+  case 'archive':{only(args,['operation','id','archived']);if(typeof args.archived!=='boolean')throw new InputError('archived must be true or false');return put(chatId(args.id,'id'),{archived:args.archived},args.archived?'Archived (still searchable).':'Brought back from the archive.');}
+  case 'move':{only(args,['operation','id','projectId']);if(args.projectId!==null&&(typeof args.projectId!=='string'||!CHAT_ID.test(args.projectId)))throw new InputError('projectId must be a project id from projects, or null');return put(chatId(args.id,'id'),{projectId:args.projectId},args.projectId?'Moved to the project.':'Moved out of the project.');}
+  default:throw new InputError('operation must be list, projects, rename, pin, archive or move');
+ }
+}
+
 async function workspaceApprovalsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  const operation=args.operation;
  if(typeof operation==='string'&&APPROVAL_WRITES.has(operation))throw new InputError(APPROVALS_REFUSED);

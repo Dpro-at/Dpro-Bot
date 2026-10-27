@@ -95,7 +95,7 @@ export function allowedConversation(method, path, body) {
   if (method === 'POST' && p.kind === 'runs') return record(body) && onlyKeys(body, ['runId', 'message', 'model', 'agentId']) && (body.agentId === undefined || agentId(body.agentId)) && validRunId(body.runId) && text(body.message, MAX_MESSAGE) && body.message.trim().length > 0
     && (body.model === undefined || (typeof body.model === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(body.model)));
   if (method === 'POST' && p.kind === 'stop') return body === undefined;
-  if (method === 'PUT' && p.kind === 'one') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['title', 'pinned', 'projectId', 'model']) && (body.projectId === undefined || body.projectId === null || uuid(body.projectId)) && (body.title === undefined || body.title === null || title(body.title)) && (body.pinned === undefined || typeof body.pinned === 'boolean') && savedModel(body.model);
+  if (method === 'PUT' && p.kind === 'one') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['title', 'pinned', 'projectId', 'model', 'archived']) && (body.projectId === undefined || body.projectId === null || uuid(body.projectId)) && (body.title === undefined || body.title === null || title(body.title)) && (body.pinned === undefined || typeof body.pinned === 'boolean') && (body.archived === undefined || typeof body.archived === 'boolean') && savedModel(body.model);
   return false;
 }
 
@@ -103,7 +103,10 @@ const savedModel=x=>x===undefined||x===''||(typeof x==='string'&&/^[A-Za-z0-9][A
 function conversation(x) {
   if (!record(x) || !uuid(x.id)) throw Error('protocol');
   return { ...(x.model!==undefined&&x.model!==''&&savedModel(x.model)?{model:x.model}:{}), id: x.id, title: typeof x.title === 'string' ? x.title.slice(0, MAX_TITLE) : null, agentId: agentId(x.agentId) ? x.agentId : null, projectId: uuid(x.projectId) ? x.projectId : null,
-    pinned: x.pinned === true, preview: str(x.preview, 200), createdAt: str(x.createdAt, 40), updatedAt: str(x.updatedAt, 40) };
+    pinned: x.pinned === true, preview: str(x.preview, 200), createdAt: str(x.createdAt, 40), updatedAt: str(x.updatedAt, 40),
+    // CHAT-BUILD-01 stage 2: sidebar state (archived, opened from another chat, working now, approvals waiting).
+    ...(x.archived === true ? { archived: true } : {}), ...(uuid(x.parentId) ? { parentId: x.parentId } : {}),
+    ...(x.running === true ? { running: true } : {}), ...(Number.isSafeInteger(x.waiting) && x.waiting > 0 ? { waiting: Math.min(x.waiting, 999) } : {}) };
 }
 
 function call(x) {

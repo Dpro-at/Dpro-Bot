@@ -18,7 +18,7 @@ test('activation immediately clears private access and confines codes to blockin
  const count=calls.length;await assert.rejects(client.request({method:'GET',path:'/api/auth/me'}));await client.login(user.email,'fiction-password');assert.equal(calls.length,count);
  const html=renderToStaticMarkup(React.createElement(AuthBoundary,{client,initialPage:'home'},'fiction'));
  assert.match(html,/Save your recovery codes/);assert.match(html,/inert=""/);assert.match(html,/I have saved these codes/);assert.match(html,/disabled=""[^>]*>Continue to sign in/);
- assert.doesNotMatch(html,/Back to welcome/);
+ assert.doesNotMatch(html,/>Back</);
  client.finishRecoveryCodes();assert.equal(client.getSnapshot().phase,'signed-out');assert.equal(client.getSnapshot().setup,'login');assert.deepEqual(client.recoveryCodes(),[]);
 });
 test('cancel wipes codes, and late lifecycle replies cannot repopulate a cancelled epoch',async()=>{

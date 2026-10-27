@@ -567,5 +567,14 @@ export class ConversationsController {
     if (this.#state.activeId === id) this.newChat();
   }
 
-  private replace(c: Conversation) { this.publish({ conversations: this.#state.conversations.map(x => (x.id === c.id ? c : x)) }); }
+  /** A changed chat from the server; its live status (working, waiting) stays until the next list. */
+  private replace(c: Conversation) { this.publish({ conversations: this.#state.conversations.map(x => (x.id === c.id ? { ...(x.running ? { running: true } : {}), ...(x.waiting ? { waiting: x.waiting } : {}), ...c } : x)) }); }
+
+  /** CHAT-BUILD-01 stage 2: archive (or bring back) a chat; it stays searchable. Returns false when it did not change. */
+  async archive(id: string, archived: boolean): Promise<boolean> {
+    const r = await this.call('PUT', `/api/chat/conversations/${id}`, { archived });
+    if (!this.live() || r.status !== 200 || !record(r.body) || !record(r.body.conversation)) { if (this.live()) this.publish({ notice: archived ? 'The chat was not archived.' : 'The chat was not brought back.' }); return false; }
+    this.replace(r.body.conversation as Conversation);
+    return true;
+  }
 }

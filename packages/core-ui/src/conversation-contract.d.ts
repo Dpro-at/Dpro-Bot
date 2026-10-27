@@ -31,7 +31,7 @@ export function conversationRoute(path: string): boolean;
 export function allowedConversation(method: string, path: string, body?: unknown): boolean;
 export function conversationResponse(path: string, status: number, body: unknown): unknown;
 
-export type WireConversation = { model?: string; id: string; title: string | null; agentId: string | null; projectId: string | null; pinned: boolean; preview: string; createdAt: string; updatedAt: string };
+export type WireConversation = { model?: string; id: string; title: string | null; agentId: string | null; projectId: string | null; pinned: boolean; preview: string; createdAt: string; updatedAt: string; archived?: boolean; parentId?: string; running?: boolean; waiting?: number };
 export type WireToolCall = { id: string; name: string; input: string; output?: string; isError?: boolean; ms?: number };
 export type WirePart = { kind: 'text'; text: string } | { kind: 'reasoning'; text: string; ms?: number } | { kind: 'tools'; step: number; calls: WireToolCall[] };
 export type WireMessage = { id: string; role: 'user' | 'assistant' | 'system'; content: string; parts: WirePart[] | null; status: 'complete' | 'stopped' | 'error'; runId: string | null; durationMs: number | null; createdAt: string; agentId?: string; code?: 'run_interrupted' };

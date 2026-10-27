@@ -180,3 +180,19 @@ test('long conversations open one page at a time (newest last) with earlier page
   assert.equal((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/messages?limit=0`)).statusCode, 400);
   assert.equal((await call('b-other', 'GET', `/api/chat/conversations/${c.id}/messages?limit=3`)).statusCode, 404);
 });
+
+test('stage 2: the chat list says who works and what waits; a chat can be archived and brought back', async () => {
+  const c = await newConversation();
+  const put = (body) => call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, body);
+  assert.equal((await put({ archived: true })).json().conversation.archived, true);
+  let row = (await call('b-owner', 'GET', '/api/chat/conversations')).json().conversations.find((x) => x.id === c.id);
+  assert.equal(row.archived, true);
+  assert.equal((await put({ archived: 'yes' })).statusCode, 400);
+  assert.equal((await put({ archived: false })).json().conversation.archived, undefined);
+  const reg = await tools.createAgentToolsRegistry({ workspaceDir: dir, userId: 'b-owner', sessionId: c.id, agentId: 'b-agent' });
+  assert.equal((await reg.execute('x_send_note', { to: 'zed' })).details?.status, 'pending_approval');
+  row = (await call('b-owner', 'GET', '/api/chat/conversations')).json().conversations.find((x) => x.id === c.id);
+  assert.equal(row.waiting, 1);
+  assert.equal(row.running, undefined);
+  assert.equal((await call('b-other', 'PUT', `/api/chat/conversations/${c.id}`, { archived: true })).statusCode, 404);
+});

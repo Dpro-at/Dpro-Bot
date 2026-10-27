@@ -252,6 +252,13 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   return send(202, { runId: b.runId, userMessage, secretsSaved: vaulted.saved.length });
 }
 
+/** Status for the sidebar: `running` (a turn is answering) and `waiting` (approvals waiting for the owner). */
+export async function withStatus(userId: string, list: Conversation[]): Promise<Array<Conversation & { running?: true; waiting?: number }>> {
+  const waiting = new Map((await q.all<{ session_id: string; n: number }>("SELECT session_id, COUNT(*) AS n FROM tool_approvals WHERE user_id = ? AND status = 'pending' AND session_id IS NOT NULL GROUP BY session_id", userId).catch(() => []))
+    .map((r) => [r.session_id, Number(r.n)]));
+  return list.map((c) => ({ ...c, ...(chatRuns.activeFor(c.id) ? { running: true as const } : {}), ...(waiting.get(c.id) ? { waiting: waiting.get(c.id) } : {}) }));
+}
+
 /** The message a continuation turn adds after the owner decides the conversation's waiting approvals. */
 export const CONTINUE_MESSAGE = 'I decided the waiting approval. Continue the task with its result.';
 
@@ -294,7 +301,8 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'Not found', code: 'not_found' });
   const bad = (reply: FastifyReply, error: string) => reply.code(400).send({ error, code: 'invalid_request' });
 
-  fastify.get('/api/chat/conversations', async (request) => ({ conversations: await listConversations(caller(request)) }));
+  // CHAT-BUILD-01 stage 2: each chat says whether an agent works in it now and how many approvals wait for the owner.
+  fastify.get('/api/chat/conversations', async (request) => ({ conversations: await withStatus(caller(request), await listConversations(caller(request))) }));
 
   // ---- search inside conversations (CHAT-PRO-02 D): the caller's own conversations only ----
   fastify.get('/api/chat/search', async (request, reply) => {
@@ -323,8 +331,9 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (subscriptionModel(b.model) && (request as any).chatUserRole !== 'owner') return reply.code(403).send({code:'forbidden'});
     if (b.title !== undefined && b.title !== null && (typeof b.title !== 'string' || b.title.length > TITLE_CHARS)) return bad(reply, 'title must be text of at most 120 characters');
     if (b.pinned !== undefined && typeof b.pinned !== 'boolean') return bad(reply, 'pinned must be true or false');
+    if (b.archived !== undefined && typeof b.archived !== 'boolean') return bad(reply, 'archived must be true or false');
     if (b.projectId !== undefined && b.projectId !== null && (typeof b.projectId !== 'string' || !(await findProject(caller(request), b.projectId)))) return bad(reply, 'unknown project');
-    const c = await patchConversation(caller(request), request.params.id!, { title: cleanTitle(b.title), pinned: b.pinned, projectId: b.projectId, model: b.model });
+    const c = await patchConversation(caller(request), request.params.id!, { title: cleanTitle(b.title), pinned: b.pinned, projectId: b.projectId, model: b.model, archived: b.archived });
     return c ? { conversation: c } : notFound(reply);
   });
 
