@@ -96,3 +96,10 @@ test('current content with a changed package remains actionable for a separate s
  const f=fake(r=>({status:200,body:r.path.endsWith('preview')?{...preview,roles:[role]}:preparation})),c=new SpecialtyUpdateController(f.client);await c.load();await c.prepare(key,'bindings');assert.equal(f.calls.length,1);await c.prepare(key,'skill-1');assert.equal(c.state.preparation.kind,'package');await c.apply();assert.equal(f.calls.length,2);
 
 });
+test('content updates live in Settings › About and updates for the owner, not on the Specialties screen',()=>{
+ const fs=require('node:fs'),path=require('node:path'),read=f=>fs.readFileSync(path.join(__dirname,'../src',f),'utf8');
+ const library=read('SpecialtyLibrary.tsx'),settings=read('AppSettings.tsx');
+ assert.doesNotMatch(library,/SpecialtyUpdates|updateCopy|setUpdates/);
+ assert.match(settings,/\{live&&owner&&<PreferenceGroup title="Skills and specialties"><PreferenceRow title="Content updates"/);
+ assert.match(settings,/\{contentUpdates&&<SpecialtyUpdates client=\{client!\}/);
+});
