@@ -88,7 +88,8 @@ function Toolbar({ title, sub }: { title: string; sub?: string }) {
 export function SkillsSection({client,active,slot,onOpenAgents}:{client:SessionClient;active:boolean;slot?:HTMLElement|null;onOpenAgents?:()=>void}){
  return <SkillsDesk client={client} active={active} slot={slot} onOpenAgents={onOpenAgents}/>;
 }
-export function McpSection({ client, active, slot, onOpenAgents, openId }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenAgents?:()=>void; openId?:string }) {
+/** In Settings (`nav` given) the places are nested rows under "MCP connections" in the Settings sidebar and the search sits above the list. */
+export function McpSection({ client, active, slot, nav, onOpenAgents, openId }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; nav?: HTMLElement | null; onOpenAgents?:()=>void; openId?:string }) {
   // MC1: one sidebar for the section: search, connection places, then where to add from. Publisher sources open as a sheet from the ⋯ menu.
   const [place,setPlace]=useState('all'),[query,setQuery]=useState(''),search=useRef<HTMLInputElement>(null);
   // "Manage in MCP connections" from Apps opens that connection in the full list.
@@ -98,16 +99,25 @@ export function McpSection({ client, active, slot, onOpenAgents, openId }: { cli
   useSyncExternalStore(d?.subscribe ?? (() => () => {}), d?.getSnapshot ?? (() => null), d?.getSnapshot ?? (() => null));
   const needs=s.servers.filter(isProblem).length;
   const row=(p:Place)=><button key={p.key} type="button" className="nav-item dk-place" title={p.label} aria-current={place===p.key?'page':undefined} onClick={()=>setPlace(p.key)}><UiIcon name={p.icon} size={15}/><span className="dk-place-name">{p.label}</span>{p.badge?<span className="dk-badge-pill" aria-label={`${p.badge} need you`}>{p.badge}</span>:null}</button>;
+  const show:Place[]=[{key:'all',icon:'link',label:'All connections'},{key:'on',icon:'check',label:'On'},{key:'off',icon:'stop',label:'Off'},{key:'problem',icon:'alert',label:'Needs you',badge:needs}];
+  const add:Place[]=[{key:'import',icon:'code',label:'Add from my coding apps'},{key:'found',icon:'folder',label:'Add from this computer',badge:fresh(d,'mcp')}];
+  const places=[...show,...add];
   const sidebar=<nav className="dk-sidebar mcp-places" aria-label="MCP connections places">
     <p className="section-label dk-label"><span>MCP connections</span></p>
     <label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search connections" placeholder="Search" value={query} onChange={e=>setQuery(e.target.value)}/></label>
-    {([{key:'all',icon:'link',label:'All connections'},{key:'on',icon:'check',label:'On'},{key:'off',icon:'stop',label:'Off'},{key:'problem',icon:'alert',label:'Needs you',badge:needs}] as Place[]).map(row)}
+    {show.map(row)}
     <p className="section-label dk-label"><span>Add from</span></p>
-    {([{key:'import',icon:'code',label:'My coding apps'},{key:'found',icon:'folder',label:'This computer',badge:fresh(d,'mcp')}] as Place[]).map(row)}
+    {add.map(p=>row({...p,label:p.key==='import'?'My coding apps':'This computer'}))}
   </nav>;
-  return <Section slot={slot} active={active} label="MCP connections" sidebar={sidebar}>
-    {place==='found'?(d?<SkillFoundPlace c={d} active={active} kind="mcp"/>:null):<McpLibrary client={client} active={active} controller={c} query={query} searchRef={search} openId={openId} filter={(['on','off','problem'].includes(place)?place:'all') as McpFilter} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents}/>}
-  </Section>;
+  const body=place==='found'?(d?<SkillFoundPlace c={d} active={active} kind="mcp"/>:null):<McpLibrary client={client} active={active} controller={c} query={query} searchRef={search} openId={openId} filter={(['on','off','problem'].includes(place)?place:'all') as McpFilter} view={place==='import'?'discover':'connections'} onDiscover={()=>setPlace('import')} onOpenAgents={onOpenAgents}/>;
+  if(nav!==undefined){
+    const nested=(p:Place)=><button key={p.key} type="button" className="nav-item dk-place" data-nested title={p.label} aria-current={place===p.key?'page':undefined} onClick={()=>setPlace(p.key)}><span className="dk-place-name">{p.label}</span>{p.badge?<span className="dk-badge-pill" aria-label={`${p.badge} need you`}>{p.badge}</span>:null}</button>;
+    return <section className="dk-mem mcp-in-settings" aria-label="MCP connections">
+      {nav&&active?createPortal(<>{places.map(nested)}</>,nav):null}
+      <div className="dk-content">{place!=='found'&&<div className="mcp-settings-search"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search connections" placeholder="Search connections" value={query} onChange={e=>setQuery(e.target.value)}/></label></div>}{body}</div>
+    </section>;
+  }
+  return <Section slot={slot} active={active} label="MCP connections" sidebar={sidebar}>{body}</Section>;
 }
 export function TerminalSection({ client, active, slot, onOpenTerminal }: { client: SessionClient; active: boolean; slot?: HTMLElement | null; onOpenTerminal: () => void }) {
   const [place, setPlace] = useState('sessions');

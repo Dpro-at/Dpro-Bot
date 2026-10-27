@@ -26,7 +26,7 @@ import { useAppNavigation, useAppTheme } from './app-navigation';
 import { MemoryWindow } from './MemoryDesktop';
 import type { MemoryFocus, SettingsTarget } from './MemoryDesktop';
 import type { MemorySettingsPane } from './MemorySettings';
-import { McpSection, SkillsSection, TerminalSection } from './ToolSections';
+import { SkillsSection, TerminalSection } from './ToolSections';
 import { Icon } from './icons';
 import type { IconName } from './icons';
 import { UiIcon } from './ui-icons';
@@ -40,8 +40,8 @@ import type { Command } from './CommandPalette';
 import { accountRoleLabel, isDeveloperBuild } from './developer-build';
 
 type Page = 'code' | 'trading' | 'library' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
-/** The section a page is a place of: its "← back" on top of the sidebar goes there (MCP connections live in Settings). */
-const placeParent: Partial<Record<Page, 'library' | 'apps' | 'settings'>> = { personalities: 'library', specialties: 'library', skills: 'library', mcp: 'settings', terminal: 'apps' };
+/** The section a page is a place of: its "← back" on top of the sidebar goes there. */
+const placeParent: Partial<Record<Page, 'library' | 'apps' | 'settings'>> = { personalities: 'library', specialties: 'library', skills: 'library', terminal: 'apps' };
 const PARENT_LABEL: Record<'library' | 'apps' | 'settings', string> = { library: 'Library', apps: 'Apps', settings: 'Settings' };
 /** Sections that own the sidebar with their own places (the chat list shows only in Chat). */
 const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'library', 'skills', 'mcp', 'terminal','specialties','personalities','board','approvals','apps','trading'];
@@ -104,7 +104,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
   const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
   // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
-  useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');},[page]);
+  // MCP connections is a place of Settings (its places nest under its row there), so every way to it opens Settings.
+  useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');else if(page==='mcp')openSettings('mcp');},[page]);
   const openTerminal=()=>{if(user.role!=='owner')return;setTerminalRequest(n=>n+1);setPage('chat');};
   const openMemorySettings=(target:SettingsTarget)=>{setMemoryPane(target);setSettingsTab('memory');setSettingsVisit(n=>n+1);setPage('settings');};
   const tools=[
@@ -206,16 +207,15 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <section className="page page-personalities" hidden={page !== 'personalities'}><PersonalityLibrary client={client} active={page==='personalities'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}}/></section>
         <section className="page page-specialties" hidden={page !== 'specialties'}><SpecialtyLibrary client={client} active={page==='specialties'} sidebarSlot={slot} onOpenAgent={id=>{setAgentFocus(f=>({id,n:(f?.n??0)+1}));setPage('agents');}} onOpenConnections={()=>setPage('mcp')}/></section>
         <section className="page page-skills mem-desk" hidden={page !== 'skills'}><SkillsSection client={client} active={page === 'skills'} slot={slot} onOpenAgents={()=>setPage('agents')}/></section>
-        <section className="page page-mcp mem-desk" hidden={page !== 'mcp'}><McpSection client={client} active={page === 'mcp'} slot={slot} openId={mcpOpen} onOpenAgents={()=>setPage('agents')}/></section>
         <section className="page page-ui mem-desk" hidden={page !== 'terminal'}><TerminalSection client={client} active={page === 'terminal'} slot={slot} onOpenTerminal={openTerminal}/></section>
       </>}
       <section className="page page-ui" hidden={page!=='code'}><p role="status" className="fine-print">Select Code in the bottom bar to open or reconnect the project editor.</p></section>
       <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onSettings={tab=>openSettings(tab)} onConnections={id=>{if(id)setMcpOpen(id);setPage('mcp');}} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>{if(user.role!=='owner'){setPage('agents');return;}setApprovalsPlace(r=>({place:'perms',n:(r?.n??0)+1}));setPage('approvals');}}/></section>
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
-      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
+      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} mcpOpenId={mcpOpen} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
     </main>
-    <ShellFooter controller={footer} settingsCurrent={page==='settings'||page==='mcp'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
+    <ShellFooter controller={footer} settingsCurrent={page==='settings'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
       status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
         : <span className="status-item status-dot-only" title="Connected · this installation" aria-label="Connected · this installation" role="img"><span className={`status-dot ${mode}`} aria-hidden="true"/></span>}
       extra={isDeveloperBuild(client) && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}

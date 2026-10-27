@@ -1,0 +1,7 @@
+/* Settings › MCP connections: the places nest under the row like Memory; the search sits above the list. */
+.app-settings .mcp-settings-nav { display: contents; }
+.app-settings .mcp-in-settings { display: block; min-height: 0; }
+.app-settings .mcp-in-settings > .dk-content { display: flex; flex-direction: column; min-height: 0; }
+.app-settings .mcp-settings-search { padding: 0 0 10px; max-width: 320px; }
+.app-settings .mcp-settings-nav .dk-badge-pill { margin-inline-start: auto; }
+.app-settings .settings-content[data-pane=mcp] .preferences-page { max-width: none; width: 100%; }
