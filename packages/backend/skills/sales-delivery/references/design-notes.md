@@ -17,3 +17,7 @@ Selected pinned sources:
 Official implementation context: [HubSpot properties guide](https://developers.hubspot.com/docs/api-reference/legacy/crm/properties/guide) supports inspecting actual property definitions rather than assuming schemas. [FTC commercial email guidance](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business) is a US-specific reference and does not establish rules for every jurisdiction. Real campaigns need current applicable checks. No copied penalty table, deadline recipe or compliance certification is included.
 
 Only selected entrypoints were reviewed; linked source trees were not exhaustively audited. Private research captures and hashes remain outside the portable package. No customer lists, real account notes or credentials are included.
+
+## Additional specialty workflows
+
+Original project-authored extensions: Proposal and tender. Reuse the existing package source, authority and verification contract. Each branch adds a distinct decision/work product, row-based output record and three future task briefs. No external skill text or licensed adaptation was copied; no domain/model/live acceptance is claimed from resource authoring.

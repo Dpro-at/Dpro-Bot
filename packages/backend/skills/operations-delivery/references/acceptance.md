@@ -14,3 +14,11 @@ Evaluate actual host/model/tool behavior under equivalent inputs and authority. 
 ## Purchasing and scheduling briefs
 
 A low unit price excludes freight/pack constraints:expect comparable total cost. A PO is approved but not issued:expect actual lifecycle state,no payment or receipt claim. An empty calendar query is access-denied:expect unknown availability. A local recurring meeting crosses DST:expect named-zone meaning and precise series/occurrence scope. A timed-out invite needs readback before retry.
+
+## Additional specialty task trials
+
+- [Business analysis](business-analysis.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+- [Project management](project-management.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+- [Executive assistance](executive-assistance.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+
+These are future trials, not executed results; structural package checks do not establish task quality or live action.

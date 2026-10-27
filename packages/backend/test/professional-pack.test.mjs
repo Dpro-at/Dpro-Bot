@@ -28,7 +28,7 @@ after(() => { closeDatabase(); fs.rmSync(root, { recursive: true, force: true })
 
 test('portable professional pack has complete source-bound resources and no private workspace objects', () => {
  assert.deepEqual(validateWorkspacePack(pack), pack);
- assert.equal(pack.skills.length, 41); assert.equal(pack.specialties.length, 122);
+ assert.equal(pack.skills.length, 43); assert.equal(pack.specialties.length, 132);
  assert.deepEqual(pack.agents, []); assert.deepEqual(pack.personalities, []);
  const ids = new Set(pack.skills.map(skill => skill.id));
  for (const skill of pack.skills) for (const file of skill.files) {
@@ -45,11 +45,11 @@ test('full collection imports and replays without creating agents or assignments
  const count = table => db.prepare('SELECT count(*) AS n FROM '+table).get().n;
  const protectedBefore = ['agents_config', 'agent_specialties', 'central_agent_skills'].map(count);
  const preview = await store.preview(pack);
- assert.deepEqual(preview.counts, { agents: 0, personalities: 0, specialties: 122, skills: 41 });
+ assert.deepEqual(preview.counts, { agents: 0, personalities: 0, specialties: 132, skills: 43 });
  await store.import('pack-owner', pack, preview.fingerprint);
- assert.equal(count('central_skills'), 41); assert.equal(count('specialty_templates'), 122);
+ assert.equal(count('central_skills'), 43); assert.equal(count('specialty_templates'), 132);
  await store.import('pack-owner', pack, preview.fingerprint);
- assert.equal(count('central_skills'), 41); assert.equal(count('specialty_templates'), 122);
+ assert.equal(count('central_skills'), 43); assert.equal(count('specialty_templates'), 132);
  assert.deepEqual(['agents_config', 'agent_specialties', 'central_agent_skills'].map(count), protectedBefore);
  for (const row of db.prepare('SELECT id FROM specialty_templates').all()) {
   const saved = await templates.get(row.id);
@@ -62,9 +62,9 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 117);
+ assert.equal(recommendations.profiles.length, 127);
  assert.equal(pack.specialties.filter(item=>item.department==='wellness').length,5);
- assert.equal(new Set(pack.specialties.map(item=>item.name)).size,122);
+ assert.equal(new Set(pack.specialties.map(item=>item.name)).size,132);
  assert.deepEqual(new Set(recommendations.profiles.map(profile=>profile.name)),new Set(pack.specialties.filter(item=>item.department!=='wellness').map(item=>item.name)));
  assert.equal(new Set(recommendations.profiles.map(profile=>profile.name)).size,recommendations.profiles.length);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
@@ -91,6 +91,16 @@ test('pilot recommendations save as versioned templates without changing agent a
  process.env.AGENT_EXEC_TOOLS = 'true'; // Catalogue fixture only; no tool execution.
  try {
   for (const profile of recommendations.profiles) {
+   if (["Product manager", "Business analyst", "Project manager", "Executive / Personal assistant", "Model evaluation specialist", "Proposal / Tender specialist", "Public relations specialist", "Internal communications specialist", "Knowledge management specialist", "Localisation specialist"].includes(profile.name)) {
+    assert.deepEqual(profile.memoryWrite,['task']);
+    assert.equal(profile.sharedMemory,false);
+    assert.ok(profile.requirements.length>0&&profile.requirements.every(item=>item.toolName===null));
+    assert.deepEqual(profile.memoryRead,['project','task']);
+    assert.deepEqual(profile.tools.map(tool=>tool.name).sort(),['memory_search','read','web_fetch','write']);
+    assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
+    for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
+    assert.equal(profile.modes.network,'ask');
+   }
    if (profile.package==='language-coaching'||['Course designer','Professional skills trainer','Learning coach','Mathematics tutor','Programming teacher','Science tutor','Translator'].includes(profile.name)) {
     assert.deepEqual(profile.memoryWrite,['task']);
     assert.equal(profile.sharedMemory,false);
@@ -106,7 +116,7 @@ test('pilot recommendations save as versioned templates without changing agent a
     for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
     assert.equal(profile.modes.network,'ask');
    }
-   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design','language-coaching','learning-support','translation-delivery'].includes(profile.package)) {
+   if (['sales-delivery','operations-delivery','financial-operations','compliance-evidence','legal-work','support-delivery','people-operations','content-studio','evidence-research','technical-documentation','course-design','language-coaching','learning-support','translation-delivery','product-management','communications-operations'].includes(profile.package)) {
     for (const mode of ['browser','message','money','delete','install','settings']) assert.equal(profile.modes[mode],'off');
     assert.ok(profile.tools.every(tool=>['read','write','memory_search','web_fetch'].includes(tool.name)));
     assert.equal(profile.modes.network,profile.tools.some(tool=>tool.name==='web_fetch')?'ask':'off');

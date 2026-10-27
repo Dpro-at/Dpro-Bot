@@ -7,3 +7,7 @@ Independently authored English workflow, domain references and output templates.
 The source provides translation, proofreading and polishing modes with language-pair examples and persistent glossary conventions. This package is independently written for varied pairs/formats, explicit source coverage, protected data/tokens, contextual terminology and honest target-only review limits. It does not reproduce those examples or require the source's folder/global persistence. Paragraph/segment preservation follows the actual brief rather than a universal rule. No matched model-quality or certified-equivalence claim.
 
 Native parsing/discovery and deterministic fixtures are preliminary evidence. Actual provider tasks, domain review, live systems and delivered target acceptance remain separate. Behavioral briefs are future inputs, not executed results.
+
+## Additional specialty workflows
+
+Original project-authored extensions: Software localisation / localization. Reuse the existing package source, authority and verification contract. Each branch adds a distinct decision/work product, row-based output record and three future task briefs. No external skill text or licensed adaptation was copied; no domain/model/live acceptance is claimed from resource authoring.

@@ -17,3 +17,9 @@ Given only target text, improve the requested style without adding facts. Accept
 ## Long document
 
 Given selected sections from a larger file, review only available coverage and maintain relevant terminology. Acceptance:unseen sections remain unreviewed, source/target revisions tracked and no false whole-document claim.
+
+## Additional specialty task trials
+
+- [Software localisation / localization](software-localisation.md): evaluate the normal, missing-capability/evidence and adversarial-source cases in that reference. Retain actual outputs and authority/coverage limits.
+
+These are future trials, not executed results; structural package checks do not establish task quality or live action.

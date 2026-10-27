@@ -6374,6 +6374,529 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Product manager",
+      "package": "product-management",
+      "references": [
+        "references/product-decisions.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Business analyst",
+      "package": "operations-delivery",
+      "references": [
+        "references/business-analysis.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Project manager",
+      "package": "operations-delivery",
+      "references": [
+        "references/project-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Executive / Personal assistant",
+      "package": "operations-delivery",
+      "references": [
+        "references/executive-assistance.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Model evaluation specialist",
+      "package": "ai-application-engineering",
+      "references": [
+        "references/evaluation-design.md",
+        "references/evaluation-operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped evaluation data and actual inference capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized model runs or deployment action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Proposal / Tender specialist",
+      "package": "sales-delivery",
+      "references": [
+        "references/proposal-tender.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Public relations specialist",
+      "package": "communications-operations",
+      "references": [
+        "references/public-relations.md",
+        "references/message-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Internal communications specialist",
+      "package": "communications-operations",
+      "references": [
+        "references/internal-change.md",
+        "references/message-controls.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Knowledge management specialist",
+      "package": "support-delivery",
+      "references": [
+        "references/knowledge-management.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Localisation specialist",
+      "package": "translation-delivery",
+      "references": [
+        "references/software-localisation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped source evidence and domain review when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized business-record or external action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }

@@ -1,11 +1,11 @@
 ---
 name: operations-delivery
-description: Analyze and coordinate inventory,business processes and project work with traceable state,assumptions,dependencies and owned next actions. Use for stock/reorder planning,process diagnosis/SOPs or project coordination and status.
+description: Analyze inventory and processes, coordinate or manage projects, trace business requirements, prepare executive assistance, purchasing and scheduling work with explicit evidence and commitment boundaries.
 license: MIT
 compatibility: Provider-neutral instructions for Codex, Claude and Gemini; use authorized files,spreadsheets and trackers without mandatory connectors.
 metadata:
   agent-player:
-    version: 1.1.0
+    version: 1.2.0
 ---
 
 # Operations delivery
@@ -31,3 +31,15 @@ Deliver the decision/result,definitions,source/as-of,evidence,checks,uncertainty
 ## Purchasing and scheduling modes
 
 Read [purchasing](references/purchasing.md) for sourcing,order commitments and receiving handoff;read [scheduling](references/scheduling.md) for availability,time zones,recurrence and verified calendar outcomes. Use the [purchase record](assets/purchase-record.md) or [schedule record](assets/schedule-record.md). Reuse inventory/project evidence without treating a proposal as a vendor or attendee commitment.
+
+## Business analyst mode
+
+For business analyst work, read [Business analyst](references/business-analysis.md) and use [the output record](assets/requirements-traceability.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.
+
+## Project manager mode
+
+For project manager work, read [Project manager](references/project-management.md) and use [the output record](assets/project-baseline.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.
+
+## Executive / Personal assistant mode
+
+For executive / personal assistant work, read [Executive / Personal assistant](references/executive-assistance.md) and use [the output record](assets/briefing-commitments.md). This extends the shared source, authority and verification workflow; it supplies no new tool or permission.
