@@ -176,8 +176,10 @@ test('memory_save with a topic key: same topic twice -> one memory, two versions
 });
 
 test('topic key update of an important memory goes through a proposal; non-owner is not saved', async () => {
-  const r1 = await run(memorySaveTool, { content: 'Office floor is two', type: 'fact', importance: 9, topic_key: 'office-floor' }, ownerCtx);
+  // CHAT-BUILD-01: an agent cannot save an important memory by itself; the owner made this one important.
+  const r1 = await run(memorySaveTool, { content: 'Office floor is two', type: 'fact', importance: 6, topic_key: 'office-floor' }, ownerCtx);
   assert.ok(r1.data.memoryId);
+  db.prepare('UPDATE memories SET importance_score = 0.9 WHERE id = ?').run(r1.data.memoryId);
   const r2 = await run(memorySaveTool, { content: 'Office floor is three', type: 'fact', topic_key: 'office-floor' }, ownerCtx);
   assert.equal(r2.data.pendingApproval, true, r2.content[0].text);
   assert.equal(mem(r1.data.memoryId).content, 'Office floor is two', 'nothing changes before approval');

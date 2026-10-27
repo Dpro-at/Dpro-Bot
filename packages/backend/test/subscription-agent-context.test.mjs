@@ -46,7 +46,11 @@ test('history truncation retains complete instruction context and clearly labels
  assert.ok(prompt.includes('CONTEXT_MARKER'));assert.ok(prompt.includes('Earlier conversation omitted'));assert.ok(prompt.endsWith('LATEST_MESSAGE'));
  assert.ok(Buffer.byteLength(prompt)<200000);
  assert.throws(()=>subscriptionReplyPrompt('x'.repeat(90001),'hi'),/agent_context_too_large/);
- assert.throws(()=>subscriptionReplyPrompt('', '\u{1F642}'.repeat(100000)),/agent_context_too_large/);
+ // CHAT-BUILD-01: history is trimmed by UTF-8 bytes, so a long emoji or Arabic chat keeps working.
+ const emoji=subscriptionReplyPrompt('', '\u{1F642}'.repeat(100000));
+ assert.ok(Buffer.byteLength(emoji)<200000);assert.ok(emoji.endsWith('\u{1F642}'));assert.ok(!emoji.includes('\uFFFD'));assert.ok(emoji.includes('Earlier conversation omitted'));
+ const arabic=subscriptionReplyPrompt('CONTEXT_MARKER', 'مرحبا بك في المحادثة '.repeat(20000)+'آخر رسالة');
+ assert.ok(Buffer.byteLength(arabic)<200000);assert.ok(arabic.endsWith('آخر رسالة'));assert.ok(arabic.includes('CONTEXT_MARKER'));
 });
 test('assigned immutable resource corruption refuses context rather than claiming it was loaded',async()=>{
  const file=path.join(root,'skill-library/objects',installed.content_hash,'references/guide.md');const original=await fs.readFile(file);

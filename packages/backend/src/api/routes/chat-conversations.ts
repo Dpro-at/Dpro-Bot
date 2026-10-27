@@ -32,15 +32,17 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticateActiveUser } from '../../auth/route-guards.js';
 import {
   addUserMessage, createConversation, createProject, deleteConversation, deleteProject, findConversation, findProject, gitInfo,
-  listConversationMessages, listConversations, listProjects, patchConversation, patchProject, ProjectInputError, type ConversationMessage,
+  listConversationMessages, listConversations, pageConversationMessages, listProjects, patchConversation, patchProject, ProjectInputError, type Conversation, type ConversationMessage,
 } from '../../repositories/chat-conversations.js';
 import { ProjectPathError, gitChanges, gitFileDiff, listFolder, readFolderFile } from '../../repositories/project-files.js';
 import { MAX_AUDIO_BYTES, STT_LANGUAGES, SttError, sttSetup, transcribe } from '../../services/local-stt.js';
-import { acceptChatRun, recoverChatRuns, needsRecoveryReview, journalContext, finishChatRun, recoveryApprovalResults } from '../../repositories/chat-recovery.js';
+import { acceptChatRun, approvalResultsSince, recoverChatRuns, recoverStaleRun, needsRecoveryReview, journalContext, finishChatRun, recoveryApprovalResults } from '../../repositories/chat-recovery.js';
 import { withChatRun } from '../../services/chat-run-context.js';
 import { chatRuns, MAX_RUNNING_PER_USER, type RunEvent } from '../../services/chat-runs.js';
 import { openSseStream } from '../../services/chat-sse.js';
-import { executeChatTurn } from './chat.js';
+import { AUTO_MODEL, executeChatTurn } from './chat.js';
+import { addApprovalDecidedListener } from '../../tools/approvals.js';
+import { stopDelegations } from '../../tools/tasks/team.js';
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
@@ -65,6 +67,9 @@ export const MESSAGE_CHARS = 100_000;
 /** Characters of earlier turns given to the model (the newest are kept). */
 export const HISTORY_CHARS = 200_000;
 const TITLE_CHARS = 120;
+/** One page of a conversation (CHAT-BUILD-01): messages, and stored characters so the page stays far under the 4 MiB bridge cap. */
+export const PAGE_MESSAGES = 100;
+export const PAGE_CHARS = 600_000;
 
 type Req = FastifyRequest<{ Params: { id?: string; runId?: string }; Querystring: { after?: string }; Body: any }>;
 
@@ -140,8 +145,143 @@ export function projectNote(name: string, folder: string | null, repo: string | 
     repo ? `Its git repository: ${repo}.` : ''].filter(Boolean).join(' ');
 }
 
+/** CHAT-PRO-02 I: more than one agent has answered in this conversation. */
+const TEAM_NOTE = 'Several agents of the team answer in this conversation. Earlier replies written by another agent start with that agent\'s name in brackets, like [Name]. Build on their work; do not repeat it, and do not write as them.';
+/** CHAT-PRO-02 H: how the agent shows its work in the chat. */
+const SECRET_NOTE = 'Secrets in this chat (keys, tokens, passwords the owner typed or a tool showed) were moved to the encrypted key store; you see a reference like [SECRET:github_token:abc123] instead. Never ask for the value again and never try to reveal it. When a tool needs it, put the reference itself in the tool input; the tool gets the real value after the owner approves that call.';
+const PLAN_NOTE = 'When a request needs several steps (3 or more), first call plan_steps with the whole plan so the owner sees it, then work through it and call plan_steps again with the whole list as each step finishes. Keep steps short. Skip the plan for a quick question or a one-step answer. When the owner gives a larger task that other agents of the team should share, you may call board_suggest_card once; the owner decides whether it becomes a board card. When the owner shares a lasting fact, preference or decision worth keeping, you may call memory_save; in this chat it is shown to the owner, who accepts or rejects it. When a tool answers that it waits for the owner\'s approval, say so in one short line and end your reply: after the owner decides, this chat continues by itself with the result. Never call the same tool again to retry it.';
+
+/** CHAT-BUILD-01: what starting a turn answers (the route sends it; an approval continuation only logs it). */
+interface TurnStart { code: number; body: Record<string, unknown>; retryAfter?: string }
+
+/**
+ * Starts one turn of a saved conversation (checked input). Shared by POST runs and by the
+ * continuation after the owner decides a waiting approval (CHAT-BUILD-01).
+ */
+async function startTurn(t: { userId: string; role: string; c: Conversation; runId: string; message: string; model?: string; agentId?: string }): Promise<TurnStart> {
+  const { userId, c } = t;
+  const b = { runId: t.runId, message: t.message, model: t.model, agentId: t.agentId };
+  const send = (code: number, body: Record<string, unknown>): TurnStart => ({ code, body });
+  const team = await agentNames();
+  if (b.agentId !== undefined && (!team.has(b.agentId) || t.role !== 'owner')) return send(400, { error: 'unknown agent' });
+  const replyAgent: string | undefined = b.agentId ?? c.agentId ?? undefined;
+  const existing = chatRuns.get(b.runId);
+  // CHAT-BUILD-01: a replay carries the stored user message, so the client never shows a second copy.
+  const replay = async () => send(202, { runId: b.runId, replayed: true, ...await listConversationMessages(c.id).then((m) => { const u = m.find((x) => x.runId === b.runId && x.role === 'user'); return u ? { userMessage: u } : {}; }, () => ({})) });
+  if (existing) return existing.userId === userId && existing.sessionId === c.id ? replay() : send(409, { error: 'runId already used', code: 'run_id_reused' });
+  const busy = chatRuns.activeFor(c.id);
+  if (busy) return send(409, { error: 'This conversation is still answering', code: 'conversation_busy', runId: busy.id });
+  if (chatRuns.runningCount(userId) >= MAX_RUNNING_PER_USER) {
+    return { code: 429, body: { error: 'Too many chat turns are running', code: 'rate_limited' }, retryAfter: '10' };
+  }
+  // CHAT-PRO-02 A: a project conversation reads the project folder and opens its memory drawer.
+  const project = c.projectId ? await findProject(userId, c.projectId) : undefined;
+  // Resolve the saved agent source before folder setup and owner gating.
+  const configured = replyAgent ? await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE id=?',replyAgent) : (await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE is_primary=1 ORDER BY id LIMIT 1')??await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config ORDER BY created_at,id LIMIT 1'));
+  const effectiveModel=b.model||configured?.model;
+  const resolvedReplyAgent=subscriptionModel(effectiveModel)?replyAgent??configured?.id:replyAgent;
+  if(subscriptionModel(effectiveModel)&&(!subscriptionEnabled()||t.role!=='owner'))return send(400,{code:'no_folder',error:'Coding apps are available only to the owner in the desktop app.'});
+  // CORE-PICKER-03: without a project folder a coding app works in this conversation's own private folder.
+  const codingFolder = subscriptionModel(effectiveModel) ? project?.folder ?? await chatWorkspace(c.id) : undefined;
+  const prior = await listConversationMessages(c.id);
+  // CHAT-BUILD-01: a retry after a lost 202 (same runId, same conversation) gets the accepted turn back, never a second one.
+  const accepted = prior.find((m) => m.runId === b.runId && m.role === 'user');
+  if (accepted) return send(202, { runId: b.runId, replayed: true, userMessage: accepted });
+  // CHAT-SECRETS-01: secrets go encrypted into the key store; the message keeps references only.
+  const vaulted = await vaultSecretsInText(userId, c.id, b.message);
+  const journal = { run_id: b.runId, user_id: userId, session_id: c.id, agent_id: b.agentId ?? null, started_at: Date.now() };
+  const reviewTools = await needsRecoveryReview(c.id);
+  // CHAT-BUILD-01: approvals decided since the previous turn began come back into the chat as data.
+  const approvedResults = reviewTools ? await recoveryApprovalResults(userId, c.id) : await approvalResultsSince(userId, c.id, prior.filter((m) => m.role === 'user').at(-1)?.createdAt).catch(() => '');
+  const accept = async (): Promise<TurnStart | null> => {
+    // Marked as starting before the row exists, so a parallel request never takes it for a stale row.
+    starting.add(b.runId);
+    try { await acceptChatRun(journal, vaulted.text); return null; } catch {
+      starting.delete(b.runId);
+      // Unique run/session indexes arbitrate racing starts across awaits.
+      const active = chatRuns.activeFor(c.id);
+      if (active) return active.id === b.runId ? replay() : send(409, { code: 'conversation_busy', runId: active.id });
+      const used = await q.one<{ session_id: string; user_id: string }>('SELECT session_id, user_id FROM chat_run_journal WHERE run_id = ?', b.runId).catch(() => undefined);
+      // The same request racing its own retry: it was accepted, so answer like a replay.
+      if (used) return used.session_id === c.id && used.user_id === userId ? replay() : send(409, { code: 'run_id_reused' });
+      const held = await q.one<{ run_id: string }>("SELECT run_id FROM chat_run_journal WHERE session_id = ? AND state = 'running'", c.id).catch(() => undefined);
+      if (held) return send(409, { code: 'conversation_busy', runId: held.run_id });
+      return send(503, { code: 'checkpoint_unavailable' });
+    }
+  };
+  // CHAT-BUILD-01: a journal row still 'running' with no live or starting run is stale (its turn ended
+  // without closing it); reconcile it like a restart instead of answering conversation_busy forever.
+  const stale = await q.one<{ run_id: string; started_at: number }>("SELECT run_id, started_at FROM chat_run_journal WHERE session_id = ? AND state = 'running'", c.id).catch(() => undefined);
+  if (stale && !chatRuns.get(stale.run_id) && !starting.has(stale.run_id) && Date.now() - Number(stale.started_at) > STALE_AFTER_MS) await recoverStaleRun(stale.run_id).catch(() => false);
+  const refused = await accept();
+  if (refused) return refused;
+  let userMessage: ConversationMessage, messages: ReturnType<typeof historyFor>, turns: HistoryTurn[], handoff: Awaited<ReturnType<typeof packHandoffText>> | null;
+  try {
+    userMessage = (await listConversationMessages(c.id)).find(m => m.runId === b.runId && m.role === 'user')!;
+    const named = namedReplies([...prior, userMessage], team, replyAgent, c.agentId);
+    messages = historyFor(named);
+    turns = historyTurns(named);
+    // CORE-MEM-HANDOFF: this agent's newest note for this conversation (or its project), the caller's own only.
+    // MEM-CACHE-01: it is part of the turn's cached context pack and its trace.
+    handoff = await packHandoffText(userId, c.id, replyAgent).catch(() => null);
+  } catch (err) {
+    // Nothing runs this turn: close its row now (the conversation never stays locked).
+    starting.delete(b.runId); await recoverStaleRun(b.runId).catch(() => false); throw err;
+  }
+  starting.delete(b.runId);
+  chatRuns.start({
+    runId: b.runId, userId, sessionId: c.id, agentId: b.agentId ?? null,
+    // A failed checkpoint leaves the outcome unknown: close the row as interrupted (later turns ask before every tool).
+    onUnstored: async () => { await recoverStaleRun(b.runId); },
+    onPersisted: async status => {
+      if (chatRuns.get(b.runId)?.error !== 'checkpoint_failed') await finishChatRun(b.runId, status);
+      else await recoverStaleRun(b.runId);
+      // MEM-CACHE-01: after the reply, the local model may rewrite a few quick summaries of older turns.
+      void refreshSummaries({ sessionId: c.id, userId, turns }).catch(() => 0);
+    },
+    execute: (runReply) => withChatRun(journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }), () => executeChatTurn(runReply, {
+      agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
+      runId: b.runId, conversation: { turns }, handoff,
+      ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
+      ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
+      systemPromptAppend: [approvedResults, project ? projectNote(project.name, project.folder, project.repoUrl) : '', PLAN_NOTE, HANDOFF_NOTE, [...prior, userMessage].some((m) => new RegExp(SECRET_REF_RE.source).test(m.content)) ? SECRET_NOTE : '', prior.some((m) => m.role === 'assistant' && (m.agentId ?? c.agentId ?? null) !== (replyAgent ?? null)) ? TEAM_NOTE : ''].filter(Boolean).join('\n\n'),
+      ...(effectiveModel ? { model: effectiveModel, ...(effectiveModel === AUTO_MODEL ? {} : { provider: modelProvider(effectiveModel) }) } : {}),
+    })),
+  });
+  console.log('[ChatRuns] Run started', { runId: b.runId, history: messages.length });
+  return send(202, { runId: b.runId, userMessage, secretsSaved: vaulted.saved.length });
+}
+
+/** The message a continuation turn adds after the owner decides the conversation's waiting approvals. */
+export const CONTINUE_MESSAGE = 'I decided the waiting approval. Continue the task with its result.';
+
+/**
+ * CHAT-BUILD-01: when the owner decides an approval a chat turn asked for, and nothing else of that
+ * conversation waits or runs, the chat continues by itself with the result (as if the owner wrote
+ * "continue"). The owner gates are the same as for a typed message.
+ */
+export async function continueAfterApproval(approvalId: string): Promise<TurnStart | null> {
+  const a = await q.one<{ user_id: string | null; session_id: string | null; agent_id: string | null }>('SELECT user_id, session_id, agent_id FROM tool_approvals WHERE id = ?', approvalId);
+  if (!a?.user_id || !a.session_id) return null;
+  const c = await findConversation(a.user_id, a.session_id);
+  if (!c || chatRuns.activeFor(c.id)) return null;
+  const waiting = await q.one("SELECT id FROM tool_approvals WHERE user_id = ? AND session_id = ? AND status = 'pending' LIMIT 1", a.user_id, c.id);
+  if (waiting) return null;
+  const user = await q.one<{ role: string; status: string }>('SELECT role, status FROM users WHERE id = ?', a.user_id);
+  if (!user || user.status !== 'active' || user.role === 'guest') return null;
+  const out = await startTurn({ userId: a.user_id, role: user.role, c, runId: `approval-${approvalId}`.slice(0, 128), message: CONTINUE_MESSAGE, ...(c.model ? { model: c.model } : {}) });
+  console.log('[ChatRuns] Continue after approval', { approvalId, status: out.code });
+  return out;
+}
+
 let recoveryReady: Promise<unknown> | undefined;
+let approvalListener = false;
+/** Runs accepted into the journal whose in-memory run is not registered yet (not stale). */
+const starting = new Set<string>();
+/** A 'running' row younger than this is never taken for stale (a start in another request may still be on its way). */
+const STALE_AFTER_MS = 10_000;
 export async function chatConversationRoutes(fastify: FastifyInstance) {
+  if (!approvalListener) { approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); }); }
   fastify.addHook('preHandler', async (request, reply) => {
     const user = authenticateActiveUser(request);
     if (!user || user.role === 'guest') return reply.code(401).send({ error: 'Authentication required' });
@@ -201,7 +341,14 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const c = await findConversation(caller(request), request.params.id!);
     if (!c) return notFound(reply);
     const active = chatRuns.activeFor(c.id);
-    return { conversation: c, messages: await listConversationMessages(c.id), activeRunId: active?.id ?? null };
+    // CHAT-BUILD-01: ?limit=N[&before=<messageId>] answers one page (newest last) so long chats keep opening.
+    const query = (request.query ?? {}) as Record<string, unknown>;
+    if (query.limit === undefined && query.before === undefined) return { conversation: c, messages: await listConversationMessages(c.id), activeRunId: active?.id ?? null };
+    const limit = Number(query.limit ?? PAGE_MESSAGES);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500 || (query.before !== undefined && (typeof query.before !== 'string' || !ID.test(query.before)))) return bad(reply, 'limit must be 1-500; before must be a message id');
+    const page = await pageConversationMessages(c.id, { before: query.before as string | undefined, limit, maxChars: PAGE_CHARS });
+    if (!page) return notFound(reply);
+    return { conversation: c, messages: page.messages, hasMore: page.hasMore, activeRunId: active?.id ?? null };
   });
 
   // ---- export as Markdown (CHAT-PRO-02 F): the caller's own conversation, secrets removed ----
@@ -226,68 +373,9 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.model !== undefined && (typeof b.model !== 'string' || !MODEL.test(b.model))) return bad(reply, 'invalid model');
     // CHAT-PRO-02 I: another agent of the team may write this reply (owner only: other users talk to the conversation's agent).
     if (b.agentId !== undefined && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
-    const team = await agentNames();
-    if (b.agentId !== undefined && (!team.has(b.agentId) || (request as any).chatUserRole !== 'owner')) return bad(reply, 'unknown agent');
-    const replyAgent: string | undefined = b.agentId ?? c.agentId ?? undefined;
-    const existing = chatRuns.get(b.runId);
-    if (existing) return existing.userId === userId && existing.sessionId === c.id ? reply.code(202).send({ runId: existing.id, replayed: true }) : reply.code(409).send({ error: 'runId already used', code: 'run_id_reused' });
-    const busy = chatRuns.activeFor(c.id);
-    if (busy) return reply.code(409).send({ error: 'This conversation is still answering', code: 'conversation_busy', runId: busy.id });
-    if (chatRuns.runningCount(userId) >= MAX_RUNNING_PER_USER) {
-      reply.header('Retry-After', '10');
-      return reply.code(429).send({ error: 'Too many chat turns are running', code: 'rate_limited' });
-    }
-    // CHAT-PRO-02 A: a project conversation reads the project folder and opens its memory drawer.
-    const project = c.projectId ? await findProject(userId, c.projectId) : undefined;
-    // Resolve the saved agent source before folder setup and owner gating.
-    const configured = replyAgent ? await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE id=?',replyAgent) : (await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config WHERE is_primary=1 ORDER BY id LIMIT 1')??await q.one<{id:string;model:string}>('SELECT id,model FROM agents_config ORDER BY created_at,id LIMIT 1'));
-    const effectiveModel=b.model||configured?.model;
-    const resolvedReplyAgent=subscriptionModel(effectiveModel)?replyAgent??configured?.id:replyAgent;
-    if(subscriptionModel(effectiveModel)&&(!subscriptionEnabled()||(request as any).chatUserRole!=='owner'))return reply.code(400).send({code:'no_folder',error:'Coding apps are available only to the owner in the desktop app.'});
-    // CORE-PICKER-03: without a project folder a coding app works in this conversation's own private folder.
-    const codingFolder = subscriptionModel(effectiveModel) ? project?.folder ?? await chatWorkspace(c.id) : undefined;
-    const prior = await listConversationMessages(c.id);
-    if (prior.some((m) => m.runId === b.runId)) return reply.code(409).send({ error: 'runId already used', code: 'run_id_reused' });
-    // CHAT-SECRETS-01: secrets go encrypted into the key store; the message keeps references only.
-    const vaulted = await vaultSecretsInText(userId, c.id, b.message);
-    const journal = { run_id: b.runId, user_id: userId, session_id: c.id, agent_id: b.agentId ?? null, started_at: Date.now() };
-    const reviewTools = await needsRecoveryReview(c.id);
-    const approvedResults = reviewTools ? await recoveryApprovalResults(userId, c.id) : '';
-    try { await acceptChatRun(journal, vaulted.text); } catch {
-      // Unique run/session indexes arbitrate racing starts across awaits.
-      const active = chatRuns.activeFor(c.id);
-      if (active) return reply.code(409).send({ code: 'conversation_busy', runId: active.id });
-      const used = await q.one('SELECT run_id FROM chat_run_journal WHERE run_id = ?', b.runId).catch(() => undefined);
-      if (used) return reply.code(409).send({ code: 'run_id_reused' });
-      const held = await q.one<{ run_id: string }>("SELECT run_id FROM chat_run_journal WHERE session_id = ? AND state = 'running'", c.id).catch(() => undefined);
-      if (held) return reply.code(409).send({ code: 'conversation_busy', runId: held.run_id });
-      return reply.code(503).send({ code: 'checkpoint_unavailable' });
-    }
-    const userMessage = (await listConversationMessages(c.id)).find(m => m.runId === b.runId && m.role === 'user')!;
-    const named = namedReplies([...prior, userMessage], team, replyAgent, c.agentId);
-    const messages = historyFor(named);
-    const turns = historyTurns(named);
-    // CORE-MEM-HANDOFF: this agent's newest note for this conversation (or its project), the caller's own only.
-    // MEM-CACHE-01: it is part of the turn's cached context pack and its trace.
-    const handoff = await packHandoffText(userId, c.id, replyAgent).catch(() => null);
-    chatRuns.start({
-      runId: b.runId, userId, sessionId: c.id, agentId: b.agentId ?? null,
-      onPersisted: async status => {
-        if (chatRuns.get(b.runId)?.error !== 'checkpoint_failed') await finishChatRun(b.runId, status);
-        // MEM-CACHE-01: after the reply, the local model may rewrite a few quick summaries of older turns.
-        void refreshSummaries({ sessionId: c.id, userId, turns }).catch(() => 0);
-      },
-      execute: (runReply) => withChatRun(journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }), () => executeChatTurn(runReply, {
-        agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
-        runId: b.runId, conversation: { turns }, handoff,
-        ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
-        ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
-        systemPromptAppend: [approvedResults, project ? projectNote(project.name, project.folder, project.repoUrl) : '', PLAN_NOTE, HANDOFF_NOTE, [...prior, userMessage].some((m) => new RegExp(SECRET_REF_RE.source).test(m.content)) ? SECRET_NOTE : '', prior.some((m) => m.role === 'assistant' && (m.agentId ?? c.agentId ?? null) !== (replyAgent ?? null)) ? TEAM_NOTE : ''].filter(Boolean).join('\n\n'),
-        ...(effectiveModel ? { model: effectiveModel, provider: modelProvider(effectiveModel) } : {}),
-      })),
-    });
-    console.log('[ChatRuns] Run started', { runId: b.runId, history: messages.length });
-    return reply.code(202).send({ runId: b.runId, userMessage, secretsSaved: vaulted.saved.length });
+    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: b.runId, message: b.message, model: b.model, agentId: b.agentId });
+    if (out.retryAfter) reply.header('Retry-After', out.retryAfter);
+    return reply.code(out.code).send(out.body);
   });
 
   // ---- board cards made from a conversation (CHAT-PRO-02 I step 2): owner only, like the board ----
@@ -370,12 +458,6 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     return { git: p.folder ? await gitInfo(p.folder) : { branch: null, remote: null, dirty: null } };
   });
 
-  /** CHAT-PRO-02 I: more than one agent has answered in this conversation. */
-  const TEAM_NOTE = 'Several agents of the team answer in this conversation. Earlier replies written by another agent start with that agent\'s name in brackets, like [Name]. Build on their work; do not repeat it, and do not write as them.';
-  /** CHAT-PRO-02 H: how the agent shows its work in the chat. */
-  const SECRET_NOTE = 'Secrets in this chat (keys, tokens, passwords the owner typed or a tool showed) were moved to the encrypted key store; you see a reference like [SECRET:github_token:abc123] instead. Never ask for the value again and never try to reveal it. When a tool needs it, put the reference itself in the tool input; the tool gets the real value after the owner approves that call.';
-  const PLAN_NOTE = 'When a request needs several steps (3 or more), first call plan_steps with the whole plan so the owner sees it, then work through it and call plan_steps again with the whole list as each step finishes. Keep steps short. Skip the plan for a quick question or a one-step answer. When the owner gives a larger task that other agents of the team should share, you may call board_suggest_card once; the owner decides whether it becomes a board card. When the owner shares a lasting fact, preference or decision worth keeping, you may call memory_save; in this chat it is shown to the owner, who accepts or rejects it.';
-
   // ---- microphone (CHAT-PRO-02 C): a recorded clip → text, on this computer only (owner) ----
   fastify.get('/api/chat/transcribe', { config: { access: 'owner' } }, async () => { const s = sttSetup(); return { available: s.available, missing: s.missing }; });
   fastify.post('/api/chat/transcribe', { config: { access: 'owner' }, bodyLimit: Math.ceil(MAX_AUDIO_BYTES * 1.4) + 1024 }, async (request: Req, reply) => {
@@ -436,6 +518,8 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const run = chatRuns.get(request.params.runId!);
     if (!run || run.userId !== caller(request)) return notFound(reply);
     run.requestStop();
-    return { ok: true, status: run.status === 'running' ? 'stopping' : run.status };
+    // CHAT-BUILD-01: Stop also reaches the agents this conversation delegated work to.
+    const delegated = stopDelegations(run.sessionId);
+    return { ok: true, status: run.status === 'running' ? 'stopping' : run.status, ...(delegated ? { delegatedStopped: delegated } : {}) };
   });
 }

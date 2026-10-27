@@ -50,7 +50,7 @@ export const askCodingAppTool: Tool = {
       // Without a project folder the coding app works in this chat's private folder (CORE-PICKER-03).
       folder ??= context?.sessionId ? await chatWorkspace(context.sessionId) : undefined;
       if (!folder) return fail('Choose a project folder for this chat first; the coding app works only inside it.');
-      const answer = await runSubscription(`subscription:${app}`, folder, PREFIX + request, AbortSignal.timeout(240_000));
+      const answer = await runSubscription(`subscription:${app}`, folder, PREFIX + request, AbortSignal.timeout(240_000), { readOnly: app === 'codex' });
       const text = answer.length > MAX_ANSWER_CHARS ? `${answer.slice(0, MAX_ANSWER_CHARS)}\n[answer shortened]` : answer;
       return { content: [{ type: 'text', text: `${APPS[app]} answered:\n${text}` }], details: { app } };
     } catch (error) {

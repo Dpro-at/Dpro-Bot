@@ -16,6 +16,7 @@ export const TRANSCRIBE_PATH: '/api/chat/transcribe';
 export const MAX_AUDIO_CHARS: number;
 export const STT_LANGUAGES: readonly ['auto', 'ar', 'en', 'de'];
 export const MAX_MESSAGE: number;
+export const MAX_MESSAGE_BYTES: number;
 export const MAX_TITLE: number;
 export const RUN_STREAM_MS: number;
 export const RUN_IDLE_MS: number;
@@ -38,6 +39,7 @@ export type RunEvent = ({ seq: number; at?: number }) & (
   | { type: 'text' | 'reasoning'; content: string }
   | { type: 'tool_start'; step: number; tools: { id: string; name: string; input: string }[] }
   | { type: 'tool_result'; step: number; results: { id: string; name: string; output: string; isError: boolean; ms?: number }[] }
+  | { type: 'notice'; code: 'rate_limited' | 'claude_key_missing' | 'local_model_slow'; waitSec?: number; model?: string }
   | { type: 'end'; status: 'complete' | 'stopped' | 'error'; ms: number; code?: 'model_unavailable' | 'local_model_missing' | 'lmstudio_not_running' | 'subscription_org_blocked' });
 export function projectRunEvent(x: unknown): RunEvent | undefined;
 export class RunEventParser {

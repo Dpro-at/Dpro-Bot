@@ -62,6 +62,8 @@ const { root, readCurrent } = require('./build-artifacts.cjs');
 const { HEADERS, requestPath } = require('./preview.cjs');
 const HOST = '127.0.0.1';
 const LIMIT = 128 * 1024;
+/** CHAT-BUILD-01: a chat message is limited by characters (100,000), so its body may be larger in bytes (Arabic, escapes). */
+const RUN_LIMIT = 512 * 1024;
 /** A microphone clip (base64 JSON) may be larger than an ordinary request; it also takes longer. */
 const AUDIO_LIMIT = 9 * 1024 * 1024;
 const AUDIO_TIMEOUT_MS = 200_000;
@@ -349,7 +351,7 @@ function createApplicationServer({ packageRoot = root, channel, stage1ReadOnly =
     const length = Number(req.headers['content-length'] || 0);
     const audio = req.method === 'POST' && raw === '/api/chat/transcribe';
     // Agent files are up to 1 MB of text; JSON escaping can double it.
-    const limit = agentLibraryRoute(raw) ? 2_400_000 : packRoute(raw) ? 2_100_000 : genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : LIMIT;
+    const limit = agentLibraryRoute(raw) ? 2_400_000 : packRoute(raw) ? 2_100_000 : genvrRoute(raw) ? GENVR_BYTES + 65536 : audio ? AUDIO_LIMIT : req.method === 'POST' && /^\/api\/chat\/conversations\/[^/?#]+\/runs$/.test(raw) ? RUN_LIMIT : LIMIT;
     if (!Number.isSafeInteger(length) || length < 0 || length > limit) return send(413);
     if (req.headers['content-type'] && !/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'])) return send(415);
     try {

@@ -195,7 +195,7 @@ test('memory tools: run user from context, only the turn\'s drawers; channel tur
   // memory_save writes only into a drawer open for the turn.
   const bad = await run(memorySaveTool, { content: `${TEXT} sneaky`, drawer: 'project:beta', userId: 'dr-owner' }, ctxAlpha);
   assert.ok(bad.error, 'beta drawer is not open in an alpha turn');
-  const ok = await run(memorySaveTool, { content: `${TEXT} alpha-note`, type: 'fact', importance: 9, drawer: 'project:alpha', userId: 'dr-other' }, ctxAlpha);
+  const ok = await run(memorySaveTool, { content: `${TEXT} alpha-note`, type: 'fact', importance: 6, drawer: 'project:alpha', userId: 'dr-other' }, ctxAlpha);
   assert.ok(!ok.error, ok.error);
   const row = db.prepare('SELECT user_id, drawer_kind, drawer_key FROM memories WHERE id = ?').get(ok.data.memoryId);
   assert.deepEqual({ ...row }, { user_id: 'dr-owner', drawer_kind: 'project', drawer_key: 'alpha' });

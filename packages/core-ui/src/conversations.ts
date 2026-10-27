@@ -4,7 +4,7 @@
 // and a queue of messages typed while the agent is still working.
 import { SessionFailure } from './session-failure';
 import type { SessionClient } from './session';
-import { MAX_MESSAGE, validRunId } from './conversation-contract.js';
+import { MAX_MESSAGE, MAX_MESSAGE_BYTES, validRunId } from './conversation-contract.js';
 import type { RunEvent, WireConversation, WireGit, WireMessage, WireProject } from './conversation-contract.js';
 import { applyEvent, fromWire, liveTurn, userTurn } from './turns';
 import { exportConversation } from './chat-export';
@@ -46,24 +46,39 @@ export type ConversationsState = Readonly<{
   queuePaused: boolean;
   /** CHAT-PRO-02 D: a message to scroll to and highlight once (from search); `n` changes per request. */
   focus: Readonly<{ messageId: string; n: number }> | null;
+  /** CHAT-BUILD-01: older messages are not loaded yet (long conversations open one page at a time). */
+  hasEarlier: boolean;
+  loadingEarlier: boolean;
   notice?: string;
 }>;
 
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 const RETRY_MS = [500, 1000, 2000, 4000, 8000];
+/** CHAT-BUILD-01: messages per page when a conversation opens or shows earlier messages. */
+export const PAGE_LIMIT = 100;
+/** Retries of one send after a lost answer: the same runId, so the server never makes a second turn. */
+const SEND_RETRY_MS = [600, 1500];
+const NOTICES: Record<string, (e: { waitSec?: number; model?: string }) => string> = {
+  rate_limited: e => `The model provider asked to slow down. Waiting ${e.waitSec ?? 30} seconds, then the reply continues.`,
+  claude_key_missing: e => `No Claude key is set, so this reply uses the local model${e.model ? ` (${e.model})` : ''}.`,
+  local_model_slow: () => 'The local model stopped answering. The reply was ended; try again or pick another model.',
+};
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/gu;
 export const ATTACH_FILE_CHARS = 60_000;
 export const ATTACH_TOTAL_CHARS = 90_000;
 const LANG: Record<string, string> = { ts: 'ts', tsx: 'tsx', js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js', py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java', php: 'php', sh: 'bash', zsh: 'bash', sql: 'sql', json: 'json', yml: 'yaml', yaml: 'yaml', md: 'markdown', html: 'html', css: 'css', csv: 'csv', xml: 'xml', toml: 'toml' };
 /** The message text with each attached file as a fenced block. */
 export function withAttachments(message: string, files: readonly { name: string; text: string }[]): string {
   if (!files.length) return message;
-  const blocks = files.map(f => { const ext = f.name.split('.').at(-1)?.toLowerCase() ?? ''; const fence = f.text.includes('```') ? '~~~~' : '```'; return `Attached file \`${f.name}\`:\n${fence}${LANG[ext] ?? ''}\n${f.text}\n${fence}`; });
+  // CHAT-BUILD-01: control characters in a file (not tab or line breaks) are dropped, so the message is never refused for them.
+  const blocks = files.map(f => { const ext = f.name.split('.').at(-1)?.toLowerCase() ?? ''; const body = f.text.replace(CONTROL_CHARS, ''); const fence = body.includes('```') ? '~~~~' : '```'; return `Attached file \`${f.name.replace(CONTROL_CHARS, '')}\`:\n${fence}${LANG[ext] ?? ''}\n${body}\n${fence}`; });
   return [message || 'Please look at the attached files.', ...blocks].join('\n\n');
 }
 
 const emptyState = (): ConversationsState => Object.freeze({
     access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: '', projects: [], projectFilter: '', git: null,
-    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null,
+    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false,
 });
 
 export class ConversationsController {
@@ -96,7 +111,7 @@ export class ConversationsController {
   }
   dispose() { this.#follow?.abort(); this.#unsubscribe(); this.#disposed = true; this.#listeners.clear(); }
 
-  edit(draft: string) { this.publish({ draft: draft.slice(0, MAX_MESSAGE) }); }
+  edit(draft: string) { this.publish({ draft: draft.slice(0, MAX_MESSAGE), ...(draft.length > MAX_MESSAGE ? { notice: `A message can be at most ${MAX_MESSAGE.toLocaleString('en')} characters. The rest was not added.` } : {}) }); }
   selectAgent(agentId: string) { if (!this.#state.activeId) this.publish({ agentId }); }
   /** In an open conversation: which agent writes the next replies ('' = the conversation's own agent). */
   setReplyAgent(agentId: string) { if (agentId === '' || this.#state.agents.some(a => a.id === agentId)) this.publish({ replyAgent: agentId }); }
@@ -278,7 +293,7 @@ export class ConversationsController {
   /** A blank conversation (created on the first message). */
   newChat() {
     this.#follow?.abort(); this.#openSeq++;
-    this.publish({ activeId: null, model: '', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null });
+    this.publish({ activeId: null, model: '', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false });
     void this.loadGit();
   }
 
@@ -287,10 +302,10 @@ export class ConversationsController {
     this.#follow?.abort();
     const seq = ++this.#openSeq;
     const known = this.#state.conversations.find(c => c.id === id);
-    this.publish({ activeId: id, turns: [], threadPhase: 'loading', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: known?.agentId ?? '', model: known?.model ?? '', replyAgent: '', focus: null });
+    this.publish({ activeId: id, turns: [], threadPhase: 'loading', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: known?.agentId ?? '', model: known?.model ?? '', replyAgent: '', focus: null, hasEarlier: false, loadingEarlier: false });
     try {
       await this.#modelWrites;if(!this.live()||seq!==this.#openSeq)return;
-      const r = await this.call('GET', `/api/chat/conversations/${id}/messages`);
+      const r = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}`);
       if (!this.live() || seq !== this.#openSeq) return;
       if (r.status === 404) { this.publish({ threadPhase: 'error', notice: 'This conversation no longer exists.', conversations: this.#state.conversations.filter(c => c.id !== id) }); return; }
       if (r.status !== 200 || !record(r.body)) { this.publish({ threadPhase: 'error', notice: 'The conversation could not be loaded.' }); return; }
@@ -300,10 +315,47 @@ export class ConversationsController {
       const turns = messages.map(fromWire);
       if (active) turns.push(liveTurn(active, this.now()));
       const conversation=r.body.conversation as Conversation;this.replace(conversation);
-      this.publish({ turns, threadPhase: 'ready', runId: active, model: conversation.model ?? '' });
+      this.publish({ turns, threadPhase: 'ready', runId: active, model: conversation.model ?? '', hasEarlier: r.body.hasMore === true });
       void this.loadGit();
       if (active) void this.follow(active, seq);
     } catch { if (this.live() && seq === this.#openSeq) this.publish({ threadPhase: 'error', notice: 'The conversation could not be loaded.' }); }
+  }
+
+  /** CHAT-BUILD-01: picks up a turn the server started by itself (the chat continuing after an approval). */
+  async refreshActive() {
+    const id = this.#state.activeId;
+    if (!this.live() || !id || this.#state.runId || this.#state.starting || this.#state.threadPhase !== 'ready') return;
+    const seq = this.#openSeq;
+    try {
+      const r = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}`);
+      if (!this.live() || seq !== this.#openSeq || this.#state.runId || this.#state.starting || r.status !== 200 || !record(r.body) || !Array.isArray(r.body.messages)) return;
+      const page = (r.body.messages as WireMessage[]).map(fromWire);
+      const active = r.body.activeRunId as string | null;
+      const shown = new Set(this.#state.turns.map(t => t.key));
+      if (!active && page.every(t => shown.has(t.key))) return;
+      const fresh = new Set(page.map(t => t.key));
+      const runs = new Set(page.map(t => t.runId).filter(Boolean));
+      const kept = this.#state.turns.filter(t => !fresh.has(t.key) && !t.key.startsWith('run:') && !t.key.startsWith('pending:') && !(t.runId && runs.has(t.runId)));
+      this.publish({ turns: [...kept, ...page, ...(active ? [liveTurn(active, this.now())] : [])], runId: active });
+      if (active) void this.follow(active, seq);
+    } catch { /* the next refresh tries again */ }
+  }
+
+  /** CHAT-BUILD-01: loads the page of messages before the oldest one shown. */
+  async loadEarlier() {
+    const id = this.#state.activeId;
+    const oldest = this.#state.turns.find(t => !t.key.startsWith('pending:') && !t.key.startsWith('run:') && !t.key.startsWith('user:'));
+    if (!this.live() || !id || !this.#state.hasEarlier || this.#state.loadingEarlier || !oldest) return;
+    const seq = this.#openSeq;
+    this.publish({ loadingEarlier: true });
+    try {
+      const r = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}&before=${encodeURIComponent(oldest.key)}`);
+      if (!this.live() || seq !== this.#openSeq) return;
+      if (r.status !== 200 || !record(r.body) || !Array.isArray(r.body.messages)) { this.publish({ loadingEarlier: false, notice: 'Earlier messages could not be loaded.' }); return; }
+      const shown = new Set(this.#state.turns.map(t => t.key));
+      const older = (r.body.messages as WireMessage[]).map(fromWire).filter(t => !shown.has(t.key));
+      this.publish({ turns: [...older, ...this.#state.turns], hasEarlier: r.body.hasMore === true, loadingEarlier: false });
+    } catch { if (this.live() && seq === this.#openSeq) this.publish({ loadingEarlier: false, notice: 'Earlier messages could not be loaded.' }); }
   }
 
   /** Opens a conversation (if it is not open yet) and asks the view to show one message (search hit). */
@@ -319,7 +371,12 @@ export class ConversationsController {
   async send(text?: string) {
     const files = text === undefined ? this.#state.attachments : [];
     const message = withAttachments((text ?? this.#state.draft).trim(), files);
-    if (!this.live() || !message || message.length > MAX_MESSAGE) return;
+    if (!this.live() || !message) return;
+    // CHAT-BUILD-01: never refuse silently; say why and keep the text in the box.
+    if (message.length > MAX_MESSAGE || new TextEncoder().encode(JSON.stringify(message)).length > MAX_MESSAGE_BYTES) {
+      this.publish({ notice: files.length ? 'The message with its attached files is too long to send. Remove a file or shorten the text.' : 'The message is too long to send. Shorten it or attach it as a file.' });
+      return;
+    }
     if(this.#pendingModelWrites)await this.#modelWrites;if(!this.live())return;
     if(this.#state.activeId&&this.#modelSaveFailures.has(this.#state.activeId)){this.publish({notice:'The model choice was not saved. Choose it again before sending.'});return;}
     if (this.#state.runId || this.#state.starting) {
@@ -349,7 +406,16 @@ export class ConversationsController {
       const writer = named ?? (this.#state.replyAgent || undefined);
       const agentForRun = writer && writer !== convAgent ? writer : undefined;
       if (named && named !== this.#state.replyAgent && this.#state.activeId) this.publish({ replyAgent: named === convAgent ? '' : named });
-      const r = await this.call('POST', `/api/chat/conversations/${id}/runs`, { runId, message, ...(this.#state.model ? { model: this.#state.model } : {}), ...(agentForRun ? { agentId: agentForRun } : {}) });
+      const body = { runId, message, ...(this.#state.model ? { model: this.#state.model } : {}), ...(agentForRun ? { agentId: agentForRun } : {}) };
+      // CHAT-BUILD-01: a lost answer is retried with the same runId; the server returns the accepted turn instead of a second one.
+      let r: Awaited<ReturnType<typeof this.call>> | undefined;
+      for (let attempt = 0; !r; attempt++) {
+        try { r = await this.call('POST', `/api/chat/conversations/${id}/runs`, body); }
+        catch (error) {
+          if (attempt >= SEND_RETRY_MS.length || !(error instanceof SessionFailure) || error.code !== 'unavailable' || !this.live() || seq !== this.#openSeq) throw error;
+          await new Promise(res => setTimeout(res, SEND_RETRY_MS[attempt]));
+        }
+      }
       if (!this.live() || seq !== this.#openSeq) return;
       if (r.status === 409 && record(r.body) && r.body.code === 'conversation_busy' && typeof r.body.runId === 'string') {
         // Another tab is still answering here: wait in the queue and follow that run.
@@ -361,7 +427,7 @@ export class ConversationsController {
       if (r.status !== 202 || !record(r.body)) {
         const code = record(r.body) ? r.body.code : undefined;
         this.publish({ starting: false, turns: this.#state.turns.filter(t => t !== optimistic), draft: this.#state.draft || message,
-          notice: code === 'rate_limited' ? 'Too many conversations are answering right now. Your message is back in the box; send it again in a moment.' : 'The message was not sent. It is back in the box.' });
+          notice: code === 'rate_limited' ? 'Too many conversations are answering right now. Your message is back in the box; send it again in a moment.' : r.status === 413 ? 'The message is too long to send. Shorten it or attach it as a file.' : 'The message was not sent. It is back in the box.' });
         return;
       }
       const stored = record(r.body.userMessage) ? fromWire(r.body.userMessage as WireMessage) : userTurn(`user:${runId}`, message, runId);
@@ -400,11 +466,16 @@ export class ConversationsController {
         const id = this.#state.activeId;
         if (id) {
           try {
-            const saved = await this.call('GET', `/api/chat/conversations/${id}/messages`);
+            const saved = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}`);
             if (!current()) return;
             if (saved.status === 200 && record(saved.body) && Array.isArray(saved.body.messages)
               && !saved.body.activeRunId && saved.body.messages.some((m: WireMessage) => m.role === 'assistant' && m.runId === runId)) {
-              const turns = (saved.body.messages as WireMessage[]).map(fromWire);
+              const page = (saved.body.messages as WireMessage[]).map(fromWire);
+              // Older loaded turns stay; the page replaces the newest ones (and the live turn).
+              const fresh = new Set(page.map(t => t.key));
+              const first = this.#state.turns.findIndex(t => fresh.has(t.key));
+              const kept = (first < 0 ? this.#state.turns : this.#state.turns.slice(0, first)).filter(t => !fresh.has(t.key) && t.runId !== runId && t.status !== 'running');
+              const turns = [...kept, ...page];
               this.publish({ turns, runId: null, stopping: false, reconnecting: false, queuePaused: this.#state.queue.length > 0,
                 notice: turns.some(t => t.runId === runId && t.code === 'run_interrupted') ? 'Work interrupted by restart. Review the saved checkpoints, then continue safely.' : undefined });
               return;
@@ -423,6 +494,7 @@ export class ConversationsController {
   }
 
   private onEvent(runId: string, e: RunEvent) {
+    if (e.type === 'notice') this.publish({ notice: NOTICES[e.code]?.(e) });
     const turns = this.#state.turns.map(t => (t.role === 'assistant' && t.runId === runId ? applyEvent(t, e, this.now()) : t));
     this.publish({ turns });
   }

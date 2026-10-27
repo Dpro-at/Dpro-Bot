@@ -29,6 +29,15 @@ import { approvalRunDrawers, toolMemoryDrawers } from './memory/scope.js';
 import type { DrawerRef } from '../memory/drawers.js';
 import { onApprovalDecided } from '../services/task-runs.js';
 
+/** CHAT-BUILD-01: other parts (the chat) continue after the owner decides; a listener never blocks or fails the decision. */
+type DecidedListener = (approvalId: string) => Promise<void> | void;
+const decidedListeners = new Set<DecidedListener>();
+export function addApprovalDecidedListener(fn: DecidedListener): () => void { decidedListeners.add(fn); return () => { decidedListeners.delete(fn); }; }
+async function notifyDecided(id: string): Promise<void> {
+  await onApprovalDecided(id);
+  for (const fn of decidedListeners) { try { await fn(id); } catch (err: any) { console.warn('[Approvals] decided listener failed:', err?.name ?? 'Error'); } }
+}
+
 export type ApprovalCategory = 'message' | 'delete' | 'money' | 'install' | 'settings' | 'browser' | 'network' | 'other';
 export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'executed' | 'failed' | 'expired';
 
@@ -474,7 +483,7 @@ export async function denyApproval(id: string, ownerId: string): Promise<Approva
   const record = await getApproval(id);
   if (!record) throw new ApprovalStateError('Approval not found', 404);
   if (res.changes !== 1) throw new ApprovalStateError(`Approval is ${record.status}, not pending`, 409);
-  await onApprovalDecided(id);
+  await notifyDecided(id);
   return record;
 }
 
@@ -517,7 +526,7 @@ export async function approveAndRun(id: string, ownerId: string, expectedHash: u
         status, resultPreview, error, id);
     })());
     // CORE-08: a run waiting on this approval continues (result replayed, never re-run).
-    await onApprovalDecided(id);
+    await notifyDecided(id);
   };
 
   let params: Record<string, any>;

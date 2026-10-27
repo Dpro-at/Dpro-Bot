@@ -13,6 +13,7 @@
  * A refused or unreachable server throws ModelUnavailable (no upstream text).
  */
 
+import { stallGuard, type StallGuard } from './model-stall.js';
 import {
   LOCAL_MAX_STEPS, TOOL_INPUT_CHARS, TOOL_OUTPUT_CHARS, TOOL_OUTPUT_MODEL_CHARS,
   ModelUnavailable, toOllamaTools, toolResultText,
@@ -41,6 +42,8 @@ export interface LmStudioLoopOptions {
   maxSteps?: number;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** CHAT-BUILD-01: how long the model may send nothing (first piece / between pieces). */
+  stallMs?: { first?: number; idle?: number };
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}\n… ${s.length - n} more characters` : s);
@@ -101,11 +104,20 @@ export async function runLmStudioAgentLoop(o: LmStudioLoopOptions): Promise<{ st
 
   /** One streamed model call; returns its text and the finished tool calls. */
   async function streamOne() {
+    const guard = stallGuard(o.signal, o.stallMs);
+    try { return await readOne(guard); }
+    catch (err) {
+      if (guard.stalled && !o.signal.aborted) { o.write({ type: 'notice', code: 'local_model_slow' }); throw new ModelUnavailable(504); }
+      throw err;
+    } finally { guard.done(); }
+  }
+
+  async function readOne(guard: StallGuard) {
     let res: Response;
     try {
       res = await fetchImpl(`${o.url}/chat/completions`, {
         method: 'POST',
-        signal: o.signal,
+        signal: guard.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: o.model, messages, stream: true,
@@ -153,6 +165,7 @@ export async function runLmStudioAgentLoop(o: LmStudioLoopOptions): Promise<{ st
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      guard.tick();
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';

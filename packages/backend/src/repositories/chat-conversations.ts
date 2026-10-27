@@ -126,6 +126,27 @@ export async function listConversationMessages(sessionId: string): Promise<Conve
   return rows.map(toMessage);
 }
 
+/** CHAT-BUILD-01: one page of a long conversation, newest last. `before` is a message id of this
+ * conversation; a page stops at `limit` messages or about `maxChars` of stored text (never empty). */
+export async function pageConversationMessages(sessionId: string, opts: { before?: string; limit: number; maxChars: number }): Promise<{ messages: ConversationMessage[]; hasMore: boolean } | null> {
+  let anchor: { created_at: string; id: string } | undefined;
+  if (opts.before) {
+    anchor = await q.one<{ created_at: string; id: string }>('SELECT created_at, id FROM chat_messages WHERE id = ? AND session_id = ?', opts.before, sessionId);
+    if (!anchor) return null;
+  }
+  const rows = anchor
+    ? await q.all<MessageRow>('SELECT * FROM chat_messages WHERE session_id = ? AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC, id DESC LIMIT ?', sessionId, anchor.created_at, anchor.created_at, anchor.id, opts.limit + 1)
+    : await q.all<MessageRow>('SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at DESC, id DESC LIMIT ?', sessionId, opts.limit + 1);
+  const page: MessageRow[] = [];
+  let chars = 0;
+  for (const row of rows.slice(0, opts.limit)) {
+    chars += String(row.content ?? '').length + String(row.parts ?? '').length;
+    if (page.length > 0 && chars > opts.maxChars) break;
+    page.push(row);
+  }
+  return { messages: page.reverse().map(toMessage), hasMore: rows.length > page.length };
+}
+
 /** A title from the first message: its first line, at most 7 words / 60 characters. */
 export function deriveTitle(text: string): string {
   const line = text.replace(/```[\s\S]*?(```|$)/g, ' ').split('\n').map((l) => l.trim()).find(Boolean) ?? '';

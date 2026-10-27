@@ -30,7 +30,7 @@ import { getMemoryRetrieval } from '../memory/retrieval.js';
 import { withGraphRecall } from '../memory/graph/recall.js';
 import { archivedProjects } from '../memory/scopes/store.js';
 import { defaultDrawerForType, drawerSqlFilter, normalizeDrawer, sameDrawer, type DrawerRef } from '../memory/drawers.js';
-import { agentChange, learn, type AgentChangeResult, type LearnOutcome, type LearningCandidate } from '../memory/learning.js';
+import { agentChange, learn, type AgentChangeResult, type LearnOutcome, type LearningCandidate, type LearningReason } from '../memory/learning.js';
 import { MemoryTiersService } from '../services/memory-tiers.js';
 import { getConsolidationService } from '../services/memory-consolidation.js';
 import type { Memory, MemorySearchQuery, MemorySearchResult } from '../memory/types.js';
@@ -57,7 +57,7 @@ export interface MemoryRecallRepository {
   /** Learn from conversation text (member accounts; actor `extraction`). */
   extract(actor: Actor | null | undefined, text: string): Promise<LearnOutcome>;
   /** Classify and store learned items for the actor's user (memory_save). */
-  learn(actor: Actor | null | undefined, input: { candidates: Array<Omit<LearningCandidate, 'origin'>>; metadata?: Record<string, unknown>; review?: boolean }): Promise<LearnOutcome>;
+  learn(actor: Actor | null | undefined, input: { candidates: Array<Omit<LearningCandidate, 'origin'>>; metadata?: Record<string, unknown>; review?: boolean; reviewReason?: LearningReason }): Promise<LearnOutcome>;
   /** An agent edit/delete of an existing memory (memory_edit / memory_delete). */
   change(actor: Actor | null | undefined, input: { memoryId: string; op: 'update' | 'delete'; updates?: { content?: string; type?: string; importance?: number; topicKey?: string | null }; reason?: string | null }): Promise<AgentChangeResult>;
   /** Counts over the reachable memory; null when nothing is reachable (no drawers). */
@@ -124,7 +124,7 @@ export const memoryRecall: MemoryRecallRepository = {
       agentId: agent ? a.agentId : undefined,
       openDrawers: agent ? [...(a.drawers ?? [])].filter((d) => drawerWritable(a, d)) : null,
       metadata: input.metadata,
-      ...(input.review ? { review: true } : {}),
+      ...(input.review ? { review: true, ...(input.reviewReason ? { reviewReason: input.reviewReason } : {}) } : {}),
     });
   },
 

@@ -5,6 +5,10 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { q } from '../repositories/sql-steps.js';
 import { spawnPython, getPythonPath, PYTHON_SCRIPTS_DIR } from './python-env.js';
+import { minimalChildEnv } from '../tools/exec-policy.js';
+
+/** CHAT-BUILD-01 (K2): the speech helpers get the basic environment plus model cache folders, never server secrets. */
+const audioEnv = () => minimalChildEnv(Object.fromEntries(['HF_HOME', 'HF_HUB_CACHE', 'TRANSFORMERS_CACHE', 'TORCH_HOME', 'XDG_CACHE_HOME', 'PYTORCH_ENABLE_MPS_FALLBACK', 'CUDA_VISIBLE_DEVICES'].map((k) => [k, process.env[k]])));
 import { getEnvProviderApiKey } from '../credentials/authority.js';
 
 type AudioProvider = 'openai' | 'local' | 'qwen';
@@ -107,7 +111,8 @@ export class AudioService {
       // Call Python script
       const python = spawnPython(
         path.join(PYTHON_SCRIPTS_DIR, 'tools', 'stt', 'stt.py'),
-        [audioPath]
+        [audioPath],
+        { baseEnv: audioEnv() }
       );
 
       let output = '';
@@ -253,7 +258,7 @@ export class AudioService {
       console.log('[TTS] Script path:', ttsScriptPath);
       console.log('[TTS] Args file:', argsFile);
 
-      const python = spawnPython(ttsScriptPath, ['--args-file', argsFile]);
+      const python = spawnPython(ttsScriptPath, ['--args-file', argsFile], { baseEnv: audioEnv() });
 
       let errorOutput = '';
       let stdOutput = '';
@@ -323,7 +328,7 @@ export class AudioService {
       console.log('[Qwen3-TTS] Script path:', qwenScriptPath);
       console.log('[Qwen3-TTS] Args:', { voice, language, emotion: emotion || 'none', hasReference: !!referenceAudio });
 
-      const python = spawnPython(qwenScriptPath, ['--args-file', argsFile]);
+      const python = spawnPython(qwenScriptPath, ['--args-file', argsFile], { baseEnv: audioEnv() });
 
       let errorOutput = '';
       let stdOutput = '';

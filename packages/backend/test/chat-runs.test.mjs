@@ -98,16 +98,18 @@ test('a run streams reasoning, tools and text, then stores both turns with their
   assert.equal(start.statusCode, 202);
   await ended(runId);
   const ev = frames((await call('r-owner', 'GET', `/api/chat/runs/${runId}/events`)).body);
-  assert.deepEqual(ev.map((f) => f.type), ['reasoning', 'tool_start', 'tool_result', 'text', 'text', 'end']);
-  assert.deepEqual(ev.map((f) => f.seq), [1, 2, 3, 4, 5, 6]);
+  // CHAT-BUILD-01: the agent is set to Claude without a key, so the run first says it answers with the local model.
+  assert.deepEqual(ev.map((f) => f.type), ['notice', 'reasoning', 'tool_start', 'tool_result', 'text', 'text', 'end']);
+  assert.equal(ev[0].code, 'claude_key_missing');
+  assert.deepEqual(ev.map((f) => f.seq), [1, 2, 3, 4, 5, 6, 7]);
   assert.ok(ev.every((f) => Number.isFinite(f.at) && f.at >= 0), 'every event carries its time since the run started');
-  assert.equal(ev[1].tools[0].name, 'x_echo');
-  assert.equal(ev[2].results[0].output, 'echo: hi');
+  assert.equal(ev[2].tools[0].name, 'x_echo');
+  assert.equal(ev[3].results[0].output, 'echo: hi');
   assert.equal(ev.at(-1).status, 'complete');
   assert.deepEqual(echoed, ['hi']);
 
-  const after = frames((await call('r-owner', 'GET', `/api/chat/runs/${runId}/events?after=4`)).body);
-  assert.deepEqual(after.map((f) => f.seq), [5, 6]);
+  const after = frames((await call('r-owner', 'GET', `/api/chat/runs/${runId}/events?after=5`)).body);
+  assert.deepEqual(after.map((f) => f.seq), [6, 7]);
 
   const m = (await call('r-owner', 'GET', `/api/chat/conversations/${c.id}/messages`)).json();
   assert.equal(m.conversation.title, 'Echo hi please');

@@ -155,11 +155,21 @@ export interface BuildServerOptions {
   logger?: FastifyServerOptions['logger'];
 }
 
+/** Query values that are credentials (session tokens, tickets, keys) are replaced in logged URLs. */
+export function redactUrlSecrets(url: string): string {
+  return url.replace(/([?&](?:token|access_token|ticket|key|api_key|apikey|secret|password|code|state)=)[^&#]*/gi, '$1[redacted]');
+}
+
 export async function buildServer(options: BuildServerOptions = {}): Promise<FastifyInstance> {
   const paperScheduleLedger=options.paperScheduleLedger??null;
   const fastify = Fastify({
     logger: options.logger ?? {
       level: process.env.LOG_LEVEL || 'info',
+      // CHAT-BUILD-01 (K1): a session token in a URL (?token= on an extension stream) or a header never reaches the log.
+      serializers: {
+        req: (req: { method?: string; url?: string; hostname?: string; ip?: string }) => ({ method: req.method, url: redactUrlSecrets(req.url ?? ''), hostname: req.hostname, remoteAddress: req.ip }),
+      },
+      redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'headers.authorization', 'headers.cookie'], censor: '[redacted]' },
       transport: {
         target: 'pino-pretty',
         options: {

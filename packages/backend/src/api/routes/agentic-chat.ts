@@ -241,10 +241,8 @@ export async function streamChatClaude(
         if (isRateLimit && attempt < 3) {
           const waitSec = (attempt + 1) * 30; // 30s, 60s, 90s
           console.log(`[Chat] ⏳ Rate limit — waiting ${waitSec}s before retry ${attempt + 1}/3`);
-          reply.raw.write(`data: ${JSON.stringify({
-            type: 'text',
-            content: `\n\n*Rate limit reached — waiting ${waitSec}s before continuing...*\n\n`,
-          })}\n\n`);
+          // CHAT-BUILD-01: a notice, never part of the stored answer.
+          reply.raw.write(`data: ${JSON.stringify({ type: 'notice', code: 'rate_limited', waitSec })}\n\n`);
           await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
           if (clientGone) throw new Error('client closed');
           return callWithRetry(msgs, attempt + 1);

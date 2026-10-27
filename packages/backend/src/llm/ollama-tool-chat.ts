@@ -58,6 +58,8 @@ export async function ollamaToolChat(opts: {
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
+  /** CHAT-BUILD-01: the caller's stop (a stopped chat reaches its delegated agents). */
+  signal?: AbortSignal;
 }): Promise<OllamaToolChatResult> {
   const messages: OllamaMessage[] = opts.systemPrompt
     ? [{ role: 'system', content: opts.systemPrompt }, ...opts.messages]
@@ -76,7 +78,7 @@ export async function ollamaToolChat(opts: {
         ...(opts.maxTokens ? { num_predict: opts.maxTokens } : {}),
       },
     }),
-    signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000),
+    signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 120_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 120_000),
   });
   if (!res.ok) {
     throw new Error(`Ollama request failed (${res.status})`);

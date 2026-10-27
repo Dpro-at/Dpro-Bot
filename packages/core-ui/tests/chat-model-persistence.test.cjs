@@ -8,7 +8,7 @@ function fixture(t){
  const rows=new Map([[id,{id,title:'Trial',agentId:null,projectId:null,pinned:false,preview:'',createdAt:'',updatedAt:''}]]),calls=[];let fail=false;
  const client={getSnapshot:()=>({phase:'authenticated',epoch:1,user:{role:'owner'}}),subscribe:()=>()=>{},request:async r=>{calls.push(r);
  if(r.path==='/api/models')return {status:200,body:{models:[{id:'subscription:codex',provider:'subscription',label:'Codex',size:''},{id:'qwen',provider:'ollama',label:'Qwen',size:''}]}};
- if(r.path.endsWith('/messages'))return {status:200,body:{conversation:{...rows.get(id)},messages:[],activeRunId:null}};
+ if(/\/messages(\?|$)/.test(r.path))return {status:200,body:{conversation:{...rows.get(id)},messages:[],activeRunId:null}};
  if(r.method==='PUT'){if(fail)return {status:503};await Promise.resolve();const row=rows.get(id);if(r.body.model)row.model=r.body.model;else delete row.model;return {status:200,body:{conversation:{...row}}};}
  if(r.path==='/api/chat/conversations')return {status:200,body:{conversations:[...rows.values()].map(r=>({...r}))}};
  return {status:200,body:{projects:[],agents:[]}};}};

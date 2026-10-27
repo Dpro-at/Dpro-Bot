@@ -347,6 +347,27 @@ export async function chatRoutes(fastify: FastifyInstance) {
 }
 
 /** One accepted chat turn, after authentication and the idempotency check. */
+/** CHAT-BUILD-01: "Auto" model choice — only then may the cost router pick the Claude model. */
+export const AUTO_MODEL = 'auto';
+
+/** CHAT-BUILD-01 (M3): bounds on the system prompt (characters). The persona file may be up to 1 MB on disk. */
+export const PERSONA_PROMPT_CHARS = 32_000;
+export const PROMPT_APPEND_CHARS = 32_000;
+export const SYSTEM_PROMPT_CHARS = 96_000;
+/** Coding-app replies (CHAT-BUILD-01): history tokens kept in full, memory characters added. */
+export const SUBSCRIPTION_HISTORY_TOKENS = 12_000;
+export const SUBSCRIPTION_MEMORY_CHARS = 6_000;
+/** Keeps the start and the end of an over-long text (the end holds the newest instructions and the model identity). */
+export function capMiddle(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const note = '\n\n[… part of this text was left out for size …]\n\n';
+  const head = Math.floor((max - note.length) * 0.7);
+  return text.slice(0, head) + note + text.slice(text.length - (max - note.length - head));
+}
+
+/** A notice frame: shown in the chat while the turn runs, never stored as answer text. */
+export const noticeFrame = (code: string, extra: Record<string, unknown> = {}) => `data: ${JSON.stringify({ type: 'notice', code, ...extra })}\n\n`;
+
 export interface ChatTurnInput {
   agentId?: string;
   messages: ChatMessage[];
@@ -418,9 +439,14 @@ function watchFirstWord(raw: { write: (...args: any[]) => any }, startedAt: numb
  */
 export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput): Promise<unknown> {
     const {
-      agentId, messages, stream, model, temperature, maxTokens, sessionId, systemPrompt, systemPromptAppend,
+      agentId, messages, stream, model: requestedModel, temperature, maxTokens, sessionId, systemPrompt, systemPromptAppend: rawPromptAppend,
       memoryContext: bodyMemoryContext, memoryScope, chatContext, userId,
     } = input;
+    // CHAT-BUILD-01: a picked model is used as picked; "auto" answers with the agent's model and lets the router choose.
+    const autoModel = requestedModel === AUTO_MODEL;
+    const systemPromptAppend = rawPromptAppend === undefined ? undefined : capMiddle(rawPromptAppend, PROMPT_APPEND_CHARS);
+    const model = autoModel ? undefined : requestedModel;
+    const notices: string[] = [];
     const savedReplyAgent=agentId?await getAgentById(agentId):await getPrimaryAgent();
     const subscriptionSource=model||savedReplyAgent?.model;
     if(subscriptionModel(subscriptionSource)){
@@ -432,8 +458,19 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         const selectedAgent=savedReplyAgent;
         if(!selectedAgent)throw Error('agent_context_unavailable');
         const context=await subscriptionAgentContext(selectedAgent.id);
-        const history=messages.map(m=>`${m.role}: ${messageText(m.content)}`).join('\n\n');
         const drawers=await withoutArchivedDrawers(userId,chatTurnDrawers(true,memoryScope));
+        // CHAT-BUILD-01: the coding app gets the newest turns plus summaries of older ones and a bounded
+        // set of top memories, instead of the whole conversation on every turn (plan usage).
+        const lines=(list:readonly {role:string;content:unknown}[])=>list.map(m=>`${m.role}: ${messageText(m.content as ChatMessage['content'])}`).join('\n\n');
+        let history=lines(messages);
+        if(input.conversation?.turns.length){
+          try{const h=await budgetHistory({sessionId,userId,turns:input.conversation.turns,historyTokens:SUBSCRIPTION_HISTORY_TOKENS,summaryTokens:contextBudget().summaryTokens});history=`${h.summaryText?`${h.summaryText}\n\n`:''}${lines(h.messages)}`;}
+          catch(err){safeConsole.log('[Chat] Conversation summaries unavailable',safeErrorFields(err));}
+        }
+        let memoryText='';
+        try{const readable=await readableDrawers(selectedAgent.id,drawers,userId);memoryText=(await contextPack({userId,agentId:selectedAgent.id,drawers:readable,persona:'',scopeFacts:null,handoff:input.handoff??null})).text.trim();}
+        catch(err){safeConsole.log('[Chat] Memory context unavailable',safeErrorFields(err));}
+        if(memoryText)history=`${capMiddle(memoryText,SUBSCRIPTION_MEMORY_CHARS)}\n\n${history}`;
         const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
         let toolStep=0;
         const answer=await subscriptionToolLoop({prompt:subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history),signal:abort.signal,
@@ -523,7 +560,8 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
     }
 
     // Build system prompt: PERSONALITY.md > database system_prompt > none
-    const rawSystemPrompt = systemPrompt || personalityContent || (agentConfig?.system_prompt?.trim() ? agentConfig.system_prompt : undefined);
+    const personaText = systemPrompt || personalityContent || (agentConfig?.system_prompt?.trim() ? agentConfig.system_prompt : undefined);
+    const rawSystemPrompt = personaText === undefined ? undefined : capMiddle(personaText, PERSONA_PROMPT_CHARS);
 
     // Auto-inject agent name into system prompt if it's set and not already mentioned
     const baseSystemPrompt = agentName && rawSystemPrompt && !rawSystemPrompt.toLowerCase().includes(agentName.toLowerCase())
@@ -595,6 +633,7 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
       resolvedProvider = 'ollama';
       resolvedModel = DEFAULT_MODEL;
       console.log('[Chat] No Claude key set; using the local model', { model: resolvedModel });
+      notices.push(noticeFrame('claude_key_missing', { model: resolvedModel }));
     }
     // A Claude model name never goes to the local model server.
     if (resolvedProvider === 'ollama' && /^(claude-|lmstudio:)/.test(resolvedModel)) resolvedModel = DEFAULT_MODEL;
@@ -637,7 +676,7 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
 
     // CORE-MODEL-02: the agent knows which model ("brain") answers this turn,
     // so it can name it when asked instead of guessing.
-    resolvedSystemPrompt = `${resolvedSystemPrompt ? `${resolvedSystemPrompt}\n\n` : ''}${modelIdentityBlock(resolvedProvider, resolvedModel)}`;
+    resolvedSystemPrompt = `${resolvedSystemPrompt ? `${capMiddle(resolvedSystemPrompt, SYSTEM_PROMPT_CHARS)}\n\n` : ''}${modelIdentityBlock(resolvedProvider, resolvedModel)}`;
 
     // MEM-CACHE-01: the reply trace (never for a turn that answers an outsider).
     const traceRun = !channelTurn && input.runId ? input.runId : undefined;
@@ -681,10 +720,11 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
     // CHAT-01: a stream turn sends its SSE headers (and starts the heartbeat)
     // as soon as it is accepted, before any model is contacted.
     if (stream) openSseStream(reply.raw);
+    if (stream) for (const n of notices) if (!reply.raw.writableEnded) reply.raw.write(n);
 
     try {
       if (stream) {
-        return await streamChat(reply, resolvedModel, resolvedProvider, resolvedApiKey, turnMessages, resolvedTemp, resolvedMaxTokens, sessionId, resolvedSystemPrompt, systemPromptAppend, userId, chatContext, toolPolicy, agentConfig?.id, memoryDrawers, input.fileReadRoot, input.uiSet);
+        return await streamChat(reply, resolvedModel, resolvedProvider, resolvedApiKey, turnMessages, resolvedTemp, resolvedMaxTokens, sessionId, resolvedSystemPrompt, systemPromptAppend, userId, chatContext, toolPolicy, agentConfig?.id, memoryDrawers, input.fileReadRoot, input.uiSet, autoModel);
       } else {
         const out = await nonStreamChat(reply, resolvedModel, resolvedProvider, resolvedApiKey, turnMessages, resolvedTemp, resolvedMaxTokens, sessionId, resolvedSystemPrompt, systemPromptAppend, userId, chatContext, toolPolicy, agentConfig?.id, memoryDrawers);
         // A plain result object goes through reply.send so it gets the turn ids.
@@ -774,7 +814,8 @@ async function streamChat(
   agentId?: string,
   memoryDrawers?: DrawerRef[],
   fileReadRoot?: string,
-  uiSet: 'full' | 'chat' = 'full'
+  uiSet: 'full' | 'chat' = 'full',
+  autoModel = false
 ) {
   console.log('[Chat] 🚀 Starting stream chat');
   safeConsole.log('[Chat]   📦 Model:', model);
@@ -887,7 +928,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
   let selectedModel = model;
   let routingAnalysis = null;
 
-  if (provider === 'claude' || provider === undefined) {
+  if (autoModel && (provider === 'claude' || provider === undefined)) {
     const router = createModelRouter({
       costOptimizationEnabled: true, // Enable by default - can make configurable later
     });
