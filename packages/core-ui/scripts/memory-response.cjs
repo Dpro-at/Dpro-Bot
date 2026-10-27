@@ -7,6 +7,7 @@ const int = x => Number.isSafeInteger(x) && x >= 0 ? x : bad();
 const nullable = (x, fn = text) => x === null ? null : fn(x);
 const hash = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x) ? x : bad();
 const id = x => typeof x === 'string' && /^[A-Za-z0-9_.@-]{1,200}$/.test(x) && !x.includes('..') ? x : bad();
+const topicKey = x => typeof x === 'string' && x.length <= 80 && /^[\p{L}\p{N}]+(-[\p{L}\p{N}]+)*$/u.test(x) ? x : bad();
 const proposalId = x => typeof x === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(x) ? x : bad();
 const timestamp = x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(x) && Number.isFinite(Date.parse(x)) ? x : bad();
 const list = (x, fn, max = 500) => Array.isArray(x) && x.length <= max ? x.map(v => fn(v)) : bad();
@@ -26,6 +27,8 @@ function entry(x) {
 }
 function change(x) {
   obj(x);
+  // A learned memory may carry its topic key (same rules as the backend's memory/topic-key.ts).
+  if (x.op === 'add' && Object.hasOwn(x, 'topicKey')) { exact(x, ['op', 'after', 'topicKey']); return { op: 'add', after: entry(x.after), topicKey: topicKey(x.topicKey) }; }
   if (x.op === 'add') { exact(x, ['op', 'after']); return { op: 'add', after: entry(x.after) }; }
   if (x.op === 'update') { exact(x, ['op', 'id', 'before', 'after']); return { op: 'update', id: id(x.id), before: entry(x.before), after: entry(x.after) }; }
   if (x.op === 'delete') { exact(x, ['op', 'id', 'before']); return { op: 'delete', id: id(x.id), before: entry(x.before) }; }

@@ -88,6 +88,21 @@ test('responses keep reviewed fields only and never error text', () => {
   assert.equal(memoryPagesPath('/api/handoffs/task/T-1?agentId=writer').kind, 'task');
 });
 
+test('a learned memory with a topic key opens through both projections; a bad key is refused', () => {
+  const p = { id: 'p-2', userId: 'u1', agentId: 'main', drawerId: 'experience', drawer: { kind: 'experience' }, reviewHash: H, baseHash: H, baseRevision: 1, status: 'pending', source: 'agent', note: null, createdBy: 'agent:main', createdAt: '2026-10-25T23:03:07.281Z', decidedBy: null, decidedAt: null, appliedRevision: null, reasons: [], importBatchId: null,
+    changes: [{ op: 'add', after: { type: 'conversation', importance: 3, content: 'Prefers short answers.' }, topicKey: 'answer-style' }] };
+  const bridged = memoryResponse('/api/memory/proposals/p-2', p);
+  assert.equal(bridged.changes[0].topicKey, 'answer-style');
+  assert.equal(parseProposal(bridged).changes[0].topicKey, 'answer-style');
+  for (const topicKey of ['', 'two  spaces', '-lead', 'x'.repeat(81), 7]) {
+    const wrong = { ...p, changes: [{ ...p.changes[0], topicKey }] };
+    assert.throws(() => memoryResponse('/api/memory/proposals/p-2', wrong));
+    assert.throws(() => parseProposal(wrong));
+  }
+  const plain = { ...p, changes: [{ op: 'add', after: p.changes[0].after }] };
+  assert.equal('topicKey' in parseProposal(memoryResponse('/api/memory/proposals/p-2', plain)).changes[0], false);
+});
+
 test('a conflict proposal keeps what it contradicts through both projections', () => {
   const p = { id: 'p-1', userId: 'u1', agentId: 'main', drawerId: 'owner', drawer: { kind: 'owner' }, reviewHash: H, baseHash: H, baseRevision: 3, status: 'pending', source: 'learning', note: null, createdBy: 'agent:main', createdAt: '2026-10-21T10:00:00.000Z', decidedBy: null, decidedAt: null, appliedRevision: null, reasons: ['conflict'], importBatchId: null, conflictWith: 'm-7', decision: null,
     changes: [{ op: 'update', id: 'm-7', before: { type: 'fact', importance: 6, content: 'Drinks tea.' }, after: { type: 'fact', importance: 6, content: 'Coffee, no sugar.' } }] };
