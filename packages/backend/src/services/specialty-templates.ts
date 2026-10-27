@@ -4,7 +4,7 @@ import {constants} from 'node:fs';
 import {readRegularFile} from './read-regular-file.js';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
-import {q,sql,one,run,dialect,all} from '../repositories/sql-steps.js';
+import {q,sql,one,run,dialect,all,type Step} from '../repositories/sql-steps.js';
 import {forUpdate} from '../db/pg/dialect.js';
 import {dataPath} from '../config/data-root.js';
 import {COMPANY_SPECIALTIES} from './company-specialties.js';
@@ -73,10 +73,10 @@ export class SpecialtyTemplates{
   if(redactImportText(raw.name).total||redactImportText(raw.department).total||redactImportText(raw.description).total)throw new TemplateError('secret_refused');
  }
  async assigned(agentId:string){if(!text(agentId,100))throw new TemplateError('invalid_input');return {templates:await q.all('SELECT t.id,t.name,t.department,t.revision FROM specialty_templates t JOIN agent_specialties s ON s.template_id=t.id WHERE s.agent_id=? ORDER BY t.name',agentId)};}
- async impact(id:string,proposed?:unknown){
+ async impact(id:string,proposed?:unknown,preserveConfig?:TemplateConfig){
   const template=await this.get(id);
   const agents=await q.all<{id:string;name:string}>('SELECT a.id,a.name FROM agents_config a JOIN agent_specialties s ON s.agent_id=a.id WHERE s.template_id=? ORDER BY a.id',id);
-  if(proposed!==undefined){this.validateDraft(proposed);await this.config(proposed.config);}
+  if(proposed!==undefined){this.validateDraft(proposed);await this.config(proposed.config,preserveConfig===undefined);if(preserveConfig!==undefined&&(stable(template.config)!==stable(preserveConfig)||stable(proposed.config)!==stable(preserveConfig)))throw new TemplateError('configuration_changed',409);}
   if(proposed!==undefined&&(!object(proposed)||proposed.revision!==template.revision))throw new TemplateError('version_conflict',409);
   const changes=proposed===undefined?[]:['name','department','description','instructions','config'].filter(k=>stable((template as any)[k])!==stable((proposed as any)[k])).map(field=>({field,before:typeof (template as any)[field]==='string'?(template as any)[field]:stable((template as any)[field]),after:typeof (proposed as any)[field]==='string'?(proposed as any)[field]:stable((proposed as any)[field])}));
   return {revision:template.revision,agents,changes,confirmation:hash(JSON.stringify([id,template.revision,agents.map(a=>a.id),proposed===undefined?null:draftHash(proposed)]))};
@@ -111,18 +111,24 @@ export class SpecialtyTemplates{
    for(const agentId of input.agentIds)yield* run('INSERT INTO agent_specialties(agent_id,template_id,linked_by) VALUES(?,?,?) ON CONFLICT(agent_id,template_id) DO NOTHING',agentId,id,ownerId);
   },{immediate:true});return this.agents(id);
  }
- async save(id:string,raw:unknown){
+ async save(id:string,raw:unknown,guard?:()=>Step<void>,preserveConfig?:TemplateConfig){
   // A coming-soon specialty is saved like a new one (revision 0) once the owner writes its instructions; then it is a normal, ready specialty.
   this.validateDraft(raw);
-  const config=await this.config(raw.config),content=await this.content(raw.instructions);
+  const validated=await this.config(raw.config,preserveConfig===undefined);
+  if(preserveConfig!==undefined&&stable(raw.config)!==stable(preserveConfig))throw new TemplateError('configuration_changed',409);
+  const config=preserveConfig===undefined?validated:structuredClone(preserveConfig);
+  const content=await this.content(raw.instructions);
   if(!uuid(id))throw new TemplateError('invalid_input');
+  if(preserveConfig!==undefined&&raw.revision===0)throw new TemplateError('invalid_input');
   if(raw.revision===0){const inserted=await q.run('INSERT INTO specialty_templates(id,name,department,description,revision,content_hash,config_json) VALUES(?,?,?,?,1,?,?) ON CONFLICT(id) DO NOTHING',id,raw.name.trim(),raw.department.trim(),raw.description,content,JSON.stringify(config));if(inserted.changes!==1)throw new TemplateError('version_conflict',409);}
   else {await sql().tx(function*(){const d=yield* dialect();const current=yield* one<Row>('SELECT * FROM specialty_templates WHERE id=?'+forUpdate(d),id);if(!current||current.revision!==raw.revision)throw new TemplateError('version_conflict',409);
+   if(preserveConfig!==undefined&&stable(JSON.parse(current.config_json))!==stable(preserveConfig))throw new TemplateError('configuration_changed',409);
+   if(guard)yield* guard();
    const linked=yield* all<{agent_id:string}>('SELECT agent_id FROM agent_specialties WHERE template_id=? ORDER BY agent_id',id);
    if(linked.length&&raw.confirmImpact!==hash(JSON.stringify([id,current.revision,linked.map(a=>a.agent_id),draftHash(raw)])))throw new TemplateError('impact_confirmation_required',409);
    // SP2: keep the revision this save replaces, so it can be read and restored as a draft later.
    yield* run('INSERT INTO specialty_template_versions(template_id,revision,name,department,description,content_hash,config_json,replaced_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(template_id,revision) DO NOTHING',id,current.revision,current.name,current.department,current.description,current.content_hash,current.config_json,new Date().toISOString());
-   yield* run('UPDATE specialty_templates SET name=?,department=?,description=?,content_hash=?,config_json=?,revision=revision+1 WHERE id=? AND revision=?',raw.name.trim(),raw.department.trim(),raw.description,content,JSON.stringify(config),id,raw.revision);
+   yield* run('UPDATE specialty_templates SET name=?,department=?,description=?,content_hash=?,config_json=?,revision=revision+1 WHERE id=? AND revision=?',raw.name.trim(),raw.department.trim(),raw.description,content,preserveConfig===undefined?JSON.stringify(config):current.config_json,id,raw.revision);
   },{immediate:true});}
   return this.get(id);
  }

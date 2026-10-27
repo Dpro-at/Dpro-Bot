@@ -26,7 +26,7 @@ test('manifest pins bundled content and preserves importer identity compatibilit
 });
 test('legacy identity recognizes current content, local edits conflict, same names never match',async()=>{
  await templates.save(id,draft(role));const unknown=randomUUID();await templates.save(unknown,draft(role));
- let preview=await distribution.preview(owner);assert.equal(preview.roles[0].status,'current');assert.deepEqual(preview.roles[0].installedIds,[id]);assert.ok(preview.unmatchedInstalledIds.includes(unknown));assert.equal(preview.applySupported,false);
+ let preview=await distribution.preview(owner);assert.equal(preview.roles[0].status,'current');assert.deepEqual(preview.roles[0].installedIds,[id]);assert.ok(preview.unmatchedInstalledIds.includes(unknown));assert.equal(preview.applySupported,true);
  await templates.save(id,{...draft(role,1),instructions:'Owner-authored local instructions.'});assert.equal((await distribution.preview(owner)).roles[0].status,'local_conflict');
  assert.equal((await distribution.preview('different-owner')).roles[0].status,'unmatched');
 });

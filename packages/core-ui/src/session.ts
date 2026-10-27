@@ -1,3 +1,4 @@
+import {upgradeRoute,allowedUpgrade,upgradeResponse} from './specialty-update-contract.js';
 import {packRoute,allowedPack,packResponse} from './workspace-pack-contract.js';
 import {marketRoute,allowedMarket,marketResponse} from './trading-market-contract.js';
 import {practiceRoute,allowedPractice,practiceResponse} from './trading-practice-contract.js';
@@ -93,6 +94,7 @@ function user(value: unknown): User {
 }
 // Reject before URL normalization. No generic URL, header, key or mutation escape hatch.
 export function allowedRequest(method: string, path: string, body?: unknown): boolean {
+  if(upgradeRoute(path))return allowedUpgrade(method,path,body);
   if(packRoute(path))return allowedPack(method,path,body);
   if(marketRoute(path))return allowedMarket(method,path,body);
   if(practiceRoute(path))return allowedPractice(method,path,body);
@@ -173,6 +175,7 @@ function safeResponse(path: string, response: WireResponse): WireResponse {
   return delay === undefined ? projected : { ...projected, retryAfterSeconds: delay };
 }
 function projectResponse(path: string, response: WireResponse): WireResponse {
+  if(upgradeRoute(path))return {status:response.status,body:upgradeResponse(path,response.status,response.body)};
   if(packRoute(path))return {status:response.status,body:packResponse(path,response.status,response.body)};
   if(marketRoute(path))return {status:response.status,body:marketResponse(path,response.status,response.body)};
   if(practiceRoute(path))return {status:response.status,body:practiceResponse(path,response.status,response.body)};
@@ -504,6 +507,7 @@ export class SessionClient {
     // The public adapter transport cannot call login/logout or add arbitrary request fields.
     if (request.path === '/api/setup/status' || request.path === OWNER_SETUP_PATH || request.path === '/api/chat' || request.path === '/api/auth/login' || request.path === '/api/auth/logout' || Object.keys(request).some(k => !['method', 'path', 'body'].includes(k))) throw new SessionFailure('blocked');
     if((verificationRoute(request.path)||reviewerRoute(request.path))&&this.#state.user?.role==='guest')throw new SessionFailure('blocked');
+    if(upgradeRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(skillInstallRoute(request.path)&&this.#state.user?.role!=='owner')throw new SessionFailure('blocked');
     if(tradingRuntimeRoute(request.path)&&(this.#state.mode!=='live'||this.#state.user?.role!=='owner'))throw new SessionFailure('blocked');
     if(tradingAccountSetupRoute(request.path)&&(this.#state.mode!=='live'||this.#state.user?.role!=='owner'))throw new SessionFailure('blocked');

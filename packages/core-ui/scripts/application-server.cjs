@@ -1,3 +1,4 @@
+const {upgradeRoute,allowedUpgrade,upgradeResponse}=require('../src/specialty-update-contract.js');
 const {packRoute,allowedPack,packResponse}=require('../src/workspace-pack-contract.js');
 const {marketRoute,allowedMarket,marketResponse}=require('../src/trading-market-contract.js');
 const {practiceRoute,allowedPractice,practiceResponse}=require('../src/trading-practice-contract.js');
@@ -89,6 +90,7 @@ const agent = x => {
     : { id: x.id, version: x.version, nameUnavailable: true, ...profile(x) };
 };
 function allowed(method, target, body) {
+  if(upgradeRoute(target))return allowedUpgrade(method,target,body);
   if(packRoute(target))return allowedPack(method,target,body);
   if(marketRoute(target))return allowedMarket(method,target,body);
   if(practiceRoute(target))return allowedPractice(method,target,body);
@@ -164,6 +166,7 @@ function stage1Route(method, target) {
   return read && allowed('GET', target, undefined);
 }
 function project(target, status, body) {
+  if(upgradeRoute(target))return upgradeResponse(target,status,body);
   if(packRoute(target))return packResponse(target,status,body);
   if(marketRoute(target))return marketResponse(target,status,body);
   if(practiceRoute(target))return practiceResponse(target,status,body);
