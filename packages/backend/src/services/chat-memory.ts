@@ -92,7 +92,7 @@ export async function rememberFromChat(actor: Actor, userId: string, conversatio
   const hasRun = typeof body.runId === 'string' && body.runId.length > 0;
   if (hasId === hasRun) throw bad('messageId or runId is required');
   const message = hasId
-    ? await q.one<{ id: string }>('SELECT id FROM chat_messages WHERE id = ? AND session_id = ?', body.messageId, c.id)
+    ? await q.one<{ id: string }>('SELECT id FROM chat_messages WHERE id = ? AND session_id = ?', body.messageId as string, c.id)
     : await q.one<{ id: string }>("SELECT id FROM chat_messages WHERE run_id = ? AND session_id = ? AND role = 'assistant'", body.runId as string, c.id);
   if (!message) throw bad('That message is not in this conversation');
   if (typeof body.content !== 'string' || !body.content.trim()) throw bad('content is required');

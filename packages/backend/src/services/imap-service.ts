@@ -23,6 +23,8 @@ function addressList(header: AddressObject | AddressObject[] | undefined): { add
 import { decryptAccountCredentials } from './email-encryption.js';
 import type { Config } from 'imap-simple';
 
+interface ImapBox { delimiter: string; attribs?: string[]; children?: Record<string, ImapBox> }
+
 export interface IMAPAccount {
     id: string;
     email: string;
@@ -123,7 +125,7 @@ export class IMAPService {
             const boxes = await connection.getBoxes();
             const folders: EmailFolder[] = [];
 
-            const parseBoxes = (boxes: any, parentPath = ''): EmailFolder[] => {
+            const parseBoxes = (boxes: Record<string, ImapBox>, parentPath = ''): EmailFolder[] => {
                 const result: EmailFolder[] = [];
 
                 for (const [name, box] of Object.entries(boxes)) {

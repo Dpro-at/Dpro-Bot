@@ -103,7 +103,7 @@ export class OAuthService {
 
             return {
                 accessToken: tokens.access_token,
-                refreshToken: tokens.refresh_token,
+                refreshToken: tokens.refresh_token ?? undefined,
                 expiresAt,
                 email: userInfo.data.email || undefined,
                 name: userInfo.data.name || undefined,
@@ -257,7 +257,7 @@ export class OAuthService {
 
             return {
                 accessToken: tokens.access_token,
-                refreshToken: tokens.refresh_token,
+                refreshToken: tokens.refresh_token ?? undefined,
                 expiresAt,
                 email: user.mail || user.userPrincipalName,
                 name: user.displayName,

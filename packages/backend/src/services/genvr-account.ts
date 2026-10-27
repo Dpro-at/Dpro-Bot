@@ -20,7 +20,26 @@ const CLIENT_NAME = 'Dpro Agent';
 const SECRET_NAME = 'genvr-account';
 const SECRET_SKILL = 'genvr-account';
 
-type Sdk = typeof import('../../../core-ui/vendor/genvr/package/dist/types/index.js');
+/** Backend-facing contract: compiling does not materialize the optional pinned SDK. */
+export interface GenvrWorldSession {
+  tool(name: string, input: Record<string, unknown>): Promise<unknown>;
+  export(): { assets: unknown[] };
+}
+export interface LinkedClient {
+  linkedIdentity(): Promise<{ id: string; name: string }>;
+  disconnect(): Promise<unknown>;
+  createDraft(world: GenvrWorldSession): Promise<{ id: string }>;
+  readWorld(id: string): Promise<{ world: { version: number } }>;
+  uploadWorld(world: GenvrWorldSession, target: { id: string; baseVersion: number }): Promise<{ version: number }>;
+  experience(id: string): Promise<{ isOwner?: boolean }>;
+  publishWorld(id: string, input: { title: string; type: string; access: { mode: string }; content: Record<string, boolean> }): Promise<{ status?: string }>;
+}
+interface Sdk {
+  GenvrAccountLink: new (api: string) => Awaited<ReturnType<GenvrAccountDeps['link']>>;
+  GenvrClient: { linked(api: string, token: string): LinkedClient | Promise<LinkedClient> };
+  WorldSession: { create(input: { id: string; title: string }): GenvrWorldSession };
+  worldShareUrl(web: string, id: string): string;
+}
 let sdkLoad: Promise<Sdk> | undefined;
 /** The pinned SDK copy prepared by core-ui/scripts/prepare-genvr.cjs. */
 export function genvrSdk(): Promise<Sdk> {
@@ -43,9 +62,6 @@ interface Pending {
 const pending = new Map<string, Pending>();
 const failures = new Map<string, string>();
 
-type FullClient = InstanceType<Sdk['GenvrClient']>;
-/** The linked client calls used by Dpro (all network-facing, all server-authorized). */
-export type LinkedClient = Pick<FullClient, 'linkedIdentity' | 'disconnect' | 'createDraft' | 'readWorld' | 'uploadWorld' | 'experience' | 'publishWorld'>;
 /** A client for the stored grant of this user (null when not linked or expired). */
 export async function linkedGenvrClient(userId: string): Promise<LinkedClient | null> {
   const token = await genvrToken(userId); return token ? deps.client(token) : null;
@@ -58,7 +74,7 @@ export interface GenvrAccountDeps {
   now: () => number;
 }
 const defaults: GenvrAccountDeps = {
-  link: async () => { const sdk = await genvrSdk(); return new sdk.GenvrAccountLink(GENVR_API) as any; },
+  link: async () => { const sdk = await genvrSdk(); return new sdk.GenvrAccountLink(GENVR_API); },
   client: async token => { const sdk = await genvrSdk(); return sdk.GenvrClient.linked(GENVR_API, token); },
   now: () => Date.now(),
 };

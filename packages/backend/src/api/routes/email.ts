@@ -13,11 +13,11 @@ interface SendTestEmailBody {
 
 export async function registerEmailRoutes(fastify: FastifyInstance) {
     // Get email configuration status
-    fastify.get('/api/email/status', async (request: FastifyRequest) => {
+    fastify.get('/api/email/status', async (request: FastifyRequest, reply) => {
         try {
             getUserIdFromRequest(request); // Require authentication
         } catch {
-            return request.code(401).send({ error: 'Unauthorized' });
+            return reply.code(401).send({ error: 'Unauthorized' });
         }
 
         const isConfigured = emailService.isConfigured();
@@ -31,15 +31,15 @@ export async function registerEmailRoutes(fastify: FastifyInstance) {
     });
 
     // Verify SMTP connection
-    fastify.post('/api/email/verify', async (request: FastifyRequest) => {
+    fastify.post('/api/email/verify', async (request: FastifyRequest, reply) => {
         try {
             getUserIdFromRequest(request); // Require authentication
         } catch {
-            return request.code(401).send({ error: 'Unauthorized' });
+            return reply.code(401).send({ error: 'Unauthorized' });
         }
 
         if (!emailService.isConfigured()) {
-            return request.code(400).send({
+            return reply.code(400).send({
                 error: 'Email service not configured',
                 message: 'Please configure SMTP settings in environment variables',
             });
@@ -56,27 +56,27 @@ export async function registerEmailRoutes(fastify: FastifyInstance) {
     });
 
     // Send test email
-    fastify.post<{ Body: SendTestEmailBody }>('/api/email/test', async (request) => {
+    fastify.post<{ Body: SendTestEmailBody }>('/api/email/test', async (request, reply) => {
         try {
             getUserIdFromRequest(request); // Require authentication
         } catch {
-            return request.code(401).send({ error: 'Unauthorized' });
+            return reply.code(401).send({ error: 'Unauthorized' });
         }
 
         const { to } = request.body;
 
         if (!to) {
-            return request.code(400).send({ error: 'Email address is required' });
+            return reply.code(400).send({ error: 'Email address is required' });
         }
 
         // Basic email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(to)) {
-            return request.code(400).send({ error: 'Invalid email address' });
+            return reply.code(400).send({ error: 'Invalid email address' });
         }
 
         if (!emailService.isConfigured()) {
-            return request.code(400).send({
+            return reply.code(400).send({
                 error: 'Email service not configured',
                 message: 'Please configure SMTP settings in environment variables',
             });
@@ -90,7 +90,7 @@ export async function registerEmailRoutes(fastify: FastifyInstance) {
                 message: `Test email sent to ${to}`,
             };
         } else {
-            return request.code(500).send({
+            return reply.code(500).send({
                 error: 'Failed to send test email',
                 message: 'Check server logs for details',
             });

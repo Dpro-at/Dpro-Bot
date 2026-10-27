@@ -4,6 +4,7 @@
  * Run these examples to see the tools in action
  */
 
+import {exampleData} from '../example-data.js';
 import { createToolsRegistry } from '../index.js';
 import type { ToolExecutionContext } from '../types.js';
 
@@ -30,8 +31,8 @@ export async function example1_simpleScreenshot() {
     console.error('❌ Error:', result.error);
   } else {
     console.log('✅ Success!');
-    console.log('Screenshot saved to:', result.data?.path);
-    console.log('Page title:', result.data?.title);
+    console.log('Screenshot saved to:', exampleData(result)?.path);
+    console.log('Page title:', exampleData(result)?.title);
   }
 
   return result;
@@ -52,9 +53,9 @@ export async function example2_extractTrendingRepos() {
     console.error('❌ Error:', result.error);
   } else {
     console.log('✅ Success!');
-    console.log(`Found ${result.data?.linkCount} links`);
+    console.log(`Found ${exampleData(result)?.linkCount} links`);
     console.log('\nFirst 5 links:');
-    result.data?.links?.slice(0, 5).forEach((link: any, i: number) => {
+    exampleData(result)?.links?.slice(0, 5).forEach((link: any, i: number) => {
       console.log(`${i + 1}. ${link.text}: ${link.href}`);
     });
   }
@@ -78,13 +79,13 @@ export async function example3_pageAnalysis() {
     console.error('❌ Error:', result.error);
   } else {
     console.log('✅ Success!');
-    console.log('Title:', result.data?.title);
-    console.log('URL:', result.data?.finalUrl);
-    if (result.data?.metadata) {
-      console.log('Description:', result.data.metadata.description);
-      console.log('Keywords:', result.data.metadata.keywords);
+    console.log('Title:', exampleData(result)?.title);
+    console.log('URL:', exampleData(result)?.finalUrl);
+    if (exampleData(result)?.metadata) {
+      console.log('Description:', exampleData(result).metadata?.description);
+      console.log('Keywords:', exampleData(result).metadata?.keywords);
     }
-    console.log('Screenshot:', result.data?.screenshot);
+    console.log('Screenshot:', exampleData(result)?.screenshot);
   }
 
   return result;
@@ -129,8 +130,8 @@ export async function example4_googleSearch() {
     console.error('❌ Error:', result.error);
   } else {
     console.log('✅ Success!');
-    console.log(`Performed ${result.data?.actionsPerformed} actions`);
-    console.log('Screenshot:', result.data?.screenshot);
+    console.log(`Performed ${exampleData(result)?.actionsPerformed} actions`);
+    console.log('Screenshot:', exampleData(result)?.screenshot);
   }
 
   return result;
@@ -182,7 +183,7 @@ export async function example5_savePreferences() {
       console.error(`❌ Error saving "${pref.content}":`, result.error);
     } else {
       console.log(`✅ Saved: ${pref.content}`);
-      console.log(`   Type: ${result.data?.type}, Importance: ${result.data?.importance}, Layer: ${result.data?.layer}`);
+      console.log(`   Type: ${exampleData(result)?.type}, Importance: ${exampleData(result)?.importance}, Layer: ${exampleData(result)?.layer}`);
     }
   }
 }
@@ -204,9 +205,9 @@ export async function example6_searchMemories() {
     minImportance: 8,
   });
 
-  if (nameSearch.data?.memories && nameSearch.data.memories.length > 0) {
+  if (exampleData(nameSearch)?.memories && (exampleData(nameSearch).memories?.length ?? 0) > 0) {
     console.log('✅ Found memories:');
-    nameSearch.data.memories.forEach((m: any) => {
+    exampleData(nameSearch).memories?.forEach((m: any) => {
       console.log(`- ${m.content} (importance: ${m.importance})`);
     });
   } else {
@@ -221,9 +222,9 @@ export async function example6_searchMemories() {
     limit: 10,
   });
 
-  if (prefSearch.data?.memories && prefSearch.data.memories.length > 0) {
+  if (exampleData(prefSearch)?.memories && (exampleData(prefSearch).memories?.length ?? 0) > 0) {
     console.log('✅ Found preferences:');
-    prefSearch.data.memories.forEach((m: any) => {
+    exampleData(prefSearch).memories?.forEach((m: any) => {
       console.log(`- ${m.content}`);
     });
   }
@@ -235,9 +236,9 @@ export async function example6_searchMemories() {
     tags: ['learning'],
   });
 
-  if (goalSearch.data?.memories && goalSearch.data.memories.length > 0) {
+  if (exampleData(goalSearch)?.memories && (exampleData(goalSearch).memories?.length ?? 0) > 0) {
     console.log('✅ Found goals:');
-    goalSearch.data.memories.forEach((m: any) => {
+    exampleData(goalSearch).memories?.forEach((m: any) => {
       console.log(`- ${m.content}`);
     });
   }
@@ -262,7 +263,7 @@ export async function example7_researchWorkflow() {
     return;
   }
 
-  console.log(`✅ Loaded: ${nav.data?.title}`);
+  console.log(`✅ Loaded: ${exampleData(nav)?.title}`);
 
   // Step 2: Extract page metadata
   console.log('\nStep 2: Extracting page information...');
@@ -277,12 +278,12 @@ export async function example7_researchWorkflow() {
   }
 
   console.log('✅ Extracted metadata:');
-  console.log(`   Description: ${extract.data?.metadata?.description}`);
+  console.log(`   Description: ${exampleData(extract)?.metadata?.description}`);
 
   // Step 3: Save to memory
   console.log('\nStep 3: Saving to memory...');
   const save = await registry.execute('memory_save', {
-    content: `React official docs: ${extract.data?.metadata?.description}`,
+    content: `React official docs: ${exampleData(extract)?.metadata?.description}`,
     userId: 'example-user',
     type: 'fact',
     importance: 7,
@@ -294,7 +295,7 @@ export async function example7_researchWorkflow() {
     return;
   }
 
-  console.log('✅ Saved to memory with ID:', save.data?.memoryId);
+  console.log('✅ Saved to memory with ID:', exampleData(save)?.memoryId);
 
   // Step 4: Verify with search
   console.log('\nStep 4: Verifying saved information...');
@@ -304,9 +305,9 @@ export async function example7_researchWorkflow() {
     tags: ['react'],
   });
 
-  if (search.data?.memories && search.data.memories.length > 0) {
+  if (exampleData(search)?.memories && (exampleData(search).memories?.length ?? 0) > 0) {
     console.log('✅ Found in memory:');
-    search.data.memories.forEach((m: any) => {
+    exampleData(search).memories?.forEach((m: any) => {
       console.log(`   - ${m.content}`);
     });
   }
@@ -360,8 +361,8 @@ export async function example8_formFilling() {
     console.error('❌ Error:', result.error);
   } else {
     console.log('✅ Form filled successfully!');
-    console.log(`Actions performed: ${result.data?.actionsPerformed}`);
-    console.log('Screenshot:', result.data?.screenshot);
+    console.log(`Actions performed: ${exampleData(result)?.actionsPerformed}`);
+    console.log('Screenshot:', exampleData(result)?.screenshot);
   }
 
   return result;

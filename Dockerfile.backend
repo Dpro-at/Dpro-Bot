@@ -67,6 +67,9 @@ COPY --from=builder /app/packages/backend/node_modules ./packages/backend/node_m
 COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
 COPY --from=builder /app/packages/backend/package.json ./packages/backend/
 
+# Bundled specialty source and its read-only revision registry
+COPY packages/backend/skills/professional-workspace-settings.json packages/backend/skills/professional-source-history.json ./packages/backend/skills/
+
 # Copy database migrations
 COPY packages/backend/src/db/migrations ./packages/backend/src/db/migrations
 
