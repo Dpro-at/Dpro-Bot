@@ -188,11 +188,13 @@ test('side panel shows environment, size, outputs and changes; the list groups b
   await c.send('Plan it'); await until(() => !c.getSnapshot().runId);
   await until(() => c.getSnapshot().git?.added === 12);
   const html = renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock' }));
+  // CHAT-BUILD-01 stage 4 (CH8): a status line, then Place and Results with the changes.
   assert.match(html, /aria-label="Conversation details"/);
-  assert.match(html, />Environment</);
-  assert.match(html, /≈ [\d,]+ tokens/);
+  assert.match(html, /class="details-status"/);
+  assert.match(html, /aria-label="Place"/);
+  assert.match(html, /\/fiction\/app/);
   assert.match(html, /\+12/);
-  assert.match(html, /in 2 files not committed/);
+  assert.match(html, /2 files changed/);
 });
 
 test('panes: changes with an inline diff, the folder tree and a file; paths are checked on both sides', async t => {

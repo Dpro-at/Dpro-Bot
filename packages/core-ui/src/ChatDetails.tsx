@@ -1,0 +1,201 @@
+// CHAT-BUILD-01 stage 4 (CH8): the chat's side panel. One status line on top (how full the chat is,
+// tokens by model, who works now), then only the parts that have something, in the person's order:
+// Place (folders, schedule) · Team (who works, with their model; Stop) · Results (changes, files made)
+// · From memory · MCP connections. Each part folds (a one-line summary stays) and moves (drag or ⌥↑/⌥↓);
+// folds and order are saved per person. Hidden, the panel becomes a thin rail of icons with dots.
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import type { ConversationsController } from './conversations';
+import type { SessionClient } from './session';
+import type { ChatRecallController } from './chat-recall';
+import { ContextCard } from './ChatRecall';
+import { UiIcon } from './ui-icons';
+import type { UiIconName } from './ui-icons';
+import { ContextMenu, useMenu } from './desktop-ui';
+import type { MenuItem } from './desktop-ui';
+import { turnOutputs } from './turns';
+import { answersLabel } from './ChatComposerControls';
+
+export type PanelPart = 'place' | 'team' | 'results' | 'memory' | 'mcp';
+export const PANEL_PARTS: readonly { id: PanelPart; name: string; icon: UiIconName }[] = [
+  { id: 'place', name: 'Place', icon: 'folder' }, { id: 'team', name: 'Team', icon: 'users' }, { id: 'results', name: 'Results', icon: 'diff' },
+  { id: 'memory', name: 'From memory', icon: 'brain' }, { id: 'mcp', name: 'MCP connections', icon: 'tool' },
+];
+export type PanelPrefs = { order: PanelPart[]; folded: PanelPart[] };
+export const DEFAULT_PANEL: PanelPrefs = { order: PANEL_PARTS.map(p => p.id), folded: [] };
+export const PANEL_PATH = '/api/chat/panel';
+const isPart = (x: unknown): x is PanelPart => typeof x === 'string' && PANEL_PARTS.some(p => p.id === x);
+export function readPanel(raw: unknown): PanelPrefs {
+  const v = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const order = [...new Set((Array.isArray(v.order) ? v.order as unknown[] : []).filter(isPart))];
+  for (const p of DEFAULT_PANEL.order) if (!order.includes(p)) order.push(p);
+  return { order, folded: [...new Set((Array.isArray(v.folded) ? v.folded as unknown[] : []).filter(isPart))] };
+}
+export function movePart(order: readonly PanelPart[], id: PanelPart, by: -1 | 1): PanelPart[] {
+  const i = order.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= order.length) return [...order];
+  const next = [...order]; [next[i], next[j]] = [next[j], next[i]]; return next;
+}
+
+export type Usage = { model: string; tokensIn: number; tokensOut: number; replies: number };
+export type Delegation = { agentId: string; agentName: string; model: string; status: 'started' | 'answered' | 'waiting_approval' | 'failed'; at: string };
+export type Schedule = { every: 'hourly' | 'daily' | 'weekly'; at: string; weekday: number | null; message: string; paused: boolean; nextRun: string };
+export type Connection = { id: string; name: string; enabled: boolean; needsYou: boolean };
+type Live = { usage: Usage[]; team: Delegation[]; schedule: Schedule | null; connections: Connection[] | null };
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const scheduleWords = (s: Schedule) => s.every === 'hourly' ? `Runs every hour at :${s.at.slice(3)}` : s.every === 'daily' ? `Runs every day at ${s.at}` : `Runs every ${WEEKDAYS[s.weekday ?? 0]} at ${s.at}`;
+const kTokens = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+const localModel = (m: string) => !/^(claude-|subscription:)/.test(m);
+
+/** The chat's live data for the panel (usage, delegations, schedule, connections); quiet on failure. */
+function useLive(client: SessionClient | undefined, chatId: string | null, owner: boolean, tick: number): Live {
+  const [live, setLive] = useState<Live>({ usage: [], team: [], schedule: null, connections: null });
+  useEffect(() => {
+    if (!client || !chatId) { setLive({ usage: [], team: [], schedule: null, connections: null }); return; }
+    let on = true;
+    const get = async (path: string) => { try { const r = await client.request({ method: 'GET', path } as never); return r.status === 200 ? r.body as Record<string, unknown> : null; } catch { return null; } };
+    void (async () => {
+      const [u, t, s, c] = await Promise.all([get(`/api/chat/conversations/${chatId}/usage`), get(`/api/chat/conversations/${chatId}/team`), owner ? get(`/api/chat/conversations/${chatId}/schedule`) : null, owner ? get('/api/mcp/servers') : null]);
+      if (!on) return;
+      setLive({
+        usage: Array.isArray(u?.usage) ? u!.usage as Usage[] : [],
+        team: Array.isArray(t?.team) ? t!.team as Delegation[] : [],
+        schedule: (s?.schedule as Schedule) ?? null,
+        connections: Array.isArray(c?.servers) ? (c!.servers as Record<string, unknown>[]).map(x => ({ id: String(x.id), name: String(x.name ?? x.id), enabled: x.enabled === true, needsYou: x.enabled === true && (!!x.lastError || x.active === false) })) : null,
+      });
+    })();
+    return () => { on = false; };
+  }, [client, chatId, owner, tick]);
+  return live;
+}
+
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder }: {
+  controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
+  onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
+  onSchedule: () => void; onAddFolder: () => void;
+}) {
+  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const owner = client?.getSnapshot().user?.role === 'owner';
+  const [prefs, setPrefsState] = useState<PanelPrefs>(DEFAULT_PANEL);
+  const [more, setMore] = useState<Set<PanelPart>>(new Set());
+  const [byModel, setByModel] = useState(false);
+  const [drag, setDrag] = useState<PanelPart | null>(null);
+  const menu = useMenu();
+  const live = useLive(client, s.activeId, owner, s.turns.length + (s.runId ? 1 : 0));
+  useEffect(() => { void (async () => { try { const r = await client?.request({ method: 'GET', path: PANEL_PATH } as never); if (r?.status === 200) setPrefsState(readPanel((r.body as any)?.panel)); } catch { /* the usual order */ } })(); }, [client]);
+  const setPrefs = (p: PanelPrefs) => { setPrefsState(p); void client?.request({ method: 'PUT', path: PANEL_PATH, body: p } as never).catch(() => undefined); };
+  const project = controller.activeProject();
+  const conv = s.conversations.find(c => c.id === s.activeId);
+  const nameOf = (id: string | null | undefined) => (id ? s.agents.find(a => a.id === id)?.name : s.agents.find(a => a.primary)?.name) ?? 'Main agent';
+  const lead = nameOf(conv?.agentId ?? s.agentId);
+  const running = s.turns.find(t => t.role === 'assistant' && t.status === 'running');
+  const writers = [...new Set(s.turns.filter(t => t.role === 'assistant').map(t => t.agentId ?? conv?.agentId ?? ''))];
+  const working = [...(running ? [nameOf(running.agentId ?? conv?.agentId)] : []), ...live.team.filter(d => d.status === 'started').map(d => d.agentName)];
+  const waits = (conv?.waiting ?? 0) + live.team.filter(d => d.status === 'waiting_approval').length;
+  const trace = recall?.latest(s.turns.filter(t => t.role === 'assistant').map(t => t.key));
+  const ctx = trace?.context.numCtx && trace.context.promptTokens ? Math.min(100, Math.round(trace.context.promptTokens / trace.context.numCtx * 100)) : null;
+  const tokens = live.usage.reduce((n, u) => n + u.tokensIn + u.tokensOut, 0);
+  const outputs = turnOutputs(s.turns);
+  const changed = s.git?.files ?? 0;
+  const conns = (live.connections ?? []).filter(c => c.enabled);
+
+  // Each part: does it have something, its one-line summary, and its body.
+  const parts: Record<PanelPart, { has: boolean; summary: string; tone?: 'work' | 'needs'; side?: ReactNode; body: ReactNode; more?: ReactNode }> = {
+    place: { has: true, summary: [project?.folder ?? 'No folder yet', live.schedule && !live.schedule.paused ? scheduleWords(live.schedule).replace('Runs ', '') : ''].filter(Boolean).join(' · '),
+      side: owner && project ? <button type="button" className="link-button" onClick={onAddFolder}><UiIcon name="plus" size={11}/>Add a folder</button> : undefined,
+      body: <>
+        {project?.folder ? <Row icon="folder" name={project.folder} sub={`Main folder${s.git?.branch ? ` · ${s.git.branch}` : ''}${s.turns.length ? ' · fixed since the first message' : ''}`} ltr/>
+          : <p className="panel-quiet">No folder yet. A chat without a folder works in a private folder of its own.</p>}
+        {project?.folders?.map(f => <Row key={f.path} icon="folder" name={f.path} sub={`Added · ${f.write ? 'read and write' : 'read only'}`} ltr/>)}
+        {live.schedule ? <Row icon="clock" name={scheduleWords(live.schedule)} sub={live.schedule.paused ? 'Schedule · paused' : `Schedule · next ${new Date(live.schedule.nextRun).toLocaleString('en', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}
+          end={owner ? <button type="button" className="link-button" onClick={onSchedule}>Change</button> : undefined}/>
+          : owner && s.activeId ? <button type="button" className="link-button panel-add" onClick={onSchedule}><UiIcon name="clock" size={12}/>Run this chat on a schedule…</button> : null}
+      </>, more: placeExtra },
+    team: { has: writers.length > 0 || !!running || live.team.length > 0, summary: working.length ? `${working.length} working` : waits ? `${waits} waits for you` : `${writers.length || 1} ${writers.length === 1 ? 'agent' : 'agents'}`, tone: working.length ? 'work' : waits ? 'needs' : undefined,
+      body: <>
+        <Row face={lead} name={lead} sub={`Leads · ${answersLabel(s.model, s.models, s.thinking)}`} end={running && !running.agentId ? <StopButton onStop={onStop}/> : <span className="panel-end">{running ? 'Working' : 'Ready'}</span>}/>
+        {writers.filter(w => w && w !== (conv?.agentId ?? '')).map(w => <Row key={w} face={nameOf(w)} name={nameOf(w)} sub="Wrote a reply here" end={running?.agentId === w ? <StopButton onStop={onStop}/> : undefined}/>)}
+        {live.team.slice(0, more.has('team') ? 50 : 3).map((d, i) => <Row key={`${d.agentId}-${i}`} face={d.agentName} name={d.agentName} sub={`Handed a part · ${answersLabel(d.model, s.models, 'normal')}`} indent
+          end={d.status === 'started' ? <StopButton onStop={onStop}/> : <span className="panel-end" data-tone={d.status === 'waiting_approval' ? 'needs' : d.status === 'failed' ? 'error' : undefined}>{d.status === 'answered' ? 'Done' : d.status === 'waiting_approval' ? 'Waits for you' : d.status === 'failed' ? 'Failed' : ''}</span>}/>)}
+      </>, more: live.team.length > 3 && !more.has('team') ? <ShowMore n={live.team.length - 3} onClick={() => setMore(new Set([...more, 'team']))}/> : undefined },
+    results: { has: changed > 0 || outputs.length > 0 || !!resultsExtra, summary: changed ? `+${s.git?.added ?? 0} −${s.git?.removed ?? 0}` : `${outputs.length} ${outputs.length === 1 ? 'file' : 'files'}`,
+      side: changed ? <button type="button" className="link-button" onClick={() => onOpenPane('changes')}>Review</button> : undefined,
+      body: <>
+        {changed > 0 && <Row icon="diff" name={`${changed} ${changed === 1 ? 'file' : 'files'} changed`} sub={`${s.git?.branch ?? 'Working folder'} · not committed`} end={<span className="panel-end"><span className="plus">+{s.git?.added ?? 0}</span> <span className="minus">−{s.git?.removed ?? 0}</span></span>} onClick={() => onOpenPane('changes')}/>}
+        {outputs.slice(-(more.has('results') ? 50 : 3)).reverse().map(o => <Row key={o.path} icon={o.kind === 'edit' ? 'pencil' : 'file'} name={o.path.split('/').at(-1) ?? o.path} sub={o.kind === 'edit' ? 'Changed here' : 'Made in this chat'} onClick={() => onOpenPane('files')}/>)}
+        {resultsExtra}
+      </>, more: outputs.length > 3 && !more.has('results') ? <ShowMore n={outputs.length - 3} onClick={() => setMore(new Set([...more, 'results']))}/> : undefined },
+    memory: { has: !!memoryCard || !!trace, summary: trace?.items?.length ? `${trace.items.length} used` : 'Saved from this chat', side: undefined,
+      body: <>{trace && recall ? <ContextCard trace={trace} c={recall}/> : null}{memoryCard}</> },
+    mcp: { has: conns.length > 0, summary: conns.some(c => c.needsYou) ? `${conns.filter(c => c.needsYou).length} needs you` : `${conns.length} on`, tone: conns.some(c => c.needsYou) ? 'needs' : undefined,
+      side: onSettings ? <button type="button" className="link-button" onClick={onSettings}><UiIcon name="plus" size={11}/>Add</button> : undefined,
+      body: <>{conns.slice(0, 3).map(c => <Row key={c.id} icon="tool" name={c.name} sub={c.needsYou ? 'Needs you' : 'On'} tone={c.needsYou ? 'needs' : undefined}/>)}</>,
+      more: conns.length > 3 && onSettings ? <button type="button" className="link-button panel-more" onClick={onSettings}>View all ({conns.length}) in Settings</button> : undefined },
+  };
+  const shown = prefs.order.filter(id => parts[id].has);
+  const fold = (id: PanelPart) => setPrefs({ ...prefs, folded: prefs.folded.includes(id) ? prefs.folded.filter(x => x !== id) : [...prefs.folded, id] });
+  const headerItems: MenuItem[] = [
+    { label: 'Fold all', icon: 'chevron', run: () => setPrefs({ ...prefs, folded: [...PANEL_PARTS.map(p => p.id)] }) },
+    { label: 'Open all', icon: 'chevron', run: () => setPrefs({ ...prefs, folded: [] }) },
+    { label: 'Reset order', icon: 'undo', run: () => setPrefs({ ...prefs, order: DEFAULT_PANEL.order }) },
+  ];
+  const headerKey = (e: ReactKeyboardEvent, id: PanelPart) => {
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); setPrefs({ ...prefs, order: movePart(prefs.order, id, e.key === 'ArrowUp' ? -1 : 1) }); }
+    else if (e.key === ' ') { e.preventDefault(); fold(id); }
+    else if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') menu.at(e, headerItems);
+  };
+  return <aside className="chat-panel chat-details" aria-label="Conversation details" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+    <div className="details-status" role="status">
+      <button type="button" className="details-context" aria-expanded={byModel} title="Tokens by model" onClick={() => setByModel(v => !v)}>
+        <span>Context {ctx === null ? '—' : `${ctx}%`}</span>{ctx !== null && <meter min={0} max={100} value={ctx} aria-label="How full this chat is"/>}
+        {tokens > 0 && <small>{kTokens(tokens)} tokens · by model</small>}</button>
+      <span className="details-who">{working.length ? <><Faces names={working}/>{working.length} working</> : waits ? <span className="details-waits">{waits} {waits === 1 ? 'waits' : 'wait'} for you</span> : <>Ready</>}</span>
+      <button type="button" className="row-tool" aria-label="Hide the side panel" title="Hide the side panel (⌥⌘I)" onClick={onClose}><UiIcon name="inspector" size={13}/></button>
+    </div>
+    {byModel && <div className="details-usage">{live.usage.length ? live.usage.map(u => <div key={u.model}><span>{answersLabel(u.model, s.models, 'normal')}</span><span>{kTokens(u.tokensIn + u.tokensOut)}{localModel(u.model) ? ' · free' : ''}</span></div>) : <p className="panel-quiet">Tokens show here after the first reply.</p>}</div>}
+    {shown.length === 1 && !s.turns.length && <p className="panel-quiet">Work, files and helpers show here while the team works.</p>}
+    {shown.map(id => {
+      const p = parts[id], meta = PANEL_PARTS.find(x => x.id === id)!, folded = prefs.folded.includes(id);
+      return <section key={id} className="details-part" aria-label={meta.name} data-drag={drag === id || undefined}
+        onDragOver={e => { e.preventDefault(); if (drag && drag !== id) setPrefsState(pr => { const order = pr.order.filter(x => x !== drag); order.splice(order.indexOf(id) + (pr.order.indexOf(drag) < pr.order.indexOf(id) ? 1 : 0), 0, drag); return { ...pr, order }; }); }}
+        onDrop={() => { setDrag(null); setPrefs(prefs); }}>
+        <header className="details-head" draggable onDragStart={() => setDrag(id)} onDragEnd={() => { setDrag(null); setPrefs(prefs); }}
+          onContextMenu={(e: ReactMouseEvent) => menu.at(e, headerItems)}>
+          <button type="button" className="details-fold" aria-expanded={!folded} onClick={() => fold(id)} onKeyDown={e => headerKey(e, id)} title="Fold or open (Space) · move (⌥↑ ⌥↓)">
+            <span className="chat-project-chevron" data-open={!folded || undefined}><UiIcon name="chevron" size={11}/></span>{meta.name}</button>
+          {folded ? <small className="details-sum" data-tone={p.tone}>{p.summary}</small> : p.side}
+          <span className="details-grip" aria-hidden="true" title="Drag to move"><UiIcon name="grip" size={12}/></span>
+        </header>
+        {!folded && <div className="details-body">{p.body}{p.more}</div>}
+      </section>;
+    })}
+    <ContextMenu menu={menu.menu} onClose={menu.close}/>
+  </aside>;
+}
+
+/** CH8c: the hidden panel as a thin rail: one icon per part that has something, with a dot. */
+export function DetailsRail({ controller, onOpen }: { controller: ConversationsController; onOpen: () => void }) {
+  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const conv = s.conversations.find(c => c.id === s.activeId);
+  const project = controller.activeProject();
+  const running = s.turns.some(t => t.role === 'assistant' && t.status === 'running');
+  const items: { id: PanelPart; dot?: 'work' | 'needs'; label: string }[] = [
+    { id: 'place', label: `Place${project?.folder ? ` · ${project.name}` : ''}` },
+    ...(s.turns.length ? [{ id: 'team' as const, label: running ? 'Team · working' : 'Team', dot: running ? 'work' as const : conv?.waiting ? 'needs' as const : undefined }] : []),
+    ...((s.git?.files ?? 0) > 0 || turnOutputs(s.turns).length ? [{ id: 'results' as const, label: 'Results' }] : []),
+  ];
+  return <nav className="details-rail" aria-label="Side panel (hidden)">
+    {items.map(i => <button key={i.id} type="button" className="row-tool" aria-label={i.label} title={`${i.label} (⌥⌘I)`} onClick={onOpen}>
+      <UiIcon name={PANEL_PARTS.find(p => p.id === i.id)!.icon} size={14}/>{i.dot && <span className="details-rail-dot" data-tone={i.dot}/>}</button>)}
+  </nav>;
+}
+
+function Row({ icon, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
+  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
+    <span className="pop-text"><b dir={ltr ? 'ltr' : 'auto'} title={name}>{name}</b>{sub && <small data-tone={tone}>{sub}</small>}</span>{end}</>;
+  return onClick ? <button type="button" className="details-row" data-indent={indent || undefined} onClick={onClick}>{inner}</button>
+    : <div className="details-row" data-indent={indent || undefined}>{inner}</div>;
+}
+function StopButton({ onStop }: { onStop: () => void }) { return <button type="button" className="row-tool details-stop" aria-label="Stop" title="Stop (also stops the helpers it handed work to)" onClick={onStop}><UiIcon name="stop" size={10}/></button>; }
+function ShowMore({ n, onClick }: { n: number; onClick: () => void }) { return <button type="button" className="link-button panel-more" onClick={onClick}>Show {n} more</button>; }
+function Faces({ names }: { names: readonly string[] }) { return <span className="details-faces" aria-hidden="true">{names.slice(0, 3).map((n, i) => <span key={i} className="composer-face">{n.slice(0, 1).toUpperCase()}</span>)}</span>; }

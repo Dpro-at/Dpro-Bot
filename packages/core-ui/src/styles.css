@@ -2786,3 +2786,47 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .sheet-folder select { inline-size:auto; font-size:11.5px; }
 .app-shell .sheet-var input { flex:1; min-inline-size:0; }
 .dk-spacer { flex:1; }
+/* CHAT-BUILD-01 stage 4 (CH8): the docked side panel (status line + parts), the thin rail, and the terminal under the chat. */
+.app-shell .chat-layout[data-panel="details"] { grid-template-columns:minmax(0,1fr) 300px; }
+.app-shell .chat-layout[data-panel="rail"] { grid-template-columns:minmax(0,1fr) 40px; }
+.app-shell .chat-details { display:flex; flex-direction:column; min-block-size:0; overflow:auto; border-inline-start:1px solid var(--border); background:var(--surface); padding:6px 8px 12px; }
+.app-shell .details-status { display:flex; align-items:center; gap:8px; padding:4px 2px 8px; border-block-end:1px solid var(--border); margin-block-end:4px; font-size:11.5px; color:var(--text-2); }
+.app-shell .details-context { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; flex:1; min-inline-size:0; padding:2px 4px; border-radius:5px; background:transparent; box-shadow:none; font-size:11.5px; color:var(--text); text-align:start; justify-content:flex-start; }
+.app-shell .details-context meter { inline-size:60px; block-size:6px; }
+.app-shell .details-context small { inline-size:100%; color:var(--text-3); font-size:10.5px; }
+.app-shell .details-who { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.app-shell .details-waits { color:#E0A040; }
+.app-shell .details-faces { display:inline-flex; }
+.app-shell .details-faces .composer-face + .composer-face { margin-inline-start:-5px; box-shadow:0 0 0 2px var(--surface); }
+.app-shell .details-usage { display:flex; flex-direction:column; gap:2px; padding:4px 6px 8px; font-size:11.5px; }
+.app-shell .details-usage > div { display:flex; justify-content:space-between; gap:8px; color:var(--text-2); }
+.app-shell .details-part { border-block-end:1px solid var(--border); padding-block:2px 6px; }
+.app-shell .details-part[data-drag] { opacity:.6; }
+.app-shell .details-head { display:flex; align-items:center; gap:6px; min-block-size:30px; }
+.app-shell .details-fold { display:flex; align-items:center; gap:6px; flex:1; min-inline-size:0; padding:0 4px; background:transparent; box-shadow:none; font-size:12px; font-weight:600; color:var(--text); justify-content:flex-start; }
+.app-shell .details-sum { font-size:11px; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-inline-size:55%; }
+.app-shell .details-sum[data-tone="work"] { color:var(--accent); } .app-shell .details-sum[data-tone="needs"] { color:#E0A040; }
+.app-shell .details-grip { color:transparent; cursor:grab; display:grid; place-items:center; }
+.app-shell .details-head:hover .details-grip { color:var(--text-4); }
+.app-shell .details-body { display:flex; flex-direction:column; gap:1px; }
+.app-shell .details-row { display:flex; align-items:center; gap:8px; inline-size:100%; min-block-size:36px; padding:3px 6px; border-radius:6px; background:transparent; box-shadow:none; color:var(--text); font-size:12px; font-weight:400; justify-content:flex-start; text-align:start; }
+.app-shell button.details-row:hover { background:var(--row-hover); }
+.app-shell .details-row[data-indent] { padding-inline-start:26px; }
+.app-shell .details-row small[data-tone="needs"] { color:#E0A040; }
+.app-shell .details-icon { inline-size:22px; block-size:22px; border-radius:6px; display:grid; place-items:center; flex-shrink:0; background:var(--secondary); color:var(--text-2); }
+.app-shell .panel-end { font-size:11px; color:var(--text-3); white-space:nowrap; }
+.app-shell .panel-end[data-tone="needs"] { color:#E0A040; } .app-shell .panel-end[data-tone="error"] { color:var(--danger); }
+.app-shell .panel-end .plus { color:#3FA66B; } .app-shell .panel-end .minus { color:var(--danger); }
+.app-shell .details-stop { color:var(--text-2); }
+.app-shell .panel-quiet { margin:4px 6px; font-size:12px; color:var(--text-3); }
+.app-shell .panel-add, .app-shell .panel-more { align-self:flex-start; margin:4px 6px; font-size:11.5px; display:inline-flex; align-items:center; gap:5px; }
+.app-shell .details-more > summary { cursor:pointer; margin:4px 6px; font-size:11.5px; color:var(--text-3); }
+.app-shell .details-rail { display:flex; flex-direction:column; align-items:center; gap:4px; padding-block:8px; border-inline-start:1px solid var(--border); background:var(--surface); }
+.app-shell .details-rail .row-tool { position:relative; inline-size:28px; block-size:28px; }
+.app-shell .details-rail-dot { position:absolute; inset-block-start:4px; inset-inline-end:4px; inline-size:7px; block-size:7px; border-radius:50%; background:var(--accent); }
+.app-shell .details-rail-dot[data-tone="needs"] { background:#F0B86E; }
+.app-shell .chat-screen { display:flex; flex-direction:column; min-block-size:0; }
+.app-shell .chat-terminal { flex:0 0 auto; block-size:clamp(160px,32vh,420px); resize:vertical; overflow:hidden; display:flex; flex-direction:column; border-block-start:1px solid var(--border); background:var(--surface); }
+.app-shell .chat-layout[data-max] .chat-terminal { block-size:70vh; }
+.app-shell .sheet-check { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+@media (max-width: 1100px) { .app-shell .chat-layout[data-panel="details"] { grid-template-columns:minmax(0,1fr); } .app-shell .chat-layout[data-panel="details"] > .chat-details { position:absolute; inset-block:0; inset-inline-end:0; inline-size:min(300px,100%); z-index:12; box-shadow:-12px 0 40px #0003; } }

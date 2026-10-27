@@ -544,6 +544,14 @@ export class ConversationsController {
   }
 
   /** Stops the running reply; what it wrote so far is kept. Queued messages stay queued until sent. */
+  /** CHAT-BUILD-01 stage 4: stops everything in this chat — its reply and the helpers it handed work to (⌘.). */
+  async stopAll() {
+    const id = this.#state.activeId;
+    if (!id || !this.live()) return;
+    if (this.#state.runId) this.publish({ stopping: true });
+    try { await this.call('POST', `/api/chat/conversations/${id}/stop`); } catch { if (this.live()) this.publish({ stopping: false, notice: 'Stop did not reach the server. Try again.' }); }
+  }
+
   async stop() {
     const runId = this.#state.runId;
     if (!runId || this.#state.stopping || !this.live()) return;

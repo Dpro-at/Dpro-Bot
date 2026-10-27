@@ -37,13 +37,15 @@ import {
 import { ProjectPathError, gitChanges, gitFileDiff, listFolder, readFolderFile } from '../../repositories/project-files.js';
 import { MAX_AUDIO_BYTES, STT_LANGUAGES, SttError, sttSetup, transcribe } from '../../services/local-stt.js';
 import { acceptChatRun, approvalResultsSince, recoverChatRuns, recoverStaleRun, needsRecoveryReview, journalContext, finishChatRun, recoveryApprovalResults } from '../../repositories/chat-recovery.js';
-import { withChatRun } from '../../services/chat-run-context.js';
+import { withChatRun, type ChatRunContext } from '../../services/chat-run-context.js';
 import { chatRuns, MAX_RUNNING_PER_USER, type RunEvent } from '../../services/chat-runs.js';
 import { openSseStream } from '../../services/chat-sse.js';
 import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
+import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
+import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard } from '../../services/chat-board.js';
@@ -236,6 +238,9 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     starting.delete(b.runId); await recoverStaleRun(b.runId).catch(() => false); throw err;
   }
   starting.delete(b.runId);
+  const runContext: ChatRunContext = { ...journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }),
+    // CHAT-BUILD-01 stage 3: the chat's Mode and Thinking, and the project's added folders the agent may read.
+    chatMode: c.mode ?? 'auto', thinking: c.thinking ?? 'normal', ...(project?.folders.length ? { readRoots: project.folders.map((f) => f.path) } : {}) };
   chatRuns.start({
     runId: b.runId, userId, sessionId: c.id, agentId: b.agentId ?? null,
     // A failed checkpoint leaves the outcome unknown: close the row as interrupted (later turns ask before every tool).
@@ -243,12 +248,13 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     onPersisted: async status => {
       if (chatRuns.get(b.runId)?.error !== 'checkpoint_failed') await finishChatRun(b.runId, status);
       else await recoverStaleRun(b.runId);
+      // CHAT-BUILD-01 stage 4: the stored reply keeps its model and estimated tokens (tokens by model).
+      if (runContext.usage) await q.run("UPDATE chat_messages SET model = ?, tokens_in = ?, tokens_out = ? WHERE run_id = ? AND role = 'assistant'",
+        runContext.usage.model.slice(0, 120), Math.round(runContext.usage.tokensIn), Math.ceil((chatRuns.get(b.runId)?.answer.length ?? 0) / 4), b.runId).catch(() => undefined);
       // MEM-CACHE-01: after the reply, the local model may rewrite a few quick summaries of older turns.
       void refreshSummaries({ sessionId: c.id, userId, turns }).catch(() => 0);
     },
-    execute: (runReply) => withChatRun({ ...journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }),
-      // CHAT-BUILD-01 stage 3: the chat's Mode and Thinking, and the project's added folders the agent may read.
-      chatMode: c.mode ?? 'auto', thinking: c.thinking ?? 'normal', ...(project?.folders.length ? { readRoots: project.folders.map((f) => f.path) } : {}) }, () => executeChatTurn(runReply, {
+    execute: (runReply) => withChatRun(runContext, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
       ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
@@ -260,6 +266,24 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   });
   console.log('[ChatRuns] Run started', { runId: b.runId, history: messages.length });
   return send(202, { runId: b.runId, userMessage, secretsSaved: vaulted.saved.length });
+}
+
+/** CHAT-BUILD-01 stage 4 (CH8): the side panel's parts, their order and folds, per person. */
+export const PANEL_PARTS = ['place', 'team', 'results', 'memory', 'mcp'] as const;
+export function panelPrefs(x: unknown): { order: string[]; folded: string[] } {
+  const v = x && typeof x === 'object' && !Array.isArray(x) ? x as Record<string, unknown> : {};
+  const known = (y: unknown): y is string => (PANEL_PARTS as readonly unknown[]).includes(y);
+  const listed = Array.isArray(v.order) ? [...new Set(v.order.filter(known))] : [];
+  return { order: [...listed, ...PANEL_PARTS.filter((p) => !listed.includes(p))], folded: Array.isArray(v.folded) ? [...new Set(v.folded.filter(known))] : [] };
+}
+
+/** CHAT-BUILD-01 stage 4: a scheduled message goes to its chat like a typed one (same owner gates and Mode). */
+export async function sendScheduled(userId: string, sessionId: string, message: string, runKey: string): Promise<boolean> {
+  const c = await findConversation(userId, sessionId);
+  const user = await q.one<{ role: string; status: string }>('SELECT role, status FROM users WHERE id = ?', userId);
+  if (!c || c.archived || !user || user.status !== 'active' || user.role !== 'owner' || chatRuns.activeFor(c.id)) return false;
+  const out = await startTurn({ userId, role: user.role, c, runId: runKey.slice(0, 128), message, ...(c.model ? { model: c.model } : {}) });
+  return out.code === 202;
 }
 
 export const SIDEBAR_SECTIONS = ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'] as const;
@@ -287,10 +311,13 @@ function sidebarChangeOk(x: unknown): boolean {
 }
 
 /** Status for the sidebar: `running` (a turn is answering) and `waiting` (approvals waiting for the owner). */
-export async function withStatus(userId: string, list: Conversation[]): Promise<Array<Conversation & { running?: true; waiting?: number }>> {
+export async function withStatus(userId: string, list: Conversation[]): Promise<Array<Conversation & { running?: true; waiting?: number; schedule?: { next: string; paused: boolean } }>> {
+  const schedules = await schedulesByChat(userId);
   const waiting = new Map((await q.all<{ session_id: string; n: number }>("SELECT session_id, COUNT(*) AS n FROM tool_approvals WHERE user_id = ? AND status = 'pending' AND session_id IS NOT NULL GROUP BY session_id", userId).catch(() => []))
     .map((r) => [r.session_id, Number(r.n)]));
-  return list.map((c) => ({ ...c, ...(chatRuns.activeFor(c.id) ? { running: true as const } : {}), ...(waiting.get(c.id) ? { waiting: waiting.get(c.id) } : {}) }));
+  const at = (iso: string) => new Date(iso).toLocaleString('en', { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  return list.map((c) => ({ ...c, ...(chatRuns.activeFor(c.id) ? { running: true as const } : {}), ...(waiting.get(c.id) ? { waiting: waiting.get(c.id) } : {}),
+    ...(schedules.has(c.id) ? { schedule: { next: schedules.get(c.id)!.paused ? 'paused' : at(schedules.get(c.id)!.nextRun), paused: schedules.get(c.id)!.paused } } : {}) }));
 }
 
 /** CHAT-SECRETS-01: a waiting message keeps key-store references only, like a sent one. */
@@ -330,7 +357,11 @@ const starting = new Set<string>();
 /** A 'running' row younger than this is never taken for stale (a start in another request may still be on its way). */
 const STALE_AFTER_MS = 10_000;
 export async function chatConversationRoutes(fastify: FastifyInstance) {
-  if (!approvalListener) { approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); }); }
+  if (!approvalListener) {
+    approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); });
+    // CHAT-BUILD-01 stage 4: chats on a schedule, checked once a minute while the background is on.
+    if (backgroundEnabled()) setInterval(() => { void runDueSchedules(sendScheduled).catch(() => 0); }, 60_000).unref();
+  }
   fastify.addHook('preHandler', async (request, reply) => {
     const user = authenticateActiveUser(request);
     if (!user || user.role === 'guest') return reply.code(401).send({ error: 'Authentication required' });
@@ -350,6 +381,59 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const sidebar = sidebarPrefs({ ...sidebarPrefs(await getPref(caller(request), 'chat-sidebar')), ...(request.body as object) });
     await setPref(caller(request), 'chat-sidebar', sidebar);
     return { sidebar };
+  });
+
+  // ---- CHAT-BUILD-01 stage 4 (CH8): the side panel's data ----
+  fastify.get('/api/chat/panel', async (request) => ({ panel: panelPrefs(await getPref(caller(request), 'chat-panel')) }));
+  fastify.put('/api/chat/panel', async (request: Req, reply) => {
+    const b: any = request.body;
+    const parts = (l: unknown) => Array.isArray(l) && l.length <= PANEL_PARTS.length && l.every((x) => (PANEL_PARTS as readonly unknown[]).includes(x)) && new Set(l).size === l.length;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'order' && k !== 'folded') || (b.order !== undefined && !parts(b.order)) || (b.folded !== undefined && !parts(b.folded))) return bad(reply, 'order and folded must be lists of panel parts');
+    const panel = panelPrefs({ ...panelPrefs(await getPref(caller(request), 'chat-panel')), ...b });
+    await setPref(caller(request), 'chat-panel', panel);
+    return { panel };
+  });
+  // Tokens by model in this chat (estimates; local models are free).
+  fastify.get('/api/chat/conversations/:id/usage', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    const rows = await q.all<{ model: string; tokens_in: number | null; tokens_out: number | null; replies: number }>(
+      "SELECT model, SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out, COUNT(*) AS replies FROM chat_messages WHERE session_id = ? AND role = 'assistant' AND model IS NOT NULL GROUP BY model ORDER BY model", c.id);
+    return { usage: rows.map((r) => ({ model: r.model, tokensIn: Number(r.tokens_in ?? 0), tokensOut: Number(r.tokens_out ?? 0), replies: Number(r.replies) })) };
+  });
+  // The agents this chat handed parts of the work to (newest first).
+  fastify.get('/api/chat/conversations/:id/team', async (request: Req, reply) => {
+    const userId = caller(request);
+    const c = await findConversation(userId, request.params.id!);
+    if (!c) return notFound(reply);
+    const rows = await q.all<{ agent_id: string; name: string | null; model: string; status: string; created_at: string }>(
+      'SELECT r.agent_id, a.name, r.model, r.status, r.created_at FROM team_delegation_results r LEFT JOIN agents_config a ON a.id = r.agent_id WHERE r.owner_id = ? AND r.session_id = ? ORDER BY r.created_at DESC LIMIT 20', userId, c.id).catch(() => []);
+    return { team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })) };
+  });
+  // Stop everything in this chat: its reply and the helpers it handed work to (⌘. in the window).
+  fastify.post('/api/chat/conversations/:id/stop', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    const run = chatRuns.activeFor(c.id);
+    if (run) run.requestStop();
+    return { ok: true, stopped: (run ? 1 : 0) + stopDelegations(c.id) };
+  });
+  // A chat that runs on a schedule (owner): the saved message is sent again at the chosen time.
+  fastify.get('/api/chat/conversations/:id/schedule', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    return { schedule: await getSchedule(caller(request), c.id) };
+  });
+  fastify.put('/api/chat/conversations/:id/schedule', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    try { return { schedule: await setSchedule(caller(request), c.id, request.body) }; }
+    catch (err) { if (err instanceof ScheduleInputError) return bad(reply, err.message); throw err; }
+  });
+  fastify.delete('/api/chat/conversations/:id/schedule', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    return (await deleteSchedule(caller(request), c.id)) ? { ok: true } : notFound(reply);
   });
 
   // CHAT-BUILD-01 stage 2: each chat says whether an agent works in it now and how many approvals wait for the owner.

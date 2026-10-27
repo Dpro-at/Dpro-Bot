@@ -1,3 +1,5 @@
+import { ChatDetails, DetailsRail } from './ChatDetails';
+import { ScheduleSheet } from './ScheduleSheet';
 import { KeysSheet, ModeButton, ModelButton, PlusButton, ProjectChip, ProjectSheet, SlashList, WhoButton, slashMatches } from './ChatComposerControls';
 import { modelDisplayName } from './model-names';
 import {ChatAddons} from './ChatAddons';
@@ -209,14 +211,26 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const empty = s.turns.length === 0 && s.threadPhase !== 'loading';
 
   const project = controller.activeProject();
-  const [pane, setPane] = useState<PaneName | null>(() => typeof window === 'undefined' ? 'details' : null);
+  // CHAT-BUILD-01 stage 4 (CH8): the side panel opens on Details; hidden, it is a thin rail. The terminal is its own panel under the chat.
+  const [pane, setPane] = useState<PaneName | null>('details');
+  const [termOpen, setTermOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [panes, setPanes] = useState<PanesController | null>(null);
   const [terminal, setTerminal] = useState<{ tabs: TerminalTabs; prefs: TerminalPrefsController } | null>(null);
   const [maximized, setMaximized] = useState(false);
-  useEffect(()=>{if(pane!=='details'||!active)return;const outside=(event:PointerEvent)=>{const target=event.target;if(target instanceof Element&&!target.closest('.session-popover')&&!target.closest('[aria-label="Details"]')&&!target.closest('dialog'))setPane(null);};document.addEventListener('pointerdown',outside);return()=>document.removeEventListener('pointerdown',outside);},[pane,active]);
   useEffect(() => { if (!client) return; const p = new PanesController(client); setPanes(p); const t = { tabs: new TerminalTabs(client), prefs: new TerminalPrefsController(client) }; setTerminal(t); return () => { p.dispose(); t.tabs.dispose(); t.prefs.dispose(); }; }, [client]);
   const owner = client?.getSnapshot().user?.role === 'owner';
-  useEffect(()=>{if(terminalRequest>0&&owner)setPane('terminal');},[terminalRequest,owner]);
+  useEffect(()=>{if(terminalRequest>0&&owner)setTermOpen(true);},[terminalRequest,owner]);
+  // ⌥⌘I hides or shows the side panel, ⌃` the terminal, ⌘. stops everything in this chat.
+  useEffect(() => {
+    if (!active) return;
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (e.metaKey && e.altKey && e.code === 'KeyI') { e.preventDefault(); setPane(p => (p === 'details' ? null : 'details')); }
+      else if (e.ctrlKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(v => !v); }
+      else if ((e.metaKey || e.ctrlKey) && e.key === '.' && controller.getSnapshot().activeId) { e.preventDefault(); void controller.stopAll(); }
+    };
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  }, [active, terminal, client, controller]);
   const [keysOpen, setKeysOpen] = useState<string | null>(null);
   // CHAT-PRO-02 I step 2: board cards made from this conversation.
   const [cardsCtl, setCardsCtl] = useState<ChatCardsController | null>(null);
@@ -274,10 +288,9 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const paneButtons: { name: PaneName; icon: UiIconName; label: string }[] = [
     { name: 'details', icon: 'sidebar', label: 'Details' },
     ...(panes ? [{ name: 'changes' as const, icon: 'diff' as const, label: 'Changes' }, { name: 'files' as const, icon: 'folder' as const, label: 'Files' }] : []),
-    ...(terminal && owner ? [{ name: 'terminal' as const, icon: 'terminal' as const, label: 'Terminal' }] : []),
   ];
   const previewFile=s.attachments.find(f=>f.name===attachmentPreview);
-  return <div className="chat-layout" data-panel={pane ?? undefined} data-max={(maximized && pane === 'terminal') || undefined}>
+  return <div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
     <div className="chat-topbar">
       {project ? <ProjectBar name={project.name} folder={project.folder} repoUrl={project.repoUrl} git={s.git}/> : <span className="project-bar-item" aria-label="Chat context">General chat · no project folder</span>}
@@ -285,7 +298,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       {owner && cardsCtl && s.activeId && <button type="button" className="tool chat-to-board" onClick={() => cardForm ? setCardForm(null) : openCardForm()} aria-pressed={!!cardForm} title="Put this task on a board, with the agents it needs">
         <UiIcon name="board" size={14}/><span>Add to board</span></button>}
       {mode === 'live' && <button type="button" className="tool chat-avatar-toggle" aria-label="Avatar" aria-pressed={avatarOn} onClick={toggleAvatar} title={avatarOn ? 'Hide the avatar' : 'Show the agent as an avatar that speaks its replies'}><UiIcon name="avatar" size={14}/></button>}
-      <span className="pane-bar" role="toolbar" aria-label="Side panes">{paneButtons.map(b =>
+      <span className="pane-bar" role="toolbar" aria-label="Side panes">{terminal && owner && <button type="button" className="tool" aria-pressed={termOpen} aria-label="Terminal" title={termOpen ? 'Hide the terminal (⌃`)' : 'Terminal (⌃`)'} onClick={() => setTermOpen(v => !v)}><UiIcon name="terminal" size={14}/></button>}{paneButtons.map(b =>
         <button key={b.name} type="button" className="tool" aria-pressed={pane === b.name} aria-label={b.label} title={pane === b.name ? `Hide ${b.label.toLowerCase()}` : b.label}
           onClick={() => setPane(p => p === b.name ? null : b.name)}><UiIcon name={b.icon} size={14}/></button>)}</span>
     </div>
@@ -370,12 +383,20 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         </div>
       </form>
     </div>
+    {terminal && termOpen && <section className="chat-terminal" aria-label="Terminal"><TerminalPane tabs={terminal.tabs} prefs={terminal.prefs} projectId={folderProject} maximized={maximized} onToggleMax={() => setMaximized(v => !v)} onClose={() => { setMaximized(false); setTermOpen(false); }}/></section>}
   </div>
-  {pane === 'details' && <ChatSidePanel controller={controller} client={client} onAddConnector={onAddConnector} memory={memCtl} onOpenMemory={onOpenMemory} recall={recallCtl} onClose={()=>setPane(null)}/>}
+  {pane === 'details' ? <ChatDetails controller={controller} client={client} recall={recallCtl} onSettings={onAddConnector} onClose={() => setPane(null)}
+      memoryCard={s.activeId ? <>{recallCtl && <HandoffCard c={recallCtl} agentId={convAgentId || s.agentId || s.agents[0]?.id || ''} agentName={convAgentName}/>}{memCtl && <ChatMemoryCard controller={memCtl} onOpen={onOpenMemory}/>}</> : undefined}
+      resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} onRefresh={() => void controller.refreshGit()}/> : undefined}
+      placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
+      onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
+      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })}/>
+    : pane === null && <DetailsRail controller={controller} onOpen={() => setPane('details')}/>}
+  {scheduleOpen && client && s.activeId && <ScheduleSheet client={client} chatId={s.activeId} onClose={() => setScheduleOpen(false)}/>}
   {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'}><header className="chat-inspector-head"><h2>{pane==='changes'?'Changes':'Files'}</h2><button title="Close side pane" aria-label="Close side pane" onClick={()=>setPane(null)}><UiIcon name="close" size={15}/></button></header>
     {pane === 'changes' ? <ChangesPane panes={panes}/> : <FilesPane panes={panes}/>}
   </aside>}
-  {terminal && pane === 'terminal' && <aside className="chat-panel chat-pane" aria-label="Terminal"><TerminalPane tabs={terminal.tabs} prefs={terminal.prefs} projectId={folderProject} maximized={maximized} onToggleMax={() => setMaximized(v => !v)} onClose={() => { setMaximized(false); setPane(null); }}/></aside>}
+
   </div>;
 }
 
@@ -397,69 +418,6 @@ export function whoAnswers(model: string, models: readonly ModelOption[]): { app
 }
 
 
-/** Details of the open conversation: where it works, how big it is, what it produced. */
-function ChatSidePanel({ controller, client, onAddConnector, memory, onOpenMemory, recall, onClose }: { controller: ConversationsController; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; memory?: ChatMemoryController | null; onOpenMemory?: (drawerId: string, memoryId: string) => void; recall?: ChatRecallController | null;onClose?:()=>void }) {
-  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const project = controller.activeProject();
-  const conv = s.conversations.find(c => c.id === s.activeId);
-  const outputs = turnOutputs(s.turns);
-  const tokens = approxTokens(s.turns);
-  const agent = s.agents.find(a => a.id === (conv?.agentId ?? s.agentId))?.name ?? 'Main agent';
-  const who = whoAnswers(s.model, s.models);
-  const model = who.app ? who.text : s.model ? `Saved model: ${modelDisplayName(s.model)}` : "Agent's own model";
-  const replies = s.turns.filter(t => t.role === 'assistant');
-  const worked = replies.reduce((n, t) => n + (t.durationMs ?? 0), 0);
-  const tools = workSummary(s.turns.flatMap(t => withoutPlan(t.parts)));
-  const [view,setView]=useState<'session'|'permissions'|'addons'>('session');
-  const owner=client?.getSnapshot().user?.role==='owner';
-  const home = project?.folder?.match(/^\/Users\/[^/]+/)?.[0];
-  return <aside className="chat-panel session-popover" aria-label="Conversation details" onKeyDown={e=>{if(e.key==='Escape')onClose?.();}}>
-    <header className="chat-inspector-head"><h2>Session details</h2><button type="button" title="Close session details" aria-label="Close session details" onClick={onClose}><UiIcon name="close" size={15}/></button></header>
-    <div className="session-panel-tabs" role="tablist" aria-label="Session sections">{(['session','permissions','addons'] as const).map(key=><button role="tab" type="button" key={key} aria-selected={view===key} onClick={()=>setView(key)}><UiIcon name={key==='session'?'message':key==='permissions'?'shield':'layers'} size={14}/>{key==='session'?'Session':key==='permissions'?'Permissions':'Add-ons'}</button>)}</div>
-    <div className="session-panel-body">
-    {view==='session'&&<><div className="chat-reply-summary"><span>{who.app?<AppIcon id={who.app.id} size={16}/>:<UiIcon name="cpu" size={16}/>}</span><div><strong>{who.app?who.text:agent}</strong><small>{who.app?'Replies through the local CLI connection':"Replies with the agent’s configured model"}</small></div></div>
-    {recall && s.activeId && <SessionDisclosure title="Where we left off" icon="history"><HandoffCard c={recall} agentId={conv?.agentId || s.agentId || s.agents[0]?.id || ''} agentName={agent}/></SessionDisclosure>}
-    {recall && <SessionDisclosure title="Context" icon="layers" summary={<ContextUsage c={recall} keys={replies.map(t=>t.key)}/>}><RecallContext c={recall} keys={replies.map(t => t.key)}/></SessionDisclosure>}
-    {recall && <SessionDisclosure title="Performance" icon="pulse"><SpeedDetails c={recall}/></SessionDisclosure>}
-    <SessionDisclosure title="Environment" icon="folder" summary={project?.name??'General chat'}><section className="panel-card">
-      <h3 className="sr-only">Environment</h3>
-      <dl className="panel-list">
-        <div><dt><UiIcon name="board" size={12}/></dt><dd>{project ? project.name : <span className="muted">No project</span>}</dd></div>
-        {project?.folder && <div><dt><UiIcon name="file" size={12}/></dt><dd dir="ltr" title={project.folder}>{home ? `~${project.folder.slice(home.length)}` : project.folder}</dd></div>}
-        {s.git?.branch && <div><dt aria-label="Branch">⎇</dt><dd dir="ltr">{s.git.branch}</dd></div>}
-        {(project?.repoUrl ?? s.git?.remote) && <div><dt><UiIcon name="globe" size={12}/></dt><dd dir="ltr">{(project?.repoUrl ?? s.git?.remote ?? '').replace(/^https:\/\//, '')}</dd></div>}
-        <div><dt><UiIcon name="brain" size={12}/></dt><dd>{agent} · {model}</dd></div>
-      </dl>
-    </section></SessionDisclosure>
-    {client&&project?.folder&&<SessionDisclosure title="Coding sessions" icon="terminal"><section className="panel-card"><h3>Local coding sessions</h3><p className="fine-print">Saved Girru chats stay in the sidebar. Memory imports are managed in Memory.</p><CodingSessions key={project.id+':'+project.folder} client={client} controller={controller} folder={project.folder}/></section></SessionDisclosure>}
-    <SessionDisclosure title="Conversation" icon="message" summary={`${replies.length} replies`}><section className="panel-card">
-      <h3 className="sr-only">Conversation</h3>
-      <dl className="panel-list">
-        <div><dt>Size</dt><dd>≈ {tokens.toLocaleString('en')} tokens</dd></div>
-        <div><dt>Replies</dt><dd>{replies.length}{worked ? ` · worked ${duration(worked)}` : ''}</dd></div>
-        {tools && <div><dt>Tools</dt><dd>{tools}</dd></div>}
-      </dl>
-    </section></SessionDisclosure>
-    <SessionDisclosure title="Outputs" icon="file" summary={outputs.length?`${outputs.length} files`:'No files yet'}><section className="panel-card">
-      <h3 className="sr-only">Outputs</h3>
-      {outputs.length ? <ul className="panel-files">{outputs.slice(-8).reverse().map(o => <li key={o.path} dir="ltr"><UiIcon name={o.kind === 'edit' ? 'pencil' : 'file'} size={12}/><span title={o.path}>{o.path.split('/').at(-1)}</span></li>)}</ul>
-        : <p className="muted">Files the agent writes appear here.</p>}
-    </section></SessionDisclosure>
-    {project?.folder && <SessionDisclosure title="Changes" icon="diff" summary={s.git?.files?`${s.git.files} files`:'Working folder'}><section className="panel-card">
-      <h3 className="sr-only">Changes</h3>
-      {s.git && s.git.added !== null && s.git.added !== undefined
-        ? (s.git.files ? <p className="panel-changes"><span className="plus">+{s.git.added}</span> <span className="minus">−{s.git.removed ?? 0}</span> <span className="muted">in {s.git.files} {s.git.files === 1 ? 'file' : 'files'} not committed</span></p>
-          : <p className="muted">No uncommitted changes.</p>)
-        : <p className="muted">Not a git folder.</p>}
-    </section></SessionDisclosure>}
-    {memory && s.activeId && <SessionDisclosure title="Saved memories" icon="brain"><ChatMemoryCard controller={memory} onOpen={onOpenMemory}/></SessionDisclosure>}
-    {project?.folder && s.git?.branch && <SessionDisclosure title="Repository" icon="diff" summary={s.git.branch}><GitHubCard git={s.git} onRefresh={() => void controller.refreshGit()}/></SessionDisclosure>}
-    </>}
-    {view==='permissions'&&(client&&owner?<div className="session-permissions"><AgentPanel client={client} onAddConnector={onAddConnector} agentId={conv?.agentId || s.agentId || s.agents[0]?.id || ''}/></div>:<p className="pane-empty">Only the owner can review agent permissions.</p>)}
-    {view==='addons'&&(client&&owner?<ChatAddons client={client} onManage={onAddConnector}/>:<p className="pane-empty">Only the owner can inspect local add-ons.</p>)}
-    </div>
-  </aside>;
-}
 
 function SessionDisclosure({title,icon,summary,children}:{title:string;icon:UiIconName;summary?:ReactNode;children:ReactNode}){return <details className="session-disclosure"><summary><UiIcon name={icon} size={15}/><span>{title}</span>{summary&&<small>{summary}</small>}<UiIcon name="chevron" size={12}/></summary><div className="session-disclosure-body">{children}</div></details>;}
 

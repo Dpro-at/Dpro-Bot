@@ -261,3 +261,39 @@ test('stage 3: projects keep added folders; variables are encrypted, listed by n
   assert.equal((await call('b-owner', 'DELETE', `/api/chat/projects/${p.id}`)).statusCode, 200);
   assert.deepEqual(await (await import(join(backendDir, 'src/services/project-variables.ts'))).listVariables('b-owner', p.id), [], 'variables go with the project');
 });
+
+test('stage 4: a chat on a schedule sends its message at the time, once; the list shows the next run', async () => {
+  const c = await newConversation();
+  const sched = await import(join(backendDir, 'src/services/chat-schedules.ts'));
+  const { sendScheduled } = await import(join(backendDir, 'src/api/routes/chat-conversations.ts'));
+  const nx = sched.nextRun('daily', '09:00', null, new Date(2026, 9, 27, 10, 0));
+  assert.deepEqual([nx.getDate(), nx.getHours()], [28, 9]);
+  assert.equal(sched.nextRun('weekly', '08:30', 1, new Date(2026, 9, 27, 10, 0)).getDay(), 1);
+  const put = await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}/schedule`, { every: 'daily', at: '09:00', message: 'Check the site' });
+  assert.equal(put.statusCode, 200, put.body);
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}/schedule`, { every: 'daily', at: '25:00', message: 'x' })).statusCode, 400);
+  assert.equal((await call('b-other', 'GET', `/api/chat/conversations/${c.id}/schedule`)).statusCode, 403);
+  const listed = (await call('b-owner', 'GET', '/api/chat/conversations')).json().conversations.find((x) => x.id === c.id);
+  assert.ok(listed.schedule && listed.schedule.paused === false && listed.schedule.next);
+  db.prepare('UPDATE chat_schedules SET next_run = ? WHERE session_id = ?').run(new Date(Date.now() - 60_000).toISOString(), c.id);
+  const n = await sched.runDueSchedules(sendScheduled);
+  assert.equal(n, 1);
+  assert.equal(await sched.runDueSchedules(sendScheduled), 0, 'never twice for one time');
+  const runId = db.prepare("SELECT run_id FROM chat_messages WHERE session_id = ? AND role = 'user' AND content = 'Check the site'").get(c.id)?.run_id;
+  assert.ok(runId, 'the message was sent to the chat');
+  await ended(runId);
+  // Tokens by model: the stored reply keeps its model and estimates.
+  const usage = (await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/usage`)).json().usage;
+  assert.equal(usage.length, 1); assert.ok(usage[0].tokensIn > 0 && usage[0].replies === 1);
+  assert.equal((await call('b-owner', 'DELETE', `/api/chat/conversations/${c.id}/schedule`)).statusCode, 200);
+});
+
+test('stage 4: panel layout per person; team list; Stop for the whole chat', async () => {
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/panel')).json().panel.order, ['place', 'team', 'results', 'memory', 'mcp']);
+  assert.deepEqual((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['results'], folded: ['mcp'] })).json().panel, { order: ['results', 'place', 'team', 'memory', 'mcp'], folded: ['mcp'] });
+  assert.equal((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['nope'] })).statusCode, 400);
+  const c = await newConversation();
+  assert.deepEqual((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/team`)).json().team, []);
+  assert.deepEqual((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/stop`)).json(), { ok: true, stopped: 0 });
+  assert.equal((await call('b-other', 'POST', `/api/chat/conversations/${c.id}/stop`)).statusCode, 404);
+});

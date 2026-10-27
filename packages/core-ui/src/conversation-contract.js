@@ -45,6 +45,11 @@ export const STT_LANGUAGES = ['auto', 'ar', 'en', 'de'];
 
 /** CHAT-BUILD-01 stage 2 (CH9): the chat sidebar's sections, order and folded projects, per person. */
 export const SIDEBAR_PATH = '/api/chat/sidebar';
+const PANEL_PARTS = ['place', 'team', 'results', 'memory', 'mcp'];
+const partList = x => Array.isArray(x) && x.length <= PANEL_PARTS.length && x.every(p => PANEL_PARTS.includes(p)) && new Set(x).size === x.length;
+const scheduleOk = x => record(x) && onlyKeys(x, ['every', 'at', 'weekday', 'message', 'paused']) && ['hourly', 'daily', 'weekly'].includes(x.every) && typeof x.at === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(x.at)
+  && (x.weekday === undefined || x.weekday === null || (Number.isInteger(x.weekday) && x.weekday >= 0 && x.weekday <= 6)) && text(x.message, 4000) && x.message.trim().length > 0 && (x.paused === undefined || typeof x.paused === 'boolean');
+const scheduleView = x => (record(x) && ['hourly', 'daily', 'weekly'].includes(x.every) ? { every: x.every, at: str(x.at, 5), weekday: Number.isInteger(x.weekday) ? x.weekday : null, message: str(x.message, 4000), paused: x.paused === true, nextRun: str(x.nextRun, 40), lastRun: typeof x.lastRun === 'string' ? x.lastRun.slice(0, 40) : null } : null);
 const SIDEBAR_SECTIONS = ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'];
 const sectionList = x => Array.isArray(x) && x.length <= SIDEBAR_SECTIONS.length && x.every(s => SIDEBAR_SECTIONS.includes(s)) && new Set(x).size === x.length;
 const folderList = x => Array.isArray(x) && x.length <= 200 && x.every(f => typeof f === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(f));
@@ -55,6 +60,7 @@ export function conversationPath(path) {
   if (path === TRANSCRIBE_PATH) return { kind: 'transcribe' };
   if (path === '/api/chat/project-folders') return { kind: 'folder-picker' };
   if (path === SIDEBAR_PATH) return { kind: 'sidebar' };
+  if (path === '/api/chat/panel') return { kind: 'panel' };
   if (path === PROJECTS_PATH) return { kind: 'projects' };
   let pm = /^\/api\/chat\/projects\/([^/?#]+)$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project', id: pm[1] } : null;
@@ -73,6 +79,9 @@ export function conversationPath(path) {
   // CHAT-BUILD-01: one page of a long conversation (?limit=N[&before=<message id>]).
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/messages(?:\?limit=([1-9]\d{0,2})(?:&before=([^&#]+))?)?$/.exec(path);
   if (m) return uuid(m[1]) && (m[2] === undefined || Number(m[2]) <= 500) && (m[3] === undefined || uuid(m[3])) ? { kind: 'messages', id: m[1] } : null;
+  // CHAT-BUILD-01 stage 4 (CH8): the side panel's data for one chat.
+  m = /^\/api\/chat\/conversations\/([^/?#]+)\/(usage|team|schedule|stop)$/.exec(path);
+  if (m) return uuid(m[1]) ? { kind: `chat-${m[2]}`, id: m[1] } : null;
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/runs$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: 'runs', id: m[1] } : null;
   m = /^\/api\/chat\/runs\/([^/?#]+)\/events(?:\?after=(0|[1-9]\d{0,8}))?$/.exec(path);
@@ -98,6 +107,10 @@ export function allowedConversation(method, path, body) {
   if (approvalPath(path)) return allowedApproval(method, path, body);
   const p = conversationPath(path);
   if (!p) return false;
+  if (p.kind === 'chat-usage' || p.kind === 'chat-team') return method === 'GET' && body === undefined;
+  if (p.kind === 'chat-stop') return method === 'POST' && body === undefined;
+  if (p.kind === 'chat-schedule') return method === 'GET' || method === 'DELETE' ? body === undefined : method === 'PUT' && scheduleOk(body);
+  if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
   if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
@@ -131,7 +144,8 @@ function conversation(x) {
     ...(x.archived === true ? { archived: true } : {}), ...(uuid(x.parentId) ? { parentId: x.parentId } : {}),
     ...(x.running === true ? { running: true } : {}), ...(Number.isSafeInteger(x.waiting) && x.waiting > 0 ? { waiting: Math.min(x.waiting, 999) } : {}),
     ...(CHAT_MODES.includes(x.mode) && x.mode !== 'auto' ? { mode: x.mode } : {}), ...(CHAT_THINKING.includes(x.thinking) && x.thinking !== 'normal' ? { thinking: x.thinking } : {}),
-    ...(Array.isArray(x.queued) && queueOk(x.queued) && x.queued.length ? { queued: x.queued.map(q => ({ key: q.key, text: q.text })) } : {}) };
+    ...(Array.isArray(x.queued) && queueOk(x.queued) && x.queued.length ? { queued: x.queued.map(q => ({ key: q.key, text: q.text })) } : {}),
+    ...(record(x.schedule) && typeof x.schedule.next === 'string' ? { schedule: { next: x.schedule.next.slice(0, 40), paused: x.schedule.paused === true } } : {}) };
 }
 
 function call(x) {
@@ -231,6 +245,11 @@ export function conversationResponse(path, status, body) {
     if (!validRunId(body.runId)) throw Error('protocol');
     return { runId: body.runId, ...(body.replayed === true ? { replayed: true } : {}), ...(record(body.userMessage) ? { userMessage: message(body.userMessage) } : {}) };
   }
+  if (p.kind === 'chat-usage') return { usage: (Array.isArray(body.usage) ? body.usage : []).slice(0, 50).filter(record).map(u => ({ model: str(u.model, 120), tokensIn: num(u.tokensIn) ?? 0, tokensOut: num(u.tokensOut) ?? 0, replies: num(u.replies) ?? 0 })) };
+  if (p.kind === 'chat-team') return { team: (Array.isArray(body.team) ? body.team : []).slice(0, 20).filter(record).map(t => ({ agentId: str(t.agentId, 128), agentName: str(t.agentName, 80), model: str(t.model, 120), status: ['started', 'answered', 'waiting_approval', 'failed'].includes(t.status) ? t.status : 'failed', at: str(t.at, 40) })) };
+  if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
+  if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
+  if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
   if (p.kind === 'sidebar') {
     const v = record(body.sidebar) ? body.sidebar : {};
     return { sidebar: { order: sectionList(v.order) ? v.order : SIDEBAR_SECTIONS, hidden: sectionList(v.hidden) ? v.hidden : ['archived'], folded: folderList(v.folded) ? v.folded : [] } };
