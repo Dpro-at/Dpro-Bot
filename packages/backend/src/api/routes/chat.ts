@@ -483,7 +483,9 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         if(memoryText)history=`${capMiddle(memoryText,SUBSCRIPTION_MEMORY_CHARS)}\n\n${history}`;
         const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
         let toolStep=0;
-        const answer=await subscriptionToolLoop({prompt:subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history),signal:abort.signal,
+        const replyPrompt=subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history);
+        {const run=currentChatRun();if(run)run.usage={model:subscriptionSource!,tokensIn:estimateTokens(replyPrompt)};}
+        const answer=await subscriptionToolLoop({prompt:replyPrompt,signal:abort.signal,
           tools:registry.getAll().map(t=>({name:t.name,description:t.description,input_schema:t.input_schema})),
           // CHAT-BUILD-01 stage 3: "Accept edits" lets the coding app edit files in the chat's folders (its write folders too).
           reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,currentChatRun()?.chatMode==='accept_edits'?{editsOnly:true,addDirs:input.writeFolders??[]}:{appToolsOnly:true}),
@@ -689,6 +691,8 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
     // so it can name it when asked instead of guessing.
     resolvedSystemPrompt = `${resolvedSystemPrompt ? `${capMiddle(resolvedSystemPrompt, SYSTEM_PROMPT_CHARS)}\n\n` : ''}${modelIdentityBlock(resolvedProvider, resolvedModel)}`;
 
+    // CHAT-BUILD-01 stage 4: tokens by model in the chat (the router may still pick the Claude model for Auto).
+    { const run = currentChatRun(); if (run) run.usage = { model: resolvedModel, tokensIn: estimateTokens(resolvedSystemPrompt) + estimateTokens(systemPromptAppend ?? '') + turnMessages.reduce((n, m) => n + estimateTokens(messageText(m.content)), 0) }; }
     // MEM-CACHE-01: the reply trace (never for a turn that answers an outsider).
     const traceRun = !channelTurn && input.runId ? input.runId : undefined;
     if (traceRun) {
@@ -950,6 +954,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
 
     // Convert tier to actual Claude model name
     selectedModel = ModelRouter.getModelName(routingAnalysis.recommendedModel);
+    { const run = currentChatRun(); if (run?.usage) run.usage.model = selectedModel; }
 
     console.log('[Cost Optimizer] 🎯 Task analysis:');
     console.log('[Cost Optimizer]   Complexity:', routingAnalysis.complexity);

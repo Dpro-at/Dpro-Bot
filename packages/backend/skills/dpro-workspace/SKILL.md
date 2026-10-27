@@ -23,6 +23,7 @@ Use these MCP tools through the owner's authenticated local session.
 - `list` shows the chat sidebar: each chat's name, project, pinned, archived, which chat it was opened from, whether an agent works in it now and how many approvals wait for the owner. `projects` lists the projects with their folders.
 - `rename`, `pin`, `archive` (archived: false brings a chat back) and `move` (to a project, or out of it) only when the owner asks. An archived chat stays searchable.
 - `set_mode` (Auto, Ask me, Plan first) and `set_thinking` (Quick, Normal, Deep) only when the owner asks. Accept edits lets coding apps change files, so only the owner turns it on in the app. A mode is never looser than an agent's own permissions; sending to people, money, deleting for good and installing always ask.
+- `status` (id) reads one chat's side panel: tokens by model (estimates; local models are free), the agents it handed parts of the work to, and its schedule. A chat that runs on a schedule sends its saved message at that time with the chat's Mode; only the owner changes or pauses a schedule, in the app.
 - `variables` lists a project's variable names. Values are encrypted, go only to that project's terminal, and are never shown to you or any model.
 - Reading messages, deleting a chat and the owner's sidebar layout (which sections show, their order) are not available to agents.
 

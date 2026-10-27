@@ -11,6 +11,8 @@ export interface ChatRunContext {
   thinking?: ChatThinking;
   /** The project's added folders the agent may read (absolute paths). */
   readRoots?: string[];
+  /** CHAT-BUILD-01 stage 4: the model that wrote this reply and the estimated tokens it was given (tokens by model). */
+  usage?: { model: string; tokensIn: number };
   failed?: boolean;
   beforeTool(name: string, params: Record<string, unknown>): Promise<string>;
   afterTool(id: string, result: ToolResult): Promise<void>;
