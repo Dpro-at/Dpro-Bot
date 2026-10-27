@@ -62,7 +62,7 @@ test('full collection imports and replays without creating agents or assignments
 
 test('pilot recommendations save as versioned templates without changing agent authority', async () => {
  const recommendations = JSON.parse(fs.readFileSync(path.join(source, 'professional-role-profiles.json'), 'utf8'));
- assert.equal(recommendations.profiles.length, 53);
+ assert.equal(recommendations.profiles.length, 59);
  assert.equal(new Set(recommendations.profiles.map(profile=>profile.name)).size,recommendations.profiles.length);
  assert.throws(()=>validateWorkspacePack(recommendations),error=>error.code==='invalid_pack');
  const frontendId = db.prepare("SELECT id FROM specialty_templates WHERE name='Frontend developer'").get().id;
@@ -94,6 +94,7 @@ test('pilot recommendations save as versioned templates without changing agent a
    const skill = db.prepare('SELECT id FROM central_skills WHERE name=?').get(profile.package);
    assert.ok(skill, 'Resolve the actual fixture skill ID');
    assert.ok([current.config.primarySkill,...current.config.skills].includes(skill.id),'Preserve the existing role package binding');
+   for (const resource of profile.references) assert.ok(current.instructions.includes(resource),'Recommended route must appear in role instructions: '+resource);
    const portableSkill = pack.skills.find(item=>item.name===profile.package);
    assert.ok(portableSkill,'Bound package must be present in the portable pack');
    const portablePaths = new Set(portableSkill.files.map(file=>file.path));
