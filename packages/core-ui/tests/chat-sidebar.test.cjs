@@ -33,6 +33,7 @@ test('sidebar choices: unknown ids dropped, new sections added, Archived hidden 
   assert.deepEqual(p.hidden, ['running']);
   assert.deepEqual(p.folded, ['a']);
   assert.deepEqual(readPrefs('not json'), DEFAULT_PREFS);
+  assert.deepEqual(readPrefs({ order: ['pinned'] }).hidden, ['archived'], 'no saved hidden list: the usual one');
   assert.deepEqual(moveSection(['a', 'b', 'c'], 'b', -1), ['b', 'a', 'c']);
   assert.deepEqual(moveSection(['a', 'b'], 'a', -1), ['a', 'b']);
   const now = new Date('2026-10-27T12:00:00Z');
@@ -53,8 +54,8 @@ test('the list contract carries archived, opened-from, working and waiting; arch
 
 test('rows are plain names with status only when there is something', () => {
   const list = [chat(1, { waiting: 2 }), chat(2, { running: true }), chat(3)];
-  const state = { access: 'ready', listPhase: 'ready', conversations: list, projects: [], activeId: null, runId: null };
-  const controller = { subscribe: () => () => {}, getSnapshot: () => state, load() {}, open() {} };
+  const state = { access: 'ready', listPhase: 'ready', conversations: list, projects: [], activeId: null, runId: null, sidebar: DEFAULT_PREFS };
+  const controller = { subscribe: () => () => {}, getSnapshot: () => state, load() {}, open() {}, loadSidebar() {}, saveSidebar() {} };
   const html = renderToStaticMarkup(React.createElement(ConversationList, { controller, onOpen: () => {}, onNewChat: () => {} }));
   assert.match(html, /aria-label="Search chats \(⌘F\)"/);
   assert.match(html, /aria-label="New chat"/);
@@ -69,4 +70,15 @@ test('signed out: one screen, one action', () => {
   const html = renderToStaticMarkup(React.createElement(PublicShell, { setup: 'login' }, React.createElement('i')));
   assert.equal((html.match(/<button/g) || []).length, 1);
   assert.match(html, />Sign in</);
+});
+
+test('the sidebar layout is saved per person through the backend, never in browser storage', () => {
+  const { allowedConversation: allow, conversationResponse: res, SIDEBAR_PATH } = require('../src/conversation-contract.js');
+  assert.equal(SIDEBAR_PATH, '/api/chat/sidebar');
+  assert.equal(allow('GET', SIDEBAR_PATH, undefined), true);
+  assert.equal(allow('PUT', SIDEBAR_PATH, { order: ['pinned', 'other'], hidden: [], folded: ['p-1'] }), true);
+  for (const bad of [{}, { order: ['nope'] }, { hidden: ['pinned', 'pinned'] }, { folded: ['../x'] }, { theme: 'dark' }]) assert.equal(allow('PUT', SIDEBAR_PATH, bad), false, JSON.stringify(bad));
+  assert.deepEqual(res(SIDEBAR_PATH, 200, { sidebar: { order: 'x', hidden: ['pinned'], folded: [] } }).sidebar.order, ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived']);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/chat-sidebar-prefs.ts'), 'utf8');
+  assert.doesNotMatch(src, /localStorage|sessionStorage/);
 });

@@ -196,3 +196,12 @@ test('stage 2: the chat list says who works and what waits; a chat can be archiv
   assert.equal(row.running, undefined);
   assert.equal((await call('b-other', 'PUT', `/api/chat/conversations/${c.id}`, { archived: true })).statusCode, 404);
 });
+
+test('stage 2: the sidebar layout is saved per person; bad values are refused', async () => {
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/sidebar')).json().sidebar, { order: ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'], hidden: ['archived'], folded: [] });
+  const saved = (await call('b-owner', 'PUT', '/api/chat/sidebar', { order: ['pinned', 'other'], hidden: [], folded: ['proj-1'] })).json().sidebar;
+  assert.deepEqual(saved.order.slice(0, 2), ['pinned', 'other']);
+  assert.equal(saved.order.length, 6);
+  assert.deepEqual((await call('b-other', 'GET', '/api/chat/sidebar')).json().sidebar.hidden, ['archived'], 'another person keeps the usual layout');
+  for (const bad of [{}, { order: ['nope'] }, { folded: ['../x'] }, { theme: 'x' }]) assert.equal((await call('b-owner', 'PUT', '/api/chat/sidebar', bad)).statusCode, 400);
+});

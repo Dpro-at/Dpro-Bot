@@ -4,7 +4,9 @@
 // and a queue of messages typed while the agent is still working.
 import { SessionFailure } from './session-failure';
 import type { SessionClient } from './session';
-import { MAX_MESSAGE, MAX_MESSAGE_BYTES, validRunId } from './conversation-contract.js';
+import { MAX_MESSAGE, MAX_MESSAGE_BYTES, SIDEBAR_PATH, validRunId } from './conversation-contract.js';
+import { DEFAULT_PREFS, readPrefs } from './chat-sidebar-prefs';
+import type { SidebarPrefs } from './chat-sidebar-prefs';
 import type { RunEvent, WireConversation, WireGit, WireMessage, WireProject } from './conversation-contract.js';
 import { applyEvent, fromWire, liveTurn, userTurn } from './turns';
 import { exportConversation } from './chat-export';
@@ -49,6 +51,8 @@ export type ConversationsState = Readonly<{
   /** CHAT-BUILD-01: older messages are not loaded yet (long conversations open one page at a time). */
   hasEarlier: boolean;
   loadingEarlier: boolean;
+  /** CHAT-BUILD-01 stage 2 (CH9): which sidebar sections show, their order and folded projects. */
+  sidebar: SidebarPrefs;
   notice?: string;
 }>;
 
@@ -78,7 +82,7 @@ export function withAttachments(message: string, files: readonly { name: string;
 
 const emptyState = (): ConversationsState => Object.freeze({
     access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: '', projects: [], projectFilter: '', git: null,
-    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false,
+    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS,
 });
 
 export class ConversationsController {
@@ -569,6 +573,18 @@ export class ConversationsController {
 
   /** A changed chat from the server; its live status (working, waiting) stays until the next list. */
   private replace(c: Conversation) { this.publish({ conversations: this.#state.conversations.map(x => (x.id === c.id ? { ...(x.running ? { running: true } : {}), ...(x.waiting ? { waiting: x.waiting } : {}), ...c } : x)) }); }
+
+  /** CHAT-BUILD-01 stage 2 (CH9): the person's sidebar layout (the usual one until it loads). */
+  async loadSidebar() {
+    try { const r = await this.call('GET', SIDEBAR_PATH); if (this.live() && r.status === 200 && record(r.body)) this.publish({ sidebar: readPrefs(r.body.sidebar) }); } catch { /* the usual sidebar stays */ }
+  }
+  /** Shows the new layout at once and saves it; on failure goes back and says so. */
+  async saveSidebar(next: SidebarPrefs) {
+    const before = this.#state.sidebar;
+    this.publish({ sidebar: next });
+    try { const r = await this.call('PUT', SIDEBAR_PATH, next); if (r.status !== 200) throw Error(); }
+    catch { if (this.live()) this.publish({ sidebar: before, notice: 'The sidebar change was not saved.' }); }
+  }
 
   /** CHAT-BUILD-01 stage 2: archive (or bring back) a chat; it stays searchable. Returns false when it did not change. */
   async archive(id: string, archived: boolean): Promise<boolean> {

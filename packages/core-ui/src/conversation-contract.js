@@ -38,11 +38,18 @@ export const TRANSCRIBE_PATH = '/api/chat/transcribe';
 export const MAX_AUDIO_CHARS = Math.ceil((6 * 1024 * 1024) / 3) * 4;
 export const STT_LANGUAGES = ['auto', 'ar', 'en', 'de'];
 
+/** CHAT-BUILD-01 stage 2 (CH9): the chat sidebar's sections, order and folded projects, per person. */
+export const SIDEBAR_PATH = '/api/chat/sidebar';
+const SIDEBAR_SECTIONS = ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'];
+const sectionList = x => Array.isArray(x) && x.length <= SIDEBAR_SECTIONS.length && x.every(s => SIDEBAR_SECTIONS.includes(s)) && new Set(x).size === x.length;
+const folderList = x => Array.isArray(x) && x.length <= 200 && x.every(f => typeof f === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(f));
+
 export function conversationPath(path) {
   if (approvalPath(path)) return { kind: 'approval' };
   if (path === CONVERSATIONS_PATH) return { kind: 'list' };
   if (path === TRANSCRIBE_PATH) return { kind: 'transcribe' };
   if (path === '/api/chat/project-folders') return { kind: 'folder-picker' };
+  if (path === SIDEBAR_PATH) return { kind: 'sidebar' };
   if (path === PROJECTS_PATH) return { kind: 'projects' };
   let pm = /^\/api\/chat\/projects\/([^/?#]+)$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project', id: pm[1] } : null;
@@ -82,6 +89,8 @@ export function allowedConversation(method, path, body) {
   if (approvalPath(path)) return allowedApproval(method, path, body);
   const p = conversationPath(path);
   if (!p) return false;
+  if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
+    && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
   if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe'].includes(p.kind);
   if (method === 'POST' && p.kind === 'transcribe') return record(body) && onlyKeys(body, ['audio', 'language']) && typeof body.audio === 'string' && body.audio.length > 0 && body.audio.length <= MAX_AUDIO_CHARS && /^[A-Za-z0-9+/]+={0,2}$/.test(body.audio)
     && (body.language === undefined || STT_LANGUAGES.includes(body.language));
@@ -203,6 +212,10 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'runs') {
     if (!validRunId(body.runId)) throw Error('protocol');
     return { runId: body.runId, ...(body.replayed === true ? { replayed: true } : {}), ...(record(body.userMessage) ? { userMessage: message(body.userMessage) } : {}) };
+  }
+  if (p.kind === 'sidebar') {
+    const v = record(body.sidebar) ? body.sidebar : {};
+    return { sidebar: { order: sectionList(v.order) ? v.order : SIDEBAR_SECTIONS, hidden: sectionList(v.hidden) ? v.hidden : ['archived'], folded: folderList(v.folded) ? v.folded : [] } };
   }
   if (p.kind === 'stop') return { ok: body.ok === true, status: ['stopping', 'complete', 'stopped', 'error'].includes(body.status) ? body.status : 'stopping' };
   throw Error('protocol');

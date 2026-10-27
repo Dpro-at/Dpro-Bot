@@ -124,6 +124,8 @@ form > label { display:block; margin-block-end:8px; }
 .dev-quick-login { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: 1px dashed var(--border); padding: 8px; margin: 0; }
 .dev-quick-login legend { font-size: 11px; color: var(--muted); padding-inline: 4px; }
 .auth-boundary > .shell { min-height: 0; height: 100%; }
+/* CHAT-BUILD-01 (CH11): with no banner above it, the signed-out window fills the whole height. */
+.auth-boundary > .shell:only-child { grid-row:1 / -1; }
 .auth-workspace input[type="checkbox"] { inline-size: auto; justify-self: start; }
 
 .chat-destination { min-inline-size: 0; }

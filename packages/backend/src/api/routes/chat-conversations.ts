@@ -43,6 +43,7 @@ import { openSseStream } from '../../services/chat-sse.js';
 import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
+import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
@@ -252,6 +253,30 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   return send(202, { runId: b.runId, userMessage, secretsSaved: vaulted.saved.length });
 }
 
+export const SIDEBAR_SECTIONS = ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'] as const;
+type SidebarSection = typeof SIDEBAR_SECTIONS[number];
+export interface SidebarPrefs { order: SidebarSection[]; hidden: SidebarSection[]; folded: string[] }
+const isSection = (x: unknown): x is SidebarSection => typeof x === 'string' && (SIDEBAR_SECTIONS as readonly string[]).includes(x);
+const FOLDER_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+/** Any saved value made whole: unknown sections dropped, a missing section added at the end; Archived hidden by default. */
+export function sidebarPrefs(x: unknown): SidebarPrefs {
+  const v = x && typeof x === 'object' && !Array.isArray(x) ? x as Record<string, unknown> : {};
+  const listed = Array.isArray(v.order) ? [...new Set(v.order.filter(isSection))] : [];
+  return {
+    order: [...listed, ...SIDEBAR_SECTIONS.filter((id) => !listed.includes(id))],
+    hidden: Array.isArray(v.hidden) ? [...new Set(v.hidden.filter(isSection))] : ['archived'],
+    folded: Array.isArray(v.folded) ? [...new Set(v.folded.filter((f): f is string => typeof f === 'string' && FOLDER_ID.test(f)))].slice(0, 200) : [],
+  };
+}
+function sidebarChangeOk(x: unknown): boolean {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
+  const v = x as Record<string, unknown>, keys = Object.keys(v);
+  if (!keys.length || keys.some((k) => !['order', 'hidden', 'folded'].includes(k))) return false;
+  const sections = (l: unknown) => Array.isArray(l) && l.length <= SIDEBAR_SECTIONS.length && l.every(isSection) && new Set(l).size === l.length;
+  return (!('order' in v) || sections(v.order)) && (!('hidden' in v) || sections(v.hidden))
+    && (!('folded' in v) || (Array.isArray(v.folded) && v.folded.length <= 200 && v.folded.every((f) => typeof f === 'string' && FOLDER_ID.test(f))));
+}
+
 /** Status for the sidebar: `running` (a turn is answering) and `waiting` (approvals waiting for the owner). */
 export async function withStatus(userId: string, list: Conversation[]): Promise<Array<Conversation & { running?: true; waiting?: number }>> {
   const waiting = new Map((await q.all<{ session_id: string; n: number }>("SELECT session_id, COUNT(*) AS n FROM tool_approvals WHERE user_id = ? AND status = 'pending' AND session_id IS NOT NULL GROUP BY session_id", userId).catch(() => []))
@@ -300,6 +325,15 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
   });
   const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'Not found', code: 'not_found' });
   const bad = (reply: FastifyReply, error: string) => reply.code(400).send({ error, code: 'invalid_request' });
+
+  // CHAT-BUILD-01 stage 2 (CH9): which sidebar sections show and their order, per person. Agents never change it.
+  fastify.get('/api/chat/sidebar', async (request) => ({ sidebar: sidebarPrefs(await getPref(caller(request), 'chat-sidebar')) }));
+  fastify.put('/api/chat/sidebar', async (request: Req, reply) => {
+    if (!sidebarChangeOk(request.body)) return bad(reply, 'order, hidden and folded must be lists of known sections or folder ids');
+    const sidebar = sidebarPrefs({ ...sidebarPrefs(await getPref(caller(request), 'chat-sidebar')), ...(request.body as object) });
+    await setPref(caller(request), 'chat-sidebar', sidebar);
+    return { sidebar };
+  });
 
   // CHAT-BUILD-01 stage 2: each chat says whether an agent works in it now and how many approvals wait for the owner.
   fastify.get('/api/chat/conversations', async (request) => ({ conversations: await withStatus(caller(request), await listConversations(caller(request))) }));

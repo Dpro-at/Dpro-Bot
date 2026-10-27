@@ -8,7 +8,7 @@ import { SearchResults } from './ChatSearch';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, Notice, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
-import { CHAT_SECTIONS, DEFAULT_PREFS, moveSection, readPrefs, savePrefs, shortTime } from './chat-sidebar-prefs';
+import { CHAT_SECTIONS, DEFAULT_PREFS, moveSection, shortTime } from './chat-sidebar-prefs';
 import type { ChatSection, SidebarPrefs } from './chat-sidebar-prefs';
 
 /** Today / Yesterday / Previous 7 days / Older, by last activity (newest first). */
@@ -43,7 +43,6 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const found = useSyncExternalStore(search ? search.subscribe : noSearch, search ? search.getSnapshot : idleSearch, search ? search.getSnapshot : idleSearch);
   const [query, setQuery] = useState('');
-  const [prefs, setPrefsState] = useState<SidebarPrefs>(() => (typeof window === 'undefined' ? DEFAULT_PREFS : readPrefs()));
   const [editing, setEditing] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -51,7 +50,9 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   const [toast, setToast] = useState<{ id: number; text: string; undo: boolean; chat: string } | null>(null);
   const searchBox = useRef<HTMLInputElement>(null);
   const menu = useMenu();
-  const setPrefs = (p: SidebarPrefs) => { setPrefsState(p); savePrefs(p); };
+  const prefs = s.sidebar;
+  const setPrefs = (p: SidebarPrefs) => void controller.saveSidebar(p);
+  useEffect(() => { if (s.access !== 'denied') void controller.loadSidebar(); }, [controller, s.access]);
   const q = query.trim().toLowerCase();
   // CHAT-PRO-02 D: 2+ characters search inside the chats (titles, your messages, agent replies) on the server.
   const searching = !!search && validQuery(query.trim());

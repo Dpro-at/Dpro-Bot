@@ -1,5 +1,5 @@
 // CHAT-BUILD-01 stage 2 (CH9): which sections the chat sidebar shows and in what order.
-// Per person, remembered on this computer; Reset restores Girru's order. Agents never change it.
+// Per person (saved by the backend); Reset restores Girru's order. Agents never change it.
 import type { UiIconName } from './ui-icons';
 
 export type ChatSection = 'scheduled' | 'running' | 'pinned' | 'projects' | 'other' | 'archived';
@@ -13,26 +13,21 @@ export const CHAT_SECTIONS: readonly { id: ChatSection; name: string; note: stri
 ];
 export type SidebarPrefs = { order: ChatSection[]; hidden: ChatSection[]; folded: string[] };
 export const DEFAULT_PREFS: SidebarPrefs = { order: CHAT_SECTIONS.map(s => s.id), hidden: ['archived'], folded: [] };
-const KEY = 'girru.chat-sidebar.v1';
 const ids = new Set<string>(CHAT_SECTIONS.map(s => s.id));
 
-/** Saved choices, cleaned: unknown ids dropped, missing sections added at the end. */
-export function readPrefs(raw?: string | null): SidebarPrefs {
-  let text = raw;
-  if (text === undefined) { try { text = localStorage.getItem(KEY); } catch { text = null; } }
-  try {
-    const v = JSON.parse(text ?? 'null');
-    if (!v || typeof v !== 'object') return DEFAULT_PREFS;
-    const isSection = (x: unknown): x is ChatSection => typeof x === 'string' && ids.has(x);
-    const order: ChatSection[] = (Array.isArray(v.order) ? v.order as unknown[] : []).filter(isSection);
-    const unique: ChatSection[] = [...new Set(order)];
-    for (const s of DEFAULT_PREFS.order) if (!unique.includes(s)) unique.push(s);
-    const hidden: ChatSection[] = (Array.isArray(v.hidden) ? v.hidden as unknown[] : []).filter(isSection);
-    const folded: string[] = (Array.isArray(v.folded) ? v.folded as unknown[] : []).filter((x): x is string => typeof x === 'string' && x.length <= 80).slice(0, 200);
-    return { order: unique, hidden: [...new Set(hidden)], folded: [...new Set(folded)] };
-  } catch { return DEFAULT_PREFS; }
+/** A saved value made whole: unknown ids dropped, missing sections added at the end. */
+export function readPrefs(raw: unknown): SidebarPrefs {
+  let v: unknown = raw;
+  if (typeof raw === 'string') { try { v = JSON.parse(raw); } catch { return DEFAULT_PREFS; } }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return DEFAULT_PREFS;
+  const o = v as Record<string, unknown>;
+  const isSection = (x: unknown): x is ChatSection => typeof x === 'string' && ids.has(x);
+  const unique: ChatSection[] = [...new Set((Array.isArray(o.order) ? o.order as unknown[] : []).filter(isSection))];
+  for (const s of DEFAULT_PREFS.order) if (!unique.includes(s)) unique.push(s);
+  const hidden: ChatSection[] = Array.isArray(o.hidden) ? [...new Set((o.hidden as unknown[]).filter(isSection))] : DEFAULT_PREFS.hidden;
+  const folded: string[] = [...new Set((Array.isArray(o.folded) ? o.folded as unknown[] : []).filter((x): x is string => typeof x === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(x)))].slice(0, 200);
+  return { order: unique, hidden, folded };
 }
-export function savePrefs(p: SidebarPrefs) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* the choice still applies until the window closes */ } }
 
 /** Moves one section up (-1) or down (+1) in the order. */
 export function moveSection(order: readonly ChatSection[], id: ChatSection, by: -1 | 1): ChatSection[] {
