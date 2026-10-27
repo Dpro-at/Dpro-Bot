@@ -4,7 +4,10 @@
  * Tests all 6 new tools in realistic scenarios
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import {describe, it as nodeIt, before as beforeAll, after as afterAll} from 'node:test';
+import assert from 'node:assert/strict';
+const it=(name:string,fn:()=>Promise<void>|void,timeout=30000)=>nodeIt(name,{timeout},fn);
+import {exampleData} from '../example-data.js';
 import { createToolsRegistry } from '../index.js';
 import type { ToolExecutionContext } from '../types.js';
 
@@ -29,13 +32,13 @@ describe('Browser and Memory Tools Integration', () => {
         extractInfo: true,
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.error).toBeUndefined();
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(result.error, undefined);
 
       if (result.data) {
-        expect(result.data.success).toBe(true);
-        expect(result.data.title).toBeDefined();
-        expect(result.data.url).toBe('https://example.com');
+        assert.strictEqual(exampleData(result).success, true);
+        assert.notStrictEqual(exampleData(result).title, undefined);
+        assert.strictEqual(exampleData(result).url, 'https://example.com');
       }
     }, 30000); // 30 second timeout
 
@@ -44,8 +47,8 @@ describe('Browser and Memory Tools Integration', () => {
         url: 'invalid-url',
       });
 
-      expect(result.error).toBeDefined();
-      expect(result.content[0].text).toContain('http://');
+      assert.notStrictEqual(result.error, undefined);
+      assert.ok((result.content[0].text)?.includes('http://'));
     });
 
     it('should take screenshot when requested', async () => {
@@ -54,8 +57,8 @@ describe('Browser and Memory Tools Integration', () => {
         screenshot: true,
       });
 
-      expect(result.data?.screenshot).toBeDefined();
-      expect(result.data?.screenshot).toMatch(/\.png$/);
+      assert.notStrictEqual(exampleData(result)?.screenshot, undefined);
+      assert.match(exampleData(result)?.screenshot as string, /\.png$/);
     }, 30000);
   });
 
@@ -65,10 +68,10 @@ describe('Browser and Memory Tools Integration', () => {
         url: 'https://example.com',
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.error).toBeUndefined();
-      expect(result.data?.path).toBeDefined();
-      expect(result.data?.path).toMatch(/\.png$/);
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(result.error, undefined);
+      assert.notStrictEqual(exampleData(result)?.path, undefined);
+      assert.match(exampleData(result)?.path as string, /\.png$/);
     }, 30000);
 
     it('should capture full page screenshot', async () => {
@@ -77,8 +80,8 @@ describe('Browser and Memory Tools Integration', () => {
         fullPage: true,
       });
 
-      expect(result.data?.fullPage).toBe(true);
-      expect(result.data?.path).toBeDefined();
+      assert.strictEqual(exampleData(result)?.fullPage, true);
+      assert.notStrictEqual(exampleData(result)?.path, undefined);
     }, 30000);
 
     it('should support custom viewport sizes', async () => {
@@ -88,7 +91,7 @@ describe('Browser and Memory Tools Integration', () => {
         height: 600,
       });
 
-      expect(result.data?.viewport).toEqual({ width: 800, height: 600 });
+      assert.deepStrictEqual(exampleData(result)?.viewport, { width: 800, height: 600 });
     }, 30000);
   });
 
@@ -99,11 +102,11 @@ describe('Browser and Memory Tools Integration', () => {
         extract: 'links',
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.error).toBeUndefined();
-      expect(result.data?.links).toBeDefined();
-      expect(Array.isArray(result.data?.links)).toBe(true);
-      expect(result.data?.linkCount).toBeGreaterThan(0);
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(result.error, undefined);
+      assert.notStrictEqual(exampleData(result)?.links, undefined);
+      assert.strictEqual(Array.isArray(exampleData(result)?.links), true);
+      assert.ok((exampleData(result)?.linkCount ?? NaN) > 0);
     }, 30000);
 
     it('should extract page metadata', async () => {
@@ -112,8 +115,8 @@ describe('Browser and Memory Tools Integration', () => {
         extract: 'metadata',
       });
 
-      expect(result.data?.metadata).toBeDefined();
-      expect(result.data?.metadata.title).toBeDefined();
+      assert.notStrictEqual(exampleData(result)?.metadata, undefined);
+      assert.notStrictEqual(exampleData(result)?.metadata?.title, undefined);
     }, 30000);
 
     it('should extract text from selector', async () => {
@@ -123,8 +126,8 @@ describe('Browser and Memory Tools Integration', () => {
         selector: 'h1',
       });
 
-      expect(result.data?.text).toBeDefined();
-      expect(typeof result.data?.text === 'string').toBe(true);
+      assert.notStrictEqual(exampleData(result)?.text, undefined);
+      assert.strictEqual(typeof exampleData(result)?.text === 'string', true);
     }, 30000);
 
     it('should require selector for text extraction', async () => {
@@ -133,8 +136,8 @@ describe('Browser and Memory Tools Integration', () => {
         extract: 'text',
       });
 
-      expect(result.error).toBeDefined();
-      expect(result.content[0].text).toContain('selector');
+      assert.notStrictEqual(result.error, undefined);
+      assert.ok((result.content[0].text)?.includes('selector'));
     });
 
     it('should extract all data types with "all" mode', async () => {
@@ -143,10 +146,10 @@ describe('Browser and Memory Tools Integration', () => {
         extract: 'all',
       });
 
-      expect(result.data?.links).toBeDefined();
-      expect(result.data?.images).toBeDefined();
-      expect(result.data?.metadata).toBeDefined();
-      expect(result.data?.linkCount).toBeGreaterThan(0);
+      assert.notStrictEqual(exampleData(result)?.links, undefined);
+      assert.notStrictEqual(exampleData(result)?.images, undefined);
+      assert.notStrictEqual(exampleData(result)?.metadata, undefined);
+      assert.ok((exampleData(result)?.linkCount ?? NaN) > 0);
     }, 30000);
   });
 
@@ -162,8 +165,8 @@ describe('Browser and Memory Tools Integration', () => {
         ],
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.data?.actionsPerformed).toBe(1);
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(exampleData(result)?.actionsPerformed, 1);
     }, 30000);
 
     it('should perform wait action', async () => {
@@ -182,8 +185,8 @@ describe('Browser and Memory Tools Integration', () => {
       const endTime = Date.now();
       const elapsed = endTime - startTime;
 
-      expect(elapsed).toBeGreaterThanOrEqual(2000);
-      expect(result.data?.actionsPerformed).toBe(1);
+      assert.ok((elapsed ?? NaN) >= 2000);
+      assert.strictEqual(exampleData(result)?.actionsPerformed, 1);
     }, 35000);
 
     it('should support session reuse with keepAlive', async () => {
@@ -199,8 +202,8 @@ describe('Browser and Memory Tools Integration', () => {
         keepAlive: true,
       });
 
-      expect(result1.data?.sessionId).toBeDefined();
-      const sessionId = result1.data?.sessionId;
+      assert.notStrictEqual(exampleData(result1)?.sessionId, undefined);
+      const sessionId = exampleData(result1)?.sessionId;
 
       // Step 2: Reuse session
       const result2 = await registry.execute('browser_interact', {
@@ -213,8 +216,8 @@ describe('Browser and Memory Tools Integration', () => {
         ],
       });
 
-      expect(result2.content).toBeDefined();
-      expect(result2.data?.actionsPerformed).toBe(1);
+      assert.notStrictEqual(result2.content, undefined);
+      assert.strictEqual(exampleData(result2)?.actionsPerformed, 1);
     }, 40000);
 
     it('should handle invalid session ID gracefully', async () => {
@@ -228,8 +231,8 @@ describe('Browser and Memory Tools Integration', () => {
         ],
       });
 
-      expect(result.error).toBeDefined();
-      expect(result.content[0].text).toContain('not found');
+      assert.notStrictEqual(result.error, undefined);
+      assert.ok((result.content[0].text)?.includes('not found'));
     });
 
     it('should take screenshot after actions', async () => {
@@ -244,7 +247,7 @@ describe('Browser and Memory Tools Integration', () => {
         screenshot: true,
       });
 
-      expect(result.data?.screenshot).toBeDefined();
+      assert.notStrictEqual(exampleData(result)?.screenshot, undefined);
     }, 30000);
   });
 
@@ -258,11 +261,11 @@ describe('Browser and Memory Tools Integration', () => {
         tags: ['name', 'identity'],
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.error).toBeUndefined();
-      expect(result.data?.success).toBe(true);
-      expect(result.data?.memoryId).toBeDefined();
-      expect(result.data?.importance).toBe(10);
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(result.error, undefined);
+      assert.strictEqual(exampleData(result)?.success, true);
+      assert.notStrictEqual(exampleData(result)?.memoryId, undefined);
+      assert.strictEqual(exampleData(result)?.importance, 10);
     });
 
     it('should save a preference to memory', async () => {
@@ -274,8 +277,8 @@ describe('Browser and Memory Tools Integration', () => {
         tags: ['language', 'localization'],
       });
 
-      expect(result.data?.type).toBe('preference');
-      expect(result.data?.layer).toBe('permanent'); // importance 8 → permanent
+      assert.strictEqual(exampleData(result)?.type, 'preference');
+      assert.strictEqual(exampleData(result)?.layer, 'permanent'); // importance 8 → permanent
     });
 
     it('should save conversation context with lower importance', async () => {
@@ -287,8 +290,8 @@ describe('Browser and Memory Tools Integration', () => {
         tags: ['project', 'react'],
       });
 
-      expect(result.data?.type).toBe('conversation');
-      expect(result.data?.importance).toBe(5);
+      assert.strictEqual(exampleData(result)?.type, 'conversation');
+      assert.strictEqual(exampleData(result)?.importance, 5);
     });
 
     it('should clamp importance to 1-10 range', async () => {
@@ -304,8 +307,8 @@ describe('Browser and Memory Tools Integration', () => {
         importance: -5,
       });
 
-      expect(result1.data?.importance).toBeLessThanOrEqual(10);
-      expect(result2.data?.importance).toBeGreaterThanOrEqual(1);
+      assert.ok((exampleData(result1)?.importance ?? NaN) <= 10);
+      assert.ok((exampleData(result2)?.importance ?? NaN) >= 1);
     });
 
     it('should use default values when optional params omitted', async () => {
@@ -314,9 +317,9 @@ describe('Browser and Memory Tools Integration', () => {
         userId: testUserId,
       });
 
-      expect(result.data?.type).toBe('conversation'); // default
-      expect(result.data?.importance).toBeGreaterThanOrEqual(1);
-      expect(result.data?.importance).toBeLessThanOrEqual(10);
+      assert.strictEqual(exampleData(result)?.type, 'conversation'); // default
+      assert.ok((exampleData(result)?.importance ?? NaN) >= 1);
+      assert.ok((exampleData(result)?.importance ?? NaN) <= 10);
     });
   });
 
@@ -354,10 +357,10 @@ describe('Browser and Memory Tools Integration', () => {
         userId: testUserId,
       });
 
-      expect(result.content).toBeDefined();
-      expect(result.error).toBeUndefined();
-      expect(result.data?.count).toBeGreaterThan(0);
-      expect(result.data?.memories).toBeDefined();
+      assert.notStrictEqual(result.content, undefined);
+      assert.strictEqual(result.error, undefined);
+      assert.ok((exampleData(result)?.count ?? NaN) > 0);
+      assert.notStrictEqual(exampleData(result)?.memories, undefined);
     });
 
     it('should filter by memory type', async () => {
@@ -367,9 +370,9 @@ describe('Browser and Memory Tools Integration', () => {
         type: 'fact',
       });
 
-      if (result.data?.memories && result.data.memories.length > 0) {
-        result.data.memories.forEach((memory: any) => {
-          expect(memory.type).toBe('fact');
+      if (exampleData(result)?.memories && (exampleData(result).memories?.length ?? 0) > 0) {
+        exampleData(result).memories?.forEach((memory: any) => {
+          assert.strictEqual(memory.type, 'fact');
         });
       }
     });
@@ -381,9 +384,9 @@ describe('Browser and Memory Tools Integration', () => {
         minImportance: 8,
       });
 
-      if (result.data?.memories && result.data.memories.length > 0) {
-        result.data.memories.forEach((memory: any) => {
-          expect(memory.importance).toBeGreaterThanOrEqual(8);
+      if (exampleData(result)?.memories && (exampleData(result).memories?.length ?? 0) > 0) {
+        exampleData(result).memories?.forEach((memory: any) => {
+          assert.ok((memory.importance ?? NaN) >= 8);
         });
       }
     });
@@ -395,7 +398,7 @@ describe('Browser and Memory Tools Integration', () => {
         limit: 2,
       });
 
-      expect(result.data?.memories?.length).toBeLessThanOrEqual(2);
+      assert.ok((exampleData(result)?.memories?.length ?? NaN) <= 2);
     });
 
     it('should return empty results for non-matching query', async () => {
@@ -404,8 +407,8 @@ describe('Browser and Memory Tools Integration', () => {
         userId: testUserId,
       });
 
-      expect(result.data?.count).toBe(0);
-      expect(result.data?.memories).toEqual([]);
+      assert.strictEqual(exampleData(result)?.count, 0);
+      assert.deepStrictEqual(exampleData(result)?.memories, []);
     });
 
     it('should filter by tags', async () => {
@@ -415,9 +418,9 @@ describe('Browser and Memory Tools Integration', () => {
         tags: ['location'],
       });
 
-      if (result.data?.memories && result.data.memories.length > 0) {
-        result.data.memories.forEach((memory: any) => {
-          expect(memory.tags).toContain('location');
+      if (exampleData(result)?.memories && (exampleData(result).memories?.length ?? 0) > 0) {
+        exampleData(result).memories?.forEach((memory: any) => {
+          assert.ok((memory.tags)?.includes('location'));
         });
       }
     });
@@ -430,31 +433,31 @@ describe('Browser and Memory Tools Integration', () => {
         url: 'https://example.com',
         extractInfo: true,
       });
-      expect(nav.data?.success).toBe(true);
+      assert.strictEqual(exampleData(nav)?.success, true);
 
       // Step 2: Extract metadata
       const extract = await registry.execute('browser_extract', {
         url: 'https://example.com',
         extract: 'metadata',
       });
-      expect(extract.data?.metadata).toBeDefined();
+      assert.notStrictEqual(exampleData(extract)?.metadata, undefined);
 
       // Step 3: Save to memory
       const save = await registry.execute('memory_save', {
-        content: `Example.com is a domain used in documentation. Title: ${extract.data?.metadata?.title}`,
+        content: `Example.com is a domain used in documentation. Title: ${exampleData(extract)?.metadata?.title}`,
         userId: testUserId,
         type: 'fact',
         importance: 5,
         tags: ['web', 'documentation'],
       });
-      expect(save.data?.success).toBe(true);
+      assert.strictEqual(exampleData(save)?.success, true);
 
       // Step 4: Search and verify
       const search = await registry.execute('memory_search', {
         query: 'example.com documentation',
         userId: testUserId,
       });
-      expect(search.data?.count).toBeGreaterThan(0);
+      assert.ok((exampleData(search)?.count ?? NaN) > 0);
     }, 60000);
 
     it('should complete screenshot and save workflow', async () => {
@@ -463,17 +466,17 @@ describe('Browser and Memory Tools Integration', () => {
         url: 'https://example.com',
         fullPage: true,
       });
-      expect(screenshot.data?.path).toBeDefined();
+      assert.notStrictEqual(exampleData(screenshot)?.path, undefined);
 
       // Step 2: Save screenshot path to memory
       const save = await registry.execute('memory_save', {
-        content: `Screenshot of example.com saved at: ${screenshot.data?.path}`,
+        content: `Screenshot of example.com saved at: ${exampleData(screenshot)?.path}`,
         userId: testUserId,
         type: 'conversation',
         importance: 4,
         tags: ['screenshot', 'example.com'],
       });
-      expect(save.data?.success).toBe(true);
+      assert.strictEqual(exampleData(save)?.success, true);
     }, 40000);
   });
 

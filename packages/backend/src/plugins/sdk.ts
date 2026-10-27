@@ -216,7 +216,7 @@ export function createExtensionApi(
 
         logSecurityEvent({
           event_type: 'extension.permission.denied',
-          severity: 'high',
+          severity: 'error',
           user_id: null,
           ip_address: null,
           user_agent: null,
@@ -225,7 +225,7 @@ export function createExtensionApi(
           action: 'database_access',
           status: 'blocked',
           metadata: { missing_permissions: result.missing },
-        }).catch(console.error);
+        });
 
         throw new Error(error);
       }
@@ -249,7 +249,7 @@ export function createExtensionApi(
 
         logSecurityEvent({
           event_type: 'extension.permission.denied',
-          severity: 'medium',
+          severity: 'warning',
           user_id: null,
           ip_address: null,
           user_agent: null,
@@ -258,7 +258,7 @@ export function createExtensionApi(
           action: 'register_tool',
           status: 'blocked',
           metadata: { tool_name: tool.name, missing_permissions: result.missing },
-        }).catch(console.error);
+        });
 
         throw new Error(error);
       }
@@ -420,7 +420,7 @@ export function createExtensionApi(
 
         logSecurityEvent({
           event_type: 'extension.permission.denied',
-          severity: 'medium',
+          severity: 'warning',
           user_id: null,
           ip_address: null,
           user_agent: null,
@@ -429,7 +429,7 @@ export function createExtensionApi(
           action: 'register_cron',
           status: 'blocked',
           metadata: { job_id: jobId, schedule, missing_permissions: result.missing },
-        }).catch(console.error);
+        });
 
         throw new Error(error);
       }
@@ -450,7 +450,7 @@ export function createExtensionApi(
         action: 'register_cron',
         status: 'success',
         metadata: { job_id: jobId, schedule },
-      }).catch(console.error);
+      });
     },
 
     unregisterCronJob(jobId) {

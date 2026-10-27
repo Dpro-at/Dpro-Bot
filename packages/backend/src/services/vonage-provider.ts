@@ -1,4 +1,4 @@
-import { Vonage } from '@vonage/server-sdk';
+import { createRequire } from 'node:module';
 import type {
   TelephonyProvider,
   AvailableNumber,
@@ -45,6 +45,10 @@ export class VonageProvider implements TelephonyProvider {
    */
   private initializeClient() {
     try {
+      // Optional integration: resolve the SDK only when a configured provider is constructed.
+      const { Vonage } = createRequire(import.meta.url)('@vonage/server-sdk') as {
+        Vonage: new (credentials: {apiKey: string; apiSecret: string; applicationId: string; privateKey: string}) => unknown;
+      };
       this.client = new Vonage({
         apiKey: this.apiKey,
         apiSecret: this.apiSecret,

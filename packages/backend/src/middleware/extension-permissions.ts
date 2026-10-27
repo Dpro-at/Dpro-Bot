@@ -128,7 +128,7 @@ export function requirePermissions(required: PermissionType[]) {
       // Log security event
       await logSecurityEvent({
         event_type: 'extension.permission.denied',
-        severity: 'medium',
+        severity: 'warning',
         user_id: null, // Extension operations may not have user context
         ip_address: request.ip,
         user_agent: request.headers['user-agent'] || null,

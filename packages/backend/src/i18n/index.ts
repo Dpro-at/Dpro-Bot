@@ -9,7 +9,7 @@
  * 2. Add the locale to the resources object below
  */
 
-import i18next from 'i18next';
+import i18next, {type i18n} from 'i18next';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -30,7 +30,7 @@ function loadLocaleFile(locale: string, namespace: string): Record<string, strin
 }
 
 // Create backend i18next instance
-const backendI18n = i18next.createInstance();
+const backendI18n: i18n = i18next.createInstance();
 
 backendI18n.init({
   lng: 'en',
