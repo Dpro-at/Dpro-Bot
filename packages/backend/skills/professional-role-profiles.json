@@ -1696,6 +1696,379 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Analytics engineer",
+      "package": "analytics-modeling",
+      "references": [
+        "references/grain-and-joins.md",
+        "references/incremental-history.md",
+        "references/metrics-consumers.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Business intelligence specialist",
+      "package": "data-analysis",
+      "references": [
+        "references/business-intelligence.md",
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data analyst",
+      "package": "data-analysis",
+      "references": [
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data engineer",
+      "package": "data-pipelines",
+      "references": [
+        "references/contracts.md",
+        "references/replay-recovery.md",
+        "references/operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data governance specialist",
+      "package": "data-governance",
+      "references": [
+        "references/ownership-catalogue.md",
+        "references/access-lifecycle.md",
+        "references/quality-lineage.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data integration specialist",
+      "package": "data-pipelines",
+      "references": [
+        "references/contracts.md",
+        "references/integration-behavior.md",
+        "references/replay-recovery.md",
+        "references/operations.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Data quality specialist",
+      "package": "data-quality",
+      "references": [
+        "references/check-design.md",
+        "references/investigation.md",
+        "references/remediation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded data access and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized scoped data or pipeline mutation when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
