@@ -228,6 +228,12 @@ test('stage 3: in "Ask me" a tool that changes something asks first; reading doe
   assert.equal(changesSomething({ name: 'memory_save' }), false);
   assert.equal(changesSomething({ name: 'x_send_note' }), true);
   assert.equal(changesSomething({ name: 'file_write' }), true);
+  assert.equal(changesSomething({ name: 'git_commit', extensionId: 'x' }), true, 'an extension tool changes something unless it only reads');
+  assert.equal(changesSomething({ name: 'x_list_items', extensionId: 'x' }), false);
+  assert.equal(changesSomething({ name: 'board_comment' }), true);
+  const made = (await call('b-owner', 'POST', '/api/chat/conversations', { mode: 'plan', thinking: 'quick' })).json().conversation;
+  assert.deepEqual([made.mode, made.thinking], ['plan', 'quick'], 'a new chat is created with its Mode, never run in auto first');
+  assert.equal((await call('b-owner', 'POST', '/api/chat/conversations', { mode: 'yolo' })).statusCode, 400);
   const c = await newConversation();
   tools.registerExtensionTool({ name: 'x_rename_file', description: 'renames a file', extensionId: 'x', requiresApproval: false, input_schema: { type: 'object' }, execute: async () => ({ content: [{ type: 'text', text: 'renamed' }] }) });
   await grants.setAgentGrants('b-agent', { grants: ['x_send_note', 'x_rename_file'] }, 'b-owner', tools.createToolsRegistry({ workspaceDir: dir }).listRegistered());
@@ -248,6 +254,7 @@ test('stage 3: projects keep added folders; variables are encrypted, listed by n
   assert.ok(!JSON.stringify(db.prepare('SELECT * FROM credentials').all()).includes('token-value'), 'stored encrypted');
   assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/PATH`, { value: '/tmp' })).statusCode, 400);
   assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/lower`, { value: 'x' })).statusCode, 400);
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/projects/${p.id}/variables/ZDOTDIR`, { value: '/tmp' })).statusCode, 400, 'shell start-up names are refused');
   const env = await (await import(join(backendDir, 'src/services/project-variables.ts'))).variablesEnv('b-owner', p.id);
   assert.deepEqual(env, { API_URL: 'https://api.example.test/token-value' });
   assert.equal((await call('b-other', 'GET', `/api/chat/projects/${p.id}/variables`)).statusCode, 403);

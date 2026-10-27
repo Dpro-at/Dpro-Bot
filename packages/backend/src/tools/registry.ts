@@ -33,10 +33,14 @@ const selfOnlyOffered = (tool: Tool, context: ToolExecutionContext) => HANDOFF_T
 
 /** Tools that only read, or keep text in Girru's own owner-reviewed stores, never ask because of the chat mode. */
 const MODE_FREE = new Set(['read', 'search', 'list', 'plan_steps', 'board_suggest_card', 'memory_save', 'memory_search', 'memory_recall', 'team_list', 'team_results', 'web_fetch', 'web_search']);
-const isFileEdit = (name: string) => name === 'write' || name === 'edit' || /_(write|edit)_?file$|^(write|edit)_file$/.test(name);
+/** Girru's own file tools (in the agent's workspace). An extension or MCP tool never counts as one. */
+const isFileEdit = (tool: { name: string; extensionId?: string; mcp?: unknown }) => !tool.extensionId && !tool.mcp && (tool.name === 'write' || tool.name === 'edit');
 /** CHAT-BUILD-01 stage 3: does this tool change something (files, messages, settings, money, programs)? */
-export function changesSomething(tool: Pick<Tool, 'name'> & { mcp?: unknown; execClass?: boolean }): boolean {
+export function changesSomething(tool: Pick<Tool, 'name'> & { mcp?: unknown; execClass?: boolean; extensionId?: string }): boolean {
   if (MODE_FREE.has(tool.name)) return false;
+  // An extension's tool changes something unless its name says it only reads.
+  if (tool.extensionId) return !/^([a-z0-9]+_)*(get|list|read|search|fetch|find|show|view|status|info|lookup|check)(_|$)/.test(tool.name);
+  if (/^(board|memory)_(comment|check|checklist|trash|restore|reflect|edit|delete|forget|move)/.test(tool.name)) return true;
   if (isToolExecClass(tool as Tool) || approvalCategory(tool as Tool) || (permissionCategory(tool) && permissionCategory(tool) !== 'network' && permissionCategory(tool) !== 'browser')) return true;
   return /(^|_)(write|edit|create|update|delete|remove|send|save|set|move|install|run|start|stop|apply|publish|post|upload|rename|archive)($|_)/.test(tool.name) || !!tool.mcp || tool.name.startsWith('mcp__') || /^browser_/.test(tool.name) && !/^browser_(read|snapshot|screenshot|get)/.test(tool.name);
 }
@@ -186,8 +190,9 @@ export class ToolsRegistry {
     if (currentChatRun()?.reviewTools) category = category ?? 'other';
     // CHAT-BUILD-01 stage 3: in "Ask me" and "Plan first" every tool that changes something asks first.
     const chatMode = currentChatRun()?.chatMode;
-    // "Accept edits": file edits follow the agent's own rules; anything else that changes something asks.
-    if ((chatMode === 'ask' || chatMode === 'plan' || (chatMode === 'accept_edits' && !isFileEdit(toolName))) && changesSomething(tool)) category = category ?? modeCategory ?? 'other';
+    // "Accept edits": Girru's own file edits run as the agent's rules say; anything else that changes something asks.
+    // (For coding-app replies the owner's Accept edits also lets the app edit files in the chat's folders.)
+    if ((chatMode === 'ask' || chatMode === 'plan' || (chatMode === 'accept_edits' && !isFileEdit(tool))) && changesSomething(tool)) category = category ?? modeCategory ?? 'other';
     if (category && (reviewerRequired || !isConfinedChannelReply(policy, toolName)) && !consumeApprovalTicket(options.approvalTicket, toolName)) {
       try {
         return await requestApproval(tool, params, this.context, category);

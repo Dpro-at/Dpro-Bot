@@ -373,7 +373,10 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.title !== undefined && (typeof b.title !== 'string' || b.title.length > TITLE_CHARS)) return bad(reply, 'title must be text of at most 120 characters');
     if (b.agentId !== undefined && b.agentId !== null && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
     if (b.projectId !== undefined && b.projectId !== null && (typeof b.projectId !== 'string' || !(await findProject(caller(request), b.projectId)))) return bad(reply, 'unknown project');
-    return reply.code(201).send({ conversation: await createConversation(caller(request), { title: cleanTitle(b.title), agentId: b.agentId, projectId: b.projectId, model: b.model }) });
+    // CHAT-BUILD-01 stage 3: Mode and Thinking chosen before the first message are saved with the new chat itself.
+    if (b.mode !== undefined && !(CHAT_MODES as readonly unknown[]).includes(b.mode)) return bad(reply, 'mode must be auto, ask, accept_edits or plan');
+    if (b.thinking !== undefined && !(CHAT_THINKING as readonly unknown[]).includes(b.thinking)) return bad(reply, 'thinking must be quick, normal or deep');
+    return reply.code(201).send({ conversation: await createConversation(caller(request), { title: cleanTitle(b.title), agentId: b.agentId, projectId: b.projectId, model: b.model, mode: b.mode, thinking: b.thinking }) });
   });
 
   fastify.put('/api/chat/conversations/:id', async (request: Req, reply) => {

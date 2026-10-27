@@ -211,6 +211,7 @@ export class ConversationsController {
       const r = await this.call('POST', '/api/chat/projects', body);
       if ((r.status === 201 || r.status === 200) && record(r.body) && record(r.body.project)) {
         const p = r.body.project as Project;
+        this.lastCreatedProject = p.id;
         this.publish({ projects: [...this.#state.projects, p].sort((a, b) => a.name.localeCompare(b.name)), projectFilter: p.id });
         this.newChat();
         return null;
@@ -406,14 +407,11 @@ export class ConversationsController {
       let id = this.#state.activeId;
       const named = this.mentioned(message)?.id;
       if (!id) {
-        const c = await this.call('POST', '/api/chat/conversations', { ...(this.#state.model?{model:this.#state.model}:{}), ...((named ?? this.#state.agentId) ? { agentId: named ?? this.#state.agentId } : {}), ...(this.#state.projectFilter ? { projectId: this.#state.projectFilter } : {}) });
+        const c = await this.call('POST', '/api/chat/conversations', { ...(this.#state.model?{model:this.#state.model}:{}), ...(this.#state.mode !== 'auto' ? { mode: this.#state.mode } : {}), ...(this.#state.thinking !== 'normal' ? { thinking: this.#state.thinking } : {}), ...((named ?? this.#state.agentId) ? { agentId: named ?? this.#state.agentId } : {}), ...(this.#state.projectFilter ? { projectId: this.#state.projectFilter } : {}) });
         if (!this.live() || seq !== this.#openSeq) return;
         if ((c.status !== 201 && c.status !== 200) || !record(c.body) || !record(c.body.conversation)) throw new SessionFailure('unavailable');
         const conv = c.body.conversation as Conversation;
         id = conv.id;
-        // CHAT-BUILD-01 stage 3: the Mode and Thinking chosen before the first message belong to the new chat.
-        const settings = { ...(this.#state.mode !== 'auto' ? { mode: this.#state.mode } : {}), ...(this.#state.thinking !== 'normal' ? { thinking: this.#state.thinking } : {}) };
-        if (Object.keys(settings).length) await this.call('PUT', `/api/chat/conversations/${id}`, settings).catch(() => undefined);
         this.publish({ activeId: id, conversations: [conv, ...this.#state.conversations.filter(x => x.id !== id)] });
       }
       // CHAT-PRO-02 I: "@Name" or the reply picker chooses who writes this reply.
@@ -591,22 +589,38 @@ export class ConversationsController {
   /** CHAT-BUILD-01 stage 3 (CH3): Mode and Thinking are saved for the chat (a new chat takes them on its first message). */
   async setMode(mode: ChatMode) { await this.#setChatField('mode', mode); }
   async setThinking(thinking: ChatThinking) { await this.#setChatField('thinking', thinking); }
+  /** Saved in the same queue as the model choice: a message sent right after a change waits for it (never runs in the old mode). */
   async #setChatField(field: 'mode' | 'thinking', value: string) {
     if (!this.live()) return;
     const before = this.#state[field];
     this.publish({ [field]: value } as Partial<ConversationsState>);
     const id = this.#state.activeId;
     if (!id) return;
-    try {
-      const r = await this.call('PUT', `/api/chat/conversations/${id}`, { [field]: value });
-      if (r.status !== 200 || !record(r.body) || !record(r.body.conversation)) throw Error();
-      if (this.live()) this.replace(r.body.conversation as Conversation);
-    } catch { if (this.live() && this.#state.activeId === id) this.publish({ [field]: before, notice: field === 'mode' ? 'The mode was not saved.' : 'The thinking choice was not saved.' } as Partial<ConversationsState>); }
+    this.#pendingModelWrites++;
+    this.#modelWrites = this.#modelWrites.then(async () => {
+      if (!this.live()) return;
+      try {
+        const r = await this.call('PUT', `/api/chat/conversations/${id}`, { [field]: value });
+        if (r.status !== 200 || !record(r.body) || !record(r.body.conversation)) throw Error();
+        this.#modelSaveFailures.delete(id);
+        if (this.live()) this.replace(r.body.conversation as Conversation);
+      } catch {
+        if (!this.live()) return;
+        this.#modelSaveFailures.add(id);
+        if (this.#state.activeId === id) this.publish({ [field]: before, notice: field === 'mode' ? 'The mode was not saved. Choose it again before sending.' : 'The thinking choice was not saved. Choose it again before sending.' } as Partial<ConversationsState>);
+      }
+    }).finally(() => { this.#pendingModelWrites--; });
+    await this.#modelWrites;
   }
   /** Saves the waiting messages with the chat so a reload or a switch never loses them. */
+  #queueSaves: Promise<unknown> = Promise.resolve();
+  /** The id of the project createProject made last (the project sheet saves its variables there). */
+  lastCreatedProject: string | null = null;
   #saveQueue(id: string | null, queue: ConversationsState['queue']) {
     if (!id || !this.live()) return;
-    void this.call('PUT', `/api/chat/conversations/${id}`, { queued: queue.map(q => ({ key: q.key, text: q.text })) }).catch(() => undefined);
+    const body = { queued: queue.map(q => ({ key: q.key, text: q.text })) };
+    // One after another, so an older list never lands after a newer one.
+    this.#queueSaves = this.#queueSaves.then(() => this.call('PUT', `/api/chat/conversations/${id}`, body)).catch(() => undefined);
   }
 
   /** CHAT-BUILD-01 stage 3 (CH5): a project's variables (names only; values never come back). */

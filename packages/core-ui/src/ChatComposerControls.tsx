@@ -208,12 +208,15 @@ export function ProjectSheet({ controller, id, onClose }: { controller: Conversa
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => { if (id) void controller.variables(id).then(v => setVars(v ?? [])); }, [controller, id]);
   const folderName = (p: string) => p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
+  const [saved, setSaved] = useState<string | null>(id);
   const save = async () => {
     setBusy(true); setError(null);
     const input = { name, folder: main, repoUrl: current?.repoUrl ?? '', folders };
-    const err = id ? await controller.editProject(id, input) : await controller.createProject(input);
+    // Once created, the sheet edits that project (a second Save never makes a copy).
+    const err = saved ? await controller.editProject(saved, input) : await controller.createProject(input);
     if (err) { setBusy(false); setError(err); return; }
-    const pid = id ?? controller.getSnapshot().projects.find(p => p.folder === main && p.name === name.trim())?.id;
+    const pid = saved ?? controller.lastCreatedProject;
+    if (pid) setSaved(pid);
     for (const v of draftVars.filter(v => v.name && v.value)) {
       const verr = pid ? await controller.setVariable(pid, v.name.trim().toUpperCase(), v.value) : 'The project was saved, but its variables were not.';
       if (verr) { setBusy(false); setError(verr); return; }

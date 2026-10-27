@@ -177,7 +177,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       else if (k === 'u' && !e.shiftKey) hit(() => picker.current?.click());
       else if (k === 'e' && e.shiftKey) hit(() => setLongDraft(true));
       else if (k === '/') hit(() => setShortcutsOpen(v => !v));
-      else if (k === 'n' && e.shiftKey && owner) hit(() => setProjectSheet({ id: null }));
+      else if (k === 'n' && e.shiftKey && client?.getSnapshot().user?.role === 'owner') hit(() => setProjectSheet({ id: null }));
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [active, client]);

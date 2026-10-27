@@ -113,10 +113,10 @@ export async function findConversation(userId: string, id: string): Promise<Conv
   return r ? toConversation(r) : undefined;
 }
 
-export async function createConversation(userId: string, input: { title?: string | null; agentId?: string | null; projectId?: string | null; model?: string }): Promise<Conversation> {
+export async function createConversation(userId: string, input: { title?: string | null; agentId?: string | null; projectId?: string | null; model?: string; mode?: ChatMode; thinking?: ChatThinking }): Promise<Conversation> {
   const id = randomUUID();
-  await q.run('INSERT INTO chat_sessions (id, user_id, title, model, agent_id, project_id) VALUES (?, ?, ?, ?, ?, ?)',
-    id, userId, input.title?.trim() || null, input.model || 'default', input.agentId || null, input.projectId || null);
+  await q.run('INSERT INTO chat_sessions (id, user_id, title, model, agent_id, project_id, mode, thinking) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    id, userId, input.title?.trim() || null, input.model || 'default', input.agentId || null, input.projectId || null, input.mode ?? null, input.thinking ?? null);
   return (await findConversation(userId, id))!;
 }
 
