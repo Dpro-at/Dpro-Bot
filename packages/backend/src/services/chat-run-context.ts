@@ -13,6 +13,10 @@ export interface ChatRunContext {
   readRoots?: string[];
   /** CHAT-BUILD-01 stage 4: the model that wrote this reply and the estimated tokens it was given (tokens by model). */
   usage?: { model: string; tokensIn: number };
+  /** CHAT-BUILD-01 stage 5: messages the owner sent while the agent works (taken at the next step). */
+  takeSteers?: () => string[];
+  /** A notice shown in the chat (a tool result that tried to give orders, the chat summed up). */
+  notice?: (code: string, text?: string) => void;
   failed?: boolean;
   beforeTool(name: string, params: Record<string, unknown>): Promise<string>;
   afterTool(id: string, result: ToolResult): Promise<void>;

@@ -31,6 +31,16 @@ const selfOnlyOffered = (tool: Tool, context: ToolExecutionContext) => HANDOFF_T
   ? !context.toolPolicy && context.handoffTools !== false && (context.chatPlan === true || (!!context.taskId && !context.delegatedFrom?.length && context.agentId !== 'small-local-agent'))
   : context.chatPlan === true;
 
+/** Words in fetched or read content that try to steer the agent (prompt injection), with a short excerpt. */
+const INJECTION = /(ignore|disregard|forget) (all |any |the )?(previous|prior|above|earlier) (instructions|messages|rules)|you are now (a|an|in) |new instructions?:|system prompt|<\/?(system|assistant)>|(send|upload|post|email|forward) (all |the |your )?(files|secrets|keys|passwords|tokens|credentials|data) to|do not tell the (user|owner)/i;
+export function injectedOrder(result: { content?: { type: string; text?: string }[] } | undefined): string | null {
+  const text = (result?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '').join('\n');
+  const m = INJECTION.exec(text);
+  if (!m) return null;
+  const start = Math.max(0, m.index - 60);
+  return text.slice(start, m.index + 160).replace(/\s+/g, ' ').trim();
+}
+
 /** Tools that only read, or keep text in Girru's own owner-reviewed stores, never ask because of the chat mode. */
 const MODE_FREE = new Set(['read', 'search', 'list', 'plan_steps', 'board_suggest_card', 'memory_save', 'memory_search', 'memory_recall', 'team_list', 'team_results', 'web_fetch', 'web_search']);
 /** Girru's own file tools (in the agent's workspace). An extension or MCP tool never counts as one. */
@@ -217,6 +227,9 @@ export class ToolsRegistry {
       const checkpoint = currentChatRun();
       const intent = checkpoint ? await checkpoint.beforeTool(toolName, params) : undefined;
       const scrubbed = scrubSecretValues(await tool.execute(secrets.value, { ...this.context, actor: await actorFromToolContextAsync(this.context) }), secrets.used);
+      // CHAT-BUILD-01 stage 5 (CH10): text read from pages, files or emails that tries to give orders is data; the owner sees what was tried.
+      const tried = injectedOrder(scrubbed);
+      if (tried) currentChatRun()?.notice?.('injection', tried);
       // CHAT-SECRETS-02: other secrets in the result (a read .env, a printed token) go to the key store too.
       const result = await vaultToolResult(this.context, scrubbed);
       if (checkpoint && intent) await checkpoint.afterTool(intent, result);

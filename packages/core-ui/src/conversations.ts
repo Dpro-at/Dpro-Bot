@@ -6,6 +6,7 @@ import { SessionFailure } from './session-failure';
 import type { SessionClient } from './session';
 import { MAX_MESSAGE, MAX_MESSAGE_BYTES, SIDEBAR_PATH, validRunId } from './conversation-contract.js';
 import { DEFAULT_PREFS, readPrefs } from './chat-sidebar-prefs';
+import { notifyDone } from './ChatMoments';
 import type { SidebarPrefs } from './chat-sidebar-prefs';
 import type { ChatMode, ChatThinking } from './conversation-contract.js';
 import type { RunEvent, WireConversation, WireGit, WireMessage, WireProject } from './conversation-contract.js';
@@ -520,6 +521,9 @@ export class ConversationsController {
 
   private finished() {
     const stopped = this.#state.turns.at(-1)?.status === 'stopped';
+    // CHAT-BUILD-01 stage 5 (CH10): long work that ends while the window is in the back sends a desktop notification.
+    const last = this.#state.turns.at(-1);
+    if (last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
     this.publish({ runId: null, stopping: false, reconnecting: false, queuePaused: stopped && this.#state.queue.length > 0 });
     void this.refreshList();
     if (stopped) return;
@@ -544,6 +548,19 @@ export class ConversationsController {
   }
 
   /** Stops the running reply; what it wrote so far is kept. Queued messages stay queued until sent. */
+  /** CHAT-BUILD-01 stage 5 (CH10 Steer now): the draft goes into the running reply at its next step. */
+  async steer() {
+    const runId = this.#state.runId, text = this.#state.draft.trim();
+    if (!this.live() || !runId || !text) return;
+    this.publish({ draft: '' });
+    try {
+      const r = await this.call('POST', `/api/chat/runs/${runId}/steer`, { message: text });
+      if (!this.live()) return;
+      if (r.status === 200) this.publish({ notice: 'Sent. The agent reads it at its next step.' });
+      else { this.publish({ draft: this.#state.draft || text, notice: 'The reply already ended. Your text is back in the box.' }); }
+    } catch { if (this.live()) this.publish({ draft: this.#state.draft || text, notice: 'Not sent (no connection). Your text is back in the box.' }); }
+  }
+
   /** CHAT-BUILD-01 stage 4: stops everything in this chat — its reply and the helpers it handed work to (⌘.). */
   async stopAll() {
     const id = this.#state.activeId;

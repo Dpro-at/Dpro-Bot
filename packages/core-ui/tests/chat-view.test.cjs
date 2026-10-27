@@ -267,9 +267,10 @@ test('task plan: the latest plan_steps call shows as a live checklist, not as to
   await c.load(); await new Promise(r => setTimeout(r, 30));
   await c.send('Make a plan for launch week'); await until(() => !c.getSnapshot().runId);
   const html = renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock' }));
-  assert.match(html, /aria-label="Task plan"/);
-  assert.match(html, /2 of 3/);
-  assert.match(html, /Check with the owner/);
+  // CHAT-BUILD-01 stage 5 (CH2): the steps live in Tasks above the box; the thread keeps one quiet line.
+  assert.match(html, /aria-label="Tasks"/);
+  assert.match(html, /2 of 3 done/);
+  assert.match(html, /Plan: 3 steps, 2 done · the steps are in Tasks above the box/);
   assert.doesNotMatch(html, /plan steps/i, 'the plan call is not listed as a tool');
 });
 

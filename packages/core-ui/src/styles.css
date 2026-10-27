@@ -2830,3 +2830,31 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .chat-layout[data-max] .chat-terminal { block-size:70vh; }
 .app-shell .sheet-check { display:flex; align-items:center; gap:8px; font-size:12.5px; }
 @media (max-width: 1100px) { .app-shell .chat-layout[data-panel="details"] { grid-template-columns:minmax(0,1fr); } .app-shell .chat-layout[data-panel="details"] > .chat-details { position:absolute; inset-block:0; inset-inline-end:0; inline-size:min(300px,100%); z-index:12; box-shadow:-12px 0 40px #0003; } }
+/* CHAT-BUILD-01 stage 5 (CH2, CH6, CH10): quiet lines and cards in the thread; the task list above the box.
+   Calm greys; amber only where something waits for you or something was tried against you. */
+.app-shell .moment-line { display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; margin:6px 0; font-size:12px; color:var(--text-3); }
+.app-shell .moment-line.changes { color:var(--text-2); }
+.app-shell .moment-card { display:flex; flex-direction:column; gap:8px; margin:8px 0; padding:10px 12px; border-radius:10px; background:var(--row-hover); font-size:12.5px; color:var(--text); }
+.app-shell .moment-card[data-tone="needs"] { background:color-mix(in srgb,#F0B86E 10%,transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb,#F0B86E 35%,transparent); }
+.app-shell .moment-card > p { display:flex; align-items:flex-start; gap:8px; margin:0; line-height:1.5; }
+.app-shell .moment-card > p > svg { flex-shrink:0; margin-block-start:2px; color:var(--text-3); }
+.app-shell .moment-card[data-tone="needs"] > p > svg { color:#E0A040; }
+.app-shell .moment-card blockquote { margin:0; padding:8px 10px; border-radius:6px; background:var(--surface); font-size:12px; color:var(--text-2); }
+.app-shell .moment-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.app-shell .moment-main { min-block-size:26px; padding:0 12px; border-radius:7px; background:var(--secondary); color:var(--text); font-weight:600; font-size:12px; box-shadow:none; }
+.app-shell .moment-hint { margin-inline-start:auto; font-size:11px; color:var(--text-3); }
+.app-shell .moment-steer { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin:6px 0; padding:6px 10px; border-inline-start:2px solid var(--stroke-3); font-size:12.5px; color:var(--text-2); }
+.app-shell .moment-steer > span:first-of-type { font-size:11px; color:var(--text-3); }
+.app-shell .handoff .handoff-ask { margin:0; padding-inline-start:22px; color:var(--text-2); }
+.app-shell .handoff .handoff-report { padding:8px 10px; border-radius:6px; background:var(--surface); white-space:pre-wrap; font-size:12px; max-block-size:240px; overflow:auto; }
+.app-shell .chat-live { opacity:.92; }
+.app-shell .task-list { margin:0 auto 6px; max-inline-size:780px; inline-size:100%; border-radius:9px; background:var(--row-hover); font-size:12px; }
+.app-shell .task-head { display:flex; align-items:center; gap:8px; inline-size:100%; min-block-size:30px; padding:0 10px; background:transparent; box-shadow:none; color:var(--text-2); font-size:12px; font-weight:400; justify-content:flex-start; }
+.app-shell .task-head b { color:var(--text); font-weight:600; }
+.app-shell .task-now { color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-shell .task-list ol { list-style:none; margin:0; padding:0 10px 8px; display:flex; flex-direction:column; gap:3px; }
+.app-shell .task-list li { display:flex; align-items:center; gap:8px; color:var(--text); }
+.app-shell .task-list li small { margin-inline-start:auto; color:var(--text-3); }
+.app-shell .task-dot { inline-size:14px; block-size:14px; border-radius:50%; display:grid; place-items:center; background:var(--secondary); color:#3FA66B; flex-shrink:0; }
+.app-shell .task-list li[data-state="active"] .task-dot { background:color-mix(in srgb,var(--accent) 25%,transparent); }
+.app-shell .task-list li[data-state="done"] > span:not(.task-dot) { color:var(--text-3); }

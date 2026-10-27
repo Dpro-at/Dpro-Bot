@@ -20,13 +20,31 @@ import type { FastifyReply } from 'fastify';
 import { addAssistantMessage, type ToolCallPart, type TurnPart, type TurnStatus } from '../repositories/chat-conversations.js';
 import { vaultRunSecrets } from './chat-secrets.js';
 import { chunkText } from './chat-sse.js';
+import { redactImportText } from '../memory/import/redact.js';
+
+/** CHAT-BUILD-01 stage 5: how often a running reply sends its live preview. */
+export const PREVIEW_MS = 250;
+/** Characters of the newest text a preview shows (the full reply comes with the checked events at the end). */
+export const PREVIEW_CHARS = 16_000;
+/**
+ * The live preview of text written so far: secrets redacted, and the last
+ * unfinished word held back so a half-written key never shows. Never stored;
+ * the checked events replace it when the reply ends.
+ */
+export function previewText(text: string): string {
+  const cut = text.search(/\S+$/);
+  const stable = cut < 0 ? text : text.slice(0, cut);
+  return redactImportText(stable.slice(-PREVIEW_CHARS)).text;
+}
 
 export type RunFrame = Record<string, unknown> & { type: string };
 export interface RunEvent { seq: number; frame: RunFrame }
 export type RunStatus = 'running' | TurnStatus;
 
 /** Notices a turn may show (CHAT-BUILD-01). */
-export const NOTICE_CODES = new Set(['rate_limited', 'claude_key_missing', 'local_model_slow']);
+export const NOTICE_CODES = new Set(['rate_limited', 'claude_key_missing', 'local_model_slow', 'injection', 'summarized', 'plan_limit']);
+/** Notices kept with the stored reply (CH10): the owner sees them again when the chat opens. */
+const KEPT_NOTICES = new Set(['injection', 'summarized', 'plan_limit']);
 /** Runs one user may have running at the same time. */
 export const MAX_RUNNING_PER_USER = 3;
 /** How long a finished run stays attachable in memory. */
@@ -67,6 +85,25 @@ export class ChatRun {
 
   get stopping() { return this.stopRequested; }
 
+  /** CHAT-BUILD-01 stage 5 (CH10 Steer now): messages the owner sent while the agent works; the loop takes them at its next step. */
+  private steers: string[] = [];
+  private steerStep = 0;
+  steer(text: string): boolean {
+    if (this.status !== 'running' || this.stopRequested || this.steers.length >= 5) return false;
+    this.steers.push(text);
+    return true;
+  }
+  /** Called by the model loop before each step: the waiting steer messages (shown in the reply, sent to the model). */
+  takeSteers(): string[] {
+    if (!this.steers.length) return [];
+    const taken = this.steers.splice(0);
+    const step = ++this.steerStep;
+    for (const text of taken) { this.parts.push({ kind: 'steer', text, step }); this.emit({ type: 'steer', content: text, step }); }
+    return taken;
+  }
+  /** A notice from outside the turn's stream (a tool result that tried to give orders). */
+  notice(code: string, text?: string) { this.push({ type: 'notice', code, ...(text ? { text } : {}) }); }
+
   /** Adds one frame from the turn; frames after the end are ignored. */
   push(frame: RunFrame) {
     if (this.status !== 'running' || this.published || this.error === 'content_limit') return;
@@ -85,10 +122,13 @@ export class ChatRun {
       this.addText(type, content);
       return;
     }
-    if (type === 'tool_start' || type === 'tool_result') { this.addTools(type, frame); return; }
+    if (type === 'tool_start' || type === 'tool_result') { this.addTools(type, frame); this.previewSoon(); return; }
     // CHAT-BUILD-01: notices (rate limit wait, key missing) are shown, never stored as answer text.
     if (type === 'notice' && NOTICE_CODES.has(String(frame.code))) {
-      this.emit({ type: 'notice', code: String(frame.code), ...(Number.isFinite(frame.waitSec) ? { waitSec: Number(frame.waitSec) } : {}), ...(typeof frame.model === 'string' ? { model: frame.model.slice(0, 100) } : {}) });
+      const code = String(frame.code);
+      const text = typeof frame.text === 'string' ? redactImportText(frame.text.slice(0, 300)).text : undefined;
+      if (KEPT_NOTICES.has(code) && !this.parts.some((p) => p.kind === 'notice' && p.code === code)) this.parts.push({ kind: 'notice', code, ...(text ? { text } : {}) });
+      this.emit({ type: 'notice', code, ...(Number.isFinite(frame.waitSec) ? { waitSec: Number(frame.waitSec) } : {}), ...(typeof frame.model === 'string' ? { model: frame.model.slice(0, 100) } : {}), ...(text ? { text } : {}) });
       return;
     }
     // Unknown frames (provider notes, metadata) are not shown or stored.
@@ -118,8 +158,25 @@ export class ChatRun {
       if (part.kind === 'reasoning') { this.reasoningFrom = Math.max(0, this.clock() - this.startedAt); this.openReasoning = part; }
       this.parts.push(part);
     }
-    if (kind === 'text') this.answer += content;
+    if (kind === 'text') { this.answer += content; this.previewSoon(); }
     this.emit({ type: kind, content });
+  }
+
+  /** The newest text part, shown live while the run works (CHAT-BUILD-01 stage 5). */
+  private lastPreview = 0;
+  private previewTimer?: ReturnType<typeof setTimeout>;
+  private previewSoon() {
+    if (this.previewTimer || this.published) return;
+    const wait = Math.max(0, PREVIEW_MS - (this.clock() - this.lastPreview));
+    this.previewTimer = setTimeout(() => {
+      this.previewTimer = undefined;
+      if (this.published || this.status !== 'running') return;
+      this.lastPreview = this.clock();
+      const last = this.parts.at(-1);
+      const tool = [...this.parts].reverse().find((p): p is Extract<TurnPart, { kind: 'tools' }> => p.kind === 'tools');
+      this.emitter.emit('preview', { type: 'preview', content: last?.kind === 'text' ? previewText(last.text) : '', ...(tool && last?.kind === 'tools' ? { tool: tool.calls.at(-1)?.name ?? '' } : {}) });
+    }, wait);
+    this.previewTimer.unref?.();
   }
 
   private addTools(type: 'tool_start' | 'tool_result', frame: RunFrame) {
@@ -141,9 +198,16 @@ export class ChatRun {
     const results = Array.isArray(frame.results) ? frame.results : [];
     const out = results.map((r: any, i: number) => {
       const call = part?.calls.find((c: ToolCallPart) => c.id === r?.id) ?? part?.calls[i];
+      const output = typeof r?.output === 'string' ? r.output : '';
+      // CHAT-BUILD-01 stage 5: a call waiting for the owner carries its approval id, so the chat can show Allow once / Deny.
+      // Only the approval gate's own text for this very tool counts (a page cannot make a card for another request);
+      // the card also checks the stored request's tool and chat before Allow once.
+      const toolName = typeof r?.name === 'string' ? r.name : call?.name ?? '';
+      const gate = /^Waiting for owner approval: "([^"]{1,128})" was NOT run\. Approval request ([A-Za-z0-9-]{8,64}) is pending;/.exec(output);
+      const approvalId = gate && gate[1] === toolName ? gate[2] : undefined;
       const res = { id: call?.id ?? (typeof r?.id === 'string' ? r.id : `s${step}-${i}`), name: typeof r?.name === 'string' ? r.name : call?.name ?? 'tool',
-        output: typeof r?.output === 'string' ? r.output : '', isError: r?.isError === true, ms: Number.isFinite(r?.ms) ? Number(r.ms) : undefined };
-      if (call) Object.assign(call, { output: res.output, isError: res.isError, ...(res.ms !== undefined ? { ms: res.ms } : {}) });
+        output, isError: r?.isError === true, ms: Number.isFinite(r?.ms) ? Number(r.ms) : undefined, ...(approvalId ? { approvalId } : {}) };
+      if (call) Object.assign(call, { output: res.output, isError: res.isError, ...(res.ms !== undefined ? { ms: res.ms } : {}), ...(approvalId ? { approvalId } : {}) });
       return res;
     });
     this.emit({ type: 'tool_result', step, results: out });

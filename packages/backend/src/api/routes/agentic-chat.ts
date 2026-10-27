@@ -9,6 +9,7 @@ import { safeConsole } from '../../services/safe-error-log.js';
  *   4. Stream final response to client via SSE
  */
 
+import { currentChatRun } from '../../services/chat-run-context.js';
 import * as os from 'node:os';
 import type { FastifyReply } from 'fastify';
 import { ClaudeClient } from '../../llm/claude-client.js';
@@ -255,6 +256,12 @@ export async function streamChatClaude(
     while (iteration < MAX_ITERATIONS) {
       if (clientGone) break;
       iteration++;
+      // CHAT-BUILD-01 stage 5 (Steer now): the owner's messages sent while it works go in before this step.
+      for (const text of currentChatRun()?.takeSteers?.() ?? []) {
+        const last = loopMessages[loopMessages.length - 1] as any;
+        if (last?.role === 'user' && Array.isArray(last.content)) last.content.push({ type: 'text', text });
+        else loopMessages.push({ role: 'user', content: text } as any);
+      }
       console.log(`[Chat] 🔄 Agentic loop iteration ${iteration}/${MAX_ITERATIONS}`);
 
       const response = await callWithRetry(pruneOldImages(loopMessages) as any);

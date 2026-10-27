@@ -44,6 +44,7 @@ import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
+import { CheckpointError, changedFiles, restore, snapshot } from '../../services/chat-checkpoints.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
@@ -180,6 +181,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   if (existing) return existing.userId === userId && existing.sessionId === c.id ? replay() : send(409, { error: 'runId already used', code: 'run_id_reused' });
   const busy = chatRuns.activeFor(c.id);
   if (busy) return send(409, { error: 'This conversation is still answering', code: 'conversation_busy', runId: busy.id });
+  if (undoing.has(c.id)) return send(409, { error: 'Changes are being undone', code: 'conversation_busy' });
   if (chatRuns.runningCount(userId) >= MAX_RUNNING_PER_USER) {
     return { code: 429, body: { error: 'Too many chat turns are running', code: 'rate_limited' }, retryAfter: '10' };
   }
@@ -237,10 +239,15 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     // Nothing runs this turn: close its row now (the conversation never stays locked).
     starting.delete(b.runId); await recoverStaleRun(b.runId).catch(() => false); throw err;
   }
+  // CHAT-BUILD-01 stage 5 (CH10): a reply in a git folder keeps a "before" snapshot so its changes can be undone.
+  const checkpointFolder = t.role === 'owner' ? project?.folder ?? codingFolder : undefined;
+  const before = checkpointFolder ? await snapshot(checkpointFolder).catch(() => null) : null;
   starting.delete(b.runId);
   const runContext: ChatRunContext = { ...journalContext(journal, reviewTools, () => { const run = chatRuns.get(b.runId); if (run) { run.error = 'checkpoint_failed'; run.requestStop(); } }),
     // CHAT-BUILD-01 stage 3: the chat's Mode and Thinking, and the project's added folders the agent may read.
-    chatMode: c.mode ?? 'auto', thinking: c.thinking ?? 'normal', ...(project?.folders.length ? { readRoots: project.folders.map((f) => f.path) } : {}) };
+    chatMode: c.mode ?? 'auto', thinking: c.thinking ?? 'normal', ...(project?.folders.length ? { readRoots: project.folders.map((f) => f.path) } : {}),
+    // CHAT-BUILD-01 stage 5: Steer now, and notices from tools (text that tried to give orders).
+    takeSteers: () => chatRuns.get(b.runId)?.takeSteers() ?? [], notice: (code, text) => chatRuns.get(b.runId)?.notice(code, text) };
   chatRuns.start({
     runId: b.runId, userId, sessionId: c.id, agentId: b.agentId ?? null,
     // A failed checkpoint leaves the outcome unknown: close the row as interrupted (later turns ask before every tool).
@@ -248,6 +255,12 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     onPersisted: async status => {
       if (chatRuns.get(b.runId)?.error !== 'checkpoint_failed') await finishChatRun(b.runId, status);
       else await recoverStaleRun(b.runId);
+      if (before && checkpointFolder) {
+        const after = await snapshot(checkpointFolder).catch(() => null);
+        const files = after && after !== before ? (await changedFiles(before, after).catch(() => [])).length : 0;
+        if (files) await q.run("UPDATE chat_messages SET checkpoint_folder = ?, checkpoint_before = ?, checkpoint_after = ?, checkpoint_files = ?, checkpoint_undone = 0 WHERE run_id = ? AND role = 'assistant'",
+          checkpointFolder, before, after, files, b.runId).catch(() => undefined);
+      }
       // CHAT-BUILD-01 stage 4: the stored reply keeps its model and estimated tokens (tokens by model).
       if (runContext.usage) await q.run("UPDATE chat_messages SET model = ?, tokens_in = ?, tokens_out = ? WHERE run_id = ? AND role = 'assistant'",
         runContext.usage.model.slice(0, 120), Math.round(runContext.usage.tokensIn), Math.ceil((chatRuns.get(b.runId)?.answer.length ?? 0) / 4), b.runId).catch(() => undefined);
@@ -356,6 +369,8 @@ let approvalListener = false;
 const starting = new Set<string>();
 /** A 'running' row younger than this is never taken for stale (a start in another request may still be on its way). */
 const STALE_AFTER_MS = 10_000;
+/** Chats whose files an Undo or Redo is putting back right now: no new turn starts meanwhile. */
+const undoing = new Set<string>();
 export async function chatConversationRoutes(fastify: FastifyInstance) {
   if (!approvalListener) {
     approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); });
@@ -686,12 +701,45 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     backlog.forEach(send);
     if (run.status !== 'running') { raw.end(); return reply; }
     const onEvent = (e: RunEvent) => send(e);
+    // CHAT-BUILD-01 stage 5: the live preview (no number; never stored) while the reply is written.
+    const onPreview = (p: Record<string, unknown>) => { if (!raw.writableEnded) raw.write(`data: ${JSON.stringify(p)}\n\n`); };
     const onEnd = () => { cleanup(); raw.end(); };
-    const cleanup = () => { run.emitter.off('event', onEvent); run.emitter.off('end', onEnd); };
+    const cleanup = () => { run.emitter.off('event', onEvent); run.emitter.off('preview', onPreview); run.emitter.off('end', onEnd); };
     run.emitter.on('event', onEvent);
+    run.emitter.on('preview', onPreview);
     run.emitter.once('end', onEnd);
     raw.once('close', cleanup); // a reader leaving never stops the run
     return reply;
+  });
+
+  // CHAT-BUILD-01 stage 5 (CH10): undo (or redo) the files one reply changed. Owner only; refused if they changed since.
+  fastify.post('/api/chat/conversations/:id/messages/:messageId/undo', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    const b: any = request.body ?? {};
+    if (typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'redo') || (b.redo !== undefined && typeof b.redo !== 'boolean')) return bad(reply, 'Body must be {} or { redo: true }');
+    if (chatRuns.activeFor(c.id)) return reply.code(409).send({ error: 'Wait until the reply ends', code: 'conversation_busy' });
+    const m = await q.one<{ checkpoint_before: string | null; checkpoint_after: string | null; checkpoint_undone: number | null }>("SELECT checkpoint_before, checkpoint_after, checkpoint_undone FROM chat_messages WHERE id = ? AND session_id = ? AND role = 'assistant'", (request.params as any).messageId, c.id);
+    if (!m?.checkpoint_before || !m.checkpoint_after) return notFound(reply);
+    const redo = b.redo === true;
+    if (!!m.checkpoint_undone === !redo) return reply.code(409).send({ error: redo ? 'Nothing to redo' : 'Already undone', code: 'checkpoint_state' });
+    if (undoing.has(c.id)) return reply.code(409).send({ error: 'Already undoing', code: 'conversation_busy' });
+    undoing.add(c.id);
+    try { await restore(redo ? m.checkpoint_before : m.checkpoint_after, redo ? m.checkpoint_after : m.checkpoint_before); }
+    catch (err) { if (err instanceof CheckpointError) return reply.code(409).send({ error: err.message, code: 'checkpoint_changed' }); throw err; }
+    finally { undoing.delete(c.id); }
+    await q.run('UPDATE chat_messages SET checkpoint_undone = ? WHERE id = ?', redo ? 0 : 1, (request.params as any).messageId);
+    return { ok: true, undone: !redo };
+  });
+
+  // CHAT-BUILD-01 stage 5 (CH10 Steer now): a message for the running reply, taken at its next step.
+  fastify.post('/api/chat/runs/:runId/steer', async (request: Req, reply) => {
+    const run = chatRuns.get(request.params.runId!);
+    if (!run || run.userId !== caller(request)) return notFound(reply);
+    const b: any = request.body;
+    if (!b || typeof b !== 'object' || Object.keys(b).some((k) => k !== 'message') || typeof b.message !== 'string' || !b.message.trim() || b.message.length > 4000) return bad(reply, 'Body must be { message } (1-4000 characters)');
+    const text = (await vaultSecretsInText(run.userId, run.sessionId, b.message.trim())).text;
+    return run.steer(text) ? { ok: true } : reply.code(409).send({ error: 'The reply has ended', code: 'run_ended' });
   });
 
   fastify.post('/api/chat/runs/:runId/stop', async (request: Req, reply) => {
