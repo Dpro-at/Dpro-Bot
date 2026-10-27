@@ -5172,6 +5172,444 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Animation specialist",
+      "package": "visual-communication",
+      "references": [
+        "references/animation-production.md",
+        "references/motion-timing.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized assets and actual animation authoring/render/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized render service or animation publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Podcast producer",
+      "package": "audio-production",
+      "references": [
+        "references/editorial-planning.md",
+        "references/capture-assets.md",
+        "references/editing-mix.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized speakers/assets and recording/editing/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized recording, synthesis, guest contact or release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Scriptwriter",
+      "package": "content-studio",
+      "references": [
+        "references/scriptwriting.md",
+        "references/claims-and-voice.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brief, brand/source material and rights evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized production or publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Sound editor",
+      "package": "audio-production",
+      "references": [
+        "references/sound-post-production.md",
+        "references/editing-mix.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized source audio and actual editing/export/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized processing service or audio release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Video editor",
+      "package": "visual-communication",
+      "references": [
+        "references/video-post-production.md",
+        "references/output-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized footage/assets and actual timeline/render/playback capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized render service or video publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual actor",
+      "package": "social-planning",
+      "references": [
+        "references/virtual-acting.md",
+        "references/synthetic-creator.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized character/asset rights and actual performance production/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized synthesis or performance release action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual presenter",
+      "package": "social-planning",
+      "references": [
+        "references/virtual-presenting.md",
+        "references/synthetic-creator.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized presenter assets, voice/likeness rights, disclosure and production/inspection capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized presenter generation or publication action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Voice performer",
+      "package": "audio-production",
+      "references": [
+        "references/voice-performance.md",
+        "references/capture-assets.md",
+        "references/delivery-verification.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized voice/source rights and actual recording/synthesis/listening capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized voice generation or release action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
