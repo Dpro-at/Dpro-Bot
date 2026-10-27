@@ -63,3 +63,16 @@ test('a built-in id also recognises the immutable first-release professional con
  const impact=await templates.impact(seed.id,draft);await templates.save(seed.id,{...draft,confirmImpact:impact.confirmation});
  assert.equal((await distribution.preview('seed-owner')).roles.find(r=>r.sourceKey===key).status,'content_update_available');
 });
+
+test('a seeded specialty already updated to the previous release offers branding as a reviewed update',async()=>{
+ const previous=JSON.parse(fs.readFileSync(new URL('./fixtures/professional-pre-girru-role.json',import.meta.url)));
+ const history=JSON.parse(fs.readFileSync(new URL('../skills/professional-source-history.json',import.meta.url)));
+ const seed=history.seeds.find(s=>s.sourceKey===history.releases[1].roles.find(r=>r.id===previous.id).sourceKey);
+ const live=await templates.get(seed.id);
+ const draft={name:previous.name,department:previous.department,description:previous.description,instructions:previous.instructions,config:live.config,revision:live.revision};
+ const impact=await templates.impact(seed.id,draft);await templates.save(seed.id,{...draft,confirmImpact:impact.confirmation});
+ const before=db.prepare('SELECT * FROM specialty_templates WHERE id=?').get(seed.id);
+ const preview=await distribution.preview('seed-owner');
+ assert.equal(preview.roles.find(r=>r.sourceKey===seed.sourceKey).status,'content_update_available');
+ assert.deepEqual(db.prepare('SELECT * FROM specialty_templates WHERE id=?').get(seed.id),before);
+});

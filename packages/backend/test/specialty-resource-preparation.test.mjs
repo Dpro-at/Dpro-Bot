@@ -81,3 +81,14 @@ test('duplicate package bytes appearing after the consumer guard return a determ
  const racing=new SpecialtyResourcePreparation(templates,delegate),review=await racing.review('resource-owner',sourceKey,resourceId),before=db.prepare('SELECT * FROM central_skills WHERE id=?').get(old.id);
  await assert.rejects(racing.apply('resource-owner',sourceKey,resourceId,review.reviewToken),e=>e.code==='version_conflict'&&e.status===409);assert.deepEqual(db.prepare('SELECT * FROM central_skills WHERE id=?').get(old.id),before);assert.equal(db.prepare('SELECT * FROM central_skills WHERE id=?').get(foreign),undefined);
 });
+
+test('current specialty still permits separately confirmed package updates without a content save or binding change',async()=>{
+ await reset();const live=await templates.get(templateId),{id,...draft}=live;
+ const proposed={...draft,name:sourceRole.name,department:sourceRole.department,description:sourceRole.description,instructions:sourceRole.instructions};
+ const impact=await templates.impact(id,proposed);await templates.save(id,{...proposed,confirmImpact:impact.confirmation});
+ assert.equal((await distribution.preview('resource-owner')).roles.find(r=>r.sourceKey===sourceKey).status,'current');
+ const before=db.prepare('SELECT * FROM specialty_templates WHERE id=?').get(id),authority=protect();
+ const review=await service.review('resource-owner',sourceKey,resourceId);await service.apply('resource-owner',sourceKey,resourceId,review.reviewToken);
+ assert.deepEqual(db.prepare('SELECT * FROM specialty_templates WHERE id=?').get(id),before);assert.deepEqual(protect(),authority);
+ await assert.rejects(service.review('resource-owner',sourceKey,'bindings'),/upgrade_not_available/);
+});

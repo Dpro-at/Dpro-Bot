@@ -5,7 +5,7 @@ metadata:
   agent-player:
     emoji: "🐙"
     version: "1.0.0"
-    author: "Dpro Bot Team"
+    author: "Dpro"
     category: "development"
     tags: ["github", "git", "vcs", "devops"]
     triggers:

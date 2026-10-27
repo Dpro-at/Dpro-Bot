@@ -20,7 +20,7 @@ Identify the existing screen, route, navigation owner, components, tokens, state
 
 Determine what the person is trying to accomplish, which object they are working on, the common action and the context that must remain visible. State a concrete success condition such as editing a selected item's settings without losing its list context.
 
-Respect the product's surface. A desktop workspace, a marketing site and a mobile flow have different interaction needs. In Dpro, preserve the shared section-owned sidebar and persistent footer; avoid creating nested application navigation inside a page. Use the project's established icon and token system.
+Respect the product's surface. A desktop workspace, a marketing site and a mobile flow have different interaction needs. In Girru, preserve the shared section-owned sidebar and persistent footer; avoid creating nested application navigation inside a page. Use the project's established icon and token system.
 
 ## 2. Define behavior and states
 

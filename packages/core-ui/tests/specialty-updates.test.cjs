@@ -88,3 +88,11 @@ test('deterministic skill refusal is an error rather than an uncertain save',asy
 test('a skill used directly by agents does not claim it has no consumers when no specialty uses it',()=>{
  const controller={confirm(){},back(){},apply(){},load(){}},state={phase:'review',preview:blockedPreview,review:null,preparation:{...preparation,specialties:[]},confirmed:false,error:null,receipt:null};const html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller,state,onClose(){}}));assert.match(html,/No specialties currently use this skill/);assert.match(html,/Fictional colleague/);assert.doesNotMatch(html,/No existing specialties or agents use this skill/);
 });
+
+test('current content with a changed package remains actionable for a separate skill review only',async()=>{
+ const role={...preview.roles[0],status:'current',packResources:[{sourceId:'skill-1',name:'Changed shared package',status:'conflict',assigned:true}]};
+ const html=renderToStaticMarkup(React.createElement(SpecialtyUpdatesView,{controller:{},state:{phase:'ready',preview:{...preview,roles:[role]},confirmed:false},onClose(){}}));
+ assert.match(html,/Changed shared package/);assert.match(html,/Review skill update/);assert.doesNotMatch(html,/>Review changes<|Review skill assignment/);
+ const f=fake(r=>({status:200,body:r.path.endsWith('preview')?{...preview,roles:[role]}:preparation})),c=new SpecialtyUpdateController(f.client);await c.load();await c.prepare(key,'bindings');assert.equal(f.calls.length,1);await c.prepare(key,'skill-1');assert.equal(c.state.preparation.kind,'package');await c.apply();assert.equal(f.calls.length,2);
+
+});

@@ -22,7 +22,7 @@ Bundled Python scripts require Python3.10+ and the standard library only. They r
 
 Helpers perform mechanical checks, not semantic certification. Their successful exit does not prove a claim is true, a design is accessible, or an application is correct. Review their documented limits and the actual task result.
 
-Dpro's current central library is a Markdown-only edition: references and templates are available, while `.py` helpers are not imported or executable there. The complete source package contains those helpers. If a helper is absent, follow the documented equivalent checks using assigned tools and report the method. Do not fetch or execute a remote replacement automatically.
+Girru's current central library is a Markdown-only edition: references and templates are available, while `.py` helpers are not imported or executable there. The complete source package contains those helpers. If a helper is absent, follow the documented equivalent checks using assigned tools and report the method. Do not fetch or execute a remote replacement automatically.
 
 ## Output and validation
 

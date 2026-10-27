@@ -28,12 +28,13 @@ export class SpecialtyResourcePreparation{
  private async state(owner:string,sourceKey:string,resourceId:string){
   if(typeof sourceKey!=='string'||!/^professional-role-[a-f0-9]{24}$/.test(sourceKey)||typeof resourceId!=='string'||!(/^(bindings|skill-[1-9][0-9]*)$/).test(resourceId))throw new UpgradeError('invalid_input',400);
   const preview=await new SpecialtyDistribution(this.templates,this.load).preview(owner),entry=preview.roles.find(r=>r.sourceKey===sourceKey);
-  if(!entry||entry.status!=='content_update_available'||entry.installedIds.length!==1)throw new UpgradeError('upgrade_not_available');
+  if(!entry||!(['content_update_available','current'].includes(entry.status))||entry.installedIds.length!==1)throw new UpgradeError('upgrade_not_available');
   const loaded=this.load();if(loaded.fingerprint!==preview.fingerprint)throw new UpgradeError('review_changed');
   const role=loaded.pack.specialties.find(r=>r.id===entry.sourceId)!;
   const live=await this.templates.get(entry.installedIds[0]);if(live.revision!==entry.revision)throw new UpgradeError('review_changed');
   const scope=await sql().read(snapshot()),fingerprint=loaded.fingerprint;
   if(resourceId==='bindings'){
+   if(entry.status!=='content_update_available')throw new UpgradeError('upgrade_not_available');
    const required=[];
    for(const ref of role.skills){const source=loaded.pack.skills.find(s=>s.id===ref)!,bundle=this.skills.validatePortable(source.name,source.files);const rows=await q.all<any>('SELECT id,name,revision,content_hash FROM central_skills WHERE name=?',source.name);if(rows.length!==1||rows[0].content_hash!==bundle.hash)throw new UpgradeError('resources_not_ready');required.push(rows[0]);}
    const added=required.filter(s=>!selected(live.config).includes(s.id));if(!added.length)throw new UpgradeError('upgrade_not_available');
