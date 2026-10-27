@@ -4,16 +4,94 @@
  * Allows programmatic tool calling - agent can write JavaScript code
  * that uses multiple tools in loops, conditions, etc.
  *
- * SECURITY: Runs in isolated VM sandbox with limited toolbox access
+ * SECURITY (SEC-DEP-02): the code runs in its own Node process, never in the
+ * backend: Node's permission system denies files, child processes, workers and
+ * addons; code generation from strings is off; the environment is empty (no
+ * secrets); heap and time are limited and the process is killed at the limit.
+ * Its only way out is the toolbox below, reached over IPC with a call limit.
+ * Network is not blocked by Node's permission system: the process holds no
+ * credentials, and web_fetch through the toolbox stays the intended route.
  * PERFORMANCE: Reduces round-trips by 10x for multi-step tasks
  */
 
-import { VM } from 'vm2';
+import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import type { Tool, ToolResult, ToolExecutionContext } from '../types.js';
 import { execToolRefusal, isExecToolsEnabled } from '../exec-policy.js';
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const MAX_MEMORY_MB = 128; // 128MB memory limit
+const MAX_TOOL_CALLS = 200;
+const MAX_LOG_LINES = 200;
+const MAX_MESSAGE_CHARS = 1_000_000;
+
+/** Runs inside the child: one script in a fresh vm context that sees only `toolbox` and `console`. */
+const CHILD_SOURCE = String.raw`
+const vm = require('node:vm');
+const pending = new Map(); let next = 0;
+const send = m => process.send(m);
+const show = a => typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })();
+const call = (m, p) => new Promise((resolve, reject) => { const id = ++next; pending.set(id, { resolve, reject }); send({ t: 'call', id, m, p: p === undefined ? null : JSON.parse(JSON.stringify(p)) }); });
+const methods = ${'${METHODS}'};
+process.on('message', msg => {
+  if (msg && msg.t === 'ret') { const w = pending.get(msg.id); if (!w) return; pending.delete(msg.id); msg.ok ? w.resolve(msg.v) : w.reject(new Error(String(msg.e))); return; }
+  if (!msg || msg.t !== 'run' || typeof msg.code !== 'string') return;
+  const toolbox = {};
+  for (const m of methods) toolbox[m] = p => call(m, p);
+  toolbox.sleep = ms => new Promise(r => setTimeout(r, Math.min(Math.max(Number(ms) || 0, 0), 60000)));
+  toolbox.now = () => Date.now();
+  const log = level => (...args) => send({ t: 'log', level, text: args.map(show).join(' ') });
+  const context = vm.createContext({ toolbox: Object.freeze(toolbox), console: Object.freeze({ log: log('log'), error: log('error') }) }, { codeGeneration: { strings: false, wasm: false } });
+  let run;
+  try { run = vm.runInContext('(async () => {\n' + msg.code + '\n})()', context, { filename: 'agent-code.js' }); }
+  catch (e) { send({ t: 'done', ok: false, error: String(e && e.message || e) }); return; }
+  Promise.resolve(run).then(value => {
+    let kind = 'json', text;
+    if (typeof value === 'string') { kind = 'string'; text = value; }
+    else if (value === undefined || value === null) { kind = 'empty'; text = ''; }
+    else { try { text = JSON.stringify(value, null, 2); } catch { text = String(value); } if (text === undefined) text = String(value); }
+    send({ t: 'done', ok: true, kind, text, type: typeof value });
+  }, e => send({ t: 'done', ok: false, error: String(e && e.message || e) }));
+});
+`;
+
+type ChildDone = { kind: 'string' | 'empty' | 'json'; text: string; type: string };
+
+/** Runs agent code in an isolated child process; toolbox calls come back over IPC. */
+export function runIsolated(code: string, timeout: number, toolbox: Record<string, (p: any) => unknown>): Promise<ChildDone> {
+  const methods = Object.keys(toolbox).filter(m => m !== 'sleep' && m !== 'now');
+  const source = CHILD_SOURCE.replace('${METHODS}', JSON.stringify(methods));
+  const env: Record<string, string> = process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {};
+  const child = spawn(process.execPath, ['--permission', '--disallow-code-generation-from-strings', `--max-old-space-size=${MAX_MEMORY_MB}`, '-e', source], {
+    env, cwd: tmpdir(), stdio: ['ignore', 'ignore', 'pipe', 'ipc'], windowsHide: true,
+  });
+  return new Promise((resolve, reject) => {
+    let settled = false, calls = 0, logs = 0, stderr = '';
+    const finish = (err: Error | null, value?: ChildDone) => {
+      if (settled) return; settled = true; clearTimeout(timer);
+      if (child.exitCode === null) child.kill('SIGKILL');
+      err ? reject(err) : resolve(value!);
+    };
+    const timer = setTimeout(() => finish(new Error('Script execution timed out')), timeout);
+    child.stderr?.on('data', d => { if (stderr.length < 4000) stderr += String(d); });
+    child.on('error', e => finish(new Error(`Could not start the code process: ${e.message}`)));
+    child.on('exit', (code, signal) => finish(new Error(/heap|memory/i.test(stderr) ? `Code used more than ${MAX_MEMORY_MB}MB of memory` : `Code process stopped (${signal ?? code})`)));
+    child.on('message', async (msg: any) => {
+      if (settled || !msg || typeof msg !== 'object') return;
+      if (JSON.stringify(msg).length > MAX_MESSAGE_CHARS) return finish(new Error('Code output is too large'));
+      if (msg.t === 'log') { if (++logs <= MAX_LOG_LINES) (msg.level === 'error' ? console.error : console.log)('[Code]', String(msg.text)); return; }
+      if (msg.t === 'done') return msg.ok ? finish(null, { kind: msg.kind, text: String(msg.text), type: String(msg.type) }) : finish(new Error(String(msg.error)));
+      if (msg.t !== 'call') return;
+      if (++calls > MAX_TOOL_CALLS) return finish(new Error(`Code made more than ${MAX_TOOL_CALLS} toolbox calls`));
+      const fn = methods.includes(msg.m) ? toolbox[msg.m] : undefined;
+      let reply: any;
+      try { reply = { t: 'ret', id: msg.id, ok: true, v: fn ? await fn(msg.p ?? {}) : (() => { throw new Error(`Unknown toolbox method: ${String(msg.m)}`); })() }; }
+      catch (e: any) { reply = { t: 'ret', id: msg.id, ok: false, e: e?.message ?? String(e) }; }
+      if (!settled && child.connected) child.send(reply);
+    });
+    child.send({ t: 'run', code });
+  });
+}
 
 /**
  * Create a safe toolbox API with limited tool access
@@ -166,7 +244,7 @@ Available toolbox methods:
 - toolbox.sleep(ms) - Wait for milliseconds
 - toolbox.now() - Get current timestamp
 
-Security: Runs in isolated VM sandbox with 30s timeout and 128MB memory limit.`,
+Security: Runs in its own isolated process (no files, no other programs, no secrets) with a 30s timeout and 128MB memory limit. Only the toolbox methods above reach the outside.`,
 
   input_schema: {
     type: 'object',
@@ -255,12 +333,14 @@ if (pkg.scripts?.test) {
 
   async execute(params, context): Promise<ToolResult> {
     const { code, timeout = DEFAULT_TIMEOUT } = params;
+    if (typeof code !== 'string' || !code.trim()) return { content: [{ type: 'text', text: '❌ Error: code must be a non-empty string' }], error: 'Invalid code' };
 
     // SECURITY: exec-class tools are off unless AGENT_EXEC_TOOLS=true (S0-Q.5)
     if (!isExecToolsEnabled()) return execToolRefusal('execute_code');
 
     // Validate timeout
-    const safeTimeout = Math.min(timeout, 60000); // Max 60 seconds
+    const asked = Number(timeout);
+    const safeTimeout = Number.isFinite(asked) && asked > 0 ? Math.min(asked, 60000) : DEFAULT_TIMEOUT; // Max 60 seconds
 
     if (!context) {
       return {
@@ -286,45 +366,17 @@ if (pkg.scripts?.test) {
       // Create safe toolbox
       const toolbox = createToolbox(context, registry);
 
-      // Create isolated VM
-      const vm = new VM({
-        timeout: safeTimeout,
-        sandbox: {
-          toolbox,
-          console: {
-            log: (...args: any[]) => console.log('[Code]', ...args),
-            error: (...args: any[]) => console.error('[Code]', ...args),
-          },
-        },
-        eval: false, // Disable eval() for security
-        wasm: false, // Disable WebAssembly for security
-      });
-
-      // Wrap code in async function
-      const wrappedCode = `
-        (async () => {
-          ${code}
-        })()
-      `;
-
-      // Execute code
+      // Execute code in its own isolated process
       const startTime = Date.now();
-      const result = await vm.run(wrappedCode);
+      const result = await runIsolated(String(code), safeTimeout, toolbox);
       const duration = Date.now() - startTime;
 
       console.log('[ExecuteCodeTool] ✅ Code executed successfully');
       console.log('[ExecuteCodeTool]   Duration:', duration, 'ms');
-      console.log('[ExecuteCodeTool]   Result type:', typeof result);
+      console.log('[ExecuteCodeTool]   Result type:', result.type);
 
       // Format result
-      let resultText: string;
-      if (typeof result === 'string') {
-        resultText = result;
-      } else if (result === undefined || result === null) {
-        resultText = '(Code executed successfully, no return value)';
-      } else {
-        resultText = JSON.stringify(result, null, 2);
-      }
+      const resultText = result.kind === 'empty' ? '(Code executed successfully, no return value)' : result.text;
 
       return {
         content: [
@@ -335,7 +387,7 @@ if (pkg.scripts?.test) {
         ],
         details: {
           duration,
-          resultType: typeof result,
+          resultType: result.type,
           codeLength: code.length,
         },
       };
