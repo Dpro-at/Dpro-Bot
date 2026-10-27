@@ -4734,6 +4734,444 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "Brand strategist",
+      "package": "brand-identity",
+      "references": [
+        "references/brand-strategy.md",
+        "references/discovery-direction.md",
+        "references/applications-rollout.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brand and audience evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized asset production or public brand rollout when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Campaign analyst",
+      "package": "data-analysis",
+      "references": [
+        "references/campaign-analysis.md",
+        "references/data-and-metrics.md",
+        "references/presentation-review.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped campaign data and computation when measured results are requested",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized campaign-system or budget change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Community manager",
+      "package": "social-planning",
+      "references": [
+        "references/community-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped community cases and policy evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact community response or moderation action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Content creator",
+      "package": "content-studio",
+      "references": [
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized brand/source evidence and asset authoring capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized content generation service or publication when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Email marketing specialist",
+      "package": "content-studio",
+      "references": [
+        "references/email-marketing.md",
+        "references/claims-and-voice.md",
+        "references/channel-playbooks.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped email brief, consent/policy and source evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized email-platform enrollment or sending action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "SEO specialist",
+      "package": "search-visibility",
+      "references": [
+        "references/technical-diagnosis.md",
+        "references/content-intent.md",
+        "references/local-international.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized bounded site/render/search evidence and diagnostics when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized site, redirect or business-profile change when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Social media manager",
+      "package": "social-planning",
+      "references": [
+        "references/editorial-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized scoped editorial records and channel evidence when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized exact scheduling or publishing action when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Virtual influencer",
+      "package": "social-planning",
+      "references": [
+        "references/synthetic-creator.md",
+        "references/editorial-operations.md",
+        "references/community-operations.md",
+        "references/publishing-measurement.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Authorized creator/asset rights and actually available media authoring capability when needed",
+          "toolName": null
+        },
+        {
+          "name": "Separately authorized media generation or public creator-account action when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
