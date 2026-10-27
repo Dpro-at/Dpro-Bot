@@ -1305,6 +1305,397 @@
           "toolName": null
         }
       ]
+    },
+    {
+      "name": "DNS administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/dns.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Storage administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/storage-administration.md",
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Web hosting administrator",
+      "package": "infrastructure-operations",
+      "references": [
+        "references/web-hosting.md",
+        "references/host-administration.md",
+        "references/change-control.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Backup and recovery specialist",
+      "package": "recovery-engineering",
+      "references": [
+        "references/scope-objectives.md",
+        "references/backup-design.md",
+        "references/restore-execution.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Disaster recovery specialist",
+      "package": "recovery-engineering",
+      "references": [
+        "references/disaster-recovery.md",
+        "references/scope-objectives.md",
+        "references/restore-execution.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Observability engineer",
+      "package": "observability-engineering",
+      "references": [
+        "references/signal-design.md",
+        "references/telemetry-pipelines.md",
+        "references/queries-dashboards.md",
+        "references/objectives-alerts.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
+    },
+    {
+      "name": "Site reliability engineer",
+      "package": "observability-engineering",
+      "references": [
+        "references/reliability-operations.md",
+        "references/objectives-alerts.md",
+        "references/validation.md"
+      ],
+      "tools": [
+        {
+          "name": "read",
+          "fingerprint": null
+        },
+        {
+          "name": "write",
+          "fingerprint": null
+        },
+        {
+          "name": "memory_search",
+          "fingerprint": null
+        },
+        {
+          "name": "web_fetch",
+          "fingerprint": null
+        }
+      ],
+      "memoryRead": [
+        "project",
+        "task"
+      ],
+      "memoryWrite": [
+        "project",
+        "task"
+      ],
+      "sharedMemory": false,
+      "modes": {
+        "browser": "off",
+        "network": "ask",
+        "message": "off",
+        "delete": "off",
+        "install": "off",
+        "money": "off",
+        "settings": "off"
+      },
+      "requirements": [
+        {
+          "name": "Scoped read-only target observation with exact authorization when needed",
+          "toolName": null
+        },
+        {
+          "name": "Scoped target change with separate exact authorization when requested",
+          "toolName": null
+        }
+      ]
     }
   ]
 }
