@@ -166,8 +166,10 @@ test('projects: create one, chats go into it, the chat shows the project bar; mo
   assert.match(html, /⎇ feature\/panel/);
   assert.match(html, /github\.com\/example\/app/);
   const list = renderToStaticMarkup(React.createElement(ConversationList, { controller: c, onOpen: () => {} }));
-  assert.match(list, /\+ New project/);
-  assert.match(list, /New general chat/);
+  // CHAT-BUILD-01 stage 2: the project is a folder with its chats; New project is in the list's menus.
+  assert.match(list, /class="chat-project-row"[^>]*title="App · \/fiction\/app"/);
+  assert.match(list, /aria-label="More for the chat list"/);
+  assert.doesNotMatch(list, /<select|General chat/);
   await c.moveToProject(conv.id, '');
   assert.equal(c.getSnapshot().conversations.find(x => x.id === conv.id).projectId, null);
   await c.removeProject(p.id);

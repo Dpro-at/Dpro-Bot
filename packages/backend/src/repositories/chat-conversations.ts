@@ -36,6 +36,10 @@ export interface Conversation {
   preview: string;
   createdAt: string;
   updatedAt: string;
+  /** CHAT-BUILD-01 stage 2: archived chats leave the sidebar sections (still searchable and open). */
+  archived?: boolean;
+  /** The chat an agent opened this one from (shown under it in the sidebar). */
+  parentId?: string | null;
 }
 
 export interface ConversationMessage {
@@ -52,7 +56,7 @@ export interface ConversationMessage {
   agentId?: string | null;
 }
 
-interface SessionRow { model?: string; id: string; user_id: string; title: string | null; agent_id: string | null; project_id?: string | null; pinned: number; created_at: string; updated_at: string; preview?: string | null }
+interface SessionRow { archived_at?: string | null; parent_id?: string | null; model?: string; id: string; user_id: string; title: string | null; agent_id: string | null; project_id?: string | null; pinned: number; created_at: string; updated_at: string; preview?: string | null }
 interface MessageRow { id: string; role: ConversationMessage['role']; content: string; parts: string | null; status: TurnStatus | null; run_id: string | null; duration_ms: number | null; created_at: string; agent_id?: string | null; error_code?: string | null }
 
 const PREVIEW_CHARS = 140;
@@ -63,6 +67,7 @@ function toConversation(r: SessionRow): Conversation {
     id: r.id, title: r.title, agentId: r.agent_id, projectId: r.project_id ?? null, pinned: !!r.pinned,
     preview: (r.preview ?? '').replace(/\s+/g, ' ').trim().slice(0, PREVIEW_CHARS),
     createdAt: r.created_at, updatedAt: r.updated_at,
+    ...(r.archived_at ? { archived: true } : {}), ...(r.parent_id ? { parentId: r.parent_id } : {}),
   };
 }
 
@@ -102,13 +107,14 @@ export async function createConversation(userId: string, input: { title?: string
 }
 
 /** Rename and/or pin. Renaming bumps nothing else; pinning does not reorder by time. */
-export async function patchConversation(userId: string, id: string, patch: { title?: string | null; pinned?: boolean; projectId?: string | null; model?: string }): Promise<Conversation | undefined> {
+export async function patchConversation(userId: string, id: string, patch: { title?: string | null; pinned?: boolean; projectId?: string | null; model?: string; archived?: boolean }): Promise<Conversation | undefined> {
   const fields: string[] = [];
   const params: Array<string | number | null> = [];
   if (patch.model !== undefined) { fields.push('model = ?'); params.push(patch.model || 'default'); }
   if (patch.title !== undefined) { fields.push('title = ?'); params.push(patch.title?.trim() || null); }
   if (patch.pinned !== undefined) { fields.push('pinned = ?'); params.push(patch.pinned ? 1 : 0); }
   if (patch.projectId !== undefined) { fields.push('project_id = ?'); params.push(patch.projectId); }
+  if (patch.archived !== undefined) fields.push(patch.archived ? 'archived_at = COALESCE(archived_at, CURRENT_TIMESTAMP)' : 'archived_at = NULL');
   if (fields.length) await q.run(`UPDATE chat_sessions SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, ...params, id, userId);
   return findConversation(userId, id);
 }

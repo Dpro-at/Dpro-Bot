@@ -25,6 +25,7 @@ export function createConversationsMock(options: { stepMs?: number } = {}) {
   const runs = new Map<string, Run>();
   const projects = new Map<string, Proj>();
   let n = 0; let clock = 0;
+  let sidebar: Record<string, unknown> = { order: ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'], hidden: ['archived'], folded: [] };
   const now = () => `2026-10-15 12:${String(Math.floor(clock / 60) % 60).padStart(2, '0')}:${String(clock++ % 60).padStart(2, '0')}`;
   const view = (c: Conv) => ({ id: c.id, title: c.title, agentId: c.agentId, projectId: c.projectId, pinned: c.pinned, preview: c.preview, createdAt: c.createdAt, updatedAt: c.updatedAt });
   const list = () => [...convs.values()].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.order - a.order).map(view);
@@ -132,6 +133,7 @@ export function createConversationsMock(options: { stepMs?: number } = {}) {
     const p = conversationPath(request.path);
     const body = request.body as Record<string, any> | undefined;
     if (!p) return { status: 404, body: { code: 'not_found' } };
+    if (p.kind === 'sidebar') { if (request.method === 'PUT') sidebar = { ...sidebar, ...body }; return { status: 200, body: { sidebar } }; }
     if (p.kind === 'projects') {
       if (request.method === 'GET') return { status: 200, body: { projects: [...projects.values()] } };
       if (body?.folder && !String(body.folder).startsWith('/')) return { status: 400, body: { code: 'invalid_project' } };

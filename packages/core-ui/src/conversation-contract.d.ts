@@ -16,6 +16,7 @@ export const TRANSCRIBE_PATH: '/api/chat/transcribe';
 export const MAX_AUDIO_CHARS: number;
 export const STT_LANGUAGES: readonly ['auto', 'ar', 'en', 'de'];
 export const MAX_MESSAGE: number;
+export const SIDEBAR_PATH: string;
 export const MAX_MESSAGE_BYTES: number;
 export const MAX_TITLE: number;
 export const RUN_STREAM_MS: number;
@@ -23,7 +24,7 @@ export const RUN_IDLE_MS: number;
 export const RUN_FRAME_BYTES: number;
 export function validRunId(x: unknown): x is string;
 export type ConversationPath =
-  | { kind: 'list' | 'projects' | 'transcribe' | 'approval' | 'folder-picker' } | { kind: 'one' | 'messages' | 'runs' | 'project' | 'project-git'; id: string }
+  | { kind: 'list' | 'projects' | 'transcribe' | 'approval' | 'folder-picker' | 'sidebar' } | { kind: 'one' | 'messages' | 'runs' | 'project' | 'project-git'; id: string }
   | { kind: 'events'; run: string; after: number } | { kind: 'stop'; run: string }
   | { kind: 'project-changes'; id: string } | { kind: 'project-diff' | 'project-tree' | 'project-file'; id: string; rel: string };
 export function conversationPath(path: string): ConversationPath | null;
@@ -31,7 +32,7 @@ export function conversationRoute(path: string): boolean;
 export function allowedConversation(method: string, path: string, body?: unknown): boolean;
 export function conversationResponse(path: string, status: number, body: unknown): unknown;
 
-export type WireConversation = { model?: string; id: string; title: string | null; agentId: string | null; projectId: string | null; pinned: boolean; preview: string; createdAt: string; updatedAt: string };
+export type WireConversation = { model?: string; id: string; title: string | null; agentId: string | null; projectId: string | null; pinned: boolean; preview: string; createdAt: string; updatedAt: string; archived?: boolean; parentId?: string; running?: boolean; waiting?: number };
 export type WireToolCall = { id: string; name: string; input: string; output?: string; isError?: boolean; ms?: number };
 export type WirePart = { kind: 'text'; text: string } | { kind: 'reasoning'; text: string; ms?: number } | { kind: 'tools'; step: number; calls: WireToolCall[] };
 export type WireMessage = { id: string; role: 'user' | 'assistant' | 'system'; content: string; parts: WirePart[] | null; status: 'complete' | 'stopped' | 'error'; runId: string | null; durationMs: number | null; createdAt: string; agentId?: string; code?: 'run_interrupted' };

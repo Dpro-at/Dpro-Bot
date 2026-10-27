@@ -1,22 +1,32 @@
 import {DproMark} from './DproMark';
 import { useEffect,useState } from 'react';
 import type { ReactNode } from 'react';
-import { AppSettings } from './AppSettings';
 import { useAppNavigation, useAppTheme } from './app-navigation';
 import type { AppDestination } from './app-navigation';
+/**
+ * CHAT-BUILD-01 (CH11): signed out is one screen with one action. No sidebar,
+ * no locked sections, no Settings and no footer: nothing private shows before
+ * sign-in. About stays in the program menu (Girru › About Girru).
+ */
 export function PublicShell({ children, setup, notice, initialPage = 'home', blocking=false, accountStep=false }: { children: ReactNode; setup?: string; notice?: ReactNode; initialPage?: 'home' | 'account';blocking?:boolean;accountStep?:boolean }) {
-  const [page, setPage] = useState<AppDestination>(accountStep?'account':initialPage);
+  const [page, setPage] = useState<'home' | 'account'>(accountStep?'account':initialPage);
   useEffect(()=>{if(accountStep)setPage('account');},[accountStep]);
   const activePage=blocking?'account':page;
-  const appearance = useAppTheme(); useAppNavigation(setPage);
-  const ready = setup === 'login' || setup === 'required';
+  const appearance = useAppTheme();
+  // The program menu may ask for Settings while signed out: sign-in comes first.
+  useAppNavigation((to: AppDestination) => setPage(to === 'home' ? 'home' : 'account'));
   return <div className="shell app-shell public-shell" data-theme={appearance.theme} lang="en" dir="ltr">
-    <header className="titlebar" inert={blocking}><span className="sidebar-brand"><DproMark/>Girru</span><span className="titlebar-title">Your workspace</span><div className="titlebar-tools end"><button onClick={() => setPage('settings')}>Settings</button><button onClick={() => setPage('account')}>Sign in</button></div></header>
-    <aside className="sidebar" inert={blocking}><nav aria-label="Application"><button className="nav-item" aria-current={activePage === 'home' ? 'page' : undefined} onClick={() => setPage('home')}>Welcome</button><button className="nav-item" disabled>Conversations · Sign in required</button><button className="nav-item" disabled>Agents &amp; tools · Sign in required</button><button className="nav-item" disabled>Memory · Sign in required</button><button className="nav-item" onClick={() => setPage('settings')}>Settings</button><button className="nav-item" onClick={() => setPage('about')}>About Girru</button></nav><div className="sidebar-bottom"><button className="user-chip" onClick={() => setPage('account')}>Not signed in</button></div></aside>
+    <header className="titlebar" inert={blocking}><span className="sidebar-brand"><DproMark/>Girru</span></header>
     <main className="page-area public-content">{notice && <p role="status" className="page-notice">{notice}</p>}
-      {activePage === 'home' ? <section className="public-welcome"><p className="fine-print">Your agents. Your workspace.</p><h1>Welcome to Girru</h1><p>Your conversations and tools stay private until you sign in.</p><button className="primary" onClick={() => setPage('account')}>{setup === 'required' ? 'Finish workspace setup' : 'Sign in to your workspace'}</button><button onClick={() => setPage('settings')}>Open settings</button><p className="fine-print">{setup === 'required' ? 'This workspace still needs its first owner. Existing users should open their previous workspace from File.' : ready ? 'An existing workspace is ready. Use your previous account.' : 'Checking the workspace connection. No private data has been loaded.'}</p></section>
-      : activePage === 'account' ? <div className="public-account">{!blocking&&<button onClick={() => setPage('home')}>Back to welcome</button>}{children}</div>
-      : <AppSettings signedIn={false} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => setPage('account')} aboutOnly={activePage === 'about'}/>}
-    </main><footer className="statusbar"><span role="status">{ready ? 'Engine available' : setup === 'unavailable' ? 'Engine unavailable' : 'Checking engine…'}</span><span>Not signed in · Private tools locked</span></footer>
+      {activePage === 'home' ? <section className="public-welcome" aria-label="Welcome">
+        <span className="public-mark" aria-hidden="true"><DproMark/></span>
+        <h1>Welcome to Girru</h1>
+        <p>Your agents and your work stay private until you sign in.</p>
+        <button className="primary" onClick={() => setPage('account')}>{setup === 'required' ? 'Finish workspace setup' : 'Sign in'}</button>
+        {setup === 'required' && <p className="fine-print">This workspace still needs its first owner.</p>}
+        {setup === 'unavailable' && <p className="fine-print" role="status">Girru’s engine is not answering yet. Sign in works once it starts.</p>}
+      </section>
+      : <div className="public-account">{!blocking&&<button onClick={() => setPage('home')}>Back</button>}{children}</div>}
+    </main>
   </div>;
 }

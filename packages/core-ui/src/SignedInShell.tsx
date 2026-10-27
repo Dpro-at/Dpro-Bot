@@ -150,6 +150,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     { id: 'rail', group: 'Actions', icon:<UiIcon name="sidebar" size={14}/>, label: rail ? 'Hide the sidebar' : 'Show the sidebar', run: () => setRail(v => !v) },
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
+  // CHAT-BUILD-01 stage 2 (CH1): the top bar names the chat and, muted, its project (hover = full path).
+  const activeProject = active?.projectId ? chatState?.projects.find(p => p.id === active.projectId) : undefined;
   const pageTitle = page === 'code'?'Code':page === 'library'?'Library':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
   const footer=footerFor(client);
   const owner=user.role==='owner',go=(p:Page)=>()=>setPage(p);
@@ -164,9 +166,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <WorkspaceModes onModeChange={mode=>{if(mode==='code')setPage('code');else if(page==='code')setPage('chat');}}/>
       <div className="titlebar-tools">
         <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar' : 'Show the sidebar'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
-        {page === 'chat' && <button type="button" className="tool" aria-label="New chat" title="New chat" onClick={newChat}><UiIcon name="compose" size={14}/></button>}
       </div>
-      <p className="titlebar-title">{pageTitle}</p>
+      <p className="titlebar-title">{pageTitle}{page === 'chat' && activeProject && <span className="titlebar-project" title={activeProject.folder ?? activeProject.name}>{activeProject.name}</span>}</p>
       <div className="titlebar-tools end">
         <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Search or run a command (⌘K)"><UiIcon name="search" size={13}/>Search or run a command<kbd>⌘K</kbd></button>
         <button type="button" className="tool" onClick={toggleTheme} aria-label="Switch theme" title="Switch theme"><UiIcon name={theme === 'dark' ? 'sun' : 'moon'} size={14}/></button>
@@ -177,13 +178,9 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {/* A place inside a section (Skills in Library, MCP connections in Settings) shows the way back on top, like an open agent's "All staff" (board SH1). */}
       {placeParent[page]&&<button type="button" className="agent-return place-return" onClick={()=>setPage(placeParent[page]!)}><UiIcon name="arrow-left" size={13}/>{PARENT_LABEL[placeParent[page]!]}</button>}
       <div className="section-sidebar" ref={setSlot} hidden={page === 'chat'}/>
-      {page === 'chat' && <><button className="nav-item new-chat" onClick={newChat}>
-        <UiIcon name="compose" size={15}/>New chat
-      </button>
-      <p className="section-label"><span className="checker" aria-hidden="true"/>Conversations</p>
-      <div className="session-list">
-        {chat && <ConversationList controller={chat} search={user.role === 'guest' ? undefined : search?.side} onOpen={() => setPage('chat')}/>}
-      </div></>}
+      {page === 'chat' && <div className="session-list">
+        {chat && <ConversationList controller={chat} search={user.role === 'guest' ? undefined : search?.side} onOpen={() => setPage('chat')} onNewChat={newChat}/>}
+      </div>}
       <div className="sidebar-footer">
         <details className="account-menu"><summary className="user-chip" title="Account">
           <span className="avatar" aria-hidden="true">{(displayName(user) || '?').slice(0, 1).toUpperCase()}</span>

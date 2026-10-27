@@ -4,7 +4,10 @@ const {PublicShell}=require('../src/PublicShell.tsx');const {AuthBoundary}=requi
 test('signed-out shell never mounts account form or private children and locks work destinations',()=>{
  let mounted=0;function Private(){mounted++;return React.createElement('div',null,'PRIVATE_HISTORY_SENTINEL')}
  const html=renderToStaticMarkup(React.createElement(PublicShell,{setup:'login'},React.createElement(Private)));
- assert.equal(mounted,0);assert.doesNotMatch(html,/PRIVATE_HISTORY_SENTINEL|Create the owner/);assert.match(html,/Welcome to Girru/);assert.match(html,/Not signed in/);assert.match(html,/disabled=""[^>]*>Conversations/);assert.match(html,/disabled=""[^>]*>Agents/);
+ assert.equal(mounted,0);assert.doesNotMatch(html,/PRIVATE_HISTORY_SENTINEL|Create the owner/);assert.match(html,/Welcome to Girru/);assert.match(html,/Your agents and your work stay private until you sign in\./);assert.match(html,/>Sign in<\/button>/);
+ // CH11: one screen, one action. No sidebar, locked sections, Settings, About or status bar before sign-in.
+ assert.doesNotMatch(html,/class="sidebar"|Conversations|Agents &amp; tools|>Settings<|About Girru|class="statusbar"|Open settings/);
+ assert.equal((html.match(/<button/g)||[]).length,1);
 });
 test('live signed-out boundary renders immediate welcome without private network requests',()=>{
  const requests=[];const client=new SessionClient({live:async request=>{requests.push(request);throw Error('No private requests expected')}});client.selectMode('live');
