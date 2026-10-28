@@ -14,6 +14,8 @@ import {changePasswordRateLimit} from '../rate-limit-config.js';
  *   GET  /api/approvals/:id              full view: exact parameters (secrets masked) + paramsHash
  *   POST /api/approvals/:id/approve      { paramsHash } approve once: runs exactly those parameters
  *   POST /api/approvals/:id/deny         deny: it never runs
+ *   POST /api/approvals/:id/request      { paramsHash, request } CH6 Change the task…: a waiting team_delegate's
+ *                                        task only; returns the full view with the new paramsHash (the old one is refused)
  *
  * BE-UI-01: every approval carries `expiresAt` (requestedAt + 24 h, after
  * which the server marks it expired) and all timestamps (requestedAt,
@@ -27,6 +29,7 @@ import {
   ApprovalVerificationRequiredError,
   approveAndRun,
   denyApproval,
+  editApprovalRequest,
   getApprovalDetail,
   listApprovals,
   APPROVAL_AGENT_ID,
@@ -35,9 +38,10 @@ import {
 import { isoPlusHours, isoUtc } from '../timestamps.js';
 
 /** API view of an approval record: ISO UTC timestamps + absolute expiresAt. */
-function view<T extends { requestedAt: string; decidedAt: string | null; executedAt: string | null }>(r: T): T & { expiresAt: string | null } {
+function view<T extends { requestedAt: string; decidedAt: string | null; executedAt: string | null; editedAt?: string | null }>(r: T): T & { expiresAt: string | null } {
   return {
     ...r,
+    ...(r.editedAt !== undefined ? { editedAt: isoUtc(r.editedAt) } : {}),
     requestedAt: isoUtc(r.requestedAt) as string,
     decidedAt: isoUtc(r.decidedAt),
     executedAt: isoUtc(r.executedAt),
@@ -149,6 +153,31 @@ export async function approvalsRoutes(fastify: FastifyInstance) {
       if (err instanceof ApprovalVerificationRequiredError)return reply.code(403).send({code:'verification_required'});
       if (err instanceof ApprovalStateError) return reply.code(err.status).send({ error: err.message });
       if(body.verificationReceipt!==undefined)return proofError(reply,err);
+      throw err;
+    }
+  });
+
+  // CH6 "Change the task…": owner only (the same gates as Allow once), a person's own session (never an agent or a
+  // channel/service actor), only a waiting team_delegate and only its `request`. Allow once then needs the new paramsHash.
+  fastify.post<{ Params: { id: string }; Body: { paramsHash?: unknown; request?: unknown } }>('/api/approvals/:id/request', { config }, async (request, reply) => {
+    const ownerId = ownerOf(request, reply);
+    if (ownerId === null) return reply;
+    if (request.actor && (request.actor.kind !== 'user' || request.actor.userId !== ownerId)) return reply.code(403).send({ error: 'This action requires the owner account' });
+    if (!ID.test(request.params.id)) return reply.code(400).send({ error: 'Invalid id' });
+    const body = request.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['paramsHash', 'request'].includes(key))) return reply.code(400).send({ error: 'Send paramsHash and request only' });
+    if (typeof body.paramsHash !== 'string' || !/^[0-9a-f]{64}$/.test(body.paramsHash)) return reply.code(400).send({ error: 'paramsHash from GET /api/approvals/:id is required' });
+    try {
+      const { detail, changed } = await editApprovalRequest(request.params.id, ownerId, body.paramsHash, body.request);
+      if (changed) audit(request, ownerId, 'change_request', detail.id, true, { tool: detail.toolName, agentId: detail.agentId, length: typeof body.request === 'string' ? body.request.length : 0 });
+      const factor = await sql().read(one<{ enabled: number }>('SELECT enabled FROM verification_factors WHERE user_id=?', ownerId));
+      reply.header('Cache-Control', 'no-store');
+      return { approval: { ...view(detail), verificationRequired: !!factor && Number(factor.enabled) === 1 } };
+    } catch (err: any) {
+      if (err instanceof ApprovalStateError) {
+        audit(request, ownerId, 'change_request', request.params.id, false, { status: err.status });
+        return reply.code(err.status).send({ error: err.message });
+      }
       throw err;
     }
   });

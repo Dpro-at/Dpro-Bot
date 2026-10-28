@@ -286,6 +286,8 @@ export interface ApprovalRecord {
   executedAt: string | null;
   resultPreview: string | null;
   error: string | null;
+  /** CH6: when the owner changed the waiting request (Change the task…); null when it is the agent's own. */
+  editedAt: string | null;
 }
 
 function toRecord(row: any): ApprovalRecord {
@@ -310,6 +312,7 @@ function toRecord(row: any): ApprovalRecord {
     executedAt: row.executed_at,
     resultPreview: row.result_preview,
     error: row.error,
+    editedAt: row.edited_at ?? null,
   };
 }
 
@@ -487,6 +490,49 @@ export async function denyApproval(id: string, ownerId: string): Promise<Approva
   return record;
 }
 
+/**
+ * CH6 "Change the task…" (Mohamed 2026-10-28): the only tools whose waiting request the owner may rewrite before
+ * Allow once, the one parameter that may change and its limit (the tool's own). Every other parameter, the agent,
+ * the run scope and the origin stay exactly as the agent asked; any other tool cannot be edited at all.
+ */
+export const EDITABLE_REQUESTS: Readonly<Record<string, { param: string; max: number }>> = { team_delegate: { param: 'request', max: 12000 } };
+
+/**
+ * Replace a waiting hand-off's task with the owner's text. The owner sends the paramsHash of the full view they
+ * edited; the parameters are re-encrypted with a new salt and a new hash over the edited parameters + the same run
+ * scope, in one compare-and-set on (pending, old hash). The old hash, any proof receipt or reviewer vote bound to it
+ * no longer matches, so Allow once covers exactly the edited text. Nothing runs here.
+ */
+export async function editApprovalRequest(id: string, ownerId: string, expectedHash: unknown, text: unknown): Promise<{ detail: ApprovalDetail; changed: boolean }> {
+  await expireOld();
+  const row = await sql().read(one<any>('SELECT * FROM tool_approvals WHERE id = ?', id));
+  if (!row) throw new ApprovalStateError('Approval not found', 404);
+  const rule = EDITABLE_REQUESTS[row.tool_name];
+  if (!rule) throw new ApprovalStateError('Only a hand-off’s task can be changed', 400);
+  if (row.status !== 'pending') throw new ApprovalStateError(`Approval is ${row.status}, not pending`, 409);
+  if (typeof text !== 'string' || !text.trim() || text.length > rule.max) throw new ApprovalStateError(`The task must be 1 to ${rule.max} characters`, 400);
+  if (!sameHash(row.params_hash, expectedHash)) throw new ApprovalStateError('paramsHash does not match the stored parameters; open the full view and change it again', 409);
+  const scope = parseRunScope(row.run_scope);
+  let params: Record<string, any>;
+  try { params = JSON.parse(await getEncryptionService().decrypt(row.params_encrypted, row.params_iv, row.params_tag)); }
+  catch { throw new ApprovalStateError('Stored parameters could not be read', 409); }
+  if (scope === 'invalid' || !row.params_salt || !sameHash(paramsHash(row.params_salt, hashedPayload(params, scope)), row.params_hash)
+    || !params || typeof params !== 'object' || Array.isArray(params) || typeof params[rule.param] !== 'string') throw new ApprovalStateError('Stored parameters changed after the request', 409);
+  if (params[rule.param] === text) return { detail: (await getApprovalDetail(id))!, changed: false };
+  const next = { ...params, [rule.param]: text };
+  const { encrypted, iv, authTag } = await getEncryptionService().encrypt(JSON.stringify(next));
+  const salt = randomBytes(16).toString('hex');
+  const hash = paramsHash(salt, hashedPayload(next, scope));
+  const { preview, truncated } = previewParams(row.tool_name, next);
+  const res = await sql().read((function* () {
+    const d = yield* dialect();
+    return yield* run(`UPDATE tool_approvals SET params_encrypted = ?, params_iv = ?, params_tag = ?, params_preview = ?, preview_truncated = ?, params_hash = ?, params_salt = ?, edited_at = ${nowText(d)}, edited_by = ? WHERE id = ? AND status = 'pending' AND params_hash = ?`,
+      encrypted, iv, authTag, preview, truncated ? 1 : 0, hash, salt, ownerId, id, row.params_hash);
+  })());
+  if (res.changes !== 1) throw new ApprovalStateError('The request changed or stopped waiting; open it again', 409);
+  return { detail: (await getApprovalDetail(id))!, changed: true };
+}
+
 /** A known pre-claim refusal: no decision or execution has happened. */
 export class ApprovalVerificationRequiredError extends ApprovalStateError {
  constructor(){super('Verification is required for this approval',403);}
@@ -587,6 +633,8 @@ export async function approveAndRun(id: string, ownerId: string, expectedHash: u
   } finally {
     liveTickets.delete(ticket);
   }
+  // CH6: the agent that asked learns the owner changed its request (the text that ran is in the hand-off's result).
+  if (row.edited_at && EDITABLE_REQUESTS[row.tool_name]) result = { ...result, content: [{ type: 'text', text: 'The owner changed the task before allowing it; this is the result of the changed task.' }, ...(result.content || [])] };
   const text = (result.content || []).filter((b) => b.type === 'text').map((b) => b.text || '').join('\n');
   await finish(result.error ? 'failed' : 'executed', text.slice(0, 500) || null, result.error ? String(result.error).slice(0, 300) : null);
   return { record: (await getApproval(id))!, result };
