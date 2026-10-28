@@ -161,10 +161,38 @@ function stripComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, '').replace(/([^:'"`])\/\/[^'"`\n]*$/gm, '$1');
 }
 
+/**
+ * The paper-trading cron ledger in the scheduler is SQLite-only by design: it runs only
+ * while the process driver is SQLite and is unavailable on PostgreSQL. Its blocks are
+ * cut out before the scan, and each one must keep its SQLite-only guard.
+ */
+const PAPER_BLOCKS = ['private paperAvailable(', 'private registerPaper(', 'registerOwnedPaperJob(', 'private executePaper(', 'if(this.#paperOnly){'];
+function withoutPaperLedger(rel, code) {
+  if (rel !== 'src/scheduler/engine.ts') return code;
+  for (const head of PAPER_BLOCKS) {
+    const start = code.indexOf(head);
+    assert.ok(start >= 0, `${rel}: ${head} not found`);
+    let depth = 0, end = code.indexOf('{', start);
+    for (; end < code.length; end++) { if (code[end] === '{') depth++; else if (code[end] === '}' && --depth === 0) break; }
+    code = code.slice(0, start) + code.slice(end + 1);
+  }
+  return code;
+}
+
+test('the paper-trading cron ledger runs only on SQLite', () => {
+  const engine = stripComments(readFileSync(join(backend, 'src/scheduler/engine.ts'), 'utf8'));
+  assert.match(engine, /private paperAvailable\(\)[^{]*\{[^}]*dbDriver\(\)==='sqlite'/);
+  assert.match(engine, /if\(this\.#paperOnly\)\{[\s\S]{0,200}dbDriver\(\)!=='sqlite'/);
+  for (const fn of ['private registerPaper(', 'registerOwnedPaperJob(', 'private executePaper(']) {
+    const body = engine.slice(engine.indexOf(fn), engine.indexOf('\n  }\n', engine.indexOf(fn)));
+    assert.match(body, /paperAvailable\(\)|paperCurrent\(/, `${fn} checks the SQLite-only guard`);
+  }
+});
+
 test('ported modules never call SQLite directly or use SQLite-only SQL', () => {
   const offenders = [];
   for (const rel of PORTED) {
-    const code = stripComments(readFileSync(join(backend, rel), 'utf8'));
+    const code = withoutPaperLedger(rel, stripComments(readFileSync(join(backend, rel), 'utf8')));
     for (const [re, what] of FORBIDDEN) {
       if (re.test(code)) offenders.push(`${rel}: ${what}`);
     }
@@ -336,7 +364,7 @@ test('B2.2c part 1: with AGENT_PLAYER_DB=postgres the scheduler, MCP, settings, 
 test('B2.2c part 1: the cron engine claims each tick on PostgreSQL; the MCP service has no SQLite-only branch left', () => {
   const engine = stripComments(readFileSync(join(backend, 'src/scheduler/engine.ts'), 'utf8'));
   assert.match(engine, /await claimRun\(job\.id, tickSlot\(job\.cronExpression\)\)/);
-  assert.ok(engine.indexOf('claimRun(') < engine.indexOf('this.executeJob(job.id)'), 'claim before the run');
+  assert.ok(engine.indexOf('claimRun(') < engine.indexOf("this.executeJob(job.id, 'scheduled')"), 'claim before the run');
   const svc = stripComments(readFileSync(join(backend, 'src/mcp-client/service.ts'), 'utf8'));
   assert.doesNotMatch(svc, /grantsOnPg|revokeMcpGrantsSync|dialect === 'postgres'/);
   for (const fn of ['createServer', 'updateServer', 'deleteServer', 'refreshServer']) {

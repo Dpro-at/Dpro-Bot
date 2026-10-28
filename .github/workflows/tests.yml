@@ -1,0 +1,53 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Type-check and test suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      npm_config_fund: 'false'
+      npm_config_audit: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - name: Install locked dependencies
+        run: |
+          npm ci --prefix packages/backend
+          npm ci --prefix packages/core-ui
+          npm ci --prefix packages/desktop
+      # The application-server and desktop-integration tests serve a verified UI build.
+      - name: Build verified UI
+        run: |
+          node packages/core-ui/scripts/build.cjs
+          node packages/core-ui/scripts/build.cjs --candidate --live-entry
+      - name: Type-check
+        run: |
+          node packages/core-ui/scripts/typecheck.cjs
+          (cd packages/backend && npx tsc --noEmit -p .)
+      - name: UI tests
+        run: node --test --test-concurrency=2 --test-timeout=90000 packages/core-ui/tests/*.test.cjs
+      - name: Desktop tests
+        run: node --test --test-timeout=90000 packages/desktop/test/*.test.cjs
+      # lmstudio.test.mjs needs a running LM Studio; PostgreSQL tests skip without AGENT_PLAYER_PG_TEST_URL.
+      - name: Backend tests
+        working-directory: packages/backend
+        run: node --import tsx --test --test-concurrency=4 --test-timeout=120000 $(ls test/*.test.mjs | grep -v '/lmstudio\.test\.mjs$')

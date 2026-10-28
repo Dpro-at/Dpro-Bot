@@ -83,6 +83,14 @@ const grant = async (agentId, names) => {
   return res.json();
 };
 const text = (r) => (r.content || []).map((c) => c.text || '').join('\n');
+// A stdio MCP tool starts a program, so every call waits for the owner's one-time approval
+// (the exec approval floor); the owner approves here and the call runs once.
+const approved = async (reg, name, args) => {
+  const res = await reg.execute(name, args);
+  assert.equal(res.details?.status, 'pending_approval', text(res));
+  const detail = await approvals.getApprovalDetail(res.details.approvalId);
+  return (await approvals.approveAndRun(detail.id, 'm-owner', detail.paramsHash)).result;
+};
 
 let stdio; // server view
 
@@ -225,7 +233,7 @@ test('grant per agent (qualified or registry name); call returns labelled untrus
   const reg = registry({ agentId: 'm-agent' });
   assert.ok(mcpNames(reg).includes('mcp__fixture__echo'));
   const secretArg = `value-${randomBytes(6).toString('hex')}`;
-  const res = await reg.execute('mcp__fixture__echo', { text: secretArg });
+  const res = await approved(reg, 'mcp__fixture__echo', { text: secretArg });
   assert.equal(res.error, undefined, text(res));
   assert.match(text(res), /untrusted data/);
   assert.match(text(res), /<mcp_tool_output>\n/);
@@ -255,7 +263,7 @@ test('a grant only counts while bound to the tool fingerprint it was given for',
 test('arguments are validated against the schema before the call', async () => {
   const reg = registry({ agentId: 'm-agent' });
   for (const args of [{}, { text: 5 }, { text: 'x'.repeat(2000) }]) {
-    const res = await reg.execute('mcp__fixture__echo', args);
+    const res = await approved(reg, 'mcp__fixture__echo', args);
     assert.equal(res.error, 'mcp_invalid_arguments', JSON.stringify(args));
   }
 });
@@ -269,10 +277,10 @@ test('write-like MCP tools wait for the S1.3 owner approval, then run once', asy
   const { result } = await approvals.approveAndRun(detail.id, 'm-owner', detail.paramsHash);
   assert.equal(result.error, undefined, text(result));
   assert.match(text(result), /saved: n1/);
-  // Owner may mark it read-only-like: no approval any more.
+  // The owner may mark it read-only-like, but a stdio server starts a program: it still asks (exec approval floor).
   const set = await call('PUT', `/api/mcp/servers/${stdio.id}/tools/write_note`, { requiresApproval: false });
   assert.equal(set.statusCode, 200, set.body);
-  const direct = await registry({ agentId: 'm-agent' }).execute('mcp__fixture__write_note', { note: 'n2' });
+  const direct = await approved(registry({ agentId: 'm-agent' }), 'mcp__fixture__write_note', { note: 'n2' });
   assert.match(text(direct), /saved: n2/);
   await call('PUT', `/api/mcp/servers/${stdio.id}/tools/write_note`, { requiresApproval: null });
   // And can require approval for a read-only one.
@@ -283,7 +291,7 @@ test('write-like MCP tools wait for the S1.3 owner approval, then run once', asy
 });
 
 test('child process: minimal env + listed vars, own folder, secrets scrubbed from output', async () => {
-  const res = await registry({ agentId: 'm-agent' }).execute('mcp__fixture__env_probe', {});
+  const res = await approved(registry({ agentId: 'm-agent' }), 'mcp__fixture__env_probe', {});
   assert.equal(res.error, undefined, text(res));
   const body = text(res);
   const json = JSON.parse(body.slice(body.indexOf('{'), body.lastIndexOf('}') + 1));
@@ -296,12 +304,12 @@ test('child process: minimal env + listed vars, own folder, secrets scrubbed fro
 
 test('output cannot close the untrusted block; errors are mapped without internals', async () => {
   const reg = registry({ agentId: 'm-agent' });
-  const inj = text(await reg.execute('mcp__fixture__inject', {}));
+  const inj = text(await approved(reg, 'mcp__fixture__inject', {}));
   assert.equal(inj.split('</mcp_tool_output>').length, 2);
-  const fail = await reg.execute('mcp__fixture__fail', {});
+  const fail = await approved(reg, 'mcp__fixture__fail', {});
   assert.equal(fail.error, 'mcp_server_error');
   assert.ok(!/boom|internal\/secret|sk-ant/.test(text(fail)), text(fail));
-  const terr = await reg.execute('mcp__fixture__tool_error', {});
+  const terr = await approved(reg, 'mcp__fixture__tool_error', {});
   assert.equal(terr.error, 'mcp_tool_error');
   assert.match(text(terr), /could not do it/);
 });
@@ -312,11 +320,13 @@ test('timeout and output size limits', async () => {
   assert.equal(upd.json().disabledByChange, false, 'limits do not change the launch');
   assert.equal((await call('PUT', `/api/mcp/servers/${stdio.id}`, { timeoutMs: 500_000 })).statusCode, 400);
   const reg = registry({ agentId: 'm-agent' });
+  const slowCall = await reg.execute('mcp__fixture__slow', {});
+  const slowApproval = await approvals.getApprovalDetail(slowCall.details.approvalId);
   const started = Date.now();
-  const slow = await reg.execute('mcp__fixture__slow', {});
+  const { result: slow } = await approvals.approveAndRun(slowApproval.id, 'm-owner', slowApproval.paramsHash);
   assert.equal(slow.error, 'mcp_timeout', text(slow));
   assert.ok(Date.now() - started < 4000);
-  const big = await reg.execute('mcp__fixture__big', {});
+  const big = await approved(reg, 'mcp__fixture__big', {});
   assert.equal(big.error, undefined);
   assert.equal(big.details.mcp.truncated, true);
   assert.ok(Buffer.byteLength(text(big)) < 2048);
