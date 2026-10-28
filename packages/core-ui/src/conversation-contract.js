@@ -279,6 +279,7 @@ export function conversationResponse(path, status, body) {
   }
   if (p.kind === 'chat-usage') return { usage: (Array.isArray(body.usage) ? body.usage : []).slice(0, 50).filter(record).map(u => ({ model: str(u.model, 120), tokensIn: num(u.tokensIn) ?? 0, tokensOut: num(u.tokensOut) ?? 0, replies: num(u.replies) ?? 0 })) };
   if (p.kind === 'chat-team') return { team: (Array.isArray(body.team) ? body.team : []).slice(0, 20).filter(record).map(t => ({ agentId: str(t.agentId, 128), agentName: str(t.agentName, 80), model: str(t.model, 120), status: ['started', 'answered', 'waiting_approval', 'failed'].includes(t.status) ? t.status : 'failed', at: str(t.at, 40) })),
+    steps: (Array.isArray(body.steps) ? body.steps : []).slice(0, 20).filter(x => record(x) && typeof x.agentId === 'string' && typeof x.tool === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(x.tool)).map(x => ({ agentId: str(x.agentId, 128), tool: x.tool, at: str(x.at, 40) })),
     apps: (Array.isArray(body.apps) ? body.apps : []).slice(0, 20).filter(a => record(a) && typeof a.id === 'string' && /^[a-f0-9]{32}$/.test(a.id)).map(a => ({ id: a.id, app: str(a.app, 60), agentName: typeof a.agentName === 'string' ? str(a.agentName, 80) : null, about: str(a.about, 120), startedAt: str(a.startedAt, 40) })) };
   if (p.kind === 'app-stop') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };

@@ -41,6 +41,18 @@ const active = new Set<string>();
 export const CHILD_CALL_MS = 120_000;
 /** Running delegations per conversation, so Stop in that chat reaches them. */
 const delegations = new Map<string, Set<AbortController>>();
+/** CH6: the step each delegated agent of a conversation is on now (the tool it runs), for the hand-off card's live line. */
+const steps = new Map<string, Map<string, { tool: string; at: string }>>();
+const setStep = (session: string, agent: string, tool: string | null) => {
+  if (!session) return;
+  const m = steps.get(session) ?? new Map();
+  if (tool) m.set(agent, { tool, at: new Date().toISOString() }); else m.delete(agent);
+  if (m.size) steps.set(session, m); else steps.delete(session);
+};
+/** The live steps of this conversation's delegated agents. */
+export function delegationSteps(sessionId: string): { agentId: string; tool: string; at: string }[] {
+  return [...(steps.get(sessionId)?.entries() ?? [])].map(([agentId, s]) => ({ agentId, ...s }));
+}
 /** Stops every delegated agent working for this conversation; returns how many were stopped. */
 export function stopDelegations(sessionId: string): number {
   const set = delegations.get(sessionId);
@@ -119,8 +131,9 @@ export const teamDelegateTool: Tool = {
         return result.text;
       };
       resultId = await startTeamResult({ owner: key, session: context!.sessionId!, coordinator: context!.agentId!, agent: target.id, model: target.model });
+      setStep(session, target.id, 'thinking');
       const result = await runTeamAssignment({ agentId: target.id, agentName: target.name, model: target.model, request: params.request.trim(), instructions }, {
-        signal, tools: registry.getAll(), reply, execute: (name, args) => registry.execute(name, args),
+        signal, tools: registry.getAll(), reply, execute: async (name, args) => { setStep(session, target.id, name); try { return await registry.execute(name, args); } finally { setStep(session, target.id, 'thinking'); } },
       });
       await finishTeamResult(resultId, result);
       return result;
@@ -128,6 +141,6 @@ export const teamDelegateTool: Tool = {
       if (resultId) await finishTeamResult(resultId, fail()).catch(() => {});
       return fail();
     }
-    finally { active.delete(key); const set = delegations.get(session); set?.delete(stopper); if (set && !set.size) delegations.delete(session); }
+    finally { active.delete(key); setStep(session, params.agent_id as string, null); const set = delegations.get(session); set?.delete(stopper); if (set && !set.size) delegations.delete(session); }
   },
 };

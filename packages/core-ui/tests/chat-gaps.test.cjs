@@ -125,7 +125,7 @@ test('reply actions: Answer again on the last finished reply; Copy shows its key
   assert.match(v, /aria-label="Answer again"/);
   assert.match(v, /label="Copy reply \(⇧⌘C\)"/);
   assert.match(v, /onStop: \(\) => void controller\.stopAll\(\)/);
-  assert.match(src('ChatMoments.tsx'), /\{call\.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick=\{onStop\}>/);
+  assert.match(src('ChatMoments.tsx'), /\{onStop && <button type="button" className="row-tool handoff-stop" aria-label="Stop"/, 'Stop sits on the live step line of a working hand-off');
 });
 
 test('changed files row shows +N −N; the summary notice can be read and started from', () => {

@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SessionClient } from './session';
 import type { Part, ToolCall, Turn } from './turns';
-import { duration, turnPlan } from './turns';
+import { duration, toolView, turnPlan } from './turns';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, useMenu } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
@@ -14,6 +14,8 @@ import { paramView, requestTitle } from './ApprovalPage';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
+  /** CH6: an agent's short description, whose sub-agent it is, and the step each delegated agent runs now (while a reply works). */
+  agentAbout?: (id?: string) => string | undefined; subAgentOf?: (id?: string) => string | undefined; steps?: readonly { agentId: string; tool: string; at: string }[];
   onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
 };
 export const MomentsContext = createContext<Moments>({});
@@ -112,22 +114,48 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
 }
 
 /** CH6: a part of the work handed to another agent — the ask, then its report. */
-export function DelegationCard({ call }: { call: ToolCall }) {
-  const { agentName, onStop } = useContext(MomentsContext);
+export function DelegationCard({ call, nested, children }: { call: ToolCall; nested?: boolean; children?: ReactNode }) {
+  const { agentName, agentAbout, subAgentOf, steps, onStop } = useContext(MomentsContext);
   const [open, setOpen] = useState(false);
   let input: { agent_id?: string; request?: string } = {};
   try { input = JSON.parse(call.input); } catch { /* shown without the ask */ }
   const name = agentName?.(input.agent_id) ?? input.agent_id ?? 'an agent';
+  const about = agentAbout?.(input.agent_id);
+  const parentId = subAgentOf?.(input.agent_id);
   const state = call.running ? 'Working' : call.approvalId ? 'Waits for you' : call.isError ? 'Did not finish' : 'Done';
+  const time = call.ms && !call.running ? ` · ${duration(call.ms)}` : '';
+  // CH6: a hand-off to a sub-agent says whose it is; under its lead's card it is one nested line.
+  const verb = call.approvalId ? 'Wants to hand to' : nested && parentId ? `${agentName?.(parentId) ?? 'It'} handed to its sub-agent` : parentId ? `Handed to ${agentName?.(parentId) ?? 'a lead'}’s sub-agent` : 'Handed to';
+  const step = call.running ? steps?.find(x => x.agentId === input.agent_id) : undefined;
+  const head = <p className="handoff-head">{!nested && <UiIcon name="handoff" size={14}/>}<span className="handoff-verb">{verb}</span><span className="composer-face" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span><b>{name}</b>{about && !nested && <span className="handoff-about">{about}</span>}<span className="moment-hint handoff-state">{state}{time}</span></p>;
+  if (nested) return <div className="handoff-sub">{head}{input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}</div>;
   return <div className="moment-card handoff" data-tone={call.approvalId ? 'needs' : undefined}>
-    {/* CH6: who it went to (face and name), the state and how long on the right. */}
-    <p className="handoff-head"><UiIcon name="handoff" size={14}/><span className="handoff-verb">{call.approvalId ? 'Wants to hand to' : 'Handed to'}</span><span className="composer-face" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span><b>{name}</b><span className="moment-hint handoff-state">{state}{call.ms && !call.running ? ` · ${duration(call.ms)}` : ''}</span></p>
+    {head}
     {input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}
-    {call.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick={onStop}><UiIcon name="stop" size={11}/>Stop</button><span className="moment-hint">Stops this chat’s work, the handed part too</span></div>}
+    {children}
+    {/* CH6: while it works, one live line with the step it is on and Stop. */}
+    {call.running && <div className="handoff-live" role="status"><span className="pulse" aria-hidden="true"/><span className="handoff-step">{stepLabel(step?.tool)}</span>
+      {step && <Since at={step.at}/>}
+      {onStop && <button type="button" className="row-tool handoff-stop" aria-label="Stop" title="Stop (also stops what it was handed)" onClick={onStop}><UiIcon name="stop" size={10}/></button>}</div>}
     {call.output && !call.approvalId && <><button type="button" className="handoff-fold" aria-expanded={open} onClick={() => setOpen(v => !v)}><span className="caret" aria-hidden="true"><UiIcon name="chevron" size={12}/></span>{`${name}’s report`}</button>
       {open && <div className="handoff-report" dir="auto">{call.output}</div>}</>}
     {call.approvalId && <ApprovalCard call={call} who="The lead"/>}
   </div>;
+}
+
+/** The step a delegated agent is on, in plain words ("Reading Hero.tsx" style verbs; the tool name otherwise). */
+function stepLabel(tool?: string): string {
+  if (!tool || tool === 'thinking') return 'Thinking…';
+  const v = toolView({ name: tool, input: '{}', running: true });
+  return v.verb && v.target && v.target !== tool.toLowerCase() ? `${v.verb} ${v.target}` : v.verb || tool;
+}
+
+/** "0:32" since a time, ticking every second. */
+function Since({ at }: { at: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const s = Math.max(0, Math.floor((now - Date.parse(at)) / 1000));
+  return Number.isFinite(s) ? <span className="moment-hint">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span> : null;
 }
 
 /** CH10 Undo: a reply that changed files offers Review and Undo; afterwards Redo. */
