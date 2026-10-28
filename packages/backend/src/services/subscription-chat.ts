@@ -67,8 +67,13 @@ export function chatImageFiles(files:readonly unknown[]|undefined):string[]{
  const base=path.resolve(dataPath('chat-images'))+path.sep;
  return (files??[]).filter((f):f is string=>typeof f==='string'&&path.isAbsolute(f)&&path.resolve(f).startsWith(base)&&/\.(png|jpg|gif|webp)$/.test(f)).slice(0,4).map(f=>path.resolve(f));
 }
-export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?:string,appToolsOnly=false,readOnly=false,editsOnly=false,addDirs:readonly string[]=[],images:readonly string[]=[]){
- if(kind==='gemini'){if(nativeId)throw Error('session_missing');return ['--input-format','stream-json','--output-format','stream-json','--mode','plan','--sandbox','--disable-slash-commands','--print-timeout','180s',...(variant&&GEMINI_VARIANTS.some(v=>v.id===variant)?['--model',variant]:[])];}
+/** The chat's thinking level for a coding app: Quick→low, Deep→high, Normal (or anything else)→the app's own default.
+ * Only these two fixed strings can ever reach a CLI argument (codex exec -c model_reasoning_effort, claude --effort, agy --effort). */
+const EFFORT:Readonly<Record<string,'low'|'high'>>=Object.freeze({quick:'low',deep:'high'});
+export const subscriptionEffort=(thinking:unknown):'low'|'high'|undefined=>typeof thinking==='string'&&Object.hasOwn(EFFORT,thinking)?EFFORT[thinking]:undefined;
+export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?:string,appToolsOnly=false,readOnly=false,editsOnly=false,addDirs:readonly string[]=[],images:readonly string[]=[],thinking?:unknown){
+ const effort=subscriptionEffort(thinking);
+ if(kind==='gemini'){if(nativeId)throw Error('session_missing');return ['--input-format','stream-json','--output-format','stream-json','--mode','plan','--sandbox','--disable-slash-commands','--print-timeout','180s',...(variant&&GEMINI_VARIANTS.some(v=>v.id===variant)?['--model',variant]:[]),...(effort?['--effort',effort]:[])];}
  const args=kind==='claude'?['-p','--output-format','json','--no-session-persistence','--safe-mode','--restricted','--permission-mode','acceptEdits','--permission-prompts','none','--tools','Read,Write,Edit,Glob,Grep','--strict-mcp-config','--mcp-config','{"mcpServers":{}}']:
  ['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','workspace-write','--disable','plugins','--disable','skill_mcp_dependency_install','--json','-'];
  // CHAT-BUILD-01 (K3): a read-only call keeps Codex's shell for reading the project but it may not write anywhere.
@@ -79,6 +84,7 @@ export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?
  if(nativeId){if(kind==='claude')args.push('--resume',nativeId,'--fork-session');else args.splice(args.length-1,1,'fork',nativeId,'-');}
  if(variant&&/^[a-z0-9][a-z0-9.-]{0,40}$/.test(variant)){if(kind==='claude')args.push('--model',variant);else args.splice(1,0,'-m',variant);}
  if(kind==='codex')for(const file of chatImageFiles(images))args.splice(1,0,'-i',file);
+ if(effort){if(kind==='claude')args.push('--effort',effort);else args.splice(1,0,'-c',`model_reasoning_effort="${effort}"`);}
  return args;
 }
 export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
@@ -93,14 +99,14 @@ export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
  const rows=stdout.split('\n').filter(Boolean).map(line=>JSON.parse(line));const answers=rows.filter(r=>r.type==='item.completed'&&r.item?.type==='agent_message'&&typeof r.item.text==='string');
  if(!answers.length||rows.some(r=>r.type==='error'||r.type==='turn.failed'))throw Error('cli_failed');return answers.map(r=>r.item.text).join('\n\n');
 }
-export async function runSubscription(model:string,folder:string,prompt:string,signal:AbortSignal,options:{appToolsOnly?:boolean;readOnly?:boolean;editsOnly?:boolean;addDirs?:readonly string[];images?:readonly string[]}={}):Promise<string>{
+export async function runSubscription(model:string,folder:string,prompt:string,signal:AbortSignal,options:{appToolsOnly?:boolean;readOnly?:boolean;editsOnly?:boolean;addDirs?:readonly string[];images?:readonly string[];thinking?:unknown}={}):Promise<string>{
  if(!subscriptionEnabled()||!subscriptionModel(model))throw Error('cli_disabled');
  const cwd=await fs.realpath(safeChildCwd(folder));if(!(await fs.stat(cwd)).isDirectory()||cwd===os.homedir()||cwd===path.parse(cwd).root)throw Error('project_required');
  const kind=model.startsWith('subscription:claude')?'claude':model.startsWith('subscription:gemini')?'gemini':'codex',bin=await subscriptionBinary(kind);
  let nativeId:string|undefined;const opaque=model.split('/')[0].split(':')[2];
  if(opaque){const ref=await findSession(opaque);if(!ref||ref.source!==(kind==='claude'?'claude-code':'codex'))throw Error('session_missing');const session=await readSession(ref);if(!session.cwd||await fs.realpath(session.cwd)!==cwd)throw Error('session_folder_mismatch');nativeId=path.basename(ref.file).match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\.jsonl$/)?.[1];if(!nativeId)throw Error('session_missing');}if(!bin)throw Error('cli_missing');if(signal.aborted)throw Error('cancelled');
  if(typeof prompt!=='string'||Buffer.byteLength(prompt,'utf8')>200000)throw Error('cli_input_invalid');
- const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs,options.images);
+ const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs,options.images,options.thinking);
  const env=minimalChildEnv({NO_COLOR:'1',TERM:'dumb'});env.PATH=[path.dirname(bin),env.PATH].filter(Boolean).join(path.delimiter);
  const geminiConfig=kind==='gemini'?await geminiReplyConfig():undefined;
  if(geminiConfig){env.AGY_CLI_DISABLE_AUTO_UPDATE='1';env.AGY_CLI_NONINTERACTIVE_HEADLESS='1';}

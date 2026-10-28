@@ -55,3 +55,28 @@ test('chats: pull_request reads the project branch’s pull request (read-only),
  assert.equal((await callTool('chats',{operation:'pull_request',projectId:'../x'},{backend})).isError,true);
  assert.equal(calls.length,3);
 });
+
+// CH4/CH8: the side panel layout (order, folded parts, One column / Side by side) through the same route as the window.
+test('chats: panel reads and set_panel changes only the asked side panel fields; bad input never reaches the backend',async()=>{
+ const calls=[];let saved={order:['place','team','results','memory','mcp'],folded:[],diff:'unified'};
+ const backend={async request(method,path,body){calls.push({method,path,body});assert.equal(path,'/api/chat/panel');if(method==='PUT')saved={...saved,...body};return {panel:{...saved,extra:'x'}};}};
+ const read=await callTool('chats',{operation:'panel'},{backend});
+ assert.deepEqual(read.structuredContent.panel,{order:['place','team','results','memory','mcp'],folded:[],diff:'unified'});
+ const set=await callTool('chats',{operation:'set_panel',order:['team','place'],folded:['mcp'],diff:'split'},{backend});
+ assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/chat/panel',body:{order:['team','place'],folded:['mcp'],diff:'split'}});
+ assert.equal(set.structuredContent.panel.diff,'split');assert.doesNotMatch(JSON.stringify(set.structuredContent),/extra/);
+ await callTool('chats',{operation:'set_panel',diff:'unified'},{backend});
+ assert.deepEqual(calls.at(-1).body,{diff:'unified'},'only what changes is sent');
+ const before=calls.length;
+ for(const input of [{operation:'set_panel'},{operation:'set_panel',order:['place','place']},{operation:'set_panel',order:['chat']},{operation:'set_panel',folded:'mcp'},{operation:'set_panel',diff:'side'},{operation:'set_panel',diff:'split',sidebar:true},{operation:'panel',diff:'split'},{operation:'set_panel',order:['place','team','results','memory','mcp','place']}])
+  assert.equal((await callTool('chats',input,{backend})).isError,true,JSON.stringify(input));
+ assert.equal(calls.length,before);
+ const def=TOOL_DEFINITIONS.find(t=>t.name==='chats');
+ assert.ok(def.inputSchema.properties.operation.enum.includes('set_panel'));assert.match(def.description,/set_panel/);assert.match(def.description,/explicit instruction/);
+});
+
+test('chats: a session that is not the owner gets the owner-only answer and nothing changes',async()=>{
+ const {BackendError}=await import('../src/backend.ts');
+ const backend={async request(){throw new BackendError('The saved Girru session is not the owner account; these tools are owner-only.',403);}};
+ for(const input of [{operation:'panel'},{operation:'set_panel',diff:'split'}]){const r=await callTool('chats',input,{backend});assert.equal(r.isError,true);assert.match(r.content[0].text,/owner/);}
+});

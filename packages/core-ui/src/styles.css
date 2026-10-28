@@ -3186,3 +3186,8 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .document-editor .doc-cancel { margin-inline-start:auto; }
 .document-editor .doc-cancel + .doc-done { margin-inline-start:0; background:var(--accent); color:#fff; border-color:transparent; font-weight:600; }
 .app-shell .handoff .handoff-changed { display:flex; align-items:center; gap:5px; margin:4px 0 0; padding-inline-start:22px; color:var(--needs); }
+
+/* Approvals edit (2026-10-28) */
+.approval-decision>div>.approval-edit-task{margin-inline-start:auto;background:transparent;box-shadow:none;border-color:transparent;color:var(--accent);font-weight:500;padding-inline:4px}
+.approval-decision>div>.approval-edit-task:disabled{color:var(--muted)}
+.approval-decision>div:has(>.approval-edit-task){justify-content:flex-start}

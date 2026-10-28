@@ -11,7 +11,7 @@ import { UiIcon } from './ui-icons';
 import { ContextMenu, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
-import { paramView, requestTitle } from './ApprovalPage';
+import { handOffTask, paramView, requestTitle } from './ApprovalPage';
 import { permissionCategories } from './hire-contract.js';
 import { DocumentEditor } from './DocumentEditor';
 import { TASK_MAX, taskText } from './approvals-contract.js';
@@ -66,10 +66,7 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
  * The stored request must be this call's tool in this chat; its parameters are shown before Allow once. */
 type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean; agentId?: string | null; category?: string | null; editedAt?: string };
 /** CH6: a waiting hand-off's task (its `request`), or null when the request has none. */
-export function taskOf(d: Pick<Detail, 'toolName' | 'params'> | null): string | null {
-  const p = d?.toolName === 'team_delegate' ? d.params as { request?: unknown } | null : null;
-  return p && typeof p === 'object' && typeof p.request === 'string' ? p.request : null;
-}
+export function taskOf(d: Pick<Detail, 'toolName' | 'params'> | null): string | null { return handOffTask(d); }
 /** CH6/CH10: after Deny, how long "You said no" offers Allow now before the no is sent (a sent no is final). */
 export const DENY_UNDO_MS = 6000;
 /** `what`: the request in the owner's words ("hand this to QA Tester"); the tool's title otherwise.

@@ -29,6 +29,38 @@ export interface ClaudeResponse {
   usage?: { inputTokens: number; outputTokens: number };
 }
 
+/** Extended thinking budget for a Deep chat turn (bounded); Quick and Normal send no thinking block. */
+export const CLAUDE_DEEP_THINKING_BUDGET = 8000;
+export const claudeThinkingFor = (thinking: unknown): { budgetTokens: number } | undefined =>
+  thinking === 'deep' ? { budgetTokens: CLAUDE_DEEP_THINKING_BUDGET } : undefined;
+
+export interface ClaudeSendOptions {
+  systemPrompt?: string;
+  tools?: ClaudeTool[];
+  maxTokens?: number;
+  temperature?: number;
+  /** Abort the request after this many milliseconds (R2.2). */
+  timeoutMs?: number;
+  /** Extended thinking: max_tokens is raised above the budget and temperature is left out (the API requires both). */
+  thinking?: { budgetTokens: number };
+}
+
+/** The Messages API body; a thinking budget is clamped to 1024..CLAUDE_DEEP_THINKING_BUDGET. */
+export function claudeMessageBody(model: string, messages: ClaudeMessage[], options?: ClaudeSendOptions, stream = false): Record<string, unknown> {
+  const maxTokens = options?.maxTokens || 1024;
+  const budget = options?.thinking && Number.isFinite(options.thinking.budgetTokens)
+    ? Math.min(CLAUDE_DEEP_THINKING_BUDGET, Math.max(1024, Math.floor(options.thinking.budgetTokens))) : 0;
+  return {
+    model,
+    max_tokens: budget ? Math.max(maxTokens, budget + 4096) : maxTokens,
+    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    ...(stream ? { stream: true } : {}),
+    ...(options?.systemPrompt && { system: options.systemPrompt }),
+    ...(options?.tools && options.tools.length > 0 && { tools: options.tools }),
+    ...(budget ? { thinking: { type: 'enabled', budget_tokens: budget } } : options?.temperature !== undefined ? { temperature: options.temperature } : {}),
+  };
+}
+
 export class ClaudeClient {
   private apiKey: string;
   private model: string;
@@ -44,14 +76,7 @@ export class ClaudeClient {
    */
   async sendMessage(
     messages: ClaudeMessage[],
-    options?: {
-      systemPrompt?: string;
-      tools?: ClaudeTool[];
-      maxTokens?: number;
-      temperature?: number;
-      /** Abort the request after this many milliseconds (R2.2). */
-      timeoutMs?: number;
-    }
+    options?: ClaudeSendOptions
   ): Promise<ClaudeResponse> {
     const response = await fetch(`${this.baseUrl}/messages`, {
       method: 'POST',
@@ -61,17 +86,7 @@ export class ClaudeClient {
         'x-api-key': this.apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: options?.maxTokens || 1024,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        ...(options?.systemPrompt && { system: options.systemPrompt }),
-        ...(options?.tools && options.tools.length > 0 && { tools: options.tools }),
-        ...(options?.temperature !== undefined && { temperature: options.temperature }),
-      }),
+      body: JSON.stringify(claudeMessageBody(this.model, messages, options)),
     });
 
     if (!response.ok) {
