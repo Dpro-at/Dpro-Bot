@@ -12,7 +12,7 @@ import { safeConsole } from '../../services/safe-error-log.js';
 import { currentChatRun } from '../../services/chat-run-context.js';
 import * as os from 'node:os';
 import type { FastifyReply } from 'fastify';
-import { ClaudeClient } from '../../llm/claude-client.js';
+import { ClaudeClient, claudeThinkingFor } from '../../llm/claude-client.js';
 import { recordInteractiveUsage } from '../../llm/model-call.js';
 import { createAgentToolsRegistry } from '../../tools/index.js';
 import type { ChannelToolPolicy } from '../../tools/channel-policy.js';
@@ -236,6 +236,8 @@ export async function streamChatClaude(
           tools: tools.length > 0 ? tools : undefined,
           temperature,
           maxTokens: maxTokens ?? 4096,
+          // CH3: Deep turns use extended thinking with a bounded budget; Quick and Normal do not think.
+          thinking: claudeThinkingFor(currentChatRun()?.thinking),
         });
         // R2.2: interactive owner chat is not gated; its paid usage is recorded for GET /api/budget.
         await recordInteractiveUsage({ provider: 'claude', model, usage: r.usage, outputText: r.content, purpose: 'interactive_chat' });
