@@ -177,6 +177,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     else if (c === '/export' && s.activeId) void controller.exportMarkdown(s.activeId);
     else if (c === '/remember' && last && canRemember) openRemember(last, last.content);
     else if (c === '/board' && owner && cardsCtl && s.activeId) openCardForm();
+    // CH3: "/note" opens Details › Where we left off for editing (owner, an open chat with an agent to write it for).
+    else if (c === '/note' && recallCtl && s.activeId && (convAgentId || s.agentId || s.agents[0]?.id)) { setPane('details'); setFocusPart(f => ({ id: 'memory', n: (f?.n ?? 0) + 1 })); setPick(0); void recallCtl.editHandoff(); return; }
     setPick(0); input.current?.focus();
   };
   useEffect(() => {
@@ -195,6 +197,15 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [active, client]);
+  // CH3: hold ⌥Space to dictate; letting go turns the speech into text. The keys never type a space into the box.
+  useEffect(() => {
+    if (!active || !mic) return;
+    const down = (e: globalThis.KeyboardEvent) => { if (e.code !== 'Space' || !e.altKey || e.metaKey || e.ctrlKey || e.isComposing || ['unknown', 'off'].includes(mic.getSnapshot().phase)) return; e.preventDefault(); if (!e.repeat) mic.hold(); };
+    const up = (e: globalThis.KeyboardEvent) => { if (e.code === 'Space' || e.key === 'Alt') mic.release(); };
+    const blur = () => mic.release();
+    window.addEventListener('keydown', down, true); window.addEventListener('keyup', up, true); window.addEventListener('blur', blur);
+    return () => { window.removeEventListener('keydown', down, true); window.removeEventListener('keyup', up, true); window.removeEventListener('blur', blur); mic.release(); };
+  }, [active, mic]);
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (slash.length) {
@@ -595,11 +606,12 @@ function MicButton({ mic }: { mic: MicController }) {
   const clock = `${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}`;
   return <span className="composer-mic">
     {m.error && <span className="mic-error" role="alert">{m.error}</span>}
-    {m.phase === 'recording' && <><span className="mic-clock" aria-live="polite"><i className="mic-dot" aria-hidden="true"/>{clock}</span>
+    {m.phase === 'recording' && <><span className="mic-clock" aria-live="polite"><i className="mic-dot" aria-hidden="true"/><span className="mic-status">Listening…</span>{clock}</span>
       <button type="button" className="row-tool" aria-label="Discard the recording" title="Discard" onClick={() => void mic.cancel()}><UiIcon name="close" size={11}/></button></>}
+    {m.phase === 'transcribing' && <span className="mic-clock" aria-live="polite"><span className="mic-status">Writing it down…</span></span>}
     <button type="button" className="tool mic-button" data-phase={m.phase} disabled={m.phase === 'transcribing'}
       aria-label={m.phase === 'recording' ? 'Stop and turn into text' : m.phase === 'transcribing' ? 'Turning speech into text' : 'Dictate'}
-      title={m.phase === 'recording' ? 'Stop and turn into text' : m.phase === 'transcribing' ? 'Turning speech into text…' : 'Dictate (speech to text on this computer)'}
+      title={m.phase === 'recording' ? 'Stop and turn into text' : m.phase === 'transcribing' ? 'Turning speech into text…' : 'Dictate (speech to text on this computer) · hold ⌥Space'}
       onClick={() => void (m.phase === 'recording' ? mic.stop() : mic.start())}>
       {m.phase === 'recording' ? <UiIcon name="stop" size={11}/> : m.phase === 'transcribing' ? <span className="pulse" aria-hidden="true"/> : <UiIcon name="mic" size={16}/>}
     </button>
