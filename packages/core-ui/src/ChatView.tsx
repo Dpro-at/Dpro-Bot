@@ -352,7 +352,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   });
   // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
-  const moments = { client, conversationId: s.activeId, onOpenApprovals, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
+  const moments = { client, conversationId: s.activeId, onOpenApprovals, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
@@ -701,7 +701,8 @@ function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRem
         {suggestions.map((g, i) => <CardSuggestionView key={i} suggestion={g} onCreate={onSuggest}/>)}
         {proposals}
         {recovery}
-        <TurnFooter text={answerText || turn.content} ms={turn.durationMs} stopped={turn.status === 'stopped'} onRemember={onRemember} recall={recall ? <RecallChip c={recall} turn={turn}/> : null}/>
+        <TurnFooter text={answerText || turn.content} ms={turn.durationMs} stopped={turn.status === 'stopped'} onRemember={onRemember} recall={recall ? <RecallChip c={recall} turn={turn}/> : null}
+          onAgain={last && turn.status === 'complete' ? onRetry : undefined}/>
         {recall && <RecallPanel c={recall} turnKey={turn.key} onWrongPlace={onWrongPlace}/>}
       </>}
   </article>;
@@ -927,12 +928,13 @@ function Elapsed({ since }: { since: number }) {
   return <span className="elapsed">{s >= 1 ? duration(s * 1000) : ''}</span>;
 }
 
-function TurnFooter({ text, ms, stopped, onRemember, recall }: { text: string; ms: number | null; stopped: boolean; onRemember?: (text: string) => void; recall?: ReactNode }) {
+function TurnFooter({ text, ms, stopped, onRemember, recall, onAgain }: { text: string; ms: number | null; stopped: boolean; onRemember?: (text: string) => void; recall?: ReactNode; onAgain?: () => void }) {
   return <div className="turn-actions">
     {recall}
     {stopped && <span className="turn-chip">Stopped</span>}
     {ms !== null && <span className="turn-time" title={`This reply took ${duration(ms)}`}>{duration(ms)}</span>}
-    {text && <Copy text={text} label="Copy reply"/>}
+    {text && <Copy text={text} label="Copy reply (⇧⌘C)"/>}
+    {onAgain && <button type="button" className="ghost-action" aria-label="Answer again" title="Answer again (asks the same once more)" onClick={onAgain}><UiIcon name="refresh" size={12}/></button>}
     {text && onRemember && <RememberButton onClick={() => onRemember(text)}/>}
   </div>;
 }
@@ -1030,7 +1032,7 @@ function Copy({ text, label }: { text: string; label: string }): ReactNode {
     if (!navigator.clipboard) { done('failed'); return; }
     navigator.clipboard.writeText(text).then(() => done('done'), () => done('failed'));
   };
-  return <button type="button" className="ghost-action" aria-label={state === 'done' ? 'Copied' : state === 'failed' ? 'Copy failed' : label} onClick={copy}>
+  return <button type="button" className="ghost-action" aria-label={state === 'done' ? 'Copied' : state === 'failed' ? 'Copy failed' : label} title={label} onClick={copy}>
     <UiIcon name={state === 'done' ? 'check' : 'copy'} size={13}/>
   </button>;
 }

@@ -14,7 +14,7 @@ import { paramView, requestTitle } from './ApprovalPage';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
-  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void;
+  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
 };
 export const MomentsContext = createContext<Moments>({});
 
@@ -105,7 +105,7 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
 
 /** CH6: a part of the work handed to another agent — the ask, then its report. */
 export function DelegationCard({ call }: { call: ToolCall }) {
-  const { agentName } = useContext(MomentsContext);
+  const { agentName, onStop } = useContext(MomentsContext);
   const [open, setOpen] = useState(false);
   let input: { agent_id?: string; request?: string } = {};
   try { input = JSON.parse(call.input); } catch { /* shown without the ask */ }
@@ -114,6 +114,7 @@ export function DelegationCard({ call }: { call: ToolCall }) {
   return <div className="moment-card handoff" data-tone={call.approvalId ? 'needs' : undefined}>
     <p><UiIcon name="users" size={14}/><span>{call.approvalId ? 'Wants to hand to' : 'Handed to'} <b>{name}</b></span><span className="moment-hint">{state}{call.ms && !call.running ? ` · ${Math.round(call.ms / 1000)}s` : ''}</span></p>
     {input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}
+    {call.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick={onStop}><UiIcon name="stop" size={11}/>Stop</button><span className="moment-hint">Stops this chat’s work, the handed part too</span></div>}
     {call.output && !call.approvalId && <><button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(v => !v)}>{open ? 'Hide the report' : `${name}’s report`}</button>
       {open && <div className="handoff-report" dir="auto">{call.output}</div>}</>}
     {call.approvalId && <ApprovalCard call={call} who="The lead"/>}

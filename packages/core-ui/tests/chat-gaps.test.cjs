@@ -118,3 +118,12 @@ test('Place: an added folder can be removed (the files stay) and a started chat 
   assert.match(d, /s\.turns\.length > 0 && <button type="button" className="link-button panel-add" onClick=\{onContinue\}>/);
   assert.match(src('ChatView.tsx'), /onContinue=\{\(\) => setChatSheet\('continue'\)\}/);
 });
+
+test('reply actions: Answer again on the last finished reply; Copy shows its key; a working hand-off can be stopped', () => {
+  const v = src('ChatView.tsx');
+  assert.match(v, /onAgain=\{last && turn\.status === 'complete' \? onRetry : undefined\}/);
+  assert.match(v, /aria-label="Answer again"/);
+  assert.match(v, /label="Copy reply \(⇧⌘C\)"/);
+  assert.match(v, /onStop: \(\) => void controller\.stopAll\(\)/);
+  assert.match(src('ChatMoments.tsx'), /\{call\.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick=\{onStop\}>/);
+});
