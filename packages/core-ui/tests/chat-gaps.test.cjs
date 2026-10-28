@@ -161,3 +161,76 @@ test('MCP part: real marks from the vendored set, an amber dot when one needs yo
   assert.match(d, /'View all in Settings'/);
   assert.doesNotMatch(src('ServiceLogo.tsx'), /https?:\/\//, 'never loaded from the internet');
 });
+
+test('images: the contract lets only a bounded base64 image and image ids through; parts and the notice pass', () => {
+  const { allowedConversation: allow, conversationResponse: res, MAX_IMAGE_CHARS } = require('../src/conversation-contract.js');
+  const C = '9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b', IMG = 'a'.repeat(32);
+  assert.equal(allow('POST', `/api/chat/conversations/${C}/images`, { data: 'iVBORw0KGgo=', name: 'a.png' }), true);
+  for (const b of [{ data: 'x'.repeat(MAX_IMAGE_CHARS + 4) }, { data: 'not base64!' }, { data: 'iVBO', path: '/etc' }]) assert.equal(allow('POST', `/api/chat/conversations/${C}/images`, b), false);
+  assert.equal(allow('GET', `/api/chat/conversations/${C}/images/${IMG}`, undefined), true);
+  assert.equal(allow('GET', `/api/chat/conversations/${C}/images/../x`, undefined), false);
+  assert.equal(allow('POST', `/api/chat/conversations/${C}/runs`, { runId: 'run-12345678', message: 'hi', images: [IMG] }), true);
+  for (const images of [[IMG, IMG, IMG, IMG, IMG], ['../x'], 'x']) assert.equal(allow('POST', `/api/chat/conversations/${C}/runs`, { runId: 'run-12345678', message: 'hi', images }), false);
+  assert.throws(() => res(`/api/chat/conversations/${C}/images/${IMG}`, 200, { image: { id: IMG, type: 'image/svg+xml', data: 'PHN2Zz4=' } }), /protocol/, 'never an SVG');
+  assert.equal(res(`/api/chat/conversations/${C}/images/${IMG}`, 200, { image: { id: IMG, type: 'image/png', data: 'iVBO', name: 'a' } }).image.type, 'image/png');
+});
+
+test('images: kept for the next message (up to 4, 5 MB, four kinds) and sent after they are saved with the chat', async () => {
+  const { ConversationsController } = require('../src/conversations.ts');
+  const calls = [];
+  const client = { getSnapshot: () => ({ phase: 'authenticated', epoch: 1, user: { id: 'u', role: 'owner' } }), subscribe: () => () => {}, runEvents: async () => ({ last: 0, ended: true }),
+    request: async (r) => { calls.push(r);
+      if (r.path === '/api/chat/conversations' && r.method === 'POST') return { status: 201, body: { conversation: { id: '9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b', title: null, agentId: null, projectId: null, pinned: false, preview: '', createdAt: '', updatedAt: '' } } };
+      if (/\/images$/.test(r.path)) return { status: 201, body: { image: { id: 'b'.repeat(32), type: 'image/png', name: 'a.png', size: 4 } } };
+      if (/\/runs$/.test(r.path)) return { status: 202, body: { runId: r.body.runId } };
+      return { status: 200, body: { conversations: [], projects: [], agents: [], models: [], last: null } }; } };
+  const c = new ConversationsController(client);
+  try {
+    assert.match(c.attachImages([{ name: 'x.svg', type: 'image/svg+xml', data: 'PHN2Zz4=' }]), /only PNG, JPEG, GIF and WebP/);
+    assert.equal(c.attachImages([{ name: 'a.png', type: 'image/png', data: 'iVBORw0KGgo=' }]), null);
+    assert.match(c.attachImages(Array.from({ length: 4 }, (_, i) => ({ name: `${i}.png`, type: 'image/png', data: 'iVBO' }))), /Up to 4/);
+    assert.equal(c.getSnapshot().images.length, 1, 'a refused batch adds nothing');
+    c.edit('What is in it?');
+    await c.send();
+    const upload = calls.findIndex((r) => /\/images$/.test(r.path)), run = calls.findIndex((r) => /\/runs$/.test(r.path));
+    assert.ok(upload >= 0 && run > upload, 'saved with the chat before the message goes');
+    assert.deepEqual(calls[run].body.images, ['b'.repeat(32)]);
+    assert.equal(c.getSnapshot().images.length, 0, 'the box is clear after sending');
+  } finally { c.dispose(); }
+});
+
+test('images: when an image cannot be saved, nothing is sent and the text, files and images come back', async () => {
+  const { ConversationsController } = require('../src/conversations.ts');
+  const calls = [];
+  const client = { getSnapshot: () => ({ phase: 'authenticated', epoch: 1, user: { id: 'u', role: 'owner' } }), subscribe: () => () => {}, runEvents: async () => ({ last: 0, ended: true }),
+    request: async (r) => { calls.push(r);
+      if (r.path === '/api/chat/conversations' && r.method === 'POST') return { status: 201, body: { conversation: { id: '9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b', title: null, agentId: null, projectId: null, pinned: false, preview: '', createdAt: '', updatedAt: '' } } };
+      if (/\/images$/.test(r.path)) return { status: 400, body: { code: 'invalid_image' } };
+      return { status: 200, body: { conversations: [], projects: [], agents: [], models: [], last: null } }; } };
+  const c = new ConversationsController(client);
+  try {
+    c.attachImages([{ name: 'a.png', type: 'image/png', data: 'iVBORw0KGgo=' }]);
+    c.edit('Look at this');
+    await c.send();
+    assert.equal(calls.some((r) => /\/runs$/.test(r.path)), false, 'nothing sent');
+    assert.equal(c.getSnapshot().draft, 'Look at this');
+    assert.equal(c.getSnapshot().images.length, 1);
+    assert.match(c.getSnapshot().notice, /could not be attached/);
+  } finally { c.dispose(); }
+});
+
+test('coding apps: shown in Team with their own Stop; the terminal keeps only your shells', () => {
+  const { allowedConversation: allow, conversationResponse: res } = require('../src/conversation-contract.js');
+  const id = '11111111-1111-4111-8111-111111111111', run = 'a'.repeat(32);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/${run}/stop`, undefined), true);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/${run}/stop`, { x: 1 }), false);
+  assert.equal(allow('GET', `/api/chat/conversations/${id}/apps/${run}/stop`, undefined), false);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/../stop`, undefined), false);
+  const team = res(`/api/chat/conversations/${id}/team`, 200, { team: [], apps: [{ id: run, app: 'Claude Code', agentName: 'QA Tester', about: 'Check the hero', startedAt: 'now', secret: 'x' }, { id: 'bad', app: 'Codex' }] });
+  assert.deepEqual(team.apps, [{ id: run, app: 'Claude Code', agentName: 'QA Tester', about: 'Check the hero', startedAt: 'now' }]);
+  const panel = src('ChatDetails.tsx');
+  assert.match(panel, /live\.apps\.map\(a => <Row key=\{a\.id\} icon="terminal"/);
+  assert.match(panel, /\/apps\/\$\{id\}\/stop/);
+  assert.match(panel, /setInterval\(\(\) => setPulse/, 'Team looks again while a reply runs');
+  assert.doesNotMatch(src('TerminalPane.tsx'), /agentId|startedBy/, 'no agent tabs in the terminal');
+});

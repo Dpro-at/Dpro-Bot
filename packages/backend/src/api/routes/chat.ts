@@ -181,7 +181,10 @@ console.log('[Chat] 🧠 Agent System loaded');
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string | any[]; // array for multimodal (vision) messages
+  /** Images of this message (base64), for a model that can see (CHAT-GAPS-01). */
+  images?: TurnImage[];
 }
+export type TurnImage = { type: string; data: string; file?: string; name?: string };
 
 /**
  * The text of a message: the string itself, or the text parts of a
@@ -410,6 +413,8 @@ export interface ChatTurnInput {
   writeFolders?: string[];
   /** CORE-MEM-HANDOFF: the newest handoff note of the conversation (part of the cached context pack). */
   handoff?: { id: string; scope: string; text: string } | null;
+  /** CHAT-GAPS-01: images of the new message (only that message's; older images are not sent again). */
+  images?: TurnImage[];
 }
 
 /** Room for the tool definitions and instructions the turn adds after the system prompt (tokens). */
@@ -483,6 +488,8 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         if(memoryText)history=`${capMiddle(memoryText,SUBSCRIPTION_MEMORY_CHARS)}\n\n${history}`;
         const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
         let toolStep=0;
+        // CHAT-GAPS-01: a coding app here gets Girru's tools only, not files: it is told the image names and the chat says so.
+        if(input.images?.length){currentChatRun()?.notice?.('images_not_seen',`${subscriptionSource?.includes('codex')?'Codex':subscriptionSource?.includes('gemini')?'Gemini':'Claude Code'} does not see images in this chat yet. Pick Claude, or a local model that can see, to show it the image.`);history+=`\n\n(The owner attached ${input.images.length} image${input.images.length===1?'':'s'}: ${input.images.map(i=>i.name??'image').join(', ')}. You cannot see them; say so if they matter.)`;}
         const replyPrompt=subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history);
         {const run=currentChatRun();if(run)run.usage={model:subscriptionSource!,tokensIn:estimateTokens(replyPrompt)};}
         const answer=await subscriptionToolLoop({prompt:replyPrompt,signal:abort.signal,
@@ -691,6 +698,11 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         resolvedSystemPrompt += `\n\n${recall.text}`;
       }
     }
+    // CHAT-GAPS-01: the new message's images ride on it (each provider turns them into its own format).
+    if (input.images?.length) {
+      const last = turnMessages[turnMessages.length - 1];
+      if (last && last.role === 'user') turnMessages = [...turnMessages.slice(0, -1), { ...last, images: input.images }];
+    }
 
     // CORE-MODEL-02: the agent knows which model ("brain") answers this turn,
     // so it can name it when asked instead of guessing.
@@ -896,10 +908,11 @@ async function streamChat(
   // Add history
   ollamaMessages.push(...messages.slice(0, -1));
 
-  // Add user message
+  // Add user message (with its images, for a model that can see)
   ollamaMessages.push({
     role: 'user',
     content: userMessage,
+    ...(messages[messages.length - 1]?.images?.length ? { images: messages[messages.length - 1].images } : {}),
   });
 
   // Get real tools from the tools registry (11 tools: exec, read, write, browser×4, memory×2, desktop)
@@ -1083,7 +1096,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
       const result = await runLmStudioAgentLoop({
         url: lmStudioApiUrl(),
         model: lmStudioModelName(model),
-        messages: ollamaMessages.map((m) => ({ role: m.role === 'system' ? 'system' as const : m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: messageText(m.content) })),
+        messages: ollamaMessages.map((m) => ({ role: m.role === 'system' ? 'system' as const : m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: messageText(m.content), ...(m.images?.length ? { images: m.images } : {}) })),
         tools,
         execute: (name, args) => toolsRegistry.execute(name, args),
         write: (frame) => { if (!reply.raw.writableEnded) reply.raw.write(`data: ${JSON.stringify(frame)}\n\n`); },
@@ -1116,7 +1129,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
     const result = await runOllamaAgentLoop({
       url: OLLAMA_URL,
       model,
-      messages: ollamaMessages.map((m) => ({ role: m.role, content: messageText(m.content) })),
+      messages: ollamaMessages.map((m) => ({ role: m.role, content: messageText(m.content), ...(m.images?.length ? { images: m.images.map((i) => i.data) } : {}) })),
       tools,
       execute: (name, args) => toolsRegistry.execute(name, args),
       write: (frame) => { if (!reply.raw.writableEnded) reply.raw.write(`data: ${JSON.stringify(frame)}\n\n`); },

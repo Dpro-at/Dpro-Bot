@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { orderedId } from './ordered-id.js';
 import { q, sql, one, run, type Step } from './sql-steps.js';
+import { deleteChatImages } from '../services/chat-images.js';
 
 export type TurnStatus = 'complete' | 'stopped' | 'error';
 
@@ -147,7 +148,7 @@ export async function patchConversation(userId: string, id: string, patch: { tit
 export async function deleteConversation(userId: string, id: string): Promise<boolean> {
   const gone = (await q.run('DELETE FROM chat_sessions WHERE id = ? AND user_id = ?', id, userId)).changes > 0;
   // MEM-CACHE-01: its turn summaries and reply traces go with it.
-  if (gone) await Promise.all([deleteSessionSummaries(id), deleteSessionTraces(id)]).catch(() => undefined);
+  if (gone) { await Promise.all([deleteSessionSummaries(id), deleteSessionTraces(id)]).catch(() => undefined); deleteChatImages(id); }
   return gone;
 }
 

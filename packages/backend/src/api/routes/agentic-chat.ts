@@ -130,7 +130,10 @@ export async function streamChatClaude(
       .filter((m) => m.role !== 'system')
       .map((m) => ({
         role: m.role as 'user' | 'assistant',
-        content: m.content,
+        // CHAT-GAPS-01: images go first as image blocks, then the text.
+        content: (m as unknown as { images?: { type: string; data: string }[] }).images?.length && typeof m.content === 'string'
+          ? [...(m as unknown as { images: { type: string; data: string }[] }).images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.type, data: i.data } })), { type: 'text', text: m.content }]
+          : m.content,
       }));
 
     // For desktop/browser tasks allow many more steps

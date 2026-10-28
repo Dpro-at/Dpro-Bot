@@ -44,10 +44,12 @@ import { openSseStream } from '../../services/chat-sse.js';
 import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
+import { codingRunsFor, stopCodingRun, stopCodingRuns } from '../../services/coding-runs.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { CheckpointError, changedFiles, lineCounts, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
 import { changesSomething } from '../../tools/registry.js';
 import { projectPullRequest } from '../../services/github-pr-state.js';
+import { ChatImageError, MAX_IMAGES_PER_MESSAGE, MAX_IMAGE_BYTES, readChatImage, saveChatImage } from '../../services/chat-images.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
@@ -171,7 +173,7 @@ interface TurnStart { code: number; body: Record<string, unknown>; retryAfter?: 
  * Starts one turn of a saved conversation (checked input). Shared by POST runs and by the
  * continuation after the owner decides a waiting approval (CHAT-BUILD-01).
  */
-async function startTurn(t: { userId: string; role: string; c: Conversation; runId: string; message: string; model?: string; agentId?: string }): Promise<TurnStart> {
+async function startTurn(t: { userId: string; role: string; c: Conversation; runId: string; message: string; model?: string; agentId?: string; images?: string[] }): Promise<TurnStart> {
   const { userId, c } = t;
   const b = { runId: t.runId, message: t.message, model: t.model, agentId: t.agentId };
   const send = (code: number, body: Record<string, unknown>): TurnStart => ({ code, body });
@@ -229,6 +231,9 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   if (stale && !chatRuns.get(stale.run_id) && !starting.has(stale.run_id) && Date.now() - Number(stale.started_at) > STALE_AFTER_MS) await recoverStaleRun(stale.run_id).catch(() => false);
   const refused = await accept();
   if (refused) return refused;
+  // CHAT-GAPS-01: the message's images (already saved with this chat) are kept on it and go to the model.
+  const images = (t.images ?? []).map((id) => readChatImage(c.id, id)).filter((x): x is NonNullable<typeof x> => !!x);
+  if (images.length) await q.run("UPDATE chat_messages SET parts = ? WHERE run_id = ? AND role = 'user'", JSON.stringify([{ kind: 'images', images: images.map((i) => ({ id: i.id, type: i.type, name: i.name })) }]), b.runId).catch(() => undefined);
   let userMessage: ConversationMessage, messages: ReturnType<typeof historyFor>, turns: HistoryTurn[], handoff: Awaited<ReturnType<typeof packHandoffText>> | null;
   try {
     userMessage = (await listConversationMessages(c.id)).find(m => m.runId === b.runId && m.role === 'user')!;
@@ -278,6 +283,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     execute: (runReply) => withChatRun(runContext, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
+      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name })) } : {}),
       ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
       ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
       ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
@@ -464,7 +470,22 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!c) return notFound(reply);
     const rows = await q.all<{ agent_id: string; name: string | null; model: string; status: string; created_at: string }>(
       'SELECT r.agent_id, a.name, r.model, r.status, r.created_at FROM team_delegation_results r LEFT JOIN agents_config a ON a.id = r.agent_id WHERE r.owner_id = ? AND r.session_id = ? ORDER BY r.created_at DESC LIMIT 20', userId, c.id).catch(() => []);
-    return { team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })) };
+    const apps = codingRunsFor(c.id);
+    const names = new Map<string, string>();
+    for (const id of new Set(apps.map(a => a.agentId).filter((x): x is string => !!x))) {
+      const a = await q.one<{ name: string | null }>('SELECT name FROM agents_config WHERE id = ?', id).catch(() => undefined);
+      names.set(id, a?.name || id);
+    }
+    return {
+      team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })),
+      apps: apps.map(a => ({ id: a.id, app: a.app, agentName: a.agentId ? names.get(a.agentId) ?? a.agentId : null, about: a.about, startedAt: a.startedAt })),
+    };
+  });
+  // Stop one coding app working in this chat (its row in Team).
+  fastify.post('/api/chat/conversations/:id/apps/:runId/stop', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    return stopCodingRun(c.id, request.params.runId) ? { ok: true } : notFound(reply);
   });
   // Stop everything in this chat: its reply and the helpers it handed work to (⌘. in the window).
   fastify.post('/api/chat/conversations/:id/stop', async (request: Req, reply) => {
@@ -472,7 +493,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!c) return notFound(reply);
     const run = chatRuns.activeFor(c.id);
     if (run) run.requestStop();
-    return { ok: true, stopped: (run ? 1 : 0) + stopDelegations(c.id) };
+    return { ok: true, stopped: (run ? 1 : 0) + stopDelegations(c.id) + stopCodingRuns(c.id) };
   });
   // A chat that runs on a schedule (owner): the saved message is sent again at the chosen time.
   fastify.get('/api/chat/conversations/:id/schedule', { config: { access: 'owner' } }, async (request: Req, reply) => {
@@ -583,9 +604,26 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.model !== undefined && (typeof b.model !== 'string' || !MODEL.test(b.model))) return bad(reply, 'invalid model');
     // CHAT-PRO-02 I: another agent of the team may write this reply (owner only: other users talk to the conversation's agent).
     if (b.agentId !== undefined && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
-    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: b.runId, message: b.message, model: b.model, agentId: b.agentId });
+    if (b.images !== undefined && (!Array.isArray(b.images) || b.images.length > MAX_IMAGES_PER_MESSAGE || b.images.some((id: unknown) => !readChatImage(c.id, id)))) return bad(reply, `images must be up to ${MAX_IMAGES_PER_MESSAGE} images saved with this chat`);
+    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: b.runId, message: b.message, model: b.model, agentId: b.agentId, images: b.images });
     if (out.retryAfter) reply.header('Retry-After', out.retryAfter);
     return reply.code(out.code).send(out.body);
+  });
+
+  // ---- CHAT-GAPS-01: images in a chat (saved with it, for a model that can see) ----
+  fastify.post('/api/chat/conversations/:id/images', { bodyLimit: Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4096 }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    const b: any = request.body;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'data' && k !== 'name')) return bad(reply, 'data (base64) and an optional name');
+    try { return reply.code(201).send({ image: saveChatImage(c.id, b.data, b.name) }); }
+    catch (err) { if (err instanceof ChatImageError) return reply.code(400).send({ error: err.message, code: 'invalid_image' }); throw err; }
+  });
+  fastify.get('/api/chat/conversations/:id/images/:imageId', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    const img = c ? readChatImage(c.id, (request.params as { imageId?: string }).imageId) : null;
+    if (!img) return notFound(reply);
+    return { image: { id: img.id, type: img.type, name: img.name, size: img.size, data: img.bytes.toString('base64') } };
   });
 
   // ---- board cards made from a conversation (CHAT-PRO-02 I step 2): owner only, like the board ----
