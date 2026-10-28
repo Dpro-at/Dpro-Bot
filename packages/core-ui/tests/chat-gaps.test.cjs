@@ -55,3 +55,9 @@ test('a chat that already worked in its folder stays there: the refusal passes a
   assert.equal(r.code, 'folder_fixed');
   assert.match(src('conversations.ts'), /r\.status === 409\) this\.publish\(\{ notice: 'This chat already worked in its folder\. Continue in another folder… starts a new chat there\.' \}\)/);
 });
+
+test('the footer never swaps names and icons forever at the edge width (that left a blank window)', () => {
+  const footer = src('ShellFooter.tsx');
+  assert.match(footer, /wentAt\.current=el\.clientWidth;setCompact\(true\)/, 'remember the width when names stopped fitting');
+  assert.match(footer, /el\.clientWidth>=needed\.current&&el\.clientWidth>wentAt\.current\+24\)setCompact\(false\)/, 'names come back only after the footer really got wider');
+});
