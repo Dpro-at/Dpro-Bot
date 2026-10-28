@@ -51,11 +51,12 @@ jobs:
         working-directory: packages/desktop
         run: node --test --test-timeout=90000 test/*.test.cjs
       # lmstudio.test.mjs needs a running LM Studio; PostgreSQL tests skip without AGENT_PLAYER_PG_TEST_URL.
-      # Temp folders sit two levels deep (like a desktop's), because tests work from them and the legacy
-      # memory store resolves ../../.data; and not under a folder named tmp, which discovery never reads.
+      # Temp folders like a desktop's: two levels deep (tests work from them and the legacy memory store
+      # resolves ../../.data), outside the home folder (isolated data roots must be) and not under a folder
+      # named tmp (discovery never reads one).
       - name: Backend tests
         working-directory: packages/backend
         run: |
-          export TMPDIR="$RUNNER_TEMP/girru/scratch"
-          mkdir -p "$TMPDIR"
+          sudo install -d -m 755 -o "$(id -u)" -g "$(id -g)" /srv/girru /srv/girru/scratch
+          export TMPDIR=/srv/girru/scratch
           node --import tsx --test --test-concurrency=4 --test-timeout=120000 $(ls test/*.test.mjs | grep -v '/lmstudio\.test\.mjs$')
