@@ -3080,3 +3080,62 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .handoff-step { flex:1; min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; }
 .app-shell .handoff-stop { inline-size:22px; block-size:22px; min-block-size:22px; border-radius:6px; background:color-mix(in srgb,var(--text) 7%,transparent); }
 .app-shell .handoff-head .handoff-verb, .app-shell .handoff-head b, .app-shell .handoff-head .handoff-state { white-space:nowrap; flex:none; } .app-shell .handoff-head .handoff-about { flex:1 1 auto; }
+/* CH4 match (2026-10-28): the Changes and Files views measured against their board. */
+.app-shell .chat-pane .pane-head { display:flex; align-items:center; gap:8px; padding:10px 14px 6px; border:0; }
+.app-shell .chat-pane .pane-branch { display:inline-flex; align-items:center; gap:6px; flex:1; min-inline-size:0; font-family:inherit; font-size:12px; color:var(--text-3); }
+.app-shell .chat-pane .pane-sum { font-size:12px; }
+.app-shell .chat-pane .change-row { min-block-size:28px; border-radius:6px; gap:8px; padding:0 6px; }
+.app-shell .chat-pane .change-row[aria-expanded=true] { background:color-mix(in srgb,var(--text) 7%,transparent); }
+.app-shell .chat-pane .change-status { inline-size:18px; block-size:18px; flex:none; display:grid; place-items:center; border-radius:5px; font-size:10.5px; font-weight:700; }
+.app-shell .chat-pane .change-status[data-status=modified], .app-shell .chat-pane .change-status[data-status=renamed] { color:#B07A1A; background:color-mix(in srgb,#F0C27A 22%,transparent); }
+.app-shell .chat-pane .change-status[data-status=added], .app-shell .chat-pane .change-status[data-status=untracked] { color:#2F7A55; background:color-mix(in srgb,#9DB5AA 25%,transparent); }
+.app-shell .chat-pane .change-status[data-status=deleted] { color:#B4232F; background:color-mix(in srgb,#F29BA0 22%,transparent); }
+.shell[data-theme="dark"] .app-shell .chat-pane .change-status[data-status=modified], .app-shell[data-theme="dark"] .chat-pane .change-status[data-status=modified], .shell[data-theme="dark"] .app-shell .chat-pane .change-status[data-status=renamed], .app-shell[data-theme="dark"] .chat-pane .change-status[data-status=renamed] { color:#F0C27A; background:#33290F; }
+.shell[data-theme="dark"] .app-shell .chat-pane .change-status[data-status=added], .app-shell[data-theme="dark"] .chat-pane .change-status[data-status=added], .shell[data-theme="dark"] .app-shell .chat-pane .change-status[data-status=untracked], .app-shell[data-theme="dark"] .chat-pane .change-status[data-status=untracked] { color:#9DB5AA; background:#1C2026; }
+.shell[data-theme="dark"] .app-shell .chat-pane .change-status[data-status=deleted], .app-shell[data-theme="dark"] .chat-pane .change-status[data-status=deleted] { color:#F29BA0; background:#2A1418; }
+.app-shell .chat-pane .change-name, .app-shell .chat-pane .change-dir { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; }
+.app-shell .chat-pane .change-count { font-size:12px; }
+.shell[data-theme="dark"] .app-shell .chat-pane .plus, .app-shell[data-theme="dark"] .chat-pane .plus { color:#9DB5AA; }
+.shell[data-theme="dark"] .app-shell .chat-pane .minus, .app-shell[data-theme="dark"] .chat-pane .minus { color:#F29BA0; }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff, .app-shell[data-theme="dark"] .chat-pane .diff { background:#0B0D10; border-radius:6px; }
+.pane-find { flex:1; display:flex; align-items:center; gap:6px; block-size:26px; padding:0 8px; border-radius:6px; color:var(--text-3); background:color-mix(in srgb,var(--text) 6%,transparent); }
+.pane-find input { flex:1; min-inline-size:0; block-size:24px; min-block-size:0; border:0; padding:0; background:transparent; box-shadow:none; font-size:12px; color:var(--text); outline:none; }
+.app-shell .chat-pane .tree-row { min-block-size:23px; block-size:23px; gap:7px; }
+.app-shell .chat-pane .tree-name { font-size:12px; }
+.app-shell .chat-pane .tree-size { font-size:11px; color:var(--text-4); }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff-line[data-kind=add], .app-shell[data-theme="dark"] .chat-pane .diff-line[data-kind=add] { color:#9DB5AA; background:transparent; }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff-line[data-kind=del], .app-shell[data-theme="dark"] .chat-pane .diff-line[data-kind=del] { color:#F29BA0; background:transparent; }
+.app-shell .chat-pane .diff { font-size:11px; }
+/* CH9 match (2026-10-28): Edit chats sidebar measured against its board. */
+.app-shell .chat-sidebar-edit { padding:12px 12px 8px; border-radius:12px; background:color-mix(in srgb,var(--text) 3%,transparent); }
+.shell[data-theme="dark"] .app-shell .chat-sidebar-edit, .app-shell[data-theme="dark"] .chat-sidebar-edit { background:#121418; box-shadow:inset 0 0 0 1px #22262E; }
+.chat-edit-head { display:flex; align-items:center; gap:8px; margin:0 0 10px 4px; }
+.chat-edit-head b { flex:1; font-size:12.5px; font-weight:700; }
+.chat-edit-head .ghost-action, .chat-edit-head .primary { block-size:26px; min-block-size:26px; padding:0 10px; border-radius:7px; font-size:12px; }
+.chat-edit-head .primary { font-weight:600; }
+.app-shell .chat-edit-row { min-block-size:44px; gap:10px; padding:4px 8px; border-radius:8px; }
+.app-shell .chat-edit-row[data-drag], .app-shell .chat-edit-row:hover { background:color-mix(in srgb,var(--text) 6%,transparent); }
+.app-shell .chat-edit-row b { font-weight:400; font-size:12.5px; }
+.app-shell .chat-edit-row small { font-size:11px; color:var(--text-4); }
+.app-shell .chat-edit-row .row-tool { inline-size:24px; block-size:24px; background:transparent; color:var(--text-2); }
+.app-shell .chat-edit-row[data-off] { opacity:.55; }
+/* CH10 match (2026-10-28): the trust moments measured against their board. */
+.app-shell .moment-card { padding:10px 12px; gap:8px; font-size:13px; color:var(--text-2); }
+.shell[data-theme="dark"] .app-shell .moment-card:not(.handoff), .app-shell[data-theme="dark"] .moment-card:not(.handoff) { background:#13171E; color:#C9D1D9; }
+.shell[data-theme="dark"] .app-shell .moment-card[data-tone="needs"], .app-shell[data-theme="dark"] .moment-card[data-tone="needs"] { background:#1F1A10; box-shadow:inset 0 0 0 1px #4A3A16; color:#F3DDB1; }
+.app-shell .moment-card > p { gap:10px; }
+.app-shell .moment-card > p > svg { inline-size:15px; block-size:15px; color:inherit; }
+.app-shell .moment-card:not(.handoff) > .moment-actions { padding-inline-start:25px; gap:8px; }
+.app-shell .moment-actions .moment-main, .app-shell .moment-actions > .link-button:first-child { block-size:28px; min-block-size:28px; padding:0 12px; border-radius:7px; font-size:12.5px; font-weight:600; text-decoration:none; color:var(--text); background:color-mix(in srgb,var(--text) 12%,transparent); }
+.shell[data-theme="dark"] .app-shell .moment-actions .moment-main, .app-shell[data-theme="dark"] .moment-actions .moment-main, .shell[data-theme="dark"] .app-shell .moment-actions > .link-button:first-child, .app-shell[data-theme="dark"] .moment-actions > .link-button:first-child { background:#2A303B; color:#E8EDF3; }
+.app-shell .moment-actions .link-button:not(:first-child) { block-size:28px; padding:0 8px; font-size:12.5px; font-weight:400; text-decoration:none; color:var(--text-3); }
+.app-shell .moment-card.changes .diff-add, .app-shell .moment-card.changes .diff-del { font-size:13px; }
+/* CH11 match (2026-10-28): not signed in — one screen, one action. */
+.public-shell .titlebar { justify-content:center; }
+.public-shell .titlebar .sidebar-brand { font-size:12px; font-weight:400; color:var(--text-3); padding:0; }
+.public-shell .titlebar .sidebar-brand .dpro-mark { display:none; }
+.public-welcome { gap:14px; }
+.public-welcome h1 { margin:0; font-weight:700; }
+.public-welcome p { font-size:14px; color:var(--text-3); }
+.public-welcome button.primary { margin:0; min-inline-size:0; block-size:38px; padding:0 22px; border-radius:9px; font-size:14px; font-weight:600; }
+.chat-edit-head b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-inline-size:0; }

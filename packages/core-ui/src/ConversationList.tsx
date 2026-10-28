@@ -231,7 +231,10 @@ function SidebarEditor({ prefs, onDone, onCancel }: { prefs: SidebarPrefs; onDon
     else if (e.key === 'Enter') { e.preventDefault(); onDone(draft); }
   };
   return <div className="chat-sidebar-edit" role="dialog" aria-label="Edit the chat sidebar" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } }}>
-    <p className="chat-section-title">Edit sidebar</p>
+    {/* CH9: the title with Reset and Done on one line, then one row per section (grip · icon · name · eye). */}
+    <div className="chat-edit-head"><b>Edit chats sidebar</b>
+      <button type="button" className="ghost-action" onClick={() => setDraft(DEFAULT_PREFS)}>Reset</button>
+      <button type="button" className="primary" onClick={() => onDone(draft)}>Done</button></div>
     <div role="list">{draft.order.map(id => {
       const sec = CHAT_SECTIONS.find(x => x.id === id)!;
       const on = !draft.hidden.includes(id);
@@ -240,14 +243,10 @@ function SidebarEditor({ prefs, onDone, onCancel }: { prefs: SidebarPrefs; onDon
         onDragOver={e => { e.preventDefault(); if (drag && drag !== id) setDraft(d => { const order = d.order.filter(x => x !== drag); order.splice(order.indexOf(id) + (d.order.indexOf(drag) < d.order.indexOf(id) ? 1 : 0), 0, drag); return { ...d, order }; }); }}
         onKeyDown={e => key(e, id)}>
         <span className="chat-edit-handle" title="Drag to move (⌥↑ ⌥↓)" aria-hidden="true"><UiIcon name="grip" size={13}/></span>
-        <UiIcon name={sec.icon} size={13}/>
+        <UiIcon name={sec.icon} size={14}/>
         <span className="chat-edit-text"><b>{sec.name}</b><small>{sec.note}</small></span>
-        <button type="button" className="row-tool" aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${sec.name}`} title={`${on ? 'Hide' : 'Show'} ${sec.name}`} onClick={() => toggle(id)}><UiIcon name={on ? 'eye' : 'eye-off'} size={13}/></button>
+        <button type="button" className="row-tool" aria-pressed={on} aria-label={`${on ? 'Hide' : 'Show'} ${sec.name}`} title={`${on ? 'Hide' : 'Show'} ${sec.name}`} onClick={() => toggle(id)}><UiIcon name={on ? 'eye' : 'eye-off'} size={16}/></button>
       </div>;
     })}</div>
-    <div className="chat-edit-actions">
-      <button type="button" className="link-button" onClick={() => setDraft(DEFAULT_PREFS)}>Reset</button>
-      <button type="button" className="primary" onClick={() => onDone(draft)}>Done</button>
-    </div>
   </div>;
 }

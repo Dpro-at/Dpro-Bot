@@ -280,3 +280,15 @@ test('CH5 + CH6: a new chat keeps the box in the middle with ideas as pills; han
   assert.match(moments, /className="moment-hint handoff-state"/);
   assert.match(moments, /className="handoff-fold"/);
 });
+
+test('CH4 + CH9 + CH10 + CH11: panes, sidebar edit, trust moments and the signed-out screen follow their boards', () => {
+  const panes = src('ProjectPanes.tsx'), list = src('ConversationList.tsx'), moments = src('ChatMoments.tsx'), css = src('styles.css');
+  assert.match(panes, /<label className="pane-find"><UiIcon name="search" size=\{12\}\/><input type="search" aria-label="Find a file"/);
+  assert.match(panes, /SECRET\.test\(e\.name\) \? 'hidden' : size\(e\.size\)/, 'secret-looking files show locked, not their size');
+  assert.match(panes, /<span className="pane-branch" dir="ltr"[^>]*><UiIcon name="branch" size=\{13\}\/>/);
+  assert.match(list, /<div className="chat-edit-head"><b>Edit chats sidebar<\/b>/);
+  assert.doesNotMatch(list, /chat-edit-actions/);
+  assert.match(moments, /<div className="moment-card changes" role="note">/);
+  assert.match(css, /\.app-shell \.moment-actions \.moment-main, \.app-shell \.moment-actions > \.link-button:first-child \{ block-size:28px;/);
+  assert.match(css, /\.public-shell \.titlebar \{ justify-content:center; \}/);
+});
