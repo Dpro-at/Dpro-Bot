@@ -176,12 +176,15 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
     setBusy(false);
   };
   const n = turn.changes.files;
-  return <div className="moment-line changes">
-    <UiIcon name="diff" size={12}/><span>{undone ? `Undone: ${n} ${n === 1 ? 'file is' : 'files are'} back as before.` : `Changed ${n} ${n === 1 ? 'file' : 'files'}`}
-      {!undone && turn.changes?.added !== undefined && <> <span className="diff-add">+{turn.changes.added}</span> <span className="diff-del">−{turn.changes.removed}</span></>}{undone ? '' : '.'}</span>
-    {!undone && onReviewChanges && <button type="button" className="link-button" onClick={onReviewChanges}>Review</button>}
-    <button type="button" className="link-button" disabled={busy} onClick={() => void go(undone)}>{undone ? 'Redo' : 'Undo these changes'}</button>
-    {error && <span className="moment-hint" role="alert">{error}</span>}
+  // CH10: one card — what changed, then Review (main) and Undo.
+  return <div className="moment-card changes" role="note">
+    <p><UiIcon name="undo" size={15}/><span>{undone ? `Undone: ${n} ${n === 1 ? 'file is' : 'files are'} back as before.` : `Changed ${n} ${n === 1 ? 'file' : 'files'}`}
+      {!undone && turn.changes?.added !== undefined && <> · <span className="diff-add">+{turn.changes.added}</span> <span className="diff-del">−{turn.changes.removed}</span></>}</span></p>
+    <div className="moment-actions">
+      {!undone && onReviewChanges && <button type="button" className="moment-main" onClick={onReviewChanges}>Review</button>}
+      <button type="button" className={undone ? 'moment-main' : 'link-button'} disabled={busy} onClick={() => void go(undone)}>{undone ? 'Redo' : 'Undo these changes'}</button>
+      {error && <span className="moment-hint" role="alert">{error}</span>}
+    </div>
   </div>;
 }
 

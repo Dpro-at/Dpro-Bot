@@ -1,8 +1,10 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { diffLines } from './panes';
 import type { PanesController } from './panes';
 import { UiIcon } from './ui-icons';
 
+/** Names that usually hold secrets: shown locked; Girru does not open them (the server checks again). */
+const SECRET = /^\.env(\..*)?$|\.(pem|key|p12|pfx)$|^id_(rsa|ed25519|ecdsa)/i;
 const STATUS: Record<string, string> = { modified: 'M', added: 'A', deleted: 'D', renamed: 'R', untracked: 'U' };
 const size = (b: number | null) => b === null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(b < 10240 ? 1 : 0)} KB` : `${(b / 1048576).toFixed(1)} MB`;
 
@@ -16,8 +18,9 @@ export function ChangesPane({ panes }: { panes: PanesController }) {
   const total = data?.changes.reduce((t, x) => [t[0] + (x.added ?? 0), t[1] + (x.removed ?? 0)], [0, 0]);
   return <div className="pane" aria-label="Changes">
     <div className="pane-head">
-      {data?.branch && <span className="pane-branch" dir="ltr">⎇ {data.branch}</span>}
-      {data && total && data.changes.length > 0 && <span className="pane-sum"><span className="plus">+{total[0]}</span> <span className="minus">−{total[1]}</span> · {data.changes.length} {data.changes.length === 1 ? 'file' : 'files'}</span>}
+      {/* CH4: the branch on the left, the line counts on the right. */}
+      {data?.branch && <span className="pane-branch" dir="ltr" title={`${data.changes.length} ${data.changes.length === 1 ? 'file' : 'files'} changed`}><UiIcon name="branch" size={13}/>{data.branch}</span>}
+      {data && total && data.changes.length > 0 && <span className="pane-sum"><span className="plus">+{total[0]}</span> <span className="minus">−{total[1]}</span></span>}
       <button type="button" className="row-tool pane-refresh" aria-label="Reload changes" title="Reload" onClick={() => void panes.loadChanges()}><UiIcon name="refresh" size={12}/></button>
     </div>
     {!c || c.phase === 'loading' ? <p className="pane-empty">Loading…</p>
@@ -61,6 +64,7 @@ function DiffView({ load }: { load: NonNullable<ReturnType<PanesController['getS
 export function FilesPane({ panes }: { panes: PanesController }) {
   const s = useSyncExternalStore(panes.subscribe, panes.getSnapshot, panes.getSnapshot);
   useEffect(() => { if (s.projectId && !s.tree['']) void panes.loadFolder(''); }, [panes, s.projectId, s.tree]);
+  const [q, setQ] = useState('');
   if (!s.projectId) return <p className="pane-empty">Pick a project with a folder to browse its files.</p>;
   if (s.file) {
     const f = s.file.load;
@@ -75,28 +79,29 @@ export function FilesPane({ panes }: { panes: PanesController }) {
     </div>;
   }
   return <div className="pane" aria-label="Files">
-    <div className="pane-head"><span className="pane-path">Files</span>
+    {/* CH4: find a file by name in the folders that are open. */}
+    <div className="pane-head"><label className="pane-find"><UiIcon name="search" size={12}/><input type="search" aria-label="Find a file" placeholder="Find a file" value={q} onChange={e => setQ(e.target.value)}/></label>
       <button type="button" className="row-tool pane-refresh" aria-label="Reload files" title="Reload" onClick={() => void panes.refresh()}><UiIcon name="refresh" size={12}/></button></div>
-    <Folder panes={panes} rel="" depth={0}/>
+    <Folder panes={panes} rel="" depth={0} q={q.trim().toLowerCase()}/>
   </div>;
 }
 
-function Folder({ panes, rel, depth }: { panes: PanesController; rel: string; depth: number }) {
+function Folder({ panes, rel, depth, q }: { panes: PanesController; rel: string; depth: number; q: string }) {
   const s = useSyncExternalStore(panes.subscribe, panes.getSnapshot, panes.getSnapshot);
   const t = s.tree[rel];
   if (!t || t.phase === 'loading') return <p className="pane-empty" style={{ paddingInlineStart: 8 + depth * 12 }}>Loading…</p>;
   if (t.phase === 'error') return <p className="pane-empty error" style={{ paddingInlineStart: 8 + depth * 12 }}>{t.message}</p>;
   if (!t.data.entries.length) return <p className="pane-empty" style={{ paddingInlineStart: 8 + depth * 12 }}>Empty folder.</p>;
-  return <ul className="tree" role={depth ? 'group' : 'tree'}>{t.data.entries.map(e => {
+  return <ul className="tree" role={depth ? 'group' : 'tree'}>{t.data.entries.filter(e => !q || e.kind === 'dir' || e.name.toLowerCase().includes(q)).map(e => {
     const path = rel ? `${rel}/${e.name}` : e.name; const open = s.expanded.includes(path);
     return <li key={e.name} role="treeitem" aria-expanded={e.kind === 'dir' ? open : undefined}>
       <button type="button" className="tree-row" style={{ paddingInlineStart: 6 + depth * 12 }} dir="ltr"
         onClick={() => void (e.kind === 'dir' ? panes.toggleFolder(path) : panes.openFile(path))}>
         {e.kind === 'dir' ? <span className="tree-chevron" data-open={open || undefined}><UiIcon name="chevron" size={10}/></span> : <span className="tree-chevron"/>}
-        <UiIcon name={e.kind === 'dir' ? 'folder' : 'file'} size={12}/><span className="tree-name">{e.name}</span>
-        {e.kind === 'file' && <span className="tree-size">{size(e.size)}</span>}
+        <UiIcon name={e.kind === 'dir' ? 'folder' : SECRET.test(e.name) ? 'lock' : 'file'} size={13}/><span className="tree-name">{e.name}</span>
+        {e.kind === 'file' && <span className="tree-size">{SECRET.test(e.name) ? 'hidden' : size(e.size)}</span>}
       </button>
-      {e.kind === 'dir' && open && <Folder panes={panes} rel={path} depth={depth + 1}/>}
+      {e.kind === 'dir' && open && <Folder panes={panes} rel={path} depth={depth + 1} q={q}/>}
     </li>;
   })}{t.data.truncated && <li className="pane-empty">Only the first 1000 entries are listed.</li>}</ul>;
 }
