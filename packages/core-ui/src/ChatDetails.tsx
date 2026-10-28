@@ -69,7 +69,8 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
   return live;
 }
 
-export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder }: {
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue }: {
+  onContinue?: () => void;
   controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
   onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
   onSchedule: () => void; onAddFolder: () => void;
@@ -106,7 +107,9 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
       body: <>
         {project?.folder ? <Row icon="folder" name={project.folder} sub={`Main folder${s.git?.branch ? ` · ${s.git.branch}` : ''}${s.turns.length ? ' · fixed since the first message' : ''}`} ltr/>
           : <p className="panel-quiet">No folder yet. A chat without a folder works in a private folder of its own.</p>}
-        {project?.folders?.map(f => <Row key={f.path} icon="folder" name={f.path} sub={`Added · ${f.write ? 'read and write' : 'read only'}`} ltr/>)}
+        {project?.folders?.map(f => <Row key={f.path} icon="folder" name={f.path} sub={`Added · ${f.write ? 'read and write' : 'read only'}`} ltr
+          end={owner ? <button type="button" className="link-button" title="Remove this added folder (the files stay)" onClick={() => void controller.editProject(project.id, { name: project.name, folder: project.folder ?? '', repoUrl: project.repoUrl ?? '', folders: (project.folders ?? []).filter(x => x.path !== f.path) })}>Remove</button> : undefined}/>)}
+        {owner && onContinue && s.activeId && s.turns.length > 0 && <button type="button" className="link-button panel-add" onClick={onContinue}><UiIcon name="folder" size={12}/>Continue in another folder…</button>}
         {live.schedule ? <Row icon="clock" name={scheduleWords(live.schedule)} sub={live.schedule.paused ? 'Schedule · paused' : `Schedule · next ${new Date(live.schedule.nextRun).toLocaleString('en', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}
           end={owner ? <button type="button" className="link-button" onClick={onSchedule}>Change</button> : undefined}/>
           : owner && s.activeId ? <button type="button" className="link-button panel-add" onClick={onSchedule}><UiIcon name="clock" size={12}/>Run this chat on a schedule…</button> : null}

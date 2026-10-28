@@ -102,3 +102,19 @@ test('Settings › General turns the done-in-the-background notice on or off; th
   assert.match(src('AppSettings.tsx'), /\{live&&<ChatNoticeSettings client=\{client!\}\/>\}/);
   assert.match(src('ChatMoments.tsx'), />Keep this model</);
 });
+
+test('terminal: Stop sends ⌃C, ⌃⇧` opens a new tab, your own shell says "· you"', () => {
+  const t = src('TerminalPane.tsx');
+  assert.match(t, /aria-label="Stop" title="Stop what runs here \(⌃C\)" disabled=\{!active\} onClick=\{\(\) => active\?\.terminal\.write\('\\x03'\)\}/);
+  assert.match(t, /'New terminal \(⌃⇧`\)'/);
+  assert.match(t, / · you\{folder/);
+  const v = src('ChatView.tsx');
+  assert.ok(v.indexOf("e.ctrlKey && e.shiftKey && !e.metaKey && e.code === 'Backquote'") < v.indexOf("e.ctrlKey && !e.metaKey && e.code === 'Backquote'"), 'the new-tab key is checked before the toggle');
+});
+
+test('Place: an added folder can be removed (the files stay) and a started chat can continue in another folder', () => {
+  const d = src('ChatDetails.tsx');
+  assert.match(d, /folders: \(project\.folders \?\? \[\]\)\.filter\(x => x\.path !== f\.path\)/);
+  assert.match(d, /s\.turns\.length > 0 && <button type="button" className="link-button panel-add" onClick=\{onContinue\}>/);
+  assert.match(src('ChatView.tsx'), /onContinue=\{\(\) => setChatSheet\('continue'\)\}/);
+});

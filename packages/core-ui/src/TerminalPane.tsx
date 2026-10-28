@@ -40,10 +40,11 @@ export function TerminalPane({ tabs, prefs, projectId, maximized, onToggleMax, o
     <div className="term-bar">
       <div className="term-tabs" role="tablist" aria-label="Terminals">
         {t.tabs.map(x => <TabButton key={x.key} n={x.n} terminal={x.terminal} active={x.key === t.active} onSelect={() => tabs.select(x.key)} onClose={() => closeTab(x.key)}/>)}
-        <button type="button" className="term-tool" aria-label="New terminal" title={t.tabs.length >= MAX_TERMINAL_TABS ? `Up to ${MAX_TERMINAL_TABS} terminals` : 'New terminal'}
+        <button type="button" className="term-tool" aria-label="New terminal" title={t.tabs.length >= MAX_TERMINAL_TABS ? `Up to ${MAX_TERMINAL_TABS} terminals` : 'New terminal (⌃⇧`)'}
           disabled={t.tabs.length >= MAX_TERMINAL_TABS} onClick={() => tabs.add()}><UiIcon name="plus" size={12}/></button>
       </div>
       <div className="term-actions">
+        <button type="button" className="term-tool" aria-label="Stop" title="Stop what runs here (⌃C)" disabled={!active} onClick={() => active?.terminal.write('\x03')}><UiIcon name="stop" size={12}/></button>
         <button type="button" className="term-tool" aria-label="Clear" title="Clear the screen" disabled={!active} onClick={() => active?.terminal.clear()}><UiIcon name="eraser" size={12}/></button>
         <button type="button" className="term-tool" aria-label="Terminal settings" aria-expanded={settings} title="Theme, font and cursor" onClick={() => setSettings(v => !v)}><UiIcon name="gear" size={12}/></button>
         <button type="button" className="term-tool" aria-label={maximized ? 'Restore' : 'Maximize'} title={maximized ? 'Restore' : 'Maximize'} onClick={onToggleMax}><UiIcon name={maximized ? 'shrink' : 'expand'} size={12}/></button>
@@ -63,7 +64,7 @@ function TabButton({ n, terminal, active, onSelect, onClose }: { n: number; term
   const folder = s.cwd ? s.cwd.split('/').filter(Boolean).at(-1) : '';
   return <span className="term-tab" role="tab" aria-selected={active} data-phase={s.phase}>
     <button type="button" className="term-tab-open" onClick={onSelect} title={s.cwd ? shortPath(s.cwd) : undefined}>
-      <i className="term-dot" aria-hidden="true"/>{s.shell || 'shell'} {n}{folder ? <span className="term-tab-dir"> · {folder}</span> : null}
+      <i className="term-dot" aria-hidden="true"/>{s.shell || 'shell'}{n > 1 ? ` ${n}` : ''} · you{folder ? <span className="term-tab-dir"> · {folder}</span> : null}
     </button>
     <button type="button" className="term-tab-close" aria-label={`Close terminal ${n}`} onClick={onClose}><UiIcon name="close" size={9}/></button>
   </span>;
