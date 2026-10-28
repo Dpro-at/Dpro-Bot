@@ -178,11 +178,13 @@ test('secrets.env, any *.env file and the data folder outside workspaces are den
     assert.ok(w.error, `write ${p} must be denied`);
     assert.match(w.content[0].text, /denied/i, p);
   }
+  // On a case-sensitive disk (Linux) .DATA is another, missing folder: still refused, maybe as not found.
+  const caseInsensitive = existsSync(join(dir, '.DATA'));
   for (const p of ['.data/secrets.env', '.data/instance.json', '.data/logs/agent-player.log', 'prod.env',
     '.DATA/Secrets.env', '.Data/LOGS/agent-player.log']) {
     const r = await read('e1', p, { fileReadRoot: dir });
     assert.ok(r.error, `read ${p} must be denied`);
-    assert.match(r.content[0].text, /denied/i, p);
+    if (caseInsensitive || p === p.toLowerCase()) assert.match(r.content[0].text, /denied/i, p);
     assert.doesNotMatch(r.content[0].text, /not-a-real-secret/);
   }
   // a read root inside .data (but not a workspace) exposes nothing either
