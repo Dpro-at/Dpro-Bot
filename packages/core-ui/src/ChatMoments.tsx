@@ -13,6 +13,8 @@ import type { MenuItem } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
 import { paramView, requestTitle } from './ApprovalPage';
 import { permissionCategories } from './hire-contract.js';
+import { DocumentEditor } from './DocumentEditor';
+import { TASK_MAX, taskText } from './approvals-contract.js';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
@@ -62,11 +64,18 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
 
 /** CH1/CH6: an agent waits for you — review what it wants, then Allow once / Deny right in the chat (also in Approvals).
  * The stored request must be this call's tool in this chat; its parameters are shown before Allow once. */
-type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean; agentId?: string | null; category?: string | null };
+type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean; agentId?: string | null; category?: string | null; editedAt?: string };
+/** CH6: a waiting hand-off's task (its `request`), or null when the request has none. */
+export function taskOf(d: Pick<Detail, 'toolName' | 'params'> | null): string | null {
+  const p = d?.toolName === 'team_delegate' ? d.params as { request?: unknown } | null : null;
+  return p && typeof p === 'object' && typeof p.request === 'string' ? p.request : null;
+}
 /** CH6/CH10: after Deny, how long "You said no" offers Allow now before the no is sent (a sent no is final). */
 export const DENY_UNDO_MS = 6000;
-/** `what`: the request in the owner's words ("hand this to QA Tester"); the tool's title otherwise. */
-export function ApprovalCard({ call, who, what }: { call: ToolCall; who?: string; what?: string }) {
+/** `what`: the request in the owner's words ("hand this to QA Tester"); the tool's title otherwise.
+ * CH6 Change the task… (a waiting hand-off only): the owner rewrites the task in the long-text editor; the server makes a
+ * new paramsHash over the edited text, so Allow once covers exactly it. `onTask` hears the task the card will allow. */
+export function ApprovalCard({ call, who, what, onTask }: { call: ToolCall; who?: string; what?: string; onTask?: (text: string, changed: boolean) => void }) {
   const { client, conversationId, onOpenApprovals, onOpenRules } = useContext(MomentsContext);
   const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'saidNo' | 'allowed' | 'denied' | 'gone'>('waiting');
   const denyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,6 +83,8 @@ export function ApprovalCard({ call, who, what }: { call: ToolCall; who?: string
   const [detail, setDetail] = useState<Detail | null>(null);
   const [notice, setNotice] = useState('');
   const [verify, setVerify] = useState(false);
+  const [task, setTask] = useState<string | null>(null);
+  const [taskError, setTaskError] = useState('');
   const id = call.approvalId ?? '';
   const send = async (path: string, body?: unknown) => client!.request(body === undefined ? { method: 'POST', path } as never : { method: 'POST', path, body } as never);
   const review = async () => {
@@ -94,6 +105,21 @@ export function ApprovalCard({ call, who, what }: { call: ToolCall; who?: string
       const r = await send(`/api/approvals/${id}/approve`, { paramsHash: detail.paramsHash, ...(receipt ? { verificationReceipt: receipt } : {}) });
       if (r.status === 200) setState('allowed'); else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
     } catch { setState('review'); setNotice('No connection. Try again.'); }
+  };
+  useEffect(() => { const t = taskOf(detail); if (t !== null) onTask?.(t, !!detail?.editedAt); }, [detail]);
+  const saveTask = async () => {
+    if (!detail || task === null || state === 'busy') return;
+    if (!taskText(task)) { setTaskError(`Write the task first: 1 to ${TASK_MAX.toLocaleString()} characters.`); return; }
+    if (task === taskOf(detail)) { setTask(null); return; }
+    setState('busy'); setTaskError('');
+    try {
+      const r = await send(`/api/approvals/${id}/request`, { paramsHash: detail.paramsHash, request: task });
+      const v = (r.body as any)?.approval as Detail | undefined;
+      if (r.status === 200 && v && v.id === id && v.status === 'pending' && taskOf(v) === task) { setDetail(v); setTask(null); setState('review'); setNotice('Task changed. Allow once runs the new task only.'); return; }
+      if (r.status === 400) { setState('review'); setTaskError(`Write the task first: 1 to ${TASK_MAX.toLocaleString()} characters.`); return; }
+      // It changed or stopped waiting meanwhile: read it again, so Allow once never uses an old hash.
+      setTask(null); setDetail(null); await review(); setNotice('The request changed or stopped waiting, so the task was not changed.');
+    } catch { setState('review'); setTaskError('No connection. Try again.'); }
   };
   // The request is read at once, so its details and Allow once show without an extra step (what is shown is what is allowed).
   useEffect(() => { if (client && id && state === 'waiting' && !detail) void review(); }, [id]);
@@ -123,12 +149,20 @@ export function ApprovalCard({ call, who, what }: { call: ToolCall; who?: string
         ? <button type="button" className="moment-main" onClick={() => (detail?.verificationRequired ? setVerify(true) : void allow())}>Allow once</button>
         : <button type="button" className="moment-main" disabled={state === 'busy'} onClick={() => void review()}>Review…</button>}
       <button type="button" className="link-button" disabled={state === 'busy'} onClick={() => void deny()}>Deny</button>
+      {state === 'review' && view?.complete && taskOf(detail) !== null && (() => {
+        const hidden = (detail?.maskedFields ?? []).some(f => f === 'request' || f.startsWith('request.'));
+        return <button type="button" className="link-button" disabled={hidden} title={hidden ? 'Part of this task is hidden; change it in Approvals or ask the lead again' : 'Change the task before you allow it'}
+          onClick={() => { setTaskError(''); setTask(taskOf(detail)); }}>Change the task…</button>;
+      })()}
       <span className="moment-hint">Also in Approvals</span>
       {onOpenApprovals && <button type="button" className="dk-icon moment-more" aria-label="More for this request" title="More for this request"
         onClick={e => more.at(e, [{ label: 'Open in Approvals', icon: 'open', run: onOpenApprovals }, alwaysAllow(detail, onOpenRules ?? (() => onOpenApprovals()))])}><UiIcon name="more" size={14}/></button>}
     </div>
     <ContextMenu menu={more.menu} onClose={more.close}/>
     {notice && <p className="moment-hint" role="status">{notice}</p>}
+    {task !== null && detail && <DocumentEditor title={what ? `Change the task · ${what}` : 'Change the task'} files={[{ id: 'task', name: 'Task.md', content: task }]} maxLength={TASK_MAX}
+      note="Allow once runs only the saved text. Nothing runs until you allow it." saveLabel="Save the task" message={taskError}
+      onChange={(_, text) => { setTask(text); setTaskError(''); }} onSave={() => void saveTask()} onClose={() => { setTask(null); setTaskError(''); }}/>}
     {verify && detail && <ApprovalVerificationSheet client={client} id={detail.id} paramsHash={detail.paramsHash} toolName={title} onClose={() => setVerify(false)} onApprove={receipt => { setVerify(false); void allow(receipt); }}/>}
   </div>;
 }
@@ -165,6 +199,8 @@ function HandOffMoment({ why, name, agentId, request }: { why: HandOffFailure; n
 export function DelegationCard({ call, nested, children }: { call: ToolCall; nested?: boolean; children?: ReactNode }) {
   const { agentName, agentAbout, subAgentOf, steps, onStop } = useContext(MomentsContext);
   const [open, setOpen] = useState(false);
+  // CH6: the task the waiting approval holds now (the owner may have changed it before Allow once).
+  const [task, setTask] = useState<{ text: string; changed: boolean } | null>(null);
   let input: { agent_id?: string; request?: string } = {};
   try { input = JSON.parse(call.input); } catch { /* shown without the ask */ }
   const name = agentName?.(input.agent_id) ?? input.agent_id ?? 'an agent';
@@ -181,7 +217,8 @@ export function DelegationCard({ call, nested, children }: { call: ToolCall; nes
   if (nested) return <div className="handoff-sub">{head}{input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}{moment}</div>;
   return <div className="moment-card handoff" data-tone={call.approvalId ? 'needs' : undefined}>
     {head}
-    {input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}
+    {(task?.text ?? input.request) && <p className="handoff-ask" dir="auto">{task?.text ?? input.request}</p>}
+    {call.approvalId && task && (task.changed || task.text !== input.request) && <p className="moment-hint handoff-changed"><UiIcon name="pencil" size={11}/>You changed the task. Allow once runs this text.</p>}
     {children}
     {/* CH6: while it works, one live line with the step it is on and Stop. */}
     {call.running && <div className="handoff-live" role="status"><span className="pulse" aria-hidden="true"/><span className="handoff-step">{stepLabel(step?.tool)}</span>
@@ -190,7 +227,7 @@ export function DelegationCard({ call, nested, children }: { call: ToolCall; nes
     {moment}
     {call.output && !call.approvalId && !why && <><button type="button" className="handoff-fold" aria-expanded={open} onClick={() => setOpen(v => !v)}><span className="caret" aria-hidden="true"><UiIcon name="chevron" size={12}/></span>{`${name}’s report`}</button>
       {open && <div className="handoff-report" dir="auto">{call.output}</div>}</>}
-    {call.approvalId && <ApprovalCard call={call} who="The lead" what={`hand this to ${name}`}/>}
+    {call.approvalId && <ApprovalCard call={call} who="The lead" what={`hand this to ${name}`} onTask={(text, changed) => setTask({ text, changed })}/>}
   </div>;
 }
 

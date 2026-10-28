@@ -59,7 +59,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'workspace_approvals',title:'Approvals (read only)',
-    description:'Owner-session only, read only. waiting: requests waiting for the owner. history: past requests (optional status or agentId). permissions: What agents may do (all agents, or one with agentId). rules: approval rules (reviewer policies; optional cursor). coverage: tools and whether a rule or approval covers them. Codes, hashes and secrets are never returned. Approving, allowing, rejecting, voting, changing or turning off rules and changing permissions are done by the owner in the app; this tool refuses them.',
+    description:'Owner-session only, read only. waiting: requests waiting for the owner. history: past requests (optional status or agentId). permissions: What agents may do (all agents, or one with agentId). rules: approval rules (reviewer policies; optional cursor). coverage: tools and whether a rule or approval covers them. Codes, hashes and secrets are never returned. Approving, allowing, rejecting, voting, changing a waiting hand-off\u2019s task (Change the task\u2026), changing or turning off rules and changing permissions are done by the owner in the app; this tool refuses them.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['waiting','history','permissions','rules','coverage']},status:{type:'string',enum:['pending','approved','denied','executed','failed','expired']},agentId:{type:'string',maxLength:100},cursor:{type:'string',maxLength:36}},required:['operation'],additionalProperties:false},
   },
 
@@ -866,8 +866,8 @@ async function agentsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Pro
  throw new InputError('operation must be list, read, permissions, departments, rename_department, set_department, org, sub_agents, sub_agent_work, set_reports_to, add_sub_agent, files, file, write_file, chart or set_chart. '+AGENTS_REFUSED);
 }
 
-const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
-const APPROVAL_WRITES=new Set(['approve','allow','allow_always','deny','reject','decline','vote','cast','verify','rule_save','save_rule','add_rule','rule_add','rule_change','edit_rule','activate','revoke','rule_off','turn_off','disable_rule','delete_rule','set_permissions','change_permissions','permissions_set','set']);
+const APPROVALS_REFUSED='Approving, allowing, rejecting, voting, changing a waiting task, changing or turning off a rule and changing what agents may do are done by the owner in the app. This tool only reads (waiting, history, permissions, rules, coverage).';
+const APPROVAL_WRITES=new Set(['approve','allow','allow_always','deny','reject','decline','vote','cast','verify','rule_save','save_rule','add_rule','rule_add','rule_change','edit_rule','activate','revoke','rule_off','turn_off','disable_rule','delete_rule','set_permissions','change_permissions','permissions_set','set','change_task','edit_task','edit','change','edit_request','change_request','request']);
 const APPROVAL_STATUSES=['pending','approved','denied','executed','failed','expired'];
 const CHAT_ID=/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/;
 const chatId=(v:unknown,name:string)=>{if(typeof v!=='string'||!CHAT_ID.test(v))throw new InputError(`${name} must be a chat id from list`);return v;};

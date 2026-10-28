@@ -3181,3 +3181,8 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .shell[data-theme="dark"] .app-shell .moment-card.team-moment[data-tone="no"], .app-shell[data-theme="dark"] .moment-card.team-moment[data-tone="no"] { background:#2A1418; box-shadow:inset 0 0 0 1px #4A2228; color:#F3C9CC; }
 .shell[data-theme="dark"] .app-shell .moment-card.team-moment[data-tone="no"] > p > svg, .app-shell[data-theme="dark"] .moment-card.team-moment[data-tone="no"] > p > svg { color:#F29BA0; }
 .app-shell .perm-choice[data-focus] { border-radius:6px; box-shadow:0 0 0 1px var(--needs); }
+
+/* Change the task (2026-10-28) */
+.document-editor .doc-cancel { margin-inline-start:auto; }
+.document-editor .doc-cancel + .doc-done { margin-inline-start:0; background:var(--accent); color:#fff; border-color:transparent; font-weight:600; }
+.app-shell .handoff .handoff-changed { display:flex; align-items:center; gap:5px; margin:4px 0 0; padding-inline-start:22px; color:var(--needs); }

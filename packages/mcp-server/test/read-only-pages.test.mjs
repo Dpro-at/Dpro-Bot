@@ -42,7 +42,7 @@ test('approvals tool reads waiting, history, permissions, rules and coverage wit
  assert.equal(results[0].structuredContent.approvals[0].toolName,'send_email');assert.equal(results[0].structuredContent.approvals[0].paramsPreview.to,'a@b.c');
  assert.equal(results[4].structuredContent.agents.length,1);assert.equal(results[4].structuredContent.agents[0].permissions.modes.delete,'ask');
  assert.equal(results[6].structuredContent.items[0].name,'Money');assert.equal(results[8].structuredContent.tools[0].independentApproval,true);
- for(const op of ['approve','allow','allow_always','deny','reject','vote','cast','verify','rule_save','activate','revoke','rule_off','turn_off','set_permissions','change_permissions'])await refused('workspace_approvals',{operation:op,id:row.id},calls,/owner in the app/);
+ for(const op of ['approve','allow','allow_always','deny','reject','vote','cast','verify','rule_save','activate','revoke','rule_off','turn_off','set_permissions','change_permissions','change_task','edit_task','edit_request'])await refused('workspace_approvals',{operation:op,id:row.id},calls,/owner in the app/);
  for(const input of [{operation:'history',status:'weird'},{operation:'history',status:'denied',agentId:'main-agent'},{operation:'history',agentId:'../x'},{operation:'rules',cursor:'x&y=1'},{operation:'waiting',agentId:'main-agent'},{operation:'coverage',body:{}},{operation:'other'}])await refused('workspace_approvals',input,calls);
 });
 
