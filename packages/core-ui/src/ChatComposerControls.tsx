@@ -64,7 +64,7 @@ function Pop({ open, onClose, label, children, wide }: { open: boolean; onClose:
 export function PlusButton({ onFiles, onLong }: { onFiles: () => void; onLong: () => void }) {
   const [open, setOpen] = useState(false);
   return <span className="composer-anchor" data-pop-anchor>
-    <button type="button" className="tool composer-attach" aria-label="Add" title="Add files (⌘U) · Long message editor (⇧⌘E)" aria-expanded={open} onClick={() => setOpen(v => !v)}><UiIcon name="plus" size={14}/></button>
+    <button type="button" className="tool composer-attach" aria-label="Add" title="Add files (⌘U) · Long message editor (⇧⌘E)" aria-expanded={open} onClick={() => setOpen(v => !v)}><UiIcon name="plus" size={16}/></button>
     <Pop open={open} onClose={() => setOpen(false)} label="Add">
       <button type="button" className="pop-row" onClick={() => { setOpen(false); onFiles(); }}><UiIcon name="file" size={14}/><span>Add files</span><kbd>⌘U</kbd></button>
       <button type="button" className="pop-row" onClick={() => { setOpen(false); onLong(); }}><UiIcon name="expand" size={14}/><span>Long message editor</span><kbd>⇧⌘E</kbd></button>
@@ -83,7 +83,7 @@ export function ModeButton({ value, onChange, open, setOpen }: { value: ChatMode
   }, [open, onChange, setOpen]);
   return <span className="composer-anchor" data-pop-anchor>
     <button type="button" className="composer-pill" data-looser={value === 'accept_edits' || undefined} aria-label={`Mode: ${mode.name}`} title="Mode (⇧⌘P)" aria-expanded={open} onClick={() => setOpen(!open)}>
-      <UiIcon name={mode.icon} size={13}/><span>{mode.name}</span></button>
+      <UiIcon name={mode.icon} size={13}/><span>{mode.name}</span><span className="pill-chev" aria-hidden="true"><UiIcon name="chevron" size={11}/></span></button>
     <Pop open={open} onClose={() => setOpen(false)} label="Mode" wide>
       <p className="pop-title">Mode</p>
       <div role="radiogroup" aria-label="Mode">
@@ -104,7 +104,7 @@ export function WhoButton({ team, agents, value, label, onChange, open, setOpen 
   const pick = (id: string) => { onChange(id); setOpen(false); setQ(''); };
   return <span className="composer-anchor" data-pop-anchor>
     <button type="button" className="composer-pill" aria-label={`Who answers: ${current.name}`} title="Who answers (⌘J)" aria-expanded={open} onClick={() => setOpen(!open)}>
-      <span className="composer-face" aria-hidden="true">{current.name.slice(0, 1).toUpperCase()}</span><span>{value ? current.name : 'Team'}</span></button>
+      <span className="composer-face" aria-hidden="true">{current.name.slice(0, 1).toUpperCase()}</span><span>{value ? current.name : 'Team'}</span><span className="pill-chev" aria-hidden="true"><UiIcon name="chevron" size={11}/></span></button>
     <Pop open={open} onClose={() => { setOpen(false); setQ(''); }} label="Who answers" wide>
       <input className="pop-search" placeholder="Search agents…" aria-label="Search agents" value={q} onChange={e => setQ(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && shown[0]) { e.preventDefault(); pick(shown[0].id); } }}/>
@@ -141,11 +141,12 @@ export function ModelButton({ controller, open, setOpen }: { controller: Convers
   const apps = APPS.map(a => ({ ...a, model: s.models.find(m => m.id === a.id && m.provider === 'subscription') })).filter(a => a.model);
   const pick = (id: string) => { controller.selectModel(id); setOpen(false); };
   const on = (id: string) => s.model === id || (!!id && s.model.split('/')[0] === id && !s.model.includes('/'));
-  const label = answersLabel(s.model, s.models, s.thinking);
+  const label = answersLabel(s.model, s.models, s.thinking), base = answersLabel(s.model, s.models, 'normal');
+  const think = s.thinking === 'normal' ? '' : THINKING.find(x => x.id === s.thinking)!.name;
   const app = APPS.find(a => s.model.startsWith(a.id));
   return <span className="composer-anchor" data-pop-anchor>
-    <button type="button" className="composer-pill" aria-label={`Answers with: ${label}`} title="Answers with (⇧⌘M)" aria-expanded={open} onClick={() => setOpen(!open)}>
-      {app ? <app.Icon size={13}/> : <UiIcon name={s.model === 'auto' ? 'sparkle' : 'cpu'} size={13}/>}<span>{label}</span></button>
+    <button type="button" className="composer-pill" aria-label={`Answers with: ${label}`} title={s.model.startsWith('subscription:') ? 'Answers with (⇧⌘M) · uses your signed-in coding app; Girru tools follow the agent’s grants and approvals; Stop cancels it' : 'Answers with (⇧⌘M)'} aria-expanded={open} onClick={() => setOpen(!open)}>
+      {app ? <app.Icon size={14}/> : <UiIcon name={s.model === 'auto' ? 'sparkle' : 'cpu'} size={13}/>}<span>{base}</span>{think && <span className="pill-muted">{think}</span>}<span className="pill-chev" aria-hidden="true"><UiIcon name="chevron" size={11}/></span></button>
     <Pop open={open} onClose={() => setOpen(false)} label="Answers with" wide>
       <button type="button" role="radio" aria-checked={s.model === 'auto'} className="pop-row tall" onClick={() => pick('auto')}><UiIcon name="sparkle" size={15}/><span className="pop-text"><b>Auto</b><small>The lead agent picks the best model for each part of the work</small></span></button>
       <button type="button" role="radio" aria-checked={!s.model} className="pop-row tall" onClick={() => pick('')}><UiIcon name="users" size={15}/><span className="pop-text"><b>Each agent’s own</b><small>What is set on each agent page</small></span></button>

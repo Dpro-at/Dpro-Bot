@@ -24,7 +24,7 @@ test('only a GitHub pull request link and the four states pass; checks are one o
 
 test('the Results card colours the state and the checks dot, and is quiet when GitHub cannot be asked', () => {
   const view = fs.readFileSync(path.join(__dirname, '..', 'src', 'ChatView.tsx'), 'utf8');
-  assert.match(view, /'PR state unavailable'/);
+  assert.match(view, /'Pull request state unavailable'/);
   assert.match(view, /pr=\{owner && client \?/, 'owner only');
   assert.match(view, /addEventListener\('focus', focus\)/, 'read again when the window comes back');
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'styles.css'), 'utf8');

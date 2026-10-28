@@ -13,6 +13,7 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExtern
 import { createPortal } from 'react-dom';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { ConversationsController, ModelOption } from './conversations';
+import { splitAttached } from './conversations';
 import { AgentPanel } from './AgentPanel';
 import { ChangesPane, FilesPane } from './ProjectPanes';
 import { PanesController } from './panes';
@@ -151,7 +152,9 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       if([...list].some(f=>!pics.includes(f)&&(/^(image|audio|video)\//.test(f.type)||/\.(pdf|zip|gz|png|jpe?g|gif|webp|mp4|mov|mp3|wav|svg)$/i.test(f.name)))){setAttachError('This chat attaches text and code files and PNG, JPEG, GIF or WebP images. PDFs and other binary files are not supported here yet.');return;}
       if([...list].some(f=>f.size>2_000_000)){setAttachError('Choose smaller text files. Each attachment can contain up to 60,000 characters.');return;}
       const files = await Promise.all([...list].filter(f=>!pics.includes(f)).map(async f => ({ name: f.name, text: await f.text() })));
-      setAttachError(controller.attach(files));
+      // CH3: the files that can be read are added; each one that cannot shows its reason in a red chip.
+      const errors = files.map(f => controller.attach([f])).filter((e): e is string => !!e);
+      setAttachError(errors.length ? errors.join(' · ') : null);
     } catch { setAttachError('The file could not be read.'); }
     if (picker.current) picker.current.value = '';
   };
@@ -216,9 +219,6 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const convAgentId = activeConv?.agentId ?? null;
   const nameOf = (id: string | null | undefined) => (id ? s.agents.find(a => a.id === id)?.name : s.agents.find(a => a.primary)?.name) ?? 'Main agent';
   const convAgentName = nameOf(convAgentId);
-  // A reply shows who wrote it once more than one agent answers here.
-  const writers = new Set(s.turns.filter(t => t.role === 'assistant').map(t => t.agentId ?? convAgentId ?? ''));
-  const teamChat = writers.size > 1 || !!s.replyAgent;
   const empty = s.turns.length === 0 && s.threadPhase !== 'loading';
 
   const project = controller.activeProject();
@@ -399,8 +399,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
         {s.hasEarlier && <button type="button" className="ghost-action chat-earlier" disabled={s.loadingEarlier} onClick={() => void controller.loadEarlier()}>{s.loadingEarlier ? 'Loading earlier messages…' : 'Show earlier messages'}</button>}
         {s.turns.map((t, i) => t.role === 'user'
-          ? <UserMessage key={t.key} turn={t} highlight={flash === t.key} onKey={client ? setKeysOpen : undefined} onRemember={canRemember && messageRef(t) ? () => openRemember(t, t.content) : undefined}/>
-          : <AssistantTurn recovery={t.code === 'run_interrupted' && client && s.activeId ? <RecoveryApprovals key={`${s.activeId}:${client.getSnapshot().epoch}`} client={client} conversationId={s.activeId}/> : undefined} key={t.key} turn={t} highlight={flash === t.key} writer={teamChat ? nameOf(t.agentId ?? convAgentId) : undefined} last={i === s.turns.length - 1} onRetry={lastUser ? () => void controller.send(t.code === 'run_interrupted' ? 'Continue the interrupted work from the saved checkpoints. Review what is already done and inspect unknown outcomes before repeating any action. Ask me to approve each tool call.' : lastUser.content) : undefined}
+          ? <UserMessage key={t.key} turn={t} highlight={flash === t.key} onKey={client ? setKeysOpen : undefined} onEdit={running ? undefined : text => { controller.edit(text); input.current?.focus(); }} onRemember={canRemember && messageRef(t) ? () => openRemember(t, t.content) : undefined}/>
+          : <AssistantTurn recovery={t.code === 'run_interrupted' && client && s.activeId ? <RecoveryApprovals key={`${s.activeId}:${client.getSnapshot().epoch}`} client={client} conversationId={s.activeId}/> : undefined} key={t.key} turn={t} highlight={flash === t.key} writer={nameOf(t.agentId ?? convAgentId)} writerRole={s.agents.find(a => a.id === (t.agentId ?? convAgentId))?.primary || (!(t.agentId ?? convAgentId) && s.agents.some(a => a.primary)) ? 'main agent' : undefined} last={i === s.turns.length - 1} onRetry={lastUser ? () => void controller.send(t.code === 'run_interrupted' ? 'Continue the interrupted work from the saved checkpoints. Review what is already done and inspect unknown outcomes before repeating any action. Ask me to approve each tool call.' : lastUser.content) : undefined}
             onSuggest={owner && cardsCtl && s.activeId ? openCardForm : undefined} onRemember={canRemember && messageRef(t) ? text => openRemember(t, text) : undefined}
             proposals={t.runId && memCtl ? <MemoryProposals controller={memCtl} items={byRun.get(t.runId) ?? []}/> : null} recall={recallCtl} onWrongPlace={moveCtl ? m => void moveCtl.open(m) : undefined}/>)}
         {moveCtl && <MoveDialog c={moveCtl} from="From a reply’s “wrong place”"/>}
@@ -438,24 +438,24 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           <button type="button" className="ghost-action" aria-label="Remove from the queue" onClick={() => controller.removeQueued(q.key)}><UiIcon name="trash" size={13}/></button>
         </li>)}
       </ul>}
-      {(s.attachments.length > 0 || s.images.length > 0 || attachError) && <div className="chat-attachments" aria-label="Attached files">
-        {s.images.map(i => <span key={i.key} className="attach-chip image" dir="ltr"><img src={`data:${i.type};base64,${i.data}`} alt="" className="attach-thumb"/><span className="attach-name">{i.name}</span>
-          <button type="button" className="row-tool" aria-label={`Remove ${i.name}`} onClick={() => controller.detachImage(i.key)}><UiIcon name="trash" size={11}/></button></span>)}
-        {s.attachments.map(f => <span key={f.name} className="attach-chip" dir="ltr"><button type="button" className="attachment-preview" title={`Read ${f.name}`} onClick={()=>setAttachmentPreview(f.name)}><UiIcon name="file" size={12}/>{f.name}</button><small>{Math.ceil(f.text.length / 1000)}k</small>
-          <button type="button" className="row-tool" aria-label={`Remove ${f.name}`} onClick={() => controller.detach(f.name)}><UiIcon name="trash" size={11}/></button></span>)}
-        {attachError && <span className="attach-error" role="alert">{attachError}</span>}
-      </div>}
 
-      {s.model.startsWith('subscription:')&&<p className="fine-print">Uses your signed-in coding app. Girru tools follow the selected agent’s grants and approvals. Stop cancels the local process.</p>}
       <form className="chat-composer" method="post" onSubmit={e => { e.preventDefault(); submit(); }}
         onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); void onFiles(e.dataTransfer.files); } }}>
         <label htmlFor="chat-input" className="sr-only">Message</label>
+        {/* CH3: files sit above the text, inside the box. */}
+        {(s.attachments.length > 0 || s.images.length > 0 || attachError) && <div className="chat-attachments" aria-label="Attached files">
+          {s.images.map(i => <span key={i.key} className="attach-chip image" dir="ltr"><img src={`data:${i.type};base64,${i.data}`} alt="" className="attach-thumb"/><span className="attach-name">{i.name}</span>
+            <button type="button" className="row-tool" aria-label={`Remove ${i.name}`} onClick={() => controller.detachImage(i.key)}><UiIcon name="close" size={11}/></button></span>)}
+          {s.attachments.map(f => <span key={f.name} className="attach-chip" dir="ltr"><button type="button" className="attachment-preview" title={`Read ${f.name}`} onClick={()=>setAttachmentPreview(f.name)}><UiIcon name="file" size={12}/>{f.name}</button><small>{Math.ceil(f.text.length / 1024)} KB</small>
+            <button type="button" className="row-tool" aria-label={`Remove ${f.name}`} onClick={() => controller.detach(f.name)}><UiIcon name="close" size={11}/></button></span>)}
+          {attachError && <span className="attach-chip bad" role="alert"><UiIcon name="alert" size={13}/><span className="attach-name">{attachError}</span></span>}
+        </div>}
         {slash.length > 0 && <SlashList query={slashQuery!} index={pick} onPick={runSlash}/>}
         {suggestions.length > 0 && <ul className="mention-list" role="listbox" aria-label="Agents">{suggestions.map((a, i) =>
           <li key={a.id} role="option" aria-selected={i === Math.min(pick, suggestions.length - 1)}><button type="button" onMouseDown={e => { e.preventDefault(); choose(a.name); }}>
             <span className="avatar" aria-hidden="true">{a.name.slice(0, 1).toUpperCase()}</span>{a.name}</button></li>)}</ul>}
         <textarea id="chat-input" ref={input} rows={1} dir="auto" value={s.draft} maxLength={100000}
-          placeholder={running ? 'Steer the work now, or ⌥Enter to send it after this reply' : agentName ? `Message ${agentName}` : s.turns.length ? 'Send a follow-up' : 'Write a message…'}
+          placeholder={running ? 'Steer the work now, or ⌥Enter to send it after this reply' : agentName ? `Message ${agentName}` : s.turns.length ? 'Reply, or type @ to bring in a teammate…' : 'Write a message…'}
           onChange={e => controller.edit(e.target.value)} onPaste={e=>{if(e.clipboardData.files.length){e.preventDefault();void onFiles(e.clipboardData.files);}}} onKeyDown={onKeyDown} disabled={s.access === 'denied'}/>
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
@@ -472,7 +472,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           {mic && <MicButton mic={mic}/>}
           {running && !s.draft.trim()
             ? <button type="button" className="round-button stop" onClick={() => void controller.stop()} disabled={s.stopping} aria-label={s.stopping ? 'Stopping' : 'Stop the reply'}><UiIcon name="stop" size={10}/></button>
-            : <button type="submit" className="round-button" disabled={(!s.draft.trim() && !s.attachments.length) || s.access === 'denied'} aria-label={busy ? 'Queue the message' : 'Send'}><UiIcon name="arrow-up" size={14}/></button>}
+            : <button type="submit" className="round-button" disabled={(!s.draft.trim() && !s.attachments.length) || s.access === 'denied'} aria-label={busy ? 'Queue the message' : 'Send'}><UiIcon name="arrow-up" size={15}/></button>}
         </div>
       </form>
     </div>
@@ -528,27 +528,28 @@ function GitHubCard({ git, pr, onRefresh }: { git: NonNullable<ReturnType<Conver
   const gh = git.github;
   const live = usePullRequest(gh && git.upstream ? pr : undefined, git.branch);
   const when = git.lastCommit?.date ? new Date(git.lastCommit.date) : null;
-  return <section className="panel-card" aria-label="GitHub">
-    <h3>{gh ? 'GitHub' : 'Git'} <button type="button" className="row-tool panel-head-tool" aria-label="Reload git status" title="Reload" onClick={onRefresh}><UiIcon name="refresh" size={11}/></button></h3>
-    <dl className="panel-list">
-      {gh && <div><dt><UiIcon name="globe" size={12}/></dt><dd dir="ltr"><a href={gh.repoUrl} target="_blank" rel="noopener noreferrer">{gh.owner}/{gh.repo}</a></dd></div>}
-      <div><dt aria-label="Branch">⎇</dt><dd dir="ltr">{git.branch}</dd></div>
-      <div><dt aria-label="Upstream">↕</dt><dd className="panel-wrap">{git.upstream
-        ? <><span dir="ltr">{git.upstream}</span>{git.ahead !== null && git.ahead !== undefined && <span className="git-sync"> · ↑{git.ahead} ↓{git.behind ?? 0}</span>}</>
-        : <span className="muted">Not on GitHub yet (never pushed)</span>}</dd></div>
-      {live && <div><dt aria-label="Pull request"><span className="pr-dot" data-state={live.pr?.state ?? 'none'} aria-hidden="true"/></dt><dd className="panel-wrap">{live.pr
-        ? <><a href={live.pr.url} target="_blank" rel="noopener noreferrer" title={live.pr.title}>#{live.pr.number}</a> <span className="pr-state" data-state={live.pr.state}>{PR_WORD[live.pr.state]}</span>
-          {live.pr.checks && <span className="pr-checks" data-checks={live.pr.checks} title={CHECKS_WORD[live.pr.checks]}><span className="pr-dot" aria-hidden="true"/>{CHECKS_WORD[live.pr.checks]}</span>}</>
-        : <span className="muted">{live.unavailable ? 'PR state unavailable' : 'No pull request yet'}</span>}</dd></div>}
-      {git.lastCommit && <div><dt aria-label="Last commit"><UiIcon name="check" size={12}/></dt><dd title={`${git.lastCommit.author}${when ? ` · ${when.toLocaleString()}` : ''}`}><code dir="ltr">{git.lastCommit.hash}</code> <span dir="auto">{git.lastCommit.subject}</span></dd></div>}
-    </dl>
-    {git.upstream && (git.ahead ?? 0) > 0 && <p className="muted git-note">{git.ahead} {git.ahead === 1 ? 'commit is' : 'commits are'} only on this computer. Pushing is your call.</p>}
-    {(git.behind ?? 0) > 0 && <p className="muted git-note">GitHub has {git.behind} newer {git.behind === 1 ? 'commit' : 'commits'} (as of the last sync with GitHub).</p>}
-    {gh && <div className="git-links">
+  // CH8: the branch, its pull request, the repository and the last commit as quiet rows (tile · name · one muted line).
+  const sync = git.upstream ? `${git.upstream}${git.ahead !== null && git.ahead !== undefined ? ` · ↑${git.ahead} ↓${git.behind ?? 0}` : ''}` : 'Not on GitHub yet (never pushed)';
+  const note = [git.upstream && (git.ahead ?? 0) > 0 ? `${git.ahead} ${git.ahead === 1 ? 'commit is' : 'commits are'} only on this computer. Pushing is your call.` : '',
+    (git.behind ?? 0) > 0 ? `GitHub has ${git.behind} newer ${git.behind === 1 ? 'commit' : 'commits'} (as of the last sync with GitHub).` : ''].filter(Boolean).join(' ');
+  return <section className="git-rows" aria-label={gh ? 'GitHub' : 'Git'} title={live ? 'Counts are from the last sync with GitHub. The pull request is read from GitHub; nothing is changed there.' : 'Counts are from the last sync with GitHub; nothing is sent to GitHub from here.'}>
+    {live && <div className="details-row"><span className="details-icon git-tile" data-state={live.pr?.state ?? 'none'}><UiIcon name="pr" size={13}/></span>
+      <span className="pop-text">{live.pr
+        ? <><b title={live.pr.title}><a href={live.pr.url} target="_blank" rel="noopener noreferrer">{live.pr.title || `#${live.pr.number}`}</a></b><small>Pull request #{live.pr.number} · <span className="pr-state" data-state={live.pr.state}>{PR_WORD[live.pr.state].toLowerCase()}</span>{live.pr.checks && <> · {CHECKS_WORD[live.pr.checks].toLowerCase()}</>}</small></>
+        : <><b>{live.unavailable ? 'Pull request state unavailable' : 'No pull request yet'}</b><small dir="ltr">{git.branch}</small></>}</span>
+      {live.pr?.checks && <span className="pr-checks" data-checks={live.pr.checks} title={CHECKS_WORD[live.pr.checks]}><span className="pr-dot" aria-hidden="true"/></span>}</div>}
+    <div className="details-row"><span className="details-icon git-tile"><UiIcon name="branch" size={13}/></span>
+      <span className="pop-text"><b dir="ltr">{git.branch}</b><small dir="ltr">{sync}</small></span>
+      <button type="button" className="row-tool" aria-label="Reload git status" title="Reload" onClick={onRefresh}><UiIcon name="refresh" size={11}/></button></div>
+    {gh && <div className="details-row"><span className="details-icon git-tile"><UiIcon name="globe" size={13}/></span>
+      <span className="pop-text"><b dir="ltr"><a href={gh.repoUrl} target="_blank" rel="noopener noreferrer">{gh.owner}/{gh.repo}</a></b><small>GitHub</small></span></div>}
+    {git.lastCommit && <div className="details-row" title={`${git.lastCommit.author}${when ? ` · ${when.toLocaleString()}` : ''}`}><span className="details-icon git-tile"><UiIcon name="check" size={13}/></span>
+      <span className="pop-text"><b dir="auto">{git.lastCommit.subject}</b><small dir="ltr"><code>{git.lastCommit.hash}</code> · {git.lastCommit.author}</small></span></div>}
+    {note && <p className="git-note">{note}</p>}
+    {gh && (gh.branchUrl || gh.compareUrl) && <div className="git-links">
       {gh.branchUrl && <a className="link-button" href={gh.branchUrl} target="_blank" rel="noopener noreferrer">Open branch</a>}
       {gh.compareUrl && <a className="link-button" href={gh.compareUrl} target="_blank" rel="noopener noreferrer" title={`Compare ${git.defaultBranch} with ${git.branch} and open a pull request on GitHub`}>Compare / pull request</a>}
     </div>}
-    <p className="muted git-note">{live ? 'Counts are from the last sync with GitHub. The pull request is read from GitHub; nothing is changed there.' : 'Counts are from the last sync with GitHub; nothing is sent to GitHub from here.'}</p>
   </section>;
 }
 
@@ -588,7 +589,7 @@ function MicButton({ mic }: { mic: MicController }) {
       aria-label={m.phase === 'recording' ? 'Stop and turn into text' : m.phase === 'transcribing' ? 'Turning speech into text' : 'Dictate'}
       title={m.phase === 'recording' ? 'Stop and turn into text' : m.phase === 'transcribing' ? 'Turning speech into text…' : 'Dictate (speech to text on this computer)'}
       onClick={() => void (m.phase === 'recording' ? mic.stop() : mic.start())}>
-      {m.phase === 'recording' ? <UiIcon name="stop" size={11}/> : m.phase === 'transcribing' ? <span className="pulse" aria-hidden="true"/> : <UiIcon name="mic" size={14}/>}
+      {m.phase === 'recording' ? <UiIcon name="stop" size={11}/> : m.phase === 'transcribing' ? <span className="pulse" aria-hidden="true"/> : <UiIcon name="mic" size={16}/>}
     </button>
   </span>;
 }
@@ -634,10 +635,10 @@ function ExportMenu({ client, conversationId, disabled, openKey = 0, bare = fals
   </span>;
 }
 
-/** CH1: the side panel's three views, a switch on its top (not a row of buttons in the chat). */
+/** CH1/CH8: the side panel's three views, a switch with their names on its top (not a row of buttons in the chat). */
 function PaneSwitch({ items, pane, onPane }: { items: { name: PaneName; icon: UiIconName; label: string }[]; pane: PaneName | null; onPane: (p: PaneName) => void }) {
   return <div className="pane-switch" role="radiogroup" aria-label="Side panel view">{items.map(b =>
-    <button key={b.name} type="button" role="radio" aria-checked={pane === b.name} aria-label={b.label} title={b.label} onClick={() => onPane(b.name)}><UiIcon name={b.icon} size={15}/></button>)}</div>;
+    <button key={b.name} type="button" role="radio" aria-checked={pane === b.name} title={b.label} onClick={() => onPane(b.name)}>{b.label}</button>)}</div>;
 }
 
 
@@ -656,19 +657,24 @@ function ChatImage({ id, name }: { id: string; name: string }) {
   return src ? <img className="user-image" src={src} alt={name} title={name}/> : <span className="user-image placeholder" title={name}><UiIcon name="image" size={14}/></span>;
 }
 
-function UserMessage({ turn, onRemember, onKey, highlight }: { turn: Turn; onRemember?: () => void; onKey?: (id: string) => void; highlight?: boolean }) {
+function UserMessage({ turn, onRemember, onKey, onEdit, highlight }: { turn: Turn; onRemember?: () => void; onKey?: (id: string) => void; onEdit?: (text: string) => void; highlight?: boolean }) {
   const [open, setOpen] = useState(false);
+  // CH2: files sent with the message show as chips in the bubble, not as their text.
+  const { text, files } = splitAttached(turn.content);
   // The pinned bubble stays short (3 lines) so the answer under it stays readable.
-  const long = turn.content.length > 220 || turn.content.split('\n').length > 3;
+  const long = text.length > 220 || text.split('\n').length > 3;
   return <div className="chat-user" data-pending={turn.pending || undefined} data-message-id={turn.key} data-highlight={highlight || undefined}>
     <div className="user-bubble" data-folded={long && !open || undefined}>
       <p className="sr-only">You</p>
-      <div className="turn-text" dir="auto">{splitSecrets(turn.content).map((p, i) => p.kind === 'text' ? p.text
+      <div className="turn-text" dir="auto">{splitSecrets(text).map((p, i) => p.kind === 'text' ? p.text
         : <SecretChip key={i} type={p.type} id={p.id} onOpen={onKey}/>)}</div>
+      {files.length > 0 && <span className="user-files">{files.map(f => <span key={f.name} className="user-file" title={`${f.name} · ${f.kb} KB`}><UiIcon name="file" size={12}/>{f.name}</span>)}</span>}
       {turn.parts.map((p, i) => p.kind === 'images' ? <div key={i} className="user-images">{p.images.map(img => <ChatImage key={img.id} id={img.id} name={img.name}/>)}</div> : null)}
     </div>
     <div className="user-actions">
       {long && <button type="button" className="chat-more" onClick={() => setOpen(v => !v)}>{open ? 'Show less' : 'Show all'}</button>}
+      {onEdit && <button type="button" className="ghost-action" aria-label="Edit and send again" title="Edit (↑ in an empty box)" onClick={() => onEdit(text)}><UiIcon name="pencil" size={14}/></button>}
+      <Copy text={text} label="Copy"/>
       {onRemember && <RememberButton onClick={onRemember}/>}
     </div>
   </div>;
@@ -684,7 +690,7 @@ function SecretChip({ type, id, onOpen }: { type: string; id: string; onOpen?: (
 }
 
 /** One assistant turn: live parts in order while running; work folded once finished. */
-function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRemember, proposals, highlight, recall, onWrongPlace }: { turn: Turn; last: boolean; onRetry?: () => void; writer?: string; recovery?: ReactNode; onSuggest?: (s: CardSuggestion) => void; onRemember?: (text: string) => void; proposals?: ReactNode; highlight?: boolean; recall?: ChatRecallController | null; onWrongPlace?: (m: { id: string; text: string; drawerId: string }) => void }) {
+function AssistantTurn({ turn, last, onRetry, writer, writerRole, recovery, onSuggest, onRemember, proposals, highlight, recall, onWrongPlace }: { turn: Turn; last: boolean; onRetry?: () => void; writer?: string; writerRole?: string; recovery?: ReactNode; onSuggest?: (s: CardSuggestion) => void; onRemember?: (text: string) => void; proposals?: ReactNode; highlight?: boolean; recall?: ChatRecallController | null; onWrongPlace?: (m: { id: string; text: string; drawerId: string }) => void }) {
   const live = turn.status === 'running';
   const plan = turnPlan(turn.parts);
   const suggestions = turnSuggestions(turn.parts);
@@ -694,9 +700,10 @@ function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRem
   const answerText = answer.filter(p => p.kind === 'text').map(p => (p as { text: string }).text).join('');
   const [quiet, since] = useQuiet(turn, live);
   return <article className="chat-assistant" aria-busy={live || undefined} data-message-id={turn.key} data-highlight={highlight || undefined}>
-    {writer ? <p className="reply-writer"><span className="avatar" aria-hidden="true">{writer.slice(0, 1).toUpperCase()}</span>{writer}</p> : <p className="sr-only">Agent</p>}
+    {/* CH1/CH2: who wrote it, their role and the time, beside their face. */}
+    {writer ? <p className="reply-writer"><span className="avatar" aria-hidden="true">{writer.slice(0, 1).toUpperCase()}</span>{writer}{(writerRole || turn.at) && <span className="reply-meta">{[writerRole, turn.at ? clockTime(turn.at) : ''].filter(Boolean).map(x => ` · ${x}`).join('')}</span>}</p> : <p className="sr-only">Agent</p>}
     {/* CHAT-BUILD-01 stage 5 (CH1): the plan's steps live in Tasks above the box; here only one quiet line. */}
-    {plan && <p className="moment-line"><UiIcon name="list" size={12}/>Plan: {plan.length} {plan.length === 1 ? 'step' : 'steps'}, {plan.filter(s => s.status === 'done').length} done · the steps are in Tasks above the box</p>}
+    {live && plan && <p className="moment-line"><UiIcon name="list" size={12}/>Plan: {plan.length} {plan.length === 1 ? 'step' : 'steps'}, {plan.filter(s => s.status === 'done').length} done · the steps are in Tasks above the box</p>}
     {live
       ? <>{parts.map((p, i) => <PartView key={i} part={p} live last={i === parts.length - 1}/>)}
         {/* CHAT-BUILD-01 stage 5: the reply as it is written (checked text replaces it at the end). */}
@@ -706,6 +713,8 @@ function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRem
         {tools > 0
           ? <WorkedRow parts={work} ms={turn.durationMs}/>
           : work.map((p, i) => <PartView key={i} part={p}/>)}
+        {/* CH1: the plan's quiet line comes after the work row. */}
+        {plan && <p className="moment-line"><UiIcon name="list" size={12}/>Plan: {plan.length} {plan.length === 1 ? 'step' : 'steps'}, {plan.filter(s => s.status === 'done').length} done · the steps are in Tasks above the box</p>}
         {/* CHAT-BUILD-01 stage 5: hand-offs, what waits for you and notices stay in view when the work is folded. */}
         {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.name === 'team_delegate').map(c => <DelegationCard key={`h${c.id}`} call={c}/>)}
         {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.approvalId && c.name !== 'team_delegate').map(c => <ApprovalCard key={`p${c.id}`} call={c}/>)}
@@ -929,7 +938,7 @@ function WorkedRow({ parts, ms }: { parts: Part[]; ms: number | null }) {
   const summary = workSummary(parts);
   return <div className="scaffold worked" data-open={open || undefined}>
     <button type="button" className="scaffold-row" aria-expanded={open} onClick={() => setOpen(v => !v)}>
-      <UiIcon name="tool" size={12}/><span>{ms !== null ? `Worked for ${duration(ms)}` : 'Worked'}</span>
+      <UiIcon name="check" size={14}/><span>{ms !== null ? `Worked for ${duration(ms)}` : 'Worked'}</span>
       {summary && <span className="worked-summary">· {summary}</span>}
       <span className="caret" aria-hidden="true"><UiIcon name="chevron" size={11}/></span>
     </button>
@@ -1044,6 +1053,9 @@ export function ChatMemoryCard({ controller, onOpen }: { controller: ChatMemoryC
 const drawerRef = (id: string) => { const i = id.indexOf(':'); return (i < 0 ? { kind: id } : { kind: id.slice(0, i), key: id.slice(i + 1) }) as { kind: 'owner' }; };
 const noopSubscribe = () => () => {};
 const nullSnapshot = () => undefined;
+
+/** "10:42" for a message time (local clock). */
+const clockTime = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
 
 function Copy({ text, label }: { text: string; label: string }): ReactNode {
   const [state, setState] = useState<'idle' | 'done' | 'failed'>('idle');
