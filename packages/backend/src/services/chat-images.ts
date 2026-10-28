@@ -28,10 +28,18 @@ export function sniffImage(b: Buffer): ImageType | null {
   return null;
 }
 
+/** A path inside the images folder, or an error: checked names, then resolved and kept under the folder. */
+const inside = (...parts: string[]) => {
+  const base = path.resolve(dataPath('chat-images'));
+  const full = path.resolve(base, ...parts);
+  if (!full.startsWith(base + path.sep)) throw new ChatImageError('bad path');
+  return full;
+};
 const folder = (conversationId: string) => {
   if (!CHAT.test(conversationId)) throw new ChatImageError('bad chat');
-  return path.join(dataPath('chat-images'), conversationId);
+  return inside(conversationId);
 };
+const fileOf = (conversationId: string, name: string) => inside(path.basename(folder(conversationId)), path.basename(name));
 const cleanName = (name: unknown) => (typeof name === 'string' ? name.replace(/[\u0000-\u001f\\/]/g, ' ').trim().slice(0, 120) : '') || 'image';
 
 /** Saves one image of a chat (the caller checked the chat is the owner's). */
@@ -44,8 +52,8 @@ export function saveChatImage(conversationId: string, base64: unknown, name?: un
   const id = randomUUID().replace(/-/g, '');
   const dir = folder(conversationId);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  writeFileSync(path.join(dir, `${id}.${EXT[type]}`), bytes, { mode: 0o600, flag: 'wx' });
-  writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ type, size: bytes.length, name: cleanName(name) }), { mode: 0o600, flag: 'wx' });
+  writeFileSync(fileOf(conversationId, `${id}.${EXT[type]}`), bytes, { mode: 0o600, flag: 'wx' });
+  writeFileSync(fileOf(conversationId, `${id}.json`), JSON.stringify({ type, size: bytes.length, name: cleanName(name) }), { mode: 0o600, flag: 'wx' });
   return { id, type, size: bytes.length, name: cleanName(name) };
 }
 
@@ -53,10 +61,9 @@ export function saveChatImage(conversationId: string, base64: unknown, name?: un
 export function readChatImage(conversationId: string, id: unknown): (ChatImage & { bytes: Buffer; file: string }) | null {
   if (typeof id !== 'string' || !ID.test(id)) return null;
   try {
-    const dir = folder(conversationId);
-    const meta = JSON.parse(readFileSync(path.join(dir, `${id}.json`), 'utf8')) as { type: ImageType; size: number; name: string };
+    const meta = JSON.parse(readFileSync(fileOf(conversationId, `${id}.json`), 'utf8')) as { type: ImageType; size: number; name: string };
     if (!EXT[meta.type]) return null;
-    const file = path.join(dir, `${id}.${EXT[meta.type]}`);
+    const file = fileOf(conversationId, `${id}.${EXT[meta.type]}`);
     const bytes = readFileSync(file);
     if (sniffImage(bytes) !== meta.type) return null;
     return { id, type: meta.type, size: bytes.length, name: cleanName(meta.name), bytes, file };
