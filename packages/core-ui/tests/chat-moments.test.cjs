@@ -41,7 +41,7 @@ test('steer messages, kept notices and approval ids pass the contract and render
 test('hand-off cards and the task list', () => {
   const card = renderToStaticMarkup(React.createElement(MomentsContext.Provider, { value: { agentName: id => (id === 'qa' ? 'QA Tester' : id) } },
     React.createElement(DelegationCard, { call: { id: 'c', name: 'team_delegate', input: JSON.stringify({ agent_id: 'qa', request: 'Check the hero at 390 px' }), output: 'All good', running: false, ms: 72000 } })));
-  assert.match(card, /Handed to <b>QA Tester<\/b>/); assert.match(card, /Check the hero at 390 px/); assert.match(card, /Done · 72s/);
+  assert.match(card, /<span class="handoff-verb">Handed to<\/span><span class="composer-face" aria-hidden="true">Q<\/span><b>QA Tester<\/b>/); assert.match(card, /Check the hero at 390 px/); assert.match(card, /Done · 1m 12s/);
   const plan = { id: 'p', name: 'plan_steps', input: JSON.stringify({ steps: [{ title: 'Read', status: 'done' }, { title: 'Write', status: 'active' }] }), running: false };
   const html = renderToStaticMarkup(React.createElement(TaskList, { turns: [{ key: 'a', role: 'assistant', content: '', parts: [{ kind: 'tools', step: 1, calls: [plan] }], status: 'running', runId: null, durationMs: null, lastSeq: 0 }] }));
   assert.match(html, /Tasks<\/b><span>1 of 2 done<\/span><span class="task-now">· Write/);
