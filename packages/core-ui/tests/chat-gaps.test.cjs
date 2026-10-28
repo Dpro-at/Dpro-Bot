@@ -153,3 +153,11 @@ test('small gaps: Esc closes the panel in a narrow window, a rail icon opens its
   assert.match(m, /\{waits > 0 && <span className="task-waits">· \{waits\} \{waits === 1 \? 'waits' : 'wait'\} for you<\/span>\}/);
   assert.match(v, /waits=\{activeConv\?\.waiting \?\? 0\}/);
 });
+
+test('MCP part: real marks from the vendored set, an amber dot when one needs you, View all always', () => {
+  const d = src('ChatDetails.tsx');
+  assert.match(d, /logo=\{serviceMark\(c\.name\) \? <ServiceLogo id=\{c\.name\} size=\{13\}\/> : undefined\}/);
+  assert.match(d, /<span className="details-needs-dot" aria-label="Needs you"\/>/);
+  assert.match(d, /'View all in Settings'/);
+  assert.doesNotMatch(src('ServiceLogo.tsx'), /https?:\/\//, 'never loaded from the internet');
+});

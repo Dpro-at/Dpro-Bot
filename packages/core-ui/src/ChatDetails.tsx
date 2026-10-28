@@ -4,6 +4,7 @@
 // · From memory · MCP connections. Each part folds (a one-line summary stays) and moves (drag or ⌥↑/⌥↓);
 // folds and order are saved per person. Hidden, the panel becomes a thin rail of icons with dots.
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ServiceLogo, serviceMark } from './ServiceLogo';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { ConversationsController } from './conversations';
 import type { SessionClient } from './session';
@@ -132,8 +133,10 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
       body: <>{trace && recall ? <ContextCard trace={trace} c={recall}/> : null}{memoryCard}</> },
     mcp: { has: conns.length > 0, summary: conns.some(c => c.needsYou) ? `${conns.filter(c => c.needsYou).length} needs you` : `${conns.length} on`, tone: conns.some(c => c.needsYou) ? 'needs' : undefined,
       side: onSettings ? <button type="button" className="link-button" onClick={onSettings}><UiIcon name="plus" size={11}/>Add</button> : undefined,
-      body: <>{conns.slice(0, 3).map(c => <Row key={c.id} icon="tool" name={c.name} sub={c.needsYou ? 'Needs you' : 'On'} tone={c.needsYou ? 'needs' : undefined}/>)}</>,
-      more: conns.length > 3 && onSettings ? <button type="button" className="link-button panel-more" onClick={onSettings}>View all ({conns.length}) in Settings</button> : undefined },
+      // CH8: each connection with its real mark (vendored, never loaded from the internet) and an amber dot when it needs you.
+      body: <>{conns.slice(0, 3).map(c => <Row key={c.id} icon="tool" logo={serviceMark(c.name) ? <ServiceLogo id={c.name} size={13}/> : undefined} name={c.name} sub={c.needsYou ? 'Needs you' : 'On'} tone={c.needsYou ? 'needs' : undefined}
+        end={c.needsYou ? <span className="details-needs-dot" aria-label="Needs you"/> : undefined}/>)}</>,
+      more: onSettings ? <button type="button" className="link-button panel-more" onClick={onSettings}>{conns.length > 3 ? `View all (${conns.length}) in Settings` : 'View all in Settings'}</button> : undefined },
   };
   const shown = prefs.order.filter(id => parts[id].has);
   // CH8c: a rail icon opens the panel at its part (unfolded, in view).
@@ -199,8 +202,8 @@ export function DetailsRail({ controller, onOpen }: { controller: ConversationsC
   </nav>;
 }
 
-function Row({ icon, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
-  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
+function Row({ icon, logo, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; logo?: ReactNode; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
+  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : logo ? <span className="details-icon">{logo}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
     <span className="pop-text"><b dir={ltr ? 'ltr' : 'auto'} title={name}>{name}</b>{sub && <small data-tone={tone}>{sub}</small>}</span>{end}</>;
   return onClick ? <button type="button" className="details-row" data-indent={indent || undefined} onClick={onClick}>{inner}</button>
     : <div className="details-row" data-indent={indent || undefined}>{inner}</div>;
