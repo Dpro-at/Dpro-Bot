@@ -26,6 +26,8 @@ export function dateGroups<T extends { updatedAt: string }>(items: readonly T[],
   return ['Today', 'Yesterday', 'Previous 7 days', 'Older'].filter(l => groups.has(l)).map(l => [l, groups.get(l)!]);
 }
 
+/** CH1: a chat dragged onto a project moves there (the server keeps a started chat on its folder). */
+const CHAT_DRAG = 'application/x-girru-chat';
 const noSearch = () => () => {};
 const idleSearch = (): ChatSearchState => ({ query: '', phase: 'idle', results: [], truncated: false });
 type Chat = Conversation & { schedule?: { next?: string } };
@@ -40,7 +42,7 @@ type Chat = Conversation & { schedule?: { next?: string } };
  * someone works, an amber number when approvals wait for the owner.
  * Row actions are on right-click (or the menu key).
  */
-export function ConversationList({ controller, onOpen, search, onNewChat }: { controller: ConversationsController; onOpen: () => void; search?: ChatSearchController; onNewChat?: () => void }) {
+export function ConversationList({ controller, onOpen, search, onNewChat, onAddToBoard }: { controller: ConversationsController; onOpen: () => void; search?: ChatSearchController; onNewChat?: () => void; onAddToBoard?: (id: string) => void }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const found = useSyncExternalStore(search ? search.subscribe : noSearch, search ? search.getSnapshot : idleSearch, search ? search.getSnapshot : idleSearch);
   const [query, setQuery] = useState('');
@@ -49,6 +51,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [projectForm, setProjectForm] = useState<{ id: string | null } | null>(null);
   const [continueFrom, setContinueFrom] = useState<string | null>(null);
+  const [dropOn, setDropOn] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string; undo: boolean; chat: string } | null>(null);
   const searchBox = useRef<HTMLInputElement>(null);
   const menu = useMenu();
@@ -83,17 +86,24 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
     { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(c.id) },
     ...(s.access !== 'denied' ? [{ label: 'Continue in another folder…', icon: 'folder' as const, run: () => setContinueFrom(c.id) }] : []),
     { label: 'Rename', icon: 'pencil', run: () => setRenaming(c.id) },
-    { label: c.pinned ? 'Unpin' : 'Pin', icon: 'pin', run: () => void controller.pin(c.id, !c.pinned) },
+    { label: c.pinned ? 'Unpin' : 'Pin', icon: 'pin', shortcut: '⌘P', run: () => void controller.pin(c.id, !c.pinned) },
+    ...(onAddToBoard ? [{ label: 'Add to board…', icon: 'board' as const, shortcut: '⌘B', run: () => onAddToBoard(c.id) }] : []),
     ...(s.projects.length ? ['sep' as const, ...[{ id: '', name: 'No project' }, ...s.projects].map(p => ({ label: p.id ? `Move to ${p.name}` : 'Move out of the project', icon: 'folder' as const, checked: (c.projectId ?? '') === p.id, run: () => void controller.moveToProject(c.id, p.id) }))] : []),
     'sep',
-    { label: 'Export as Markdown', icon: 'download', run: () => void controller.exportMarkdown(c.id) },
-    { label: c.archived ? 'Bring back from the archive' : 'Archive', icon: 'archive', run: () => void archive(c, !c.archived) },
-    { label: 'Delete…', icon: 'trash', danger: true, run: () => setConfirmDelete(c.id) },
+    { label: 'Export as Markdown', icon: 'download', shortcut: '⇧⌘S', run: () => void controller.exportMarkdown(c.id) },
+    { label: c.archived ? 'Bring back from the archive' : 'Archive', icon: 'archive', shortcut: '⌘⌫', run: () => void archive(c, !c.archived) },
+    { label: 'Delete…', icon: 'trash', danger: true, shortcut: '⌥⌘⌫', run: () => setConfirmDelete(c.id) },
   ];
   const projectItems = (p: { id: string; name: string; folder?: string | null }): MenuItem[] => [
     { label: 'New chat here', icon: 'compose', run: () => { controller.filterProject(p.id); controller.newChat(); onOpen(); } },
+    { label: 'Rename…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
+    { label: 'Folders and variables…', icon: 'folder', run: () => setProjectForm({ id: p.id }) },
+    'sep',
     { label: prefs.folded.includes(p.id) ? 'Unfold' : 'Fold', icon: 'chevron', run: () => fold(p.id) },
-    { label: 'Folders and variables…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
+    { label: 'Fold all', icon: 'chevron', run: () => setPrefs({ ...prefs, folded: [...new Set([...prefs.folded, ...s.projects.map(x => x.id)])] }) },
+    'sep',
+    // Delete asks in the project sheet; the project's chats stay (they move out of it).
+    { label: 'Delete project…', icon: 'trash', danger: true, run: () => setProjectForm({ id: p.id }) },
   ];
   const sectionItems: MenuItem[] = [{ label: 'Edit sidebar…', icon: 'sliders', run: () => setEditing(true) }];
   const fold = (id: string) => setPrefs({ ...prefs, folded: prefs.folded.includes(id) ? prefs.folded.filter(x => x !== id) : [...prefs.folded, id] });
@@ -108,7 +118,8 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
         <button type="button" className="link-button danger" onClick={() => { setConfirmDelete(null); void controller.remove(c.id); }}>Delete</button>
         <button type="button" className="link-button" autoFocus onClick={() => setConfirmDelete(null)}>Keep</button></div>
       : <button key={c.id} type="button" className="chat-row" data-child={child || undefined} aria-current={c.id === s.activeId ? 'true' : undefined} title={title(c)}
-        onClick={() => open(c)} onContextMenu={(e: ReactMouseEvent) => menu.at(e, rowItems(c))} onKeyDown={e => keyMenu(e, rowItems(c))}>
+        onClick={() => open(c)} onContextMenu={(e: ReactMouseEvent) => menu.at(e, rowItems(c))} onKeyDown={e => keyMenu(e, rowItems(c))}
+        draggable={s.access !== 'denied' && s.projects.length > 0} onDragStart={e => { e.dataTransfer.setData(CHAT_DRAG, c.id); e.dataTransfer.effectAllowed = 'move'; }}>
         <span className="chat-row-name" dir="auto">{title(c)}</span>
         {(c.running || (c.id === s.activeId && !!s.runId)) && <span className="chat-row-working" title="Working now" aria-label="Working now"/>}
         {c.waiting ? <span className="chat-row-waits" title={`${c.waiting} ${c.waiting === 1 ? 'approval waits' : 'approvals wait'} for you`} aria-label={`${c.waiting} waiting for you`}>{c.waiting}</span> : null}
@@ -132,6 +143,10 @@ export function ConversationList({ controller, onOpen, search, onNewChat }: { co
         const needs = list.some(c => c.waiting);
         return <div key={p.id} className="chat-project">
           <button type="button" className="chat-project-row" aria-expanded={!folded} title={p.folder ? `${p.name} · ${p.folder}` : p.name}
+            data-drop={dropOn === p.id || undefined}
+            onDragOver={e => { if (e.dataTransfer.types.includes(CHAT_DRAG)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropOn(p.id); } }}
+            onDragLeave={() => setDropOn(d => (d === p.id ? null : d))}
+            onDrop={e => { const id = e.dataTransfer.getData(CHAT_DRAG); setDropOn(null); if (id) { e.preventDefault(); void controller.moveToProject(id, p.id); } }}
             onClick={() => fold(p.id)} onContextMenu={(e: ReactMouseEvent) => menu.at(e, projectItems(p))} onKeyDown={e => keyMenu(e, projectItems(p))}>
             <span className="chat-project-chevron" data-open={!folded || undefined}><UiIcon name="chevron" size={11}/></span>
             <UiIcon name="folder" size={13}/><span className="chat-row-name" dir="auto">{p.name}</span>

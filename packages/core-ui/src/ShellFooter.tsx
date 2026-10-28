@@ -27,11 +27,12 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||e.shiftKey)return;const n=Number(e.key);if(n>=1&&n<=9&&numbered[n-1]){e.preventDefault();entries[numbered[n-1]].run();}else if(e.key==='z'&&undo&&notice&&!(e.target as HTMLElement)?.closest?.('input,textarea,[contenteditable]')){e.preventDefault();controller.undo();}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);});
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>controller.clearNotice(),8000);return()=>clearTimeout(t);},[notice,controller]);
  // Too narrow for the names: show icons only until the names fit again (the person's own choice stays as it is).
- const groupRef=useRef<HTMLSpanElement>(null),needed=useRef(0),[compact,setCompact]=useState(false),shownKey=shown.join(),lastKey=useRef(shownKey);
+ const groupRef=useRef<HTMLSpanElement>(null),needed=useRef(0),wentAt=useRef(0),[compact,setCompact]=useState(false),shownKey=shown.join(),lastKey=useRef(shownKey);
  useLayoutEffect(()=>{const el=groupRef.current;if(!el||prefs.iconsOnly)return;
   // Other sections shown: measure again with the names.
   if(lastKey.current!==shownKey){lastKey.current=shownKey;if(compact){setCompact(false);return;}}
-  const check=()=>{if(!compact){if(el.scrollWidth>el.clientWidth+1){needed.current=el.scrollWidth;setCompact(true);}}else if(el.clientWidth>=needed.current)setCompact(false);};check();const ro=new ResizeObserver(check);ro.observe(el);return()=>ro.disconnect();},[compact,shownKey,prefs.iconsOnly]);
+  // Names come back only once the footer really got wider: at the edge width the two layouts would swap forever (a blank window).
+  const check=()=>{if(!compact){if(el.scrollWidth>el.clientWidth+1){needed.current=el.scrollWidth;wentAt.current=el.clientWidth;setCompact(true);}}else if(el.clientWidth>=needed.current&&el.clientWidth>wentAt.current+24)setCompact(false);};check();const ro=new ResizeObserver(check);ro.observe(el);return()=>ro.disconnect();},[compact,shownKey,prefs.iconsOnly]);
  const iconsOnly=prefs.iconsOnly||compact;
  const items=():MenuItem[]=>[
   ...prefs.order.filter(id=>entries[id].available).map((id):MenuItem=>{return {label:footerSections[id].label+(entries[id].current?' — you are here':''),icon:footerSections[id].icon,checked:!prefs.hidden.includes(id),disabled:entries[id].current,shortcut:keyOf(id),run:()=>controller.toggle(id)};}),

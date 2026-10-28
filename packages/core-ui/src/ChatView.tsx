@@ -65,7 +65,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -232,11 +232,27 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     if (!active) return;
     const key = (e: globalThis.KeyboardEvent) => {
       if (e.metaKey && e.altKey && e.code === 'KeyI') { e.preventDefault(); setPane(p => (p === 'details' ? null : 'details')); }
+      else if (e.ctrlKey && e.shiftKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(true); terminal.tabs.add(); }
       else if (e.ctrlKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(v => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '.' && controller.getSnapshot().activeId) { e.preventDefault(); void controller.stopAll(); }
+      else chatKeys(e);
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [active, terminal, client, controller]);
+  // CH1: keys for the open chat — ⌘P pin, ⇧⌘S export, ⌘⌫ archive, ⌥⌘⌫ delete (asks), ⇧⌘C copy the last reply.
+  const chatKeys = (e: globalThis.KeyboardEvent) => {
+    const snap = controller.getSnapshot(), id = snap.activeId, conv = snap.conversations.find(c => c.id === id);
+    if (!id || !conv || !(e.metaKey || e.ctrlKey)) return;
+    const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName));
+    const k = e.key.toLowerCase(), hit = (fn: () => void) => { e.preventDefault(); fn(); };
+    if (k === 'p' && !e.shiftKey && !e.altKey) hit(() => void controller.pin(id, !conv.pinned));
+    else if (k === 's' && e.shiftKey && !e.altKey) hit(() => setExportKey(Date.now()));
+    else if (k === 'backspace' && !typing) hit(() => (e.altKey ? setChatSheet('delete') : void controller.archive(id, !conv.archived)));
+    else if (k === 'c' && e.shiftKey && !e.altKey) {
+      const last = [...snap.turns].reverse().find(t => t.role === 'assistant' && t.content);
+      if (last && navigator.clipboard) hit(() => void navigator.clipboard.writeText(last.content).catch(() => undefined));
+    }
+  };
   const [keysOpen, setKeysOpen] = useState<string | null>(null);
   // CHAT-PRO-02 I step 2: board cards made from this conversation.
   const [cardsCtl, setCardsCtl] = useState<ChatCardsController | null>(null);
@@ -301,6 +317,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const [exportKey, setExportKey] = useState(0);
   const [chatSheet, setChatSheet] = useState<'rename' | 'delete' | 'continue' | null>(null);
   const canBoard = owner && !!cardsCtl && !!s.activeId;
+  // Add to board from the chat list's right-click: the chat opens, then its card form.
+  useEffect(() => { if (boardRequest > 0 && canBoard) openCardForm(); }, [boardRequest]);
   const rememberAll = () => {
     const last = [...s.turns].reverse().find(t => t.role === 'assistant' && t.status === 'complete');
     if (!last) return;
@@ -311,15 +329,15 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     const id = s.activeId;
     return [
       { label: 'Rename', icon: 'pencil', run: () => setChatSheet('rename') },
-      { label: activeConv.pinned ? 'Unpin' : 'Pin', icon: 'pin', run: () => void controller.pin(id, !activeConv.pinned) },
+      { label: activeConv.pinned ? 'Unpin' : 'Pin', icon: 'pin', shortcut: '⌘P', run: () => void controller.pin(id, !activeConv.pinned) },
       ...(s.projects.length ? ['sep' as const, ...[{ id: '', name: 'No project' }, ...s.projects].map(p => ({ label: p.id ? `Move to ${p.name}` : 'Move out of the project', icon: 'folder' as const, checked: (activeConv.projectId ?? '') === p.id, run: () => void controller.moveToProject(id, p.id) }))] : []),
       'sep',
       { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(id) },
       { label: 'Continue in another folder…', icon: 'folder', run: () => setChatSheet('continue') },
-      { label: 'Export…', icon: 'download', run: () => setExportKey(Date.now()) },
+      { label: 'Export…', icon: 'download', shortcut: '⇧⌘S', run: () => setExportKey(Date.now()) },
       ...(canRemember ? [{ label: 'Remember the whole chat', icon: 'brain' as const, disabled: !s.turns.some(t => t.role === 'assistant' && t.status === 'complete'), run: rememberAll }] : []),
       'sep',
-      { label: 'Delete…', icon: 'trash', danger: true, run: () => setChatSheet('delete') },
+      { label: 'Delete…', icon: 'trash', danger: true, shortcut: '⌥⌘⌫', run: () => setChatSheet('delete') },
     ];
   };
   useEffect(() => {
@@ -334,7 +352,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   });
   // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
-  const moments = { client, conversationId: s.activeId, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
+  const moments = { client, conversationId: s.activeId, onOpenApprovals, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
@@ -360,6 +378,14 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
           : 'Write it the way you would tell a person. The team picks who does what.'}</p>
+        {/* CH5 first run: nothing on this computer can answer yet (no local model, no key, no signed-in coding app). */}
+        {mode === 'live' && owner && s.modelsLoaded && s.models.length === 0 && onSetUpModel && <div className="first-run-card" role="note">
+          <UiIcon name="cpu" size={20}/>
+          <b>Your team needs a model to think with</b>
+          <span>Girru found no model on this computer yet. Sign in to Claude Code or Codex, or set up a free local model.</span>
+          <span className="first-run-actions"><button type="button" className="primary" onClick={onSetUpModel}>Use a coding app…</button>
+            <button type="button" className="ghost-action" onClick={onSetUpModel}>Local model…</button></span>
+        </div>}
         <div className="chat-suggestions">{SUGGESTIONS.map(t =>
           <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}>{t}</button>)}</div>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
@@ -447,7 +473,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} pr={owner && client ? { client, projectId: project.id } : undefined} onRefresh={() => void controller.refreshGit()}/> : undefined}
       placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
-      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })}/>
+      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')}/>
     : pane === null && <DetailsRail controller={controller} onOpen={() => setPane('details')}/>}
   {scheduleOpen && client && s.activeId && <ScheduleSheet client={client} chatId={s.activeId} onClose={() => setScheduleOpen(false)}/>}
   {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'}><header className="chat-inspector-head"><h2>{pane==='changes'?'Changes':'Files'}</h2><button title="Close side pane" aria-label="Close side pane" onClick={()=>setPane(null)}><UiIcon name="close" size={15}/></button></header>
@@ -675,7 +701,8 @@ function AssistantTurn({ turn, last, onRetry, writer, recovery, onSuggest, onRem
         {suggestions.map((g, i) => <CardSuggestionView key={i} suggestion={g} onCreate={onSuggest}/>)}
         {proposals}
         {recovery}
-        <TurnFooter text={answerText || turn.content} ms={turn.durationMs} stopped={turn.status === 'stopped'} onRemember={onRemember} recall={recall ? <RecallChip c={recall} turn={turn}/> : null}/>
+        <TurnFooter text={answerText || turn.content} ms={turn.durationMs} stopped={turn.status === 'stopped'} onRemember={onRemember} recall={recall ? <RecallChip c={recall} turn={turn}/> : null}
+          onAgain={last && turn.status === 'complete' ? onRetry : undefined}/>
         {recall && <RecallPanel c={recall} turnKey={turn.key} onWrongPlace={onWrongPlace}/>}
       </>}
   </article>;
@@ -901,12 +928,13 @@ function Elapsed({ since }: { since: number }) {
   return <span className="elapsed">{s >= 1 ? duration(s * 1000) : ''}</span>;
 }
 
-function TurnFooter({ text, ms, stopped, onRemember, recall }: { text: string; ms: number | null; stopped: boolean; onRemember?: (text: string) => void; recall?: ReactNode }) {
+function TurnFooter({ text, ms, stopped, onRemember, recall, onAgain }: { text: string; ms: number | null; stopped: boolean; onRemember?: (text: string) => void; recall?: ReactNode; onAgain?: () => void }) {
   return <div className="turn-actions">
     {recall}
     {stopped && <span className="turn-chip">Stopped</span>}
     {ms !== null && <span className="turn-time" title={`This reply took ${duration(ms)}`}>{duration(ms)}</span>}
-    {text && <Copy text={text} label="Copy reply"/>}
+    {text && <Copy text={text} label="Copy reply (⇧⌘C)"/>}
+    {onAgain && <button type="button" className="ghost-action" aria-label="Answer again" title="Answer again (asks the same once more)" onClick={onAgain}><UiIcon name="refresh" size={12}/></button>}
     {text && onRemember && <RememberButton onClick={() => onRemember(text)}/>}
   </div>;
 }
@@ -1004,7 +1032,7 @@ function Copy({ text, label }: { text: string; label: string }): ReactNode {
     if (!navigator.clipboard) { done('failed'); return; }
     navigator.clipboard.writeText(text).then(() => done('done'), () => done('failed'));
   };
-  return <button type="button" className="ghost-action" aria-label={state === 'done' ? 'Copied' : state === 'failed' ? 'Copy failed' : label} onClick={copy}>
+  return <button type="button" className="ghost-action" aria-label={state === 'done' ? 'Copied' : state === 'failed' ? 'Copy failed' : label} title={label} onClick={copy}>
     <UiIcon name={state === 'done' ? 'check' : 'copy'} size={13}/>
   </button>;
 }

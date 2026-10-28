@@ -1,4 +1,5 @@
 import {FooterSettings} from './FooterSettings';
+import {ChatNoticeSettings} from './ChatNoticeSettings';
 import {PrimaryReplySettings} from './PrimaryReplySettings';
 import {WorkspacePackSettings} from './WorkspacePackSettings';
 import {ScheduledTasks} from './ScheduledTasks';
@@ -32,7 +33,7 @@ export type SettingsTab=Place|'models'|'sharing'|'connections';
 type Row={value:Place;label:string;icon:UiIconName;words:string;note?:string;jump?:boolean};
 // Search finds settings inside the pages, not only page names.
 const ROWS:Record<Place,Row>={
- general:{value:'general',label:'General',icon:'sun',words:'theme appearance light dark system footer sections icons language english',note:'Appearance and the footer. Changes save by themselves.'},
+ general:{value:'general',label:'General',icon:'sun',words:'theme appearance light dark system footer sections icons language english notifications notify done',note:'Appearance, the footer and notifications. Changes save by themselves.'},
  account:{value:'account',label:'Account',icon:'contact',words:'two-step sign-in authenticator recovery codes password sign out everywhere devices sessions email role',note:'Your identity, two-step sign-in and the devices signed in.'},
  replies:{value:'replies',label:'Models and replies',icon:'cpu',words:'models tools main agent primary model ollama local coding apps claude code codex gemini antigravity answer chat reply source',note:'Choose where your agents get their replies.'},
  move:{value:'move',label:'Share settings',icon:'archive',words:'move another computer export import file agents personalities specialties skills bring in take',note:'Move your general setup to another installation using a file. Keys, accounts, conversations, memories and private project files are excluded.'},
@@ -100,6 +101,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
         <PreferenceGroup title="Appearance"><div className="preference-row settings-theme-row"><div className="preference-label"><strong>Theme</strong><small>Use your device appearance or choose a theme. The sun and moon in the title bar switch it too.</small></div>
           <div className="settings-themes" role="radiogroup" aria-label="Theme">{(['system','light','dark'] as const).map(v=><label key={v} className="settings-theme" data-theme-choice={v}><input type="radio" name="app-theme" value={v} checked={preference===v} onChange={()=>onTheme(v)} aria-label={v==='system'?'System':v==='light'?'Light':'Dark'}/><span className="settings-theme-picture" aria-hidden="true"/><span>{v==='system'?'System':v==='light'?'Light':'Dark'}</span></label>)}</div></div></PreferenceGroup>
         {live&&<FooterSettings client={client!}/>}
+        {live&&<ChatNoticeSettings client={client!}/>}
         <PreferenceGroup title="Language"><PreferenceRow title="Program language" description="More languages come later."><span className="preference-status">English</span></PreferenceRow></PreferenceGroup>
       </>}
       {active_==='account'&&(live?<AccountSettings client={client!}/>:signIn('Account','Connect to your workspace to manage your account.'))}

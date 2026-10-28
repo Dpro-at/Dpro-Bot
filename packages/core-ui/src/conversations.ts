@@ -33,6 +33,8 @@ export type ConversationsState = Readonly<{
   agents: readonly AgentChoice[];
   /** Models the owner can pick for the next reply ('' = the agent's own model). */
   models: readonly ModelOption[];
+  /** True once the installed models were read (owner only): an empty list then means no model is ready. */
+  modelsLoaded?: boolean;
   model: string;
   /** Projects (owner only) and the one the list is filtered to ('' = all chats). */
   projects: readonly Project[];
@@ -166,7 +168,10 @@ export class ConversationsController {
     void this.loadAgents();
     void this.loadModels();
     void this.loadProjects();
+    void this.call('GET', '/api/chat/settings').then(r => { if (r.status === 200 && record(r.body) && record(r.body.settings)) this.#notifyDone = r.body.settings.notifyDone !== false; }).catch(() => undefined);
   }
+  /** CH10: Settings › General can turn off the notice when long work ends in the background. */
+  #notifyDone = true;
 
   /** The team for the agent picker (owner only; others talk to the primary agent). */
   #modelsAt = 0;
@@ -185,7 +190,7 @@ export class ConversationsController {
       if (!this.live() || r.status !== 200 || !record(r.body) || !Array.isArray(r.body.models)) return;
       const models = r.body.models as ModelOption[];
       // A picked model that is gone (its server stopped) stays picked: the reply then says why it failed.
-      this.publish({ models: this.#state.model && !models.some(m => m.id === this.#state.model) ? [...models, ...this.#state.models.filter(m => m.id === this.#state.model)] : models });
+      this.publish({ modelsLoaded: true, models: this.#state.model && !models.some(m => m.id === this.#state.model) ? [...models, ...this.#state.models.filter(m => m.id === this.#state.model)] : models });
     } catch { /* the picker stays as it was */ }
   }
   async loadProjects() {
@@ -245,6 +250,8 @@ export class ConversationsController {
   async moveToProject(conversationId: string, projectId: string) {
     const r = await this.call('PUT', `/api/chat/conversations/${conversationId}`, { projectId: projectId || null });
     if (this.live() && r.status === 200 && record(r.body) && record(r.body.conversation)) { this.replace(r.body.conversation as Conversation); if (conversationId === this.#state.activeId) void this.loadGit(); }
+    // CH5: a chat that already worked in its folder stays there.
+    else if (this.live() && r.status === 409) this.publish({ notice: 'This chat already worked in its folder. Continue in another folder… starts a new chat there.' });
   }
   /** The open conversation's project (if any). */
   activeProject(): Project | undefined {
@@ -300,9 +307,26 @@ export class ConversationsController {
     } catch { /* the picker stays on the primary agent */ }
   }
 
+  /** CH11: the chat that is open is kept on the server, so the next sign-in opens it again. */
+  #last: string | null | undefined;
+  private rememberLast(id: string | null) {
+    if (this.#last === id || !this.live()) return;
+    this.#last = id;
+    void this.call('PUT', '/api/chat/last', { last: id }).catch(() => undefined);
+  }
+  /** Open the chat that was open last time, if it still exists and nothing else was opened meanwhile. */
+  async restoreLast() {
+    try {
+      const r = await this.call('GET', '/api/chat/last');
+      const id = r.status === 200 && record(r.body) && typeof r.body.last === 'string' ? r.body.last : null;
+      if (id && this.live() && !this.#state.activeId && this.#state.conversations.some(c => c.id === id)) await this.open(id);
+    } catch { /* a new chat then */ }
+  }
+
   /** A blank conversation (created on the first message). */
   newChat() {
     this.#follow?.abort(); this.#openSeq++;
+    this.rememberLast(null);
     this.publish({ activeId: null, model: 'auto', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false, mode: 'auto', thinking: 'normal' });
     void this.loadGit();
   }
@@ -310,6 +334,7 @@ export class ConversationsController {
   async open(id: string) {
     if (!this.live()) return;
     this.#follow?.abort();
+    this.rememberLast(id);
     const seq = ++this.#openSeq;
     const known = this.#state.conversations.find(c => c.id === id);
     this.publish({ activeId: id, turns: [], threadPhase: 'loading', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: known?.agentId ?? '', model: known?.model ?? '', replyAgent: '', focus: null, hasEarlier: false, loadingEarlier: false });
@@ -523,7 +548,7 @@ export class ConversationsController {
     const stopped = this.#state.turns.at(-1)?.status === 'stopped';
     // CHAT-BUILD-01 stage 5 (CH10): long work that ends while the window is in the back sends a desktop notification.
     const last = this.#state.turns.at(-1);
-    if (last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
+    if (this.#notifyDone && last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
     this.publish({ runId: null, stopping: false, reconnecting: false, queuePaused: stopped && this.#state.queue.length > 0 });
     void this.refreshList();
     if (stopped) return;

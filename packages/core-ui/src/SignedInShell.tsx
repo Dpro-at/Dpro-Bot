@@ -80,7 +80,10 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [chat, setChat] = useState<ConversationsController>();
   // A window opened for one chat (⌘O) carries `#chat=<id>`: open that chat once the list is in.
   useEffect(() => { const c = new ConversationsController(client); setChat(c); const linked = chatFromLink(window.location.hash);
-    void c.load().then(() => { if (!linked) return; try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* keep going */ } void c.open(linked); }); return () => c.dispose(); }, [client]);
+    void c.load().then(() => {
+      // CH11: after sign-in the window opens where the owner left it (the last open chat, if it still exists).
+      if (!linked) { void c.restoreLast(); return; }
+      try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* keep going */ } void c.open(linked); }); return () => c.dispose(); }, [client]);
   // CHAT-PRO-02 D: search inside the chats (the sidebar box and the ⌘K box each keep their own).
   const [search, setSearch] = useState<{ side: ChatSearchController; palette: ChatSearchController }>();
   useEffect(() => { const s = { side: new ChatSearchController(client), palette: new ChatSearchController(client) }; setSearch(s); return () => { s.side.dispose(); s.palette.dispose(); }; }, [client]);
@@ -101,6 +104,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const ownSidebar=OWN_SIDEBAR.includes(page);
   const [settingsVisit,setSettingsVisit]=useState(0);
   const [terminalRequest,setTerminalRequest]=useState(0);
+  const [boardRequest,setBoardRequest]=useState(0);
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
   const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
@@ -133,6 +137,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(v => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); setPage('settings'); }
+      else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === '\\') { e.preventDefault(); setRail(v => !v); }
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -166,7 +171,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <header className="titlebar">
       <WorkspaceModes onModeChange={mode=>{if(mode==='code')setPage('code');else if(page==='code')setPage('chat');}}/>
       <div className="titlebar-tools">
-        <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar' : 'Show the sidebar'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
+        <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar (⌘\\)' : 'Show the sidebar (⌘\\)'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
       </div>
       <p className="titlebar-title">{pageTitle}{page === 'chat' && activeProject && <span className="titlebar-project" title={activeProject.folder ?? activeProject.name}>{activeProject.name}</span>}</p>
       <div className="titlebar-tools end">
@@ -180,7 +185,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {placeParent[page]&&<button type="button" className="agent-return place-return" onClick={()=>setPage(placeParent[page]!)}><UiIcon name="arrow-left" size={13}/>{PARENT_LABEL[placeParent[page]!]}</button>}
       <div className="section-sidebar" ref={setSlot} hidden={page === 'chat'}/>
       {page === 'chat' && <div className="session-list">
-        {chat && <ConversationList controller={chat} search={user.role === 'guest' ? undefined : search?.side} onOpen={() => setPage('chat')} onNewChat={newChat}/>}
+        {chat && <ConversationList controller={chat} search={user.role === 'guest' ? undefined : search?.side} onOpen={() => setPage('chat')} onNewChat={newChat} onAddToBoard={user.role === 'owner' ? id => { void chat.open(id).then(() => setBoardRequest(n => n + 1)); setPage('chat'); } : undefined}/>}
       </div>}
       <div className="sidebar-footer">
         <details className="account-menu"><summary className="user-chip" title="Account">
@@ -192,7 +197,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <main id="content" className="page-area">
       {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
-        {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')}
+        {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}
           onOpenMemory={(drawerId, memoryId) => { setMemoryFocus(f => ({ drawerId, memoryId, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/> : null}
       </section>
