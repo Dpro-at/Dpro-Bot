@@ -16,7 +16,7 @@ process.on('message',m=>{if(started||!m||m.type!=='start')return;started=true;
  }catch{stop();}});
 if(process.connected)process.send({type:'ready'});else stop();
 `;
-export async function launchTrackedSubscription(manager:SubscriptionProcesses,program:string,args:string[],options:{cwd:string;env:NodeJS.ProcessEnv}):Promise<{child:ChildProcess;start:(prompt:string)=>void;completion:Promise<number>}>{
+export async function launchTrackedSubscription(manager:SubscriptionProcesses,program:string,args:string[],options:{cwd:string;env:NodeJS.ProcessEnv;maxInputBytes?:number}):Promise<{child:ChildProcess;start:(prompt:string)=>void;completion:Promise<number>}>{
  if(process.platform==='win32'||!path.isAbsolute(program)||!Array.isArray(args)||args.length>256||args.some(a=>typeof a!=='string'||a.length>65536)||!path.isAbsolute(options.cwd))throw Error('subscription_launch_invalid');
  const child=spawn(process.execPath,['-e',SHIM],{cwd:options.cwd,env:options.env,detached:true,stdio:['ignore','pipe','pipe','ipc'],windowsHide:true});
  let journal:string|undefined,done=false,exitCode=1;
@@ -30,7 +30,7 @@ export async function launchTrackedSubscription(manager:SubscriptionProcesses,pr
  }catch{if(child.connected)child.disconnect();throw Error('subscription_launch_unavailable');}
  let started=false;
  return {child,completion,start(prompt:string){
-  if(started||typeof prompt!=='string'||Buffer.byteLength(prompt,'utf8')>200000||!child.connected){if(child.connected)child.disconnect();throw Error('subscription_launch_invalid');}
+  if(started||typeof prompt!=='string'||Buffer.byteLength(prompt,'utf8')>(options.maxInputBytes??200000)||!child.connected){if(child.connected)child.disconnect();throw Error('subscription_launch_invalid');}
   started=true;
   try{child.send({type:'start',program,args,prompt},error=>{if(error&&child.connected)child.disconnect();});}catch{if(child.connected)child.disconnect();throw Error('subscription_launch_unavailable');}
  }};

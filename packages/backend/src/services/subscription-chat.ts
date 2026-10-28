@@ -7,6 +7,7 @@ import os from 'node:os';
 import {dataPath} from '../config/data-root.js';
 import {SubscriptionProcesses} from './subscription-processes.js';
 import {minimalChildEnv,safeChildCwd} from '../tools/exec-policy.js';
+import {MAX_IMAGE_BYTES,sniffImage} from './chat-images.js';
 export type SubscriptionKind='claude'|'codex'|'gemini';
 export const subscriptionModel=(value:unknown):value is string=>typeof value==='string'&&/^subscription:(?:(?:claude|codex)(?::[a-f0-9]{32})?|gemini)(?:\/[a-z0-9][a-z0-9.-]{0,40})?$/.test(value);
 /** The coding app's own model after the slash (subscription:claude/opus, subscription:codex/gpt-6.1-sol), or undefined for its default (CORE-PICKER-02). */
@@ -67,6 +68,27 @@ export function chatImageFiles(files:readonly unknown[]|undefined):string[]{
  const base=path.resolve(dataPath('chat-images'))+path.sep;
  return (files??[]).filter((f):f is string=>typeof f==='string'&&path.isAbsolute(f)&&path.resolve(f).startsWith(base)&&/\.(png|jpg|gif|webp)$/.test(f)).slice(0,4).map(f=>path.resolve(f));
 }
+/** CHAT-GAPS-01: the image files a coding app will see for this chat model. Codex takes them with -i; Claude Code gets them as
+ * base64 image blocks in one stream-json user message (only files that read back as a PNG, JPEG, GIF or WebP of at most 5 MB).
+ * Antigravity's stream-json input accepts only text blocks (its own error: content block type not supported, only one type), so Gemini sees none. */
+export async function chatImagesSeenBy(model:string|undefined,files:readonly unknown[]|undefined):Promise<string[]>{
+ if(model?.startsWith('subscription:codex'))return chatImageFiles(files);
+ if(!model?.startsWith('subscription:claude'))return [];
+ return (await claudeImageBlocks(chatImageFiles(files))).map(b=>b.file);
+}
+type ClaudeImageBlock={type:'image';source:{type:'base64';media_type:string;data:string}};
+/** Reads the chat's own image files (chatImageFiles: at most 4, only the images folder) into Claude image blocks; an unreadable or wrong file is left out. */
+export async function claudeImageBlocks(files:readonly string[]):Promise<(ClaudeImageBlock&{file:string})[]>{
+ const out:(ClaudeImageBlock&{file:string})[]=[];
+ for(const file of chatImageFiles(files)){
+  try{const st=await fs.stat(file);if(!st.isFile()||st.size>MAX_IMAGE_BYTES)continue;const bytes=await fs.readFile(file);const type=bytes.length<=MAX_IMAGE_BYTES?sniffImage(bytes):null;if(type)out.push({file,type:'image',source:{type:'base64',media_type:type,data:bytes.toString('base64')}});}catch{}
+ }
+ return out;
+}
+/** The one stream-json user message for Claude Code: the prompt as text, then the images. Only the keys Claude Code accepts on a plain user line. */
+export const claudeStreamMessage=(prompt:string,blocks:readonly ClaudeImageBlock[])=>JSON.stringify({type:'user',message:{role:'user',content:[{type:'text',text:prompt},...blocks.map(b=>({type:'image',source:{type:'base64',media_type:b.source.media_type,data:b.source.data}}))]},parent_tool_use_id:null})+'\n';
+/** stdin budget for a Claude Code turn with images: the 200000-byte prompt (JSON escaping can grow it up to 6x) plus 4 base64 images of at most 5 MB, plus the JSON around them. */
+export const CLAUDE_IMAGE_STDIN_BYTES=6*200000+4*Math.ceil(MAX_IMAGE_BYTES/3)*4+4096;
 /** The chat's thinking level for a coding app: Quick→low, Deep→high, Normal (or anything else)→the app's own default.
  * Only these two fixed strings can ever reach a CLI argument (codex exec -c model_reasoning_effort, claude --effort, agy --effort). */
 const EFFORT:Readonly<Record<string,'low'|'high'>>=Object.freeze({quick:'low',deep:'high'});
@@ -84,10 +106,12 @@ export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?
  if(nativeId){if(kind==='claude')args.push('--resume',nativeId,'--fork-session');else args.splice(args.length-1,1,'fork',nativeId,'-');}
  if(variant&&/^[a-z0-9][a-z0-9.-]{0,40}$/.test(variant)){if(kind==='claude')args.push('--model',variant);else args.splice(1,0,'-m',variant);}
  if(kind==='codex')for(const file of chatImageFiles(images))args.splice(1,0,'-i',file);
+ // CHAT-GAPS-01: Claude Code takes images only through --input-format stream-json, which needs stream-json output, which needs --verbose in print mode.
+ if(kind==='claude'&&chatImageFiles(images).length)args.splice(args.indexOf('--output-format'),2,'--input-format','stream-json','--output-format','stream-json','--verbose');
  if(effort){if(kind==='claude')args.push('--effort',effort);else args.splice(1,0,'-c',`model_reasoning_effort="${effort}"`);}
  return args;
 }
-export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
+export function subscriptionAnswer(kind:SubscriptionKind,stdout:string,streamed=false):string{
  if(kind==='gemini'){
   const rows=stdout.split('\n').filter(line=>line.trim()).map(line=>JSON.parse(line));
   const init=rows.find(row=>row.event==='init')?.init;
@@ -95,7 +119,7 @@ export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
   if(init?.permission_mode!=='request-review'||results.length!==1||result?.status!=='SUCCESS'||result.error||typeof result.response!=='string'||rows.some(row=>row.event==='step_update'&&row.step_update?.step_type==='tool'))throw Error('cli_failed');
   return result.response;
  }
- if(kind==='claude'){const row=JSON.parse(stdout);if(row.api_error_code==='oauth_not_allowed_for_organization')throw Error('subscription_org_blocked');if(row.type!=='result'||row.is_error||typeof row.result!=='string')throw Error('cli_failed');return row.result;}
+ if(kind==='claude'){let row;if(streamed){const results=stdout.split('\n').filter(line=>line.trim()).map(line=>JSON.parse(line)).filter(r=>r?.type==='result');if(results.length!==1)throw Error('cli_failed');row=results[0];}else row=JSON.parse(stdout);if(row.api_error_code==='oauth_not_allowed_for_organization')throw Error('subscription_org_blocked');if(row.type!=='result'||row.is_error||typeof row.result!=='string')throw Error('cli_failed');return row.result;}
  const rows=stdout.split('\n').filter(Boolean).map(line=>JSON.parse(line));const answers=rows.filter(r=>r.type==='item.completed'&&r.item?.type==='agent_message'&&typeof r.item.text==='string');
  if(!answers.length||rows.some(r=>r.type==='error'||r.type==='turn.failed'))throw Error('cli_failed');return answers.map(r=>r.item.text).join('\n\n');
 }
@@ -106,11 +130,16 @@ export async function runSubscription(model:string,folder:string,prompt:string,s
  let nativeId:string|undefined;const opaque=model.split('/')[0].split(':')[2];
  if(opaque){const ref=await findSession(opaque);if(!ref||ref.source!==(kind==='claude'?'claude-code':'codex'))throw Error('session_missing');const session=await readSession(ref);if(!session.cwd||await fs.realpath(session.cwd)!==cwd)throw Error('session_folder_mismatch');nativeId=path.basename(ref.file).match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\.jsonl$/)?.[1];if(!nativeId)throw Error('session_missing');}if(!bin)throw Error('cli_missing');if(signal.aborted)throw Error('cancelled');
  if(typeof prompt!=='string'||Buffer.byteLength(prompt,'utf8')>200000)throw Error('cli_input_invalid');
- const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs,options.images,options.thinking);
+ // Claude Code with images: read them now (a file asked for that cannot be read stops the turn rather than answering without it).
+ const imageBlocks=kind==='claude'&&chatImageFiles(options.images).length?await claudeImageBlocks(chatImageFiles(options.images)):[];
+ if(imageBlocks.length!==(kind==='claude'?chatImageFiles(options.images).length:0))throw Error('cli_input_invalid');
+ const streamed=imageBlocks.length>0,input=streamed?claudeStreamMessage(prompt,imageBlocks):undefined;
+ if(input&&Buffer.byteLength(input,'utf8')>CLAUDE_IMAGE_STDIN_BYTES)throw Error('cli_input_invalid');
+ const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs,kind==='claude'?imageBlocks.map(b=>b.file):options.images,options.thinking);
  const env=minimalChildEnv({NO_COLOR:'1',TERM:'dumb'});env.PATH=[path.dirname(bin),env.PATH].filter(Boolean).join(path.delimiter);
  const geminiConfig=kind==='gemini'?await geminiReplyConfig():undefined;
  if(geminiConfig){env.AGY_CLI_DISABLE_AUTO_UPDATE='1';env.AGY_CLI_NONINTERACTIVE_HEADLESS='1';}
- let launched;try{launched=await launchTrackedSubscription(subscriptionProcesses(),bin,args,{cwd:geminiConfig?.dir??cwd,env});}catch(error){await geminiConfig?.cleanup();throw error;}
+ let launched;try{launched=await launchTrackedSubscription(subscriptionProcesses(),bin,args,{cwd:geminiConfig?.dir??cwd,env,...(streamed?{maxInputBytes:CLAUDE_IMAGE_STDIN_BYTES}:{})});}catch(error){await geminiConfig?.cleanup();throw error;}
  const child=launched.child;
  return new Promise((resolve,reject)=>{
   let output='',bytes=0,failed=false;
@@ -121,11 +150,11 @@ export async function runSubscription(model:string,folder:string,prompt:string,s
   child.on('error',()=>{cleanup();reject(Error('cli_unavailable'));});
   void launched.completion.then(code=>{
    cleanup();if(failed){reject(Error(signal.aborted?'cancelled':'cli_failed'));return;}
-   if(code!==0){try{subscriptionAnswer(kind,output);}catch(error){if(error instanceof Error&&error.message==='subscription_org_blocked'){reject(error);return;}}reject(Error('cli_failed'));return;}
-   try{const answer=subscriptionAnswer(kind,output).trim();if(!answer)throw Error();resolve(answer);}catch{reject(Error('cli_failed'));}
+   if(code!==0){try{subscriptionAnswer(kind,output,streamed);}catch(error){if(error instanceof Error&&error.message==='subscription_org_blocked'){reject(error);return;}}reject(Error('cli_failed'));return;}
+   try{const answer=subscriptionAnswer(kind,output,streamed).trim();if(!answer)throw Error();resolve(answer);}catch{reject(Error('cli_failed'));}
   });
   if(signal.aborted||processesStopping){stop();return;}
-  try{launched.start(kind==='gemini'?JSON.stringify({event:'user',message:{content:'Use no native tools, MCP, files, browser, shell, agents or schedules. Return only the requested text/JSON. Girru executes its own tools separately.\n'+prompt}})+'\n':prompt);}catch{stop();cleanup();reject(Error('cli_unavailable'));}
+  try{launched.start(kind==='gemini'?JSON.stringify({event:'user',message:{content:'Use no native tools, MCP, files, browser, shell, agents or schedules. Return only the requested text/JSON. Girru executes its own tools separately.\n'+prompt}})+'\n':input??prompt);}catch{stop();cleanup();reject(Error('cli_unavailable'));}
  });
 }
 

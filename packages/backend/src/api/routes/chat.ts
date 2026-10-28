@@ -7,7 +7,7 @@ import {narrowProjectMemory} from '../../tools/memory/project-access.js';
 import { FakeRaw } from '../../services/chat-runs.js';
 import { vaultChatFrames } from '../../services/chat-secrets.js';
 import { currentChatRun } from '../../services/chat-run-context.js';
-import {subscriptionModel,subscriptionEnabled,runSubscription,chatImageFiles} from '../../services/subscription-chat.js';
+import {subscriptionModel,subscriptionEnabled,runSubscription,chatImagesSeenBy} from '../../services/subscription-chat.js';
 import {subscriptionAgentContext,subscriptionReplyPrompt} from '../../services/subscription-agent-context.js';
 import { agentSkillsPrompt } from '../../skills/central-store.js';
 import { safeConsole } from '../../services/safe-error-log.js';
@@ -480,9 +480,9 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         if(memoryText)history=`${capMiddle(memoryText,SUBSCRIPTION_MEMORY_CHARS)}\n\n${history}`;
         const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
         let toolStep=0;
-        // CHAT-GAPS-01: a coding app here gets Girru's tools only, not files: it is told the image names and the chat says so.
-        // Codex sees them (-i, files of the chat's own image folder); Claude Code and Gemini are told the names and the chat says so.
-        const seen=subscriptionSource?.startsWith('subscription:codex')?chatImageFiles(input.images?.map(i=>i.file)):[];
+        // CHAT-GAPS-01: Codex sees the images (-i, files of the chat's own image folder), Claude Code too (image blocks in one
+        // stream-json message); Gemini cannot take images on its stream-json input, so it is told the names and the chat says so.
+        const seen=await chatImagesSeenBy(subscriptionSource,input.images?.map(i=>i.file));
         if(input.images?.length&&!seen.length){currentChatRun()?.notice?.('images_not_seen',`${subscriptionSource?.includes('codex')?'Codex':subscriptionSource?.includes('gemini')?'Gemini':'Claude Code'} does not see images in this chat yet. Pick Claude, or a local model that can see, to show it the image.`);history+=`\n\n(The owner attached ${input.images.length} image${input.images.length===1?'':'s'}: ${input.images.map(i=>i.name??'image').join(', ')}. You cannot see them; say so if they matter.)`;}
         const replyPrompt=subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history);
         {const run=currentChatRun();if(run)run.usage={model:subscriptionSource!,tokensIn:estimateTokens(replyPrompt)};}
