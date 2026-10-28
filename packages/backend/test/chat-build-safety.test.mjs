@@ -354,8 +354,14 @@ test('stage 4: a chat on a schedule sends its message at the time, once; the lis
 
 test('stage 4: panel layout per person; team list; Stop for the whole chat', async () => {
   assert.deepEqual((await call('b-owner', 'GET', '/api/chat/panel')).json().panel.order, ['place', 'team', 'results', 'memory', 'mcp']);
-  assert.deepEqual((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['results'], folded: ['mcp'] })).json().panel, { order: ['results', 'place', 'team', 'memory', 'mcp'], folded: ['mcp'] });
+  assert.deepEqual((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['results'], folded: ['mcp'] })).json().panel, { order: ['results', 'place', 'team', 'memory', 'mcp'], folded: ['mcp'], diff: 'unified' });
   assert.equal((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['nope'] })).statusCode, 400);
+  // CH4/CH8: the diff view is kept with the panel, alone, without touching order or folds; only two values.
+  assert.deepEqual((await call('b-owner', 'PUT', '/api/chat/panel', { diff: 'split' })).json().panel, { order: ['results', 'place', 'team', 'memory', 'mcp'], folded: ['mcp'], diff: 'split' });
+  assert.equal((await call('b-owner', 'GET', '/api/chat/panel')).json().panel.diff, 'split');
+  assert.equal((await call('b-owner', 'PUT', '/api/chat/panel', { order: ['team'] })).json().panel.diff, 'split', 'saving the order keeps the diff view');
+  for (const diff of ['wide', 1, null]) assert.equal((await call('b-owner', 'PUT', '/api/chat/panel', { diff })).statusCode, 400, String(diff));
+  assert.equal((await call('b-other', 'GET', '/api/chat/panel')).json().panel.diff, 'unified', 'per person');
   const c = await newConversation();
   assert.deepEqual((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/team`)).json().team, []);
   assert.deepEqual((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/stop`)).json(), { ok: true, stopped: 0 });

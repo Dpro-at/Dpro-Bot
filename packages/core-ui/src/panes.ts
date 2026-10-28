@@ -3,6 +3,11 @@ import { panePath } from './conversation-contract.js';
 import type { WireChanges, WireDiff, WireFile, WireTree } from './conversation-contract.js';
 
 export type PaneName = 'details' | 'changes' | 'files' | 'terminal';
+/** CH4/CH8: a diff in one column ("unified") or old beside new ("split"); kept per person with the side panel's layout. */
+export type DiffView = 'unified' | 'split';
+export const DIFF_VIEW_PATH = '/api/chat/panel';
+/** Below this pane width Side by side shows as one column; the choice is kept. */
+export const SPLIT_MIN_WIDTH = 520;
 type Load<T> = { phase: 'loading' } | { phase: 'ready'; data: T } | { phase: 'error'; message: string };
 export type PanesState = Readonly<{
   projectId: string | null;
@@ -13,6 +18,7 @@ export type PanesState = Readonly<{
   tree: Readonly<Record<string, Load<WireTree>>>;
   expanded: readonly string[];
   file?: { path: string; load: Load<WireFile> };
+  diffView: DiffView;
 }>;
 
 const record = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -20,7 +26,8 @@ const reason = (status: number, body: unknown) => record(body) && body.code === 
 
 /** Read-only views of the active project's folder: git changes, diffs, folders and files. */
 export class PanesController {
-  #state: PanesState = Object.freeze({ projectId: null, diffs: {}, tree: {}, expanded: [] });
+  #state: PanesState = Object.freeze({ projectId: null, diffs: {}, tree: {}, expanded: [], diffView: 'unified' });
+  #diffViewLoaded = false;
   #listeners = new Set<() => void>();
   #disposed = false;
   constructor(private readonly client: SessionClient) {}
@@ -37,7 +44,18 @@ export class PanesController {
   /** Switches to another project (or none): everything loaded before is dropped. */
   setProject(projectId: string | null) {
     if (projectId === this.#state.projectId) return;
-    this.#state = Object.freeze({ projectId, diffs: {}, tree: {}, expanded: [] }); this.#listeners.forEach(fn => fn());
+    this.#state = Object.freeze({ projectId, diffs: {}, tree: {}, expanded: [], diffView: this.#state.diffView }); this.#listeners.forEach(fn => fn());
+  }
+  /** Reads the person's diff view once from the server (never browser storage). */
+  async loadDiffView() {
+    if (this.#diffViewLoaded) return; this.#diffViewLoaded = true;
+    try { const r = await this.client.request({ method: 'GET', path: DIFF_VIEW_PATH } as never); const v = record(r.body) && record(r.body.panel) ? r.body.panel.diff : undefined;
+      if (r.status === 200 && (v === 'split' || v === 'unified')) this.publish({ diffView: v }); } catch { /* one column */ }
+  }
+  /** Shows the choice at once and saves only this field; the panel order and folds stay as they are on the server. */
+  setDiffView(v: DiffView) {
+    if (v === this.#state.diffView) return; this.#diffViewLoaded = true; this.publish({ diffView: v });
+    void this.client.request({ method: 'PUT', path: DIFF_VIEW_PATH, body: { diff: v } } as never).catch(() => undefined);
   }
   private current(id: string) { return !this.#disposed && this.#state.projectId === id; }
 
@@ -77,6 +95,21 @@ export class PanesController {
     this.publish({ tree: {} });
     await Promise.all([this.loadChanges(), this.loadFolder(''), ...this.#state.expanded.map(r => this.loadFolder(r))]);
   }
+}
+
+export type DiffLine = ReturnType<typeof diffLines>[number];
+type SplitSide = { kind: 'ctx' | 'del' | 'add'; text: string; no: number };
+export type SplitRow = { kind: 'hunk' | 'meta'; text: string } | { kind: 'pair'; left: SplitSide | null; right: SplitSide | null };
+/** Side by side: context on both sides; a run of removed lines is paired with the added lines after it, the shorter side padded. */
+export function splitRows(lines: readonly DiffLine[]): SplitRow[] {
+  const out: SplitRow[] = []; let del: SplitSide[] = [], add: SplitSide[] = [];
+  const flush = () => { for (let i = 0; i < Math.max(del.length, add.length); i++) out.push({ kind: 'pair', left: del[i] ?? null, right: add[i] ?? null }); del = []; add = []; };
+  for (const l of lines) {
+    if (l.kind === 'del') { if (add.length) flush(); del.push({ kind: 'del', text: l.text, no: l.old! }); }
+    else if (l.kind === 'add') add.push({ kind: 'add', text: l.text, no: l.new! });
+    else { flush(); out.push(l.kind === 'ctx' ? { kind: 'pair', left: { kind: 'ctx', text: l.text, no: l.old! }, right: { kind: 'ctx', text: l.text, no: l.new! } } : { kind: l.kind, text: l.text }); }
+  }
+  flush(); return out;
 }
 
 /** Splits a unified diff into typed lines for display (hunk headers keep their line numbers). */

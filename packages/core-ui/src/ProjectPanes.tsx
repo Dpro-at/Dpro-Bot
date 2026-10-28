@@ -1,6 +1,6 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { diffLines } from './panes';
-import type { PanesController } from './panes';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { diffLines, splitRows, SPLIT_MIN_WIDTH } from './panes';
+import type { DiffView as DiffViewName, PanesController } from './panes';
 import { UiIcon } from './ui-icons';
 
 /** Names that usually hold secrets: shown locked; Girru does not open them (the server checks again). */
@@ -12,15 +12,23 @@ const size = (b: number | null) => b === null ? '' : b < 1024 ? `${b} B` : b < 1
 export function ChangesPane({ panes }: { panes: PanesController }) {
   const s = useSyncExternalStore(panes.subscribe, panes.getSnapshot, panes.getSnapshot);
   useEffect(() => { if (s.projectId && !s.changes) void panes.loadChanges(); }, [panes, s.projectId, s.changes]);
+  useEffect(() => { void panes.loadDiffView(); }, [panes]);
+  // Side by side needs room: a narrow pane shows one column and keeps the choice.
+  const box = useRef<HTMLDivElement>(null); const [width, setWidth] = useState(Infinity);
+  useEffect(() => { const b = box.current; if (!b || typeof ResizeObserver === 'undefined') return; const o = new ResizeObserver(() => setWidth(b.clientWidth || Infinity)); o.observe(b); setWidth(b.clientWidth || Infinity); return () => o.disconnect(); }, [s.projectId]);
+  const narrow = width < SPLIT_MIN_WIDTH, view: DiffViewName = s.diffView === 'split' && !narrow ? 'split' : 'unified';
   if (!s.projectId) return <p className="pane-empty">Pick a project with a folder to see its changes.</p>;
   const c = s.changes;
   const data = c?.phase === 'ready' ? c.data : null;
   const total = data?.changes.reduce((t, x) => [t[0] + (x.added ?? 0), t[1] + (x.removed ?? 0)], [0, 0]);
-  return <div className="pane" aria-label="Changes">
+  return <div className="pane" aria-label="Changes" ref={box} data-diff={view}>
     <div className="pane-head">
       {/* CH4: the branch on the left, the line counts on the right. */}
       {data?.branch && <span className="pane-branch" dir="ltr" title={`${data.changes.length} ${data.changes.length === 1 ? 'file' : 'files'} changed`}><UiIcon name="branch" size={13}/>{data.branch}</span>}
       {data && total && data.changes.length > 0 && <span className="pane-sum"><span className="plus">+{total[0]}</span> <span className="minus">−{total[1]}</span></span>}
+      {data && data.changes.length > 0 && <span className="dk-segmented diff-switch" role="radiogroup" aria-label="Diff view" title={narrow && s.diffView === 'split' ? 'Side by side needs a wider pane; showing one column.' : undefined}>
+        {([['unified', 'One column'], ['split', 'Side by side']] as const).map(([v, t]) => <button type="button" key={v} role="radio" aria-checked={s.diffView === v} aria-pressed={s.diffView === v} onClick={() => panes.setDiffView(v)}>{t}</button>)}
+      </span>}
       <button type="button" className="row-tool pane-refresh" aria-label="Reload changes" title="Reload" onClick={() => void panes.loadChanges()}><UiIcon name="refresh" size={12}/></button>
     </div>
     {!c || c.phase === 'loading' ? <p className="pane-empty">Loading…</p>
@@ -37,26 +45,35 @@ export function ChangesPane({ panes }: { panes: PanesController }) {
             <span className="change-dir" dir="ltr">{slash > 0 ? f.path.slice(0, slash) : ''}</span>
             <span className="change-count">{f.added !== null && <span className="plus">+{f.added}</span>}{f.removed !== null && <span className="minus">−{f.removed}</span>}</span>
           </button>
-          {d && <DiffView load={d}/>}
+          {d && <DiffView load={d} view={view}/>}
         </li>;
       })}</ul>}
     {data?.truncated && <p className="pane-empty">Only the first 1000 files are listed.</p>}
   </div>;
 }
 
-function DiffView({ load }: { load: NonNullable<ReturnType<PanesController['getSnapshot']>['diffs'][string]> }) {
+function DiffView({ load, view }: { load: NonNullable<ReturnType<PanesController['getSnapshot']>['diffs'][string]>; view: DiffViewName }) {
   if (load.phase === 'loading') return <p className="pane-empty">Loading diff…</p>;
   if (load.phase === 'error') return <p className="pane-empty error">{load.message}</p>;
   const d = load.data;
   if (d.hidden) return <p className="pane-empty">Hidden: this file may hold secrets.</p>;
   if (d.binary) return <p className="pane-empty">Binary file.</p>;
   if (!d.diff) return <p className="pane-empty">{d.truncated ? 'Too big to show.' : 'No text changes.'}</p>;
+  const cut = d.truncated && <p className="pane-empty">The diff is cut short; it is too long to show whole.</p>;
+  if (view === 'split') return <div className="diff diff-split" dir="ltr" role="table" aria-label={`Diff of ${d.path}, side by side`}>
+    {splitRows(diffLines(d.diff)).map((r, i) => r.kind !== 'pair'
+      ? <div key={i} className="diff-line" data-kind={r.kind} role="row"><code>{r.text}</code></div>
+      : <div key={i} className="diff-row" role="row">{[r.left, r.right].map((x, j) => <div key={j} className="diff-side" data-kind={x?.kind ?? 'empty'} role="cell" aria-label={j ? 'New' : 'Old'}>
+          <span className="diff-no" aria-hidden="true">{x?.no ?? ''}</span><code>{x ? `${x.kind === 'add' ? '+' : x.kind === 'del' ? '−' : ' '}${x.text}` : ''}</code>
+        </div>)}</div>)}
+    {cut}
+  </div>;
   return <div className="diff" dir="ltr" role="table" aria-label={`Diff of ${d.path}`}>
     {diffLines(d.diff).map((l, i) => <div key={i} className="diff-line" data-kind={l.kind} role="row">
       <span className="diff-no" aria-hidden="true">{l.old ?? ''}</span><span className="diff-no" aria-hidden="true">{l.new ?? ''}</span>
       <code>{l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ' '}{l.text}</code>
     </div>)}
-    {d.truncated && <p className="pane-empty">The diff is cut short; it is too long to show whole.</p>}
+    {cut}
   </div>;
 }
 
