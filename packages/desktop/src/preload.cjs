@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('dproApp', {
   },
   chooseProjectFolders: () => ipcRenderer.invoke('dpro:choose-project-folders'),
   openChatWindow: id => ipcRenderer.invoke('dpro:open-chat-window', String(id)),
+  revealFolder: folder => ipcRenderer.invoke('dpro:reveal-folder', String(folder)),
   info: () => ipcRenderer.invoke('dpro:app-info'),
   onNavigate: callback => {
     const listener = (_event, destination) => { if (['home', 'settings', 'account', 'about'].includes(destination)) callback(destination); };

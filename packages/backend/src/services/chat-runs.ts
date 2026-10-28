@@ -42,6 +42,7 @@ export interface RunEvent { seq: number; frame: RunFrame }
 export type RunStatus = 'running' | TurnStatus;
 
 /** Notices a turn may show (CHAT-BUILD-01). */
+export const NOTICE_SUMMARY_CHARS = 2400;
 export const NOTICE_CODES = new Set(['rate_limited', 'claude_key_missing', 'local_model_slow', 'injection', 'summarized', 'plan_limit']);
 /** Notices kept with the stored reply (CH10): the owner sees them again when the chat opens. */
 const KEPT_NOTICES = new Set(['injection', 'summarized', 'plan_limit']);
@@ -126,7 +127,8 @@ export class ChatRun {
     // CHAT-BUILD-01: notices (rate limit wait, key missing) are shown, never stored as answer text.
     if (type === 'notice' && NOTICE_CODES.has(String(frame.code))) {
       const code = String(frame.code);
-      const text = typeof frame.text === 'string' ? redactImportText(frame.text.slice(0, 300)).text : undefined;
+      // The summary notice carries the summary itself (Read the summary); other notices are one line.
+      const text = typeof frame.text === 'string' ? redactImportText(frame.text.slice(0, code === 'summarized' ? NOTICE_SUMMARY_CHARS : 300)).text : undefined;
       if (KEPT_NOTICES.has(code) && !this.parts.some((p) => p.kind === 'notice' && p.code === code)) this.parts.push({ kind: 'notice', code, ...(text ? { text } : {}) });
       this.emit({ type: 'notice', code, ...(Number.isFinite(frame.waitSec) ? { waitSec: Number(frame.waitSec) } : {}), ...(typeof frame.model === 'string' ? { model: frame.model.slice(0, 100) } : {}), ...(text ? { text } : {}) });
       return;

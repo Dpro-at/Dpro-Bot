@@ -7,7 +7,15 @@ import { ProjectFolderPicker } from './ProjectFolderPicker';
 import { Sheet } from './desktop-ui';
 
 const CHAT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/;
-type ChatWindowBridge = { openChatWindow?: (id: string) => Promise<unknown> };
+type ChatWindowBridge = { openChatWindow?: (id: string) => Promise<unknown>; revealFolder?: (folder: string) => Promise<unknown> };
+
+/** Show in Finder / Explorer: only in the desktop app (a browser cannot open the folder). */
+export function canRevealFolder(): boolean {
+  return typeof window !== 'undefined' && typeof (window as unknown as { dproApp?: ChatWindowBridge }).dproApp?.revealFolder === 'function';
+}
+export function revealFolder(folder: string) {
+  if (canRevealFolder()) void (window as unknown as { dproApp: Required<Pick<ChatWindowBridge, 'revealFolder'>> }).dproApp.revealFolder(folder).catch(() => undefined);
+}
 
 /** The chat a window was opened for (`#chat=<id>`), or null. */
 export function chatFromLink(hash: string): string | null {

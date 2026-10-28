@@ -12,7 +12,7 @@ export const CHAT_SECTIONS: readonly { id: ChatSection; name: string; note: stri
   { id: 'archived', name: 'Archived', note: 'Old chats, still searchable', icon: 'archive' },
 ];
 export type SidebarPrefs = { order: ChatSection[]; hidden: ChatSection[]; folded: string[] };
-export const DEFAULT_PREFS: SidebarPrefs = { order: CHAT_SECTIONS.map(s => s.id), hidden: ['archived'], folded: [] };
+export const DEFAULT_PREFS: SidebarPrefs = { order: CHAT_SECTIONS.map(s => s.id), hidden: ['running', 'archived'], folded: [] };
 const ids = new Set<string>(CHAT_SECTIONS.map(s => s.id));
 
 /** A saved value made whole: unknown ids dropped, missing sections added at the end. */

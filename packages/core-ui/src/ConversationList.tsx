@@ -8,7 +8,7 @@ import { SearchResults } from './ChatSearch';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, Notice, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
-import { ContinueElsewhere, openChatWindow } from './chat-actions';
+import { ContinueElsewhere, canRevealFolder, openChatWindow, revealFolder } from './chat-actions';
 import { CHAT_SECTIONS, DEFAULT_PREFS, moveSection, shortTime } from './chat-sidebar-prefs';
 import type { ChatSection, SidebarPrefs } from './chat-sidebar-prefs';
 
@@ -98,6 +98,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat, onAddT
     { label: 'New chat here', icon: 'compose', run: () => { controller.filterProject(p.id); controller.newChat(); onOpen(); } },
     { label: 'Rename…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
     { label: 'Folders and variables…', icon: 'folder', run: () => setProjectForm({ id: p.id }) },
+    ...(p.folder && canRevealFolder() ? [{ label: navigator.platform.startsWith('Win') ? 'Show in Explorer' : 'Show in Finder', icon: 'open' as const, run: () => revealFolder(p.folder!) }] : []),
     'sep',
     { label: prefs.folded.includes(p.id) ? 'Unfold' : 'Fold', icon: 'chevron', run: () => fold(p.id) },
     { label: 'Fold all', icon: 'chevron', run: () => setPrefs({ ...prefs, folded: [...new Set([...prefs.folded, ...s.projects.map(x => x.id)])] }) },
@@ -171,9 +172,11 @@ export function ConversationList({ controller, onOpen, search, onNewChat, onAddT
       onContextMenu={(e: ReactMouseEvent) => menu.at(e, [{ label: 'New chat', icon: 'compose', shortcut: '⌘N', run: onNewChat }, ...(s.access !== 'denied' ? [{ label: 'New project…', icon: 'folder' as const, run: () => setProjectForm({ id: null }) }] : [])])}><UiIcon name="compose" size={14}/></button>}
     <button type="button" className="chat-new" aria-label="More for the chat list" title="New project · Edit sidebar"
       onClick={(e: ReactMouseEvent) => menu.at(e, [...(s.access !== 'denied' ? [{ label: 'New project…', icon: 'folder' as const, run: () => setProjectForm({ id: null }) }] : []), ...sectionItems])}>
-      <UiIcon name="more" size={14}/>{hiddenNeeds && <span className="chat-edge-dot" title="A hidden section has something waiting for you"/>}</button>
+      <UiIcon name="more" size={14}/></button>
   </div>;
   return <div className="conversations chat-sidebar">
+    {/* CH9: a hidden section that needs the owner still shows a small amber dot on the sidebar edge. */}
+    {hiddenNeeds && <button type="button" className="chat-edge-dot" aria-label="A hidden section has something waiting for you" title="A hidden section has something waiting for you · Edit sidebar…" onClick={() => setEditing(true)}/>}
     {header}
     {continueFrom && <ContinueElsewhere controller={controller} chatId={continueFrom} onDone={() => { setContinueFrom(null); onOpen(); }}/>}
     {projectForm && <ProjectSheet controller={controller} id={projectForm.id} onClose={() => setProjectForm(null)}/>}

@@ -4,6 +4,7 @@
 // · From memory · MCP connections. Each part folds (a one-line summary stays) and moves (drag or ⌥↑/⌥↓);
 // folds and order are saved per person. Hidden, the panel becomes a thin rail of icons with dots.
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ServiceLogo, serviceMark } from './ServiceLogo';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import type { ConversationsController } from './conversations';
 import type { SessionClient } from './session';
@@ -69,8 +70,8 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
   return live;
 }
 
-export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue }: {
-  onContinue?: () => void;
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue, focusPart }: {
+  onContinue?: () => void; focusPart?: { id: PanelPart; n: number } | null;
   controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
   onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
   onSchedule: () => void; onAddFolder: () => void;
@@ -132,10 +133,18 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
       body: <>{trace && recall ? <ContextCard trace={trace} c={recall}/> : null}{memoryCard}</> },
     mcp: { has: conns.length > 0, summary: conns.some(c => c.needsYou) ? `${conns.filter(c => c.needsYou).length} needs you` : `${conns.length} on`, tone: conns.some(c => c.needsYou) ? 'needs' : undefined,
       side: onSettings ? <button type="button" className="link-button" onClick={onSettings}><UiIcon name="plus" size={11}/>Add</button> : undefined,
-      body: <>{conns.slice(0, 3).map(c => <Row key={c.id} icon="tool" name={c.name} sub={c.needsYou ? 'Needs you' : 'On'} tone={c.needsYou ? 'needs' : undefined}/>)}</>,
-      more: conns.length > 3 && onSettings ? <button type="button" className="link-button panel-more" onClick={onSettings}>View all ({conns.length}) in Settings</button> : undefined },
+      // CH8: each connection with its real mark (vendored, never loaded from the internet) and an amber dot when it needs you.
+      body: <>{conns.slice(0, 3).map(c => <Row key={c.id} icon="tool" logo={serviceMark(c.name) ? <ServiceLogo id={c.name} size={13}/> : undefined} name={c.name} sub={c.needsYou ? 'Needs you' : 'On'} tone={c.needsYou ? 'needs' : undefined}
+        end={c.needsYou ? <span className="details-needs-dot" aria-label="Needs you"/> : undefined}/>)}</>,
+      more: onSettings ? <button type="button" className="link-button panel-more" onClick={onSettings}>{conns.length > 3 ? `View all (${conns.length}) in Settings` : 'View all in Settings'}</button> : undefined },
   };
   const shown = prefs.order.filter(id => parts[id].has);
+  // CH8c: a rail icon opens the panel at its part (unfolded, in view).
+  useEffect(() => {
+    if (!focusPart) return;
+    if (prefs.folded.includes(focusPart.id)) setPrefs({ ...prefs, folded: prefs.folded.filter(x => x !== focusPart.id) });
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`.chat-details .details-part[data-part="${focusPart.id}"]`)?.scrollIntoView({ block: 'start' }));
+  }, [focusPart?.n]);
   const fold = (id: PanelPart) => setPrefs({ ...prefs, folded: prefs.folded.includes(id) ? prefs.folded.filter(x => x !== id) : [...prefs.folded, id] });
   const headerItems: MenuItem[] = [
     { label: 'Fold all', icon: 'chevron', run: () => setPrefs({ ...prefs, folded: [...PANEL_PARTS.map(p => p.id)] }) },
@@ -159,7 +168,7 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
     {shown.length === 1 && !s.turns.length && <p className="panel-quiet">Work, files and helpers show here while the team works.</p>}
     {shown.map(id => {
       const p = parts[id], meta = PANEL_PARTS.find(x => x.id === id)!, folded = prefs.folded.includes(id);
-      return <section key={id} className="details-part" aria-label={meta.name} data-drag={drag === id || undefined}
+      return <section key={id} className="details-part" data-part={id} aria-label={meta.name} data-drag={drag === id || undefined}
         onDragOver={e => { e.preventDefault(); if (drag && drag !== id) setPrefsState(pr => { const order = pr.order.filter(x => x !== drag); order.splice(order.indexOf(id) + (pr.order.indexOf(drag) < pr.order.indexOf(id) ? 1 : 0), 0, drag); return { ...pr, order }; }); }}
         onDrop={() => { setDrag(null); setPrefs(prefs); }}>
         <header className="details-head" draggable onDragStart={() => setDrag(id)} onDragEnd={() => { setDrag(null); setPrefs(prefs); }}
@@ -177,7 +186,7 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
 }
 
 /** CH8c: the hidden panel as a thin rail: one icon per part that has something, with a dot. */
-export function DetailsRail({ controller, onOpen }: { controller: ConversationsController; onOpen: () => void }) {
+export function DetailsRail({ controller, onOpen }: { controller: ConversationsController; onOpen: (part: PanelPart) => void }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const conv = s.conversations.find(c => c.id === s.activeId);
   const project = controller.activeProject();
@@ -188,13 +197,13 @@ export function DetailsRail({ controller, onOpen }: { controller: ConversationsC
     ...((s.git?.files ?? 0) > 0 || turnOutputs(s.turns).length ? [{ id: 'results' as const, label: 'Results' }] : []),
   ];
   return <nav className="details-rail" aria-label="Side panel (hidden)">
-    {items.map(i => <button key={i.id} type="button" className="row-tool" aria-label={i.label} title={`${i.label} (⌥⌘I)`} onClick={onOpen}>
+    {items.map(i => <button key={i.id} type="button" className="row-tool" aria-label={i.label} title={`${i.label} (⌥⌘I)`} onClick={() => onOpen(i.id)}>
       <UiIcon name={PANEL_PARTS.find(p => p.id === i.id)!.icon} size={14}/>{i.dot && <span className="details-rail-dot" data-tone={i.dot}/>}</button>)}
   </nav>;
 }
 
-function Row({ icon, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
-  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
+function Row({ icon, logo, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; logo?: ReactNode; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
+  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : logo ? <span className="details-icon">{logo}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
     <span className="pop-text"><b dir={ltr ? 'ltr' : 'auto'} title={name}>{name}</b>{sub && <small data-tone={tone}>{sub}</small>}</span>{end}</>;
   return onClick ? <button type="button" className="details-row" data-indent={indent || undefined} onClick={onClick}>{inner}</button>
     : <div className="details-row" data-indent={indent || undefined}>{inner}</div>;

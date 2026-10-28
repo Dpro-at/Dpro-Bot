@@ -676,7 +676,7 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         turnMessages = history.messages;
         if (history.summaryText) resolvedSystemPrompt += `\n\n${history.summaryText}`;
         // CHAT-BUILD-01 stage 5 (CH10): say once that older messages were summed up to keep room for the work.
-        if (history.summarisedTurns > 0) currentChatRun()?.notice?.('summarized', `${history.summarisedTurns} older messages were summed up to keep room for the work.`);
+        if (history.summarisedTurns > 0) currentChatRun()?.notice?.('summarized', `${history.summarisedTurns} older messages were summed up to keep room for the work.\n\n${history.summaries.map((u) => u.text).join('\n\n')}`.trim());
       } catch (err) {
         safeConsole.log('[Chat] Conversation summaries unavailable', safeErrorFields(err));
       }

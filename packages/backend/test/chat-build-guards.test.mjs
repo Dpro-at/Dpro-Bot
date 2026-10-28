@@ -182,3 +182,20 @@ test('stage 5 follow-up: no snapshot when the repository defines a filter (also 
   assert.equal(await ck.snapshotState(wt), 'blocked', 'the reply can say Undo is not available here');
   assert.equal(await ck.snapshotState(mkdtempSync(join(tmpdir(), 'girru-plain-'))), null, 'outside git: nothing to say');
 });
+
+test('the changed files row counts lines added and removed (binary files count none)', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const ck = await import('../src/services/chat-checkpoints.ts');
+  const repo = mkdtempSync(join(tmpdir(), 'girru-lines-'));
+  const g = (...a) => execFileSync('git', a, { cwd: repo, stdio: 'ignore' });
+  g('init', '-q'); g('config', 'user.email', 't@example.test'); g('config', 'user.name', 't');
+  writeFileSync(join(repo, 'a.txt'), 'one\ntwo\nthree\n'); g('add', '.'); g('commit', '-qm', 'x');
+  const before = await ck.snapshot(repo);
+  writeFileSync(join(repo, 'a.txt'), 'one\n2\nthree\nfour\n');
+  writeFileSync(join(repo, 'b.bin'), Buffer.from([0, 1, 2, 0, 255]));
+  const after = await ck.snapshot(repo);
+  assert.deepEqual(await ck.lineCounts(before, after), { added: 2, removed: 1 });
+});
