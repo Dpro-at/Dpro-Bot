@@ -106,6 +106,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [settingsVisit,setSettingsVisit]=useState(0);
   const [terminalRequest,setTerminalRequest]=useState(0);
   const [boardRequest,setBoardRequest]=useState(0);
+  const [placeRequest,setPlaceRequest]=useState(0);
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
   const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
@@ -158,7 +159,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     { id: 'rail', group: 'Actions', icon:<UiIcon name="sidebar" size={14}/>, label: rail ? 'Hide the sidebar' : 'Show the sidebar', run: () => setRail(v => !v) },
   ];
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
-  // CHAT-BUILD-01 stage 2 (CH1): the top bar names the chat and, muted, its project (hover = full path).
+  // CHAT-BUILD-01 stage 2 (CH1): the top bar names the chat and, muted, its project (hover = full path; a click opens Details › Place).
   const activeProject = active?.projectId ? chatState?.projects.find(p => p.id === active.projectId) : undefined;
   const pageTitle = page === 'code'?'Code':page === 'library'?'Library':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
   const footer=footerFor(client);
@@ -174,7 +175,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <div className="titlebar-tools">
         <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar (⌘\\)' : 'Show the sidebar (⌘\\)'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
       </div>
-      <p className="titlebar-title">{page === 'chat' && activeProject && <span className="titlebar-tile" aria-hidden="true"><UiIcon name="folder" size={12}/></span>}{pageTitle}{page === 'chat' && activeProject && <span className="titlebar-project" title={activeProject.folder ?? activeProject.name}>{activeProject.name}</span>}</p>
+      <p className="titlebar-title">{page === 'chat' && activeProject && <span className="titlebar-tile" aria-hidden="true"><UiIcon name="folder" size={12}/></span>}{pageTitle}{page === 'chat' && activeProject && <button type="button" className="titlebar-project" title={activeProject.folder ?? activeProject.name} aria-label={`${activeProject.name} · show its folder in Details`} onClick={() => setPlaceRequest(n => n + 1)}>{activeProject.name}</button>}</p>
       {/* CH1/SH1: Commands sits in the middle of the title bar; the theme lives in Settings › General and in Commands. */}
       <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Search or run a command (⌘K)"><UiIcon name="search" size={13}/>Commands<kbd>⌘K</kbd></button>
       <div className="titlebar-tools end" ref={setTitleSlot}/>
@@ -197,7 +198,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <main id="content" className="page-area">
       {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
-        {chat ? <ChatView active={page === 'chat'} titleSlot={titleSlot} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
+        {chat ? <ChatView active={page === 'chat'} titleSlot={titleSlot} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} placeRequest={placeRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}
           onOpenMemory={(drawerId, memoryId) => { setMemoryFocus(f => ({ drawerId, memoryId, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/> : null}
       </section>

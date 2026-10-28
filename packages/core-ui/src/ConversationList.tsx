@@ -95,7 +95,7 @@ export function ConversationList({ controller, onOpen, search, onNewChat, onAddT
     { label: 'Delete…', icon: 'trash', danger: true, shortcut: '⌥⌘⌫', run: () => setConfirmDelete(c.id) },
   ];
   const projectItems = (p: { id: string; name: string; folder?: string | null }): MenuItem[] => [
-    { label: 'New chat here', icon: 'compose', run: () => { controller.filterProject(p.id); controller.newChat(); onOpen(); } },
+    { label: 'New chat here', icon: 'compose', run: () => { controller.newChatIn(p.id); onOpen(); } },
     { label: 'Rename…', icon: 'pencil', run: () => setProjectForm({ id: p.id }) },
     { label: 'Folders and variables…', icon: 'folder', run: () => setProjectForm({ id: p.id }) },
     ...(p.folder && canRevealFolder() ? [{ label: navigator.platform.startsWith('Win') ? 'Show in Explorer' : 'Show in Finder', icon: 'open' as const, run: () => revealFolder(p.folder!) }] : []),

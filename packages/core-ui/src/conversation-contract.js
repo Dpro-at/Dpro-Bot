@@ -51,6 +51,7 @@ export const STT_LANGUAGES = ['auto', 'ar', 'en', 'de'];
 /** CHAT-BUILD-01 stage 2 (CH9): the chat sidebar's sections, order and folded projects, per person. */
 export const SIDEBAR_PATH = '/api/chat/sidebar';
 const PANEL_PARTS = ['place', 'team', 'results', 'memory', 'mcp'];
+const DIFF_VIEWS = ['unified', 'split'];
 const partList = x => Array.isArray(x) && x.length <= PANEL_PARTS.length && x.every(p => PANEL_PARTS.includes(p)) && new Set(x).size === x.length;
 const scheduleOk = x => record(x) && onlyKeys(x, ['every', 'at', 'weekday', 'message', 'paused']) && ['hourly', 'daily', 'weekly'].includes(x.every) && typeof x.at === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(x.at)
   && (x.weekday === undefined || x.weekday === null || (Number.isInteger(x.weekday) && x.weekday >= 0 && x.weekday <= 6)) && text(x.message, 4000) && x.message.trim().length > 0 && (x.paused === undefined || typeof x.paused === 'boolean');
@@ -125,7 +126,7 @@ export function allowedConversation(method, path, body) {
   if (p.kind === 'chat-usage' || p.kind === 'chat-team') return method === 'GET' && body === undefined;
   if (p.kind === 'chat-stop' || p.kind === 'app-stop') return method === 'POST' && body === undefined;
   if (p.kind === 'chat-schedule') return method === 'GET' || method === 'DELETE' ? body === undefined : method === 'PUT' && scheduleOk(body);
-  if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
+  if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded', 'diff']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded)) && (body.diff === undefined || DIFF_VIEWS.includes(body.diff));
   if (p.kind === 'chat-settings') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['notifyDone']) && typeof body.notifyDone === 'boolean';
   if (p.kind === 'last') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['last']) && (body.last === null || uuid(body.last));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
@@ -284,7 +285,7 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'app-stop') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
   if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
-  if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
+  if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [], diff: v.diff === 'split' ? 'split' : 'unified' } }; }
   if (p.kind === 'images') { const v = record(body.image) ? body.image : {}; if (typeof v.id !== 'string' || !IMAGE_ID.test(v.id) || !IMAGE_TYPES.includes(v.type)) throw Error('protocol'); return { image: { id: v.id, type: v.type, name: str(v.name, 120), size: num(v.size) ?? 0 } }; }
   if (p.kind === 'image') { const v = record(body.image) ? body.image : {}; if (typeof v.id !== 'string' || !IMAGE_ID.test(v.id) || !IMAGE_TYPES.includes(v.type) || typeof v.data !== 'string' || v.data.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/]+={0,2}$/.test(v.data)) throw Error('protocol'); return { image: { id: v.id, type: v.type, name: str(v.name, 120), data: v.data } }; }
   if (p.kind === 'chat-settings') return { settings: { notifyDone: !(record(body.settings) && body.settings.notifyDone === false) } };

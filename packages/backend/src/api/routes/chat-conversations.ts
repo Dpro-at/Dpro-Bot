@@ -283,7 +283,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     execute: (runReply) => withChatRun(runContext, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
-      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name })) } : {}),
+      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name, file: i.file })) } : {}),
       ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
       ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
       ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
@@ -297,11 +297,13 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
 
 /** CHAT-BUILD-01 stage 4 (CH8): the side panel's parts, their order and folds, per person. */
 export const PANEL_PARTS = ['place', 'team', 'results', 'memory', 'mcp'] as const;
-export function panelPrefs(x: unknown): { order: string[]; folded: string[] } {
+/** CH4/CH8: how the Changes pane shows a diff ("unified" = one column, "split" = side by side). */
+export const DIFF_VIEWS = ['unified', 'split'] as const;
+export function panelPrefs(x: unknown): { order: string[]; folded: string[]; diff: typeof DIFF_VIEWS[number] } {
   const v = x && typeof x === 'object' && !Array.isArray(x) ? x as Record<string, unknown> : {};
   const known = (y: unknown): y is string => (PANEL_PARTS as readonly unknown[]).includes(y);
   const listed = Array.isArray(v.order) ? [...new Set(v.order.filter(known))] : [];
-  return { order: [...listed, ...PANEL_PARTS.filter((p) => !listed.includes(p))], folded: Array.isArray(v.folded) ? [...new Set(v.folded.filter(known))] : [] };
+  return { order: [...listed, ...PANEL_PARTS.filter((p) => !listed.includes(p))], folded: Array.isArray(v.folded) ? [...new Set(v.folded.filter(known))] : [], diff: v.diff === 'split' ? 'split' : 'unified' };
 }
 
 /** CHAT-BUILD-01 stage 4: a scheduled message goes to its chat like a typed one (same owner gates and Mode). */
@@ -450,7 +452,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
   fastify.put('/api/chat/panel', async (request: Req, reply) => {
     const b: any = request.body;
     const parts = (l: unknown) => Array.isArray(l) && l.length <= PANEL_PARTS.length && l.every((x) => (PANEL_PARTS as readonly unknown[]).includes(x)) && new Set(l).size === l.length;
-    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'order' && k !== 'folded') || (b.order !== undefined && !parts(b.order)) || (b.folded !== undefined && !parts(b.folded))) return bad(reply, 'order and folded must be lists of panel parts');
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'order' && k !== 'folded' && k !== 'diff') || (b.order !== undefined && !parts(b.order)) || (b.folded !== undefined && !parts(b.folded)) || (b.diff !== undefined && !(DIFF_VIEWS as readonly unknown[]).includes(b.diff))) return bad(reply, 'order and folded must be lists of panel parts; diff is unified or split');
     const panel = panelPrefs({ ...panelPrefs(await getPref(caller(request), 'chat-panel')), ...b });
     await setPref(caller(request), 'chat-panel', panel);
     return { panel };

@@ -3147,3 +3147,29 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .public-welcome p { font-size:14px; color:var(--text-3); }
 .public-welcome button.primary { margin:0; min-inline-size:0; block-size:38px; padding:0 22px; border-radius:9px; font-size:14px; font-weight:600; }
 .chat-edit-head b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-inline-size:0; }
+/* Keys and faces (2026-10-28) */
+.app-shell .titlebar .titlebar-project { all:unset; cursor:default; font-weight:400; color:var(--text-3); border-radius:5px; padding:1px 5px; margin-inline-start:-5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.app-shell .titlebar .titlebar-project:hover { background:var(--row-hover); color:var(--text-2); }
+.app-shell .titlebar .titlebar-project:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.app-shell .titlebar .tool.title-faces { inline-size:auto; padding:0 4px; display:inline-flex; align-items:center; }
+.app-shell .title-faces .composer-face { inline-size:18px; block-size:18px; font-size:9.5px; box-shadow:0 0 0 1.5px var(--surface); }
+.app-shell .title-faces .composer-face + .composer-face { margin-inline-start:-5px; }
+
+/* Picker and other window (2026-10-28) */
+.app-shell .pop-check { margin-inline-start:auto; color:var(--accent); font-size:12px; }
+/* Diff views (2026-10-28) */
+.app-shell .pane-head .diff-switch { margin-inline-start:auto; flex:none; }
+.app-shell .pane-head .diff-switch button { min-block-size:20px; padding:0 8px; font-size:11px; }
+.app-shell .pane-head .diff-switch + .pane-refresh { margin-inline-start:0; }
+.app-shell .diff-split .diff-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.app-shell .diff-split .diff-side { display:grid; grid-template-columns:auto minmax(0,1fr); min-inline-size:0; }
+.app-shell .diff-split .diff-side + .diff-side { border-inline-start:1px solid var(--stroke-3); }
+.app-shell .diff-split .diff-side code { white-space:pre-wrap; overflow-wrap:anywhere; padding-inline:6px 10px; font:inherit; background:none; }
+.app-shell .diff-split .diff-side[data-kind="add"] { background:color-mix(in srgb,#2ea043 16%,transparent); }
+.app-shell .diff-split .diff-side[data-kind="del"] { background:color-mix(in srgb,#f85149 15%,transparent); }
+.app-shell .diff-split .diff-side[data-kind="empty"] { background:color-mix(in srgb,var(--text) 4%,transparent); }
+.app-shell .diff-split .diff-line { min-inline-size:0; }
+.app-shell .diff-split .diff-line code { white-space:pre-wrap; overflow-wrap:anywhere; }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=add], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=add] { color:#9DB5AA; background:transparent; }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=del], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=del] { color:#F29BA0; background:transparent; }
+.shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=empty], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=empty] { background:#111418; }

@@ -1,6 +1,6 @@
 import { ChatDetails, DetailsRail } from './ChatDetails';
 import type { PanelPart } from './ChatDetails';
-import { ApprovalCard, ChangesLine, DelegationCard, MomentsContext, NoticeCard, SteerLine, TaskList } from './ChatMoments';
+import { ApprovalCard, ChangesLine, DelegationCard, MomentsContext, NoticeCard, SteerLine, TaskList, TitleFaces, chatPeople, redoTarget } from './ChatMoments';
 import { ScheduleSheet } from './ScheduleSheet';
 import { KeysSheet, ModeButton, ModelButton, PlusButton, ProjectChip, ProjectSheet, SlashList, WhoButton, slashMatches } from './ChatComposerControls';
 import { modelDisplayName } from './model-names';
@@ -68,7 +68,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, active = true, titleSlot = null }: { titleSlot?: HTMLElement | null; controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, placeRequest = 0, active = true, titleSlot = null }: { titleSlot?: HTMLElement | null; placeRequest?: number; controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -166,7 +166,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   // CHAT-BUILD-01 stage 3 (CH3): the composer's popovers, the chat's keys and "/" commands.
   const [popover, setPopover] = useState<'who' | 'model' | 'mode' | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [projectSheet, setProjectSheet] = useState<{ id: string | null } | null>(null);
+  const [projectSheet, setProjectSheet] = useState<{ id: string | null; folder?: string } | null>(null);
   const slashQuery = /^\/[a-z]*$/.test(s.draft) ? s.draft : null;
   const slash = slashQuery ? slashMatches(slashQuery) : [];
   const runSlash = (c: string) => {
@@ -244,6 +244,11 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   useEffect(() => { if (!client) return; const p = new PanesController(client); setPanes(p); const t = { tabs: new TerminalTabs(client), prefs: new TerminalPrefsController(client) }; setTerminal(t); return () => { p.dispose(); t.tabs.dispose(); t.prefs.dispose(); }; }, [client]);
   const owner = client?.getSnapshot().user?.role === 'owner';
   useEffect(()=>{if(terminalRequest>0&&owner)setTermOpen(true);},[terminalRequest,owner]);
+  // CH1/CH8c: the side panel on one of its parts (the faces open Team, the title bar's project name opens Place).
+  const openPart = (id: PanelPart) => { setPane('details'); setFocusPart(f => ({ id, n: (f?.n ?? 0) + 1 })); };
+  useEffect(() => { if (placeRequest > 0) openPart('place'); }, [placeRequest]);
+  // CH3 ⇧⌘Z: the changes cards on screen register here, so the key redoes the newest undone one.
+  const changeCards = useRef(new Map<string, { undone: boolean; redo: () => void }>()).current;
   // ⌥⌘I hides or shows the side panel, ⌃` the terminal, ⌘. stops everything in this chat.
   useEffect(() => {
     if (!active) return;
@@ -254,6 +259,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       else if (e.ctrlKey && e.shiftKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(true); terminal.tabs.add(); }
       else if (e.ctrlKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(v => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '.' && controller.getSnapshot().activeId) { e.preventDefault(); void controller.stopAll(); }
+      // ⌥⌘N (Ctrl+Alt+N): a new chat in this chat's project, like the sidebar's "New chat here" (⌥ changes e.key on a Mac, so the key's code is read).
+      else if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyN') { e.preventDefault(); const snap = controller.getSnapshot(); controller.newChatIn(snap.conversations.find(c => c.id === snap.activeId)?.projectId ?? snap.projectFilter ?? ''); input.current?.focus(); }
       else chatKeys(e);
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
@@ -267,6 +274,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     if (k === 'p' && !e.shiftKey && !e.altKey) hit(() => void controller.pin(id, !conv.pinned));
     else if (k === 's' && e.shiftKey && !e.altKey) hit(() => setExportKey(Date.now()));
     else if (k === 'backspace' && !typing) hit(() => (e.altKey ? setChatSheet('delete') : void controller.archive(id, !conv.archived)));
+    // ⇧⌘Z (Ctrl+Shift+Z) redoes the newest undone file change; in a text box it stays the system's redo, and with nothing undone it does nothing.
+    else if (k === 'z' && e.shiftKey && !e.altKey && !typing) { const target = redoTarget(snap.turns, changeCards); if (target) hit(() => changeCards.get(target)?.redo()); }
     else if (k === 'c' && e.shiftKey && !e.altKey) {
       const last = [...snap.turns].reverse().find(t => t.role === 'assistant' && t.content);
       if (last && navigator.clipboard) hit(() => void navigator.clipboard.writeText(last.content).catch(() => undefined));
@@ -381,7 +390,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     void read(); const t = setInterval(() => void read(), 3000);
     return () => { on = false; clearInterval(t); };
   }, [client, s.activeId, s.runId]);
-  const moments = { client, conversationId: s.activeId, onOpenApprovals, steps,
+  const moments = { client, conversationId: s.activeId, onOpenApprovals, steps, changeCards,
     agentAbout: (id?: string) => s.agents.find(a => a.id === id)?.about, subAgentOf: (id?: string) => s.agents.find(a => a.id === id)?.subAgentOf, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
@@ -389,6 +398,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
     {/* CH1: the chat's tools sit in the window's title bar (Terminal · Add to board · ⋯ · side panel); no second bar. */}
     {active && titleSlot && createPortal(<span className="chat-title-tools" role="toolbar" aria-label="This chat">
+      {pane === null && s.activeId && s.turns.length > 0 && <TitleFaces names={chatPeople(s.turns, convAgentId, nameOf)} onOpen={() => openPart('team')}/>}
       {client && s.activeId && s.threadPhase !== 'loading' && <ExportMenu key={s.activeId} client={client} conversationId={s.activeId} disabled={running} openKey={exportKey} bare/>}
       {terminal && owner && <button type="button" className="tool" aria-pressed={termOpen} aria-label="Terminal" title={termOpen ? 'Hide the terminal (⌃`)' : 'Terminal (⌃`)'} onClick={() => setTermOpen(v => !v)}><UiIcon name="terminal" size={15}/></button>}
       {canBoard && <button type="button" className="tool chat-to-board" onClick={() => cardForm ? setCardForm(null) : openCardForm()} aria-pressed={!!cardForm} aria-label="Add to board" title="Add to board (⌘B)">
@@ -432,7 +442,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {below && !empty && <button type="button" className="chat-jump" onClick={jump} aria-label="Jump to the latest message"><UiIcon name="arrow-down" size={15}/></button>}
     {previewFile&&<DocumentEditor title="Attached file" files={[{id:previewFile.name,name:previewFile.name,content:previewFile.text,readOnly:true}]} maxLength={60000} onChange={()=>{}} onClose={()=>setAttachmentPreview(null)}/>}
     {shortcutsOpen && <KeysSheet onClose={() => setShortcutsOpen(false)}/>}
-    {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} onClose={() => setProjectSheet(null)}/>}
+    {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} folder={projectSheet.folder} onClose={() => setProjectSheet(null)}/>}
     {longDraft&&<DocumentEditor title="Message draft" files={[{id:'message',name:'message.md',content:s.draft}]} maxLength={100000} onChange={(_,text)=>controller.edit(text)} onClose={()=>setLongDraft(false)}/>}
     <div className="chat-dock">
       <TaskList turns={s.turns} who={nameOf(convAgentId)} waits={activeConv?.waiting ?? 0}/>
@@ -448,6 +458,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       {remember && memCtl && <RememberForm key={remember.key} controller={memCtl} seed={remember} project={project?.name ?? null} agent={convAgentName} onClose={() => setRemember(null)}/>}
       {cardForm && cardsCtl && <ChatCardForm key={cardForm.key} controller={cardsCtl} seed={cardForm} agents={s.agents} onClose={() => setCardForm(null)}/>}
       {s.reconnecting && <p className="chat-notice" role="status">Reconnecting to the reply…</p>}
+      {s.elsewhere && s.queue.length > 0 && !s.queuePaused && <p className="chat-notice" role="status">This chat is working in another window. Your message waits until it is done.</p>}
       {s.queuePaused && s.queue.length > 0 && <p className="chat-notice" role="status">Stopped. The waiting {s.queue.length === 1 ? 'message stays' : 'messages stay'} here until you send {s.queue.length === 1 ? 'it' : 'them'}.</p>}
       {s.queue.length > 0 && <ul className="chat-queue" aria-label="Waiting to send">
         {s.queue.map((q, i) => <li key={q.key}>
@@ -480,7 +491,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
             accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*,image/png,image/jpeg,image/gif,image/webp"/>
-          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
+          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={folder => setProjectSheet({ id: null, folder })}/>}
           <PlusButton onFiles={() => picker.current?.click()} onLong={() => setLongDraft(true)}/>
           <ModeButton value={s.mode} onChange={m => void controller.setMode(m)} open={popover === 'mode'} setOpen={v => setPopover(v ? 'mode' : null)}/>
           <span className="composer-spacer"/>
@@ -508,7 +519,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
       onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')} focusPart={focusPart}
       switcher={<PaneSwitch items={paneButtons} pane={pane} onPane={setPane}/>}/>
-    : pane === null && <DetailsRail controller={controller} onOpen={part => { setFocusPart(f => ({ id: part, n: (f?.n ?? 0) + 1 })); setPane('details'); }}/>}
+    : pane === null && <DetailsRail controller={controller} onOpen={openPart}/>}
   {scheduleOpen && client && s.activeId && <ScheduleSheet client={client} chatId={s.activeId} onClose={() => setScheduleOpen(false)}/>}
   {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'} onKeyDown={e => { if (e.key === 'Escape') setPane(null); }}><PaneSwitch items={paneButtons} pane={pane} onPane={setPane}/>
     {pane === 'changes' ? <ChangesPane panes={panes}/> : <FilesPane panes={panes}/>}

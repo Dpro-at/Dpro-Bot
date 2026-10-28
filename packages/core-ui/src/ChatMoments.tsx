@@ -17,6 +17,8 @@ export type Moments = {
   /** CH6: an agent's short description, whose sub-agent it is, and the step each delegated agent runs now (while a reply works). */
   agentAbout?: (id?: string) => string | undefined; subAgentOf?: (id?: string) => string | undefined; steps?: readonly { agentId: string; tool: string; at: string }[];
   onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
+  /** CH3 ⇧⌘Z: each changes card on screen, by message id — whether its changes are undone, and its own Redo. */
+  changeCards?: Map<string, { undone: boolean; redo: () => void }>;
 };
 export const MomentsContext = createContext<Moments>({});
 
@@ -160,13 +162,12 @@ function Since({ at }: { at: string }) {
 
 /** CH10 Undo: a reply that changed files offers Review and Undo; afterwards Redo. */
 export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string }) {
-  const { client, conversationId, onReviewChanges, onChanged } = useContext(MomentsContext);
+  const { client, conversationId, onReviewChanges, onChanged, changeCards } = useContext(MomentsContext);
   const [undone, setUndone] = useState(turn.changes?.undone ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (turn.changes?.unavailable) return <p className="moment-line changes"><UiIcon name="lock" size={12}/>Undo not available for this folder: its git settings could run a program, so no snapshot was kept.</p>;
-  if (!turn.changes?.files || !client || !conversationId) return null;
   const go = async (redo: boolean) => {
+    if (!client || !conversationId || busy) return;
     setBusy(true); setError('');
     try {
       const r = await client.request({ method: 'POST', path: `/api/chat/conversations/${conversationId}/messages/${messageId}/undo`, body: redo ? { redo: true } : {} } as never);
@@ -175,6 +176,15 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
     } catch { setError('No connection. Try again.'); }
     setBusy(false);
   };
+  // ⇧⌘Z in the chat redoes the newest undone card (ChatView picks it); the card runs its own Redo, so its errors show here.
+  const usable = !!turn.changes?.files && !turn.changes.unavailable && !!client && !!conversationId;
+  useEffect(() => {
+    if (!changeCards || !usable) return;
+    changeCards.set(messageId, { undone, redo: () => void go(true) });
+    return () => { changeCards.delete(messageId); };
+  });
+  if (turn.changes?.unavailable) return <p className="moment-line changes"><UiIcon name="lock" size={12}/>Undo not available for this folder: its git settings could run a program, so no snapshot was kept.</p>;
+  if (!usable || !turn.changes) return null;
   const n = turn.changes.files;
   // CH10: one card — what changed, then Review (main) and Undo.
   return <div className="moment-card changes" role="note">
@@ -186,6 +196,32 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
       {error && <span className="moment-hint" role="alert">{error}</span>}
     </div>
   </div>;
+}
+
+/** CH3 ⇧⌘Z: the newest reply whose file changes are undone (its card is on screen), or null when there is none. */
+export function redoTarget(turns: readonly Turn[], cards: ReadonlyMap<string, { undone: boolean }>): string | null {
+  for (let i = turns.length - 1; i >= 0; i--) { const t = turns[i]; if (t.role === 'assistant' && t.changes?.files && cards.get(t.key)?.undone) return t.key; }
+  return null;
+}
+
+/** CH1/CH8c: who works or answered in this chat — the lead, each agent that wrote a reply, then each agent handed a part (first seen first). */
+export function chatPeople(turns: readonly Turn[], leadId: string | null, nameOf: (id: string | null | undefined) => string): string[] {
+  const ids: (string | null)[] = [leadId];
+  for (const t of turns) {
+    if (t.role !== 'assistant') continue;
+    ids.push(t.agentId ?? leadId);
+    for (const p of t.parts) if (p.kind === 'tools') for (const c of p.calls) if (c.name === 'team_delegate') { try { const a = (JSON.parse(c.input) as { agent_id?: unknown }).agent_id; if (typeof a === 'string' && a) ids.push(a); } catch { /* no target */ } }
+  }
+  return [...new Set(ids.map(nameOf))];
+}
+
+/** CH1/CH8c: with the side panel hidden, up to three small faces in the title bar; the tooltip names everyone, a click opens Team. */
+export function TitleFaces({ names, onOpen }: { names: readonly string[]; onOpen: () => void }): ReactNode {
+  if (!names.length) return null;
+  const all = names.join(', ');
+  return <button type="button" className="tool title-faces" aria-label={`Team: ${all}`} title={`${all} · open Team`} onClick={onOpen}>
+    {names.slice(0, 3).map((n, i) => <span key={i} className="composer-face" aria-hidden="true">{n.slice(0, 1).toUpperCase()}</span>)}
+  </button>;
 }
 
 /** CH2: the chat's task list above the box (the latest plan), folded to one line. */
