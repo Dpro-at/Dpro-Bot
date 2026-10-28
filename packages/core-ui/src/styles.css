@@ -3154,3 +3154,6 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .titlebar .tool.title-faces { inline-size:auto; padding:0 4px; display:inline-flex; align-items:center; }
 .app-shell .title-faces .composer-face { inline-size:18px; block-size:18px; font-size:9.5px; box-shadow:0 0 0 1.5px var(--surface); }
 .app-shell .title-faces .composer-face + .composer-face { margin-inline-start:-5px; }
+
+/* Picker and other window (2026-10-28) */
+.app-shell .pop-check { margin-inline-start:auto; color:var(--accent); font-size:12px; }

@@ -59,6 +59,8 @@ export type ConversationsState = Readonly<{
   images: readonly { key: string; name: string; type: string; data: string }[];
   /** After Stop the queue waits for the owner (Send now) instead of going on its own. */
   queuePaused: boolean;
+  /** CH5 small state: the running reply was started in another window or tab; this one follows it and queues. */
+  elsewhere: boolean;
   /** CHAT-PRO-02 D: a message to scroll to and highlight once (from search); `n` changes per request. */
   focus: Readonly<{ messageId: string; n: number }> | null;
   /** CHAT-BUILD-01: older messages are not loaded yet (long conversations open one page at a time). */
@@ -109,7 +111,7 @@ export function splitAttached(content: string): { text: string; files: { name: s
 
 const emptyState = (): ConversationsState => Object.freeze({
     access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: 'auto', projects: [], projectFilter: '', git: null,
-    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], images: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',
+    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, elsewhere: false, attachments: [], images: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',
 });
 
 export class ConversationsController {
@@ -361,7 +363,7 @@ export class ConversationsController {
   newChat() {
     this.#follow?.abort(); this.#openSeq++;
     this.rememberLast(null);
-    this.publish({ activeId: null, model: 'auto', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false, mode: 'auto', thinking: 'normal' });
+    this.publish({ activeId: null, model: 'auto', turns: [], threadPhase: 'empty', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, elsewhere: false, notice: undefined, agentId: '', replyAgent: '', git: null, focus: null, hasEarlier: false, loadingEarlier: false, mode: 'auto', thinking: 'normal' });
     void this.loadGit();
   }
 
@@ -374,7 +376,7 @@ export class ConversationsController {
     this.rememberLast(id);
     const seq = ++this.#openSeq;
     const known = this.#state.conversations.find(c => c.id === id);
-    this.publish({ activeId: id, turns: [], threadPhase: 'loading', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, notice: undefined, agentId: known?.agentId ?? '', model: known?.model ?? '', replyAgent: '', focus: null, hasEarlier: false, loadingEarlier: false });
+    this.publish({ activeId: id, turns: [], threadPhase: 'loading', runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, elsewhere: false, notice: undefined, agentId: known?.agentId ?? '', model: known?.model ?? '', replyAgent: '', focus: null, hasEarlier: false, loadingEarlier: false });
     try {
       await this.#modelWrites;if(!this.live()||seq!==this.#openSeq)return;
       const r = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}`);
@@ -390,7 +392,7 @@ export class ConversationsController {
       // CHAT-BUILD-01 stage 3: messages that waited when the window closed wait again (Send now sends them).
       const waiting = conversation.queued ?? [];
       this.publish({ turns, threadPhase: 'ready', runId: active, model: conversation.model ?? '', hasEarlier: r.body.hasMore === true,
-        mode: conversation.mode ?? 'auto', thinking: conversation.thinking ?? 'normal', queue: waiting, queuePaused: waiting.length > 0 && !active });
+        mode: conversation.mode ?? 'auto', thinking: conversation.thinking ?? 'normal', queue: waiting, queuePaused: waiting.length > 0 && !active, elsewhere: !!active });
       void this.loadGit();
       if (active) void this.follow(active, seq);
     } catch { if (this.live() && seq === this.#openSeq) this.publish({ threadPhase: 'error', notice: 'The conversation could not be loaded.' }); }
@@ -511,7 +513,7 @@ export class ConversationsController {
       if (!this.live() || seq !== this.#openSeq) return;
       if (r.status === 409 && record(r.body) && r.body.code === 'conversation_busy' && typeof r.body.runId === 'string') {
         // Another tab is still answering here: wait in the queue and follow that run.
-        this.publish({ starting: false, turns: this.#state.turns.filter(t => t !== optimistic), queue: [{ key: runId, text: message }, ...this.#state.queue], runId: r.body.runId, notice: undefined });
+        this.publish({ starting: false, turns: this.#state.turns.filter(t => t !== optimistic), queue: [{ key: runId, text: message }, ...this.#state.queue], runId: r.body.runId, elsewhere: true, notice: undefined });
         this.#saveQueue(id, this.#state.queue);
         this.publish({ turns: [...this.#state.turns, liveTurn(r.body.runId, this.now())] });
         void this.follow(r.body.runId, seq);
@@ -524,7 +526,7 @@ export class ConversationsController {
         return;
       }
       const stored = record(r.body.userMessage) ? fromWire(r.body.userMessage as WireMessage) : userTurn(`user:${runId}`, message, runId);
-      this.publish({ starting: false, runId, turns: [...this.#state.turns.filter(t => t !== optimistic), stored, liveTurn(runId, this.now(), agentForRun)] });
+      this.publish({ starting: false, runId, elsewhere: false, turns: [...this.#state.turns.filter(t => t !== optimistic), stored, liveTurn(runId, this.now(), agentForRun)] });
       void this.follow(runId, seq);
       void this.refreshList(); // the first message names the conversation
     } catch {
@@ -569,7 +571,7 @@ export class ConversationsController {
               const first = this.#state.turns.findIndex(t => fresh.has(t.key));
               const kept = (first < 0 ? this.#state.turns : this.#state.turns.slice(0, first)).filter(t => !fresh.has(t.key) && t.runId !== runId && t.status !== 'running');
               const turns = [...kept, ...page];
-              this.publish({ turns, runId: null, stopping: false, reconnecting: false, queuePaused: this.#state.queue.length > 0,
+              this.publish({ turns, runId: null, stopping: false, reconnecting: false, elsewhere: false, queuePaused: this.#state.queue.length > 0,
                 notice: turns.some(t => t.runId === runId && t.code === 'run_interrupted') ? 'Work interrupted by restart. Review the saved checkpoints, then continue safely.' : undefined });
               return;
             }
@@ -577,7 +579,7 @@ export class ConversationsController {
         }
         if (failures >= RETRY_MS.length) {
           // CHAT-BUILD-01: waiting messages never get stuck: they wait for Send now.
-          this.publish({ reconnecting: false, runId: null, queuePaused: this.#state.queue.length > 0, notice: 'Lost the connection to this reply. Reopen the conversation to check its saved state before retrying.' });
+          this.publish({ reconnecting: false, runId: null, elsewhere: false, queuePaused: this.#state.queue.length > 0, notice: 'Lost the connection to this reply. Reopen the conversation to check its saved state before retrying.' });
           this.finishLive('error');
           return;
         }
@@ -602,7 +604,7 @@ export class ConversationsController {
     // CHAT-BUILD-01 stage 5 (CH10): long work that ends while the window is in the back sends a desktop notification.
     const last = this.#state.turns.at(-1);
     if (this.#notifyDone && last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
-    this.publish({ runId: null, stopping: false, reconnecting: false, queuePaused: stopped && this.#state.queue.length > 0 });
+    this.publish({ runId: null, stopping: false, reconnecting: false, elsewhere: false, queuePaused: stopped && this.#state.queue.length > 0 });
     void this.refreshList();
     if (stopped) return;
     const [next, ...rest] = this.#state.queue;

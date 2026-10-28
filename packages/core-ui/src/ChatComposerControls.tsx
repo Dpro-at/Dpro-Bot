@@ -49,7 +49,7 @@ function Pop({ open, onClose, label, children, wide }: { open: boolean; onClose:
     window.addEventListener('mousedown', close, true); window.addEventListener('keydown', key, true);
     return () => { window.removeEventListener('mousedown', close, true); window.removeEventListener('keydown', key, true); };
   }, [open, onClose]);
-  useEffect(() => { if (open && host) (ref.current?.querySelector<HTMLElement>('input, [aria-checked="true"], button'))?.focus(); }, [open, host]);
+  useEffect(() => { if (open && host) (ref.current?.querySelector<HTMLElement>('input') ?? ref.current?.querySelector<HTMLElement>('[aria-checked="true"], button'))?.focus(); }, [open, host]);
   const move = (e: ReactKeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
@@ -173,34 +173,75 @@ export function KeysSheet({ onClose }: { onClose: () => void }) {
   </Sheet>;
 }
 
-/** The project chip of a new chat (until the first message): pick a project, no project, or make one. */
-export function ProjectChip({ controller, onNewProject }: { controller: ConversationsController; onNewProject: () => void }) {
+/** CH5: projects ordered by their newest chat (most recently used first); never-used ones follow by name. */
+export function projectsByUse<P extends { id: string; name: string }>(projects: readonly P[], conversations: readonly { projectId: string | null; updatedAt: string }[]): P[] {
+  const last = new Map<string, string>();
+  for (const c of conversations) if (c.projectId && (last.get(c.projectId) ?? '') < c.updatedAt) last.set(c.projectId, c.updatedAt);
+  return [...projects].sort((a, b) => (last.get(b.id) ?? '').localeCompare(last.get(a.id) ?? '') || a.name.localeCompare(b.name));
+}
+/** CH5 picker groups: the three most recently used on top; "This computer" shows one more and folds the rest under More. */
+export function projectGroups<P extends { id: string; name: string }>(ordered: readonly P[], more: boolean) {
+  const rest = ordered.slice(3);
+  return { recent: ordered.slice(0, 3), local: more ? rest : rest.slice(0, 1), hidden: more ? 0 : Math.max(0, rest.length - 1) };
+}
+
+/** The project chip of a new chat (until the first message): recent projects (✓ on the current one), no project,
+ * a folder on this computer (the folder picker; a folder no project uses opens New project… with it filled in) or New project…. */
+export function ProjectChip({ controller, onNewProject }: { controller: ConversationsController; onNewProject: (folder?: string) => void }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [more, setMore] = useState(false);
+  const [picking, setPicking] = useState(false);
   const current = s.projects.find(p => p.id === s.projectFilter);
-  const shown = s.projects.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
-  const pick = (id: string) => { controller.filterProject(id); setOpen(false); setQ(''); };
+  const ordered = useMemo(() => projectsByUse(s.projects, s.conversations), [s.projects, s.conversations]);
+  const shown = ordered.filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()));
+  const groups = projectGroups(ordered, more);
+  const close = () => { setOpen(false); setQ(''); setMore(false); };
+  const pick = (id: string) => { controller.filterProject(id); close(); };
+  const folderPicked = (path: string) => {
+    setPicking(false);
+    const known = s.projects.find(p => p.folder === path);
+    if (known) controller.filterProject(known.id); else onNewProject(path);
+  };
+  // The desktop app opens its own folder chooser; the browser uses the folder picker of the project sheet.
+  const chooseFolder = async () => {
+    close();
+    const bridge = typeof window === 'undefined' ? undefined : (window as unknown as { dproApp?: { chooseProjectFolders?: () => Promise<string[]> } }).dproApp;
+    if (!bridge?.chooseProjectFolders) { setPicking(true); return; }
+    try { const [first] = await bridge.chooseProjectFolders(); if (first) folderPicked(first); } catch { setPicking(true); }
+  };
   if (s.access === 'denied') return null;
+  const row = (p: (typeof ordered)[number]) => <button key={p.id} type="button" role="radio" aria-checked={p.id === s.projectFilter} className="pop-row" title={p.folder ?? ''} onClick={() => pick(p.id)}>
+    <UiIcon name="folder" size={14}/><span className="pop-text"><b>{p.name}</b></span>{p.id === s.projectFilter && <span className="pop-check" aria-hidden="true">✓</span>}</button>;
   return <span className="composer-anchor" data-pop-anchor>
-    <button type="button" className="composer-chip" aria-label={`Project: ${current?.name ?? 'No project'}`} title={current?.folder ?? 'Choose a project for this chat'} aria-expanded={open} onClick={() => setOpen(v => !v)}>
+    <button type="button" className="composer-chip" aria-label={`Project: ${current?.name ?? 'No project'}`} title={current?.folder ?? 'Choose a project for this chat'} aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
       <UiIcon name="folder" size={12}/><span>{current?.name ?? 'No project'}</span><UiIcon name="chevron" size={10}/></button>
-    <Pop open={open} onClose={() => { setOpen(false); setQ(''); }} label="Project" wide>
-      <input className="pop-search" placeholder="Search projects…" aria-label="Search projects" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && shown[0]) { e.preventDefault(); pick(shown[0].id); } }}/>
-      {shown.map(p => <button key={p.id} type="button" role="radio" aria-checked={p.id === s.projectFilter} className="pop-row" title={p.folder ?? ''} onClick={() => pick(p.id)}><UiIcon name="folder" size={14}/><span className="pop-text"><b>{p.name}</b></span></button>)}
-      {!q && <button type="button" role="radio" aria-checked={!s.projectFilter} className="pop-row" onClick={() => pick('')}><UiIcon name="message" size={14}/><span className="pop-text"><b>No project</b><small>A chat without a folder</small></span></button>}
+    <Pop open={open} onClose={close} label="Project" wide>
+      {!q && groups.recent.map(row)}
+      {!q && <button type="button" role="radio" aria-checked={!s.projectFilter} className="pop-row" onClick={() => pick('')}><UiIcon name="message" size={14}/><span className="pop-text"><b>No project</b><small>A chat without a folder</small></span>{!s.projectFilter && <span className="pop-check" aria-hidden="true">✓</span>}</button>}
       <hr/>
-      <button type="button" className="pop-row" onClick={() => { setOpen(false); onNewProject(); }}><UiIcon name="plus" size={14}/><span className="pop-text"><b>New project…</b></span><kbd>⇧⌘N</kbd></button>
+      <input className="pop-search" placeholder="Search projects…" aria-label="Search projects" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && shown[0]) { e.preventDefault(); pick(shown[0].id); } }}/>
+      {q ? <>{shown.map(row)}{!shown.length && <p className="pop-note">No project is called “{q}”.</p>}</> : <>
+        <p className="pop-title">This computer</p>
+        <button type="button" className="pop-row" title="Choose a folder on this computer" onClick={() => void chooseFolder()}><UiIcon name="folder" size={14}/><span className="pop-text"><b>A folder…</b></span></button>
+        {groups.local.map(row)}
+        {groups.hidden > 0 && <button type="button" className="pop-row" aria-expanded={false} onClick={() => setMore(true)}><UiIcon name="arrow-down" size={14}/><span className="pop-text"><b>More</b></span><kbd>{groups.hidden} ›</kbd></button>}</>}
+      <hr/>
+      <button type="button" className="pop-row" onClick={() => { close(); onNewProject(); }}><UiIcon name="plus" size={14}/><span className="pop-text"><b>New project…</b></span><kbd>⇧⌘N</kbd></button>
     </Pop>
+    {picking && <ProjectFolderPicker controller={controller} onClose={() => setPicking(false)} onSelect={folderPicked}/>}
   </span>;
 }
 
 /** New project / Folders and variables…: name, folders (main + added, read only or read and write) and encrypted variables. */
-export function ProjectSheet({ controller, id, onClose }: { controller: ConversationsController; id: string | null; onClose: () => void }) {
+export function ProjectSheet({ controller, id, folder, onClose }: { controller: ConversationsController; id: string | null; folder?: string; onClose: () => void }) {
   const s = controller.getSnapshot();
   const current = id ? s.projects.find(p => p.id === id) : undefined;
-  const [name, setName] = useState(current?.name ?? '');
-  const [main, setMain] = useState(current?.folder ?? '');
+  const folderName = (p: string) => p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
+  // CH5: "A folder…" in the project chip opens New project… with the chosen folder (and its name) filled in.
+  const [name, setName] = useState(current?.name ?? (folder ? folderName(folder).slice(0, 80) : ''));
+  const [main, setMain] = useState(current?.folder ?? folder ?? '');
   const [folders, setFolders] = useState<{ path: string; write: boolean }[]>(current?.folders ?? []);
   const [picking, setPicking] = useState<'main' | 'add' | null>(null);
   const [vars, setVars] = useState<string[] | null>(id ? null : []);
@@ -209,7 +250,6 @@ export function ProjectSheet({ controller, id, onClose }: { controller: Conversa
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => { if (id) void controller.variables(id).then(v => setVars(v ?? [])); }, [controller, id]);
-  const folderName = (p: string) => p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
   const [saved, setSaved] = useState<string | null>(id);
   const save = async () => {
     setBusy(true); setError(null);

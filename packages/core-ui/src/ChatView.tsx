@@ -166,7 +166,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   // CHAT-BUILD-01 stage 3 (CH3): the composer's popovers, the chat's keys and "/" commands.
   const [popover, setPopover] = useState<'who' | 'model' | 'mode' | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [projectSheet, setProjectSheet] = useState<{ id: string | null } | null>(null);
+  const [projectSheet, setProjectSheet] = useState<{ id: string | null; folder?: string } | null>(null);
   const slashQuery = /^\/[a-z]*$/.test(s.draft) ? s.draft : null;
   const slash = slashQuery ? slashMatches(slashQuery) : [];
   const runSlash = (c: string) => {
@@ -442,7 +442,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {below && !empty && <button type="button" className="chat-jump" onClick={jump} aria-label="Jump to the latest message"><UiIcon name="arrow-down" size={15}/></button>}
     {previewFile&&<DocumentEditor title="Attached file" files={[{id:previewFile.name,name:previewFile.name,content:previewFile.text,readOnly:true}]} maxLength={60000} onChange={()=>{}} onClose={()=>setAttachmentPreview(null)}/>}
     {shortcutsOpen && <KeysSheet onClose={() => setShortcutsOpen(false)}/>}
-    {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} onClose={() => setProjectSheet(null)}/>}
+    {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} folder={projectSheet.folder} onClose={() => setProjectSheet(null)}/>}
     {longDraft&&<DocumentEditor title="Message draft" files={[{id:'message',name:'message.md',content:s.draft}]} maxLength={100000} onChange={(_,text)=>controller.edit(text)} onClose={()=>setLongDraft(false)}/>}
     <div className="chat-dock">
       <TaskList turns={s.turns} who={nameOf(convAgentId)} waits={activeConv?.waiting ?? 0}/>
@@ -458,6 +458,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       {remember && memCtl && <RememberForm key={remember.key} controller={memCtl} seed={remember} project={project?.name ?? null} agent={convAgentName} onClose={() => setRemember(null)}/>}
       {cardForm && cardsCtl && <ChatCardForm key={cardForm.key} controller={cardsCtl} seed={cardForm} agents={s.agents} onClose={() => setCardForm(null)}/>}
       {s.reconnecting && <p className="chat-notice" role="status">Reconnecting to the reply…</p>}
+      {s.elsewhere && s.queue.length > 0 && !s.queuePaused && <p className="chat-notice" role="status">This chat is working in another window. Your message waits until it is done.</p>}
       {s.queuePaused && s.queue.length > 0 && <p className="chat-notice" role="status">Stopped. The waiting {s.queue.length === 1 ? 'message stays' : 'messages stay'} here until you send {s.queue.length === 1 ? 'it' : 'them'}.</p>}
       {s.queue.length > 0 && <ul className="chat-queue" aria-label="Waiting to send">
         {s.queue.map((q, i) => <li key={q.key}>
@@ -490,7 +491,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
             accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*,image/png,image/jpeg,image/gif,image/webp"/>
-          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
+          {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={folder => setProjectSheet({ id: null, folder })}/>}
           <PlusButton onFiles={() => picker.current?.click()} onLong={() => setLongDraft(true)}/>
           <ModeButton value={s.mode} onChange={m => void controller.setMode(m)} open={popover === 'mode'} setOpen={v => setPopover(v ? 'mode' : null)}/>
           <span className="composer-spacer"/>
