@@ -22,8 +22,8 @@ export const MODES: readonly { id: ChatMode; name: string; note: string; icon: U
   { id: 'plan', name: 'Plan first', note: 'The team writes a plan; it runs after you approve it', icon: 'list', key: '4' },
 ];
 export const THINKING: readonly { id: ChatThinking; name: string }[] = [{ id: 'quick', name: 'Quick' }, { id: 'normal', name: 'Normal' }, { id: 'deep', name: 'Deep' }];
-export const COMPOSER_KEYS: readonly [string, string][] = [['Send', 'Enter'], ['New line', '⇧ Enter'], ['Stop', 'Esc'], ['Edit my last message', '↑'], ['New chat', '⌘N'], ['Search chats', '⌘F'], ['Commands', '⌘K'],
-  ['Who answers', '⌘J'], ['Answers with', '⇧⌘M'], ['Mode', '⇧⌘P'], ['Add files', '⌘U'], ['Long message editor', '⇧⌘E'], ['Dictate (hold)', '⌥Space'], ['Keys', '⌘/']];
+export const COMPOSER_KEYS: readonly [string, string][] = [['Send', 'Enter'], ['New line', '⇧ Enter'], ['Stop', 'Esc'], ['Edit my last message', '↑'], ['New chat', '⌘N'], ['New chat in this project', '⌥⌘N'],['Search chats', '⌘F'], ['Commands', '⌘K'],
+  ['Who answers', '⌘J'], ['Answers with', '⇧⌘M'], ['Mode', '⇧⌘P'], ['Add files', '⌘U'], ['Long message editor', '⇧⌘E'], ['Redo the last undone file change', '⇧⌘Z'],['Dictate (hold)', '⌥Space'], ['Keys', '⌘/']];
 export const SLASH: readonly { c: string; d: string }[] = [{ c: '/board', d: 'Add this chat to the board' }, { c: '/remember', d: 'Remember the last answer' }, { c: '/export', d: 'Save the chat as a Markdown file' }, { c: '/note', d: 'Edit "Where we left off"' }, { c: '/agent', d: 'Who answers' }, { c: '/model', d: 'Answers with' }];
 const APPS = [{ id: 'subscription:claude', name: 'Claude Code', Icon: ClaudeCodeIcon }, { id: 'subscription:codex', name: 'Codex', Icon: CodexIcon }, { id: 'subscription:gemini', name: 'Gemini', Icon: GeminiIcon }] as const;
 

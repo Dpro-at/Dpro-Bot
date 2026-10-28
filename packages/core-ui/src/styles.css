@@ -3147,3 +3147,10 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .public-welcome p { font-size:14px; color:var(--text-3); }
 .public-welcome button.primary { margin:0; min-inline-size:0; block-size:38px; padding:0 22px; border-radius:9px; font-size:14px; font-weight:600; }
 .chat-edit-head b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-inline-size:0; }
+/* Keys and faces (2026-10-28) */
+.app-shell .titlebar .titlebar-project { all:unset; cursor:default; font-weight:400; color:var(--text-3); border-radius:5px; padding:1px 5px; margin-inline-start:-5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.app-shell .titlebar .titlebar-project:hover { background:var(--row-hover); color:var(--text-2); }
+.app-shell .titlebar .titlebar-project:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.app-shell .titlebar .tool.title-faces { inline-size:auto; padding:0 4px; display:inline-flex; align-items:center; }
+.app-shell .title-faces .composer-face { inline-size:18px; block-size:18px; font-size:9.5px; box-shadow:0 0 0 1.5px var(--surface); }
+.app-shell .title-faces .composer-face + .composer-face { margin-inline-start:-5px; }

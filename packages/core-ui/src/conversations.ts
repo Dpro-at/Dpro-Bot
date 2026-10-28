@@ -365,6 +365,9 @@ export class ConversationsController {
     void this.loadGit();
   }
 
+  /** "New chat here" (sidebar) and ⌥⌘N: a blank conversation in a project ('' = no project). */
+  newChatIn(projectId: string) { this.filterProject(projectId); this.newChat(); }
+
   async open(id: string) {
     if (!this.live()) return;
     this.#follow?.abort();
