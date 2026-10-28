@@ -40,7 +40,9 @@ test('device consent: connecting shows the code, then connected; the token stays
  assert.equal(await account.genvrToken('conn-owner'),TOKEN);
 });
 
-test('test world: draft created once, upload on server version, separate publish confirmation',async()=>{
+// The test world is built with the GenVR SDK fetched into core-ui/vendor (not in git).
+const genvrSdk=fs.existsSync(path.resolve('../core-ui/vendor/genvr/package/dist/index.js'));
+test('test world: draft created once, upload on server version, separate publish confirmation',{skip:genvrSdk?false:'GenVR SDK not present (core-ui/vendor/genvr)'},async()=>{
  const up=()=>app.inject({method:'POST',url:'/api/connections/genvr/test-world/upload',headers:owner,payload:{confirm:true}});
  assert.equal((await app.inject({method:'POST',url:'/api/connections/genvr/test-world/upload',headers:owner,payload:{}})).statusCode,400);
  const first=(await up()).json().publication;assert.equal(first.serverId,'exp-fictional');assert.equal(first.localId,'dpro.publication.test');assert.equal(first.version,1);assert.equal(first.status,'draft');

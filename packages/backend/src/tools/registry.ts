@@ -14,6 +14,7 @@ import { channelToolCallRefusal, isToolAllowedInChannel } from './channel-policy
 import { defaultGrants, grantCallRefusal, isToolGranted, type AgentToolGrants } from './grants.js';
 import { approvalCategory, consumeApprovalTicket, isConfinedChannelReply, requestApproval } from './approvals.js';
 import { actorFromToolContextAsync } from '../repositories/actor.js';
+import { NO_MCP_AGENTS } from '../mcp-client/config.js';
 import { hasSecretRef, resolveSecretRefs, scrubSecretValues, vaultToolResult } from '../services/chat-secrets.js';
 
 /** Tools whose input is stored as text by Girru: key-store references are never resolved for them (CHAT-SECRETS-01). */
@@ -160,6 +161,10 @@ export class ToolsRegistry {
     if (grantRefused) {
       console.warn(`[ToolsRegistry] ⛔ Refused ungranted tool for agent ${this.context.agentId ?? '(none)'}: ${toolName}`);
       return grantRefused;
+    }
+    // MCP-01: an agent that never uses MCP is refused before any approval request (one it could never use).
+    if (((tool as { mcp?: unknown }).mcp || toolName.startsWith('mcp__')) && this.context.agentId && NO_MCP_AGENTS.has(this.context.agentId)) {
+      return { content: [{ type: 'text', text: `Tool "${toolName}" was not run: this agent may not use MCP tools.` }], error: 'mcp_not_allowed' };
     }
 
     // CORE-PERMS-01: the owner's mode for this tool's category: off = refused,

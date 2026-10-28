@@ -251,7 +251,7 @@ function patch(obj, key, value, builtin = false) {
   return () => { obj[key] = original; if (builtin) syncBuiltinESMExports(); };
 }
 
-const NOT_USERS = /^(?![\s\S]*\bFROM users\b)/; // the auth gate still reads the users table
+const NOT_USERS = /^(?![\s\S]*\bFROM (users|auth_sessions)\b)/; // the auth gate still reads the users and sessions tables
 const fsp = require('node:fs/promises');
 const cp = require('node:child_process');
 const { repositories } = await import(join(backendDir, 'src/repositories/index.ts'));

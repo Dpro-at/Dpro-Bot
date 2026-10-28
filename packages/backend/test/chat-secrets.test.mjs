@@ -74,6 +74,16 @@ await app.ready();
 const as = (id) => ({ authorization: `Bearer ${generateToken(id, 1)}` });
 const call = (user, method, url, payload) => app.inject({ method, url, headers: as(user), ...(payload ? { payload } : {}) });
 const ended = (runId) => new Promise((r) => { const run = chatRuns.get(runId); if (run.status !== 'running') r(); else run.emitter.once('end', r); });
+// An approval decided in a chat continues that chat by itself (a run of its own); wait until it is done
+// so they never take the model answers scripted for the next test.
+const settled = async () => {
+  for (let quiet = 0, tries = 0; quiet < 3 && tries < 250; tries++) {
+    const run = chatRuns.activeFor(conv.id);
+    quiet = run ? 0 : quiet + 1;
+    if (run) await new Promise((r) => run.emitter.once('end', r));
+    await new Promise((r) => setTimeout(r, 20));
+  }
+};
 const rid = () => `run-${randomBytes(6).toString('hex')}`;
 
 const fakeToken = 'ghp_' + 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2';
@@ -225,6 +235,7 @@ test('a secret in a tool output or the reply goes to the key store; the chat, ev
     input_schema: { type: 'object', properties: {} },
     execute: async () => ({ content: [{ type: 'text', text: `OPENAI_API_KEY=${fakeKey}\nDB_PASSWORD=${fakeDbPass}\nPORT=3000` }], details: { raw: `key ${fakeKey}` } }) });
   await grants.setAgentGrants('s-agent', { grants: ['x_call_api', 'x_fail_api', 'x_read_env'] }, 's-owner', tools.createToolsRegistry({ workspaceDir: dir }).listRegistered());
+  await settled();
   const c = (await call('s-owner', 'POST', '/api/chat/conversations', { agentId: 's-agent' })).json().conversation;
   const before = bodies.length;
   script.push(
