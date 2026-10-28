@@ -65,7 +65,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -234,9 +234,24 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       if (e.metaKey && e.altKey && e.code === 'KeyI') { e.preventDefault(); setPane(p => (p === 'details' ? null : 'details')); }
       else if (e.ctrlKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(v => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '.' && controller.getSnapshot().activeId) { e.preventDefault(); void controller.stopAll(); }
+      else chatKeys(e);
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [active, terminal, client, controller]);
+  // CH1: keys for the open chat — ⌘P pin, ⇧⌘S export, ⌘⌫ archive, ⌥⌘⌫ delete (asks), ⇧⌘C copy the last reply.
+  const chatKeys = (e: globalThis.KeyboardEvent) => {
+    const snap = controller.getSnapshot(), id = snap.activeId, conv = snap.conversations.find(c => c.id === id);
+    if (!id || !conv || !(e.metaKey || e.ctrlKey)) return;
+    const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName));
+    const k = e.key.toLowerCase(), hit = (fn: () => void) => { e.preventDefault(); fn(); };
+    if (k === 'p' && !e.shiftKey && !e.altKey) hit(() => void controller.pin(id, !conv.pinned));
+    else if (k === 's' && e.shiftKey && !e.altKey) hit(() => setExportKey(Date.now()));
+    else if (k === 'backspace' && !typing) hit(() => (e.altKey ? setChatSheet('delete') : void controller.archive(id, !conv.archived)));
+    else if (k === 'c' && e.shiftKey && !e.altKey) {
+      const last = [...snap.turns].reverse().find(t => t.role === 'assistant' && t.content);
+      if (last && navigator.clipboard) hit(() => void navigator.clipboard.writeText(last.content).catch(() => undefined));
+    }
+  };
   const [keysOpen, setKeysOpen] = useState<string | null>(null);
   // CHAT-PRO-02 I step 2: board cards made from this conversation.
   const [cardsCtl, setCardsCtl] = useState<ChatCardsController | null>(null);
@@ -301,6 +316,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const [exportKey, setExportKey] = useState(0);
   const [chatSheet, setChatSheet] = useState<'rename' | 'delete' | 'continue' | null>(null);
   const canBoard = owner && !!cardsCtl && !!s.activeId;
+  // Add to board from the chat list's right-click: the chat opens, then its card form.
+  useEffect(() => { if (boardRequest > 0 && canBoard) openCardForm(); }, [boardRequest]);
   const rememberAll = () => {
     const last = [...s.turns].reverse().find(t => t.role === 'assistant' && t.status === 'complete');
     if (!last) return;
@@ -311,15 +328,15 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     const id = s.activeId;
     return [
       { label: 'Rename', icon: 'pencil', run: () => setChatSheet('rename') },
-      { label: activeConv.pinned ? 'Unpin' : 'Pin', icon: 'pin', run: () => void controller.pin(id, !activeConv.pinned) },
+      { label: activeConv.pinned ? 'Unpin' : 'Pin', icon: 'pin', shortcut: '⌘P', run: () => void controller.pin(id, !activeConv.pinned) },
       ...(s.projects.length ? ['sep' as const, ...[{ id: '', name: 'No project' }, ...s.projects].map(p => ({ label: p.id ? `Move to ${p.name}` : 'Move out of the project', icon: 'folder' as const, checked: (activeConv.projectId ?? '') === p.id, run: () => void controller.moveToProject(id, p.id) }))] : []),
       'sep',
       { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(id) },
       { label: 'Continue in another folder…', icon: 'folder', run: () => setChatSheet('continue') },
-      { label: 'Export…', icon: 'download', run: () => setExportKey(Date.now()) },
+      { label: 'Export…', icon: 'download', shortcut: '⇧⌘S', run: () => setExportKey(Date.now()) },
       ...(canRemember ? [{ label: 'Remember the whole chat', icon: 'brain' as const, disabled: !s.turns.some(t => t.role === 'assistant' && t.status === 'complete'), run: rememberAll }] : []),
       'sep',
-      { label: 'Delete…', icon: 'trash', danger: true, run: () => setChatSheet('delete') },
+      { label: 'Delete…', icon: 'trash', danger: true, shortcut: '⌥⌘⌫', run: () => setChatSheet('delete') },
     ];
   };
   useEffect(() => {
@@ -334,7 +351,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   });
   // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
-  const moments = { client, conversationId: s.activeId, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
+  const moments = { client, conversationId: s.activeId, onOpenApprovals, agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>

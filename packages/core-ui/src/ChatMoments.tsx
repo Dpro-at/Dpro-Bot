@@ -2,18 +2,19 @@
 // team of agents trustworthy — Allow once / Deny where an agent waits for you, hand-off cards, what you
 // said while it worked, text that tried to give orders, the chat summed up, a plan limit, undo what an
 // agent changed — and the task list above the box. Each is one sentence and at most one action.
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SessionClient } from './session';
 import type { Part, ToolCall, Turn } from './turns';
 import { turnPlan } from './turns';
 import { UiIcon } from './ui-icons';
+import { ContextMenu, useMenu } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
 import { paramView, requestTitle } from './ApprovalPage';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
-  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void;
+  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void;
 };
 export const MomentsContext = createContext<Moments>({});
 
@@ -45,18 +46,18 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
  * The stored request must be this call's tool in this chat; its parameters are shown before Allow once. */
 type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean };
 export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
-  const { client, conversationId } = useContext(MomentsContext);
+  const { client, conversationId, onOpenApprovals } = useContext(MomentsContext);
   const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'allowed' | 'denied' | 'gone'>('waiting');
+  const more = useMenu();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [notice, setNotice] = useState('');
   const [verify, setVerify] = useState(false);
-  if (!client || !call.approvalId) return null;
-  const id = call.approvalId;
-  const send = async (path: string, body?: unknown) => client.request(body === undefined ? { method: 'POST', path } as never : { method: 'POST', path, body } as never);
+  const id = call.approvalId ?? '';
+  const send = async (path: string, body?: unknown) => client!.request(body === undefined ? { method: 'POST', path } as never : { method: 'POST', path, body } as never);
   const review = async () => {
     setState('busy'); setNotice('');
     try {
-      const d = await client.request({ method: 'GET', path: `/api/approvals/${id}` } as never);
+      const d = await client!.request({ method: 'GET', path: `/api/approvals/${id}` } as never);
       const v = (d.body as any)?.approval as Detail | undefined;
       if (d.status !== 200 || !v) { setState('gone'); return; }
       if (v.toolName !== call.name || (conversationId && v.sessionId && v.sessionId !== conversationId)) { setState('gone'); setNotice('This card does not match the request it names. Check it in Approvals.'); return; }
@@ -72,7 +73,10 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
       if (r.status === 200) setState('allowed'); else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
     } catch { setState('review'); setNotice('No connection. Try again.'); }
   };
+  // The request is read at once, so its details and Allow once show without an extra step (what is shown is what is allowed).
+  useEffect(() => { if (client && id && state === 'waiting' && !detail) void review(); }, [id]);
   const deny = async () => { setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); } catch { setState('waiting'); } };
+  if (!client || !id) return null;
   const title = requestTitle(call.name, null);
   if (state === 'allowed') return <p className="moment-line"><UiIcon name="check" size={12}/>Allowed: {title}. The chat carries on with the result.</p>;
   if (state === 'denied') return <p className="moment-line"><UiIcon name="close" size={12}/>Denied: {title}. It did not run.</p>;
@@ -88,7 +92,10 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
         : <button type="button" className="moment-main" disabled={state === 'busy'} onClick={() => void review()}>Review…</button>}
       <button type="button" className="link-button" disabled={state === 'busy'} onClick={() => void deny()}>Deny</button>
       <span className="moment-hint">Also in Approvals</span>
+      {onOpenApprovals && <button type="button" className="dk-icon moment-more" aria-label="More for this request" title="More for this request"
+        onClick={e => more.at(e, [{ label: 'Open in Approvals', icon: 'open', run: onOpenApprovals }, { label: 'Always allow this… (Approval rules)', icon: 'check', run: onOpenApprovals }])}><UiIcon name="more" size={14}/></button>}
     </div>
+    <ContextMenu menu={more.menu} onClose={more.close}/>
     {notice && <p className="moment-hint" role="status">{notice}</p>}
     {verify && detail && <ApprovalVerificationSheet client={client} id={detail.id} paramsHash={detail.paramsHash} toolName={title} onClose={() => setVerify(false)} onApprove={receipt => { setVerify(false); void allow(receipt); }}/>}
   </div>;

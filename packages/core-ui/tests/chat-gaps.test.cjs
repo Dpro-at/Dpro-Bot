@@ -61,3 +61,32 @@ test('the footer never swaps names and icons forever at the edge width (that lef
   assert.match(footer, /wentAt\.current=el\.clientWidth;setCompact\(true\)/, 'remember the width when names stopped fitting');
   assert.match(footer, /el\.clientWidth>=needed\.current&&el\.clientWidth>wentAt\.current\+24\)setCompact\(false\)/, 'names come back only after the footer really got wider');
 });
+
+test('approval card: the request is read at once (Allow once with no extra step) and ⋯ opens Approvals', () => {
+  const m = src('ChatMoments.tsx');
+  assert.match(m, /useEffect\(\(\) => \{ if \(client && id && state === 'waiting' && !detail\) void review\(\); \}, \[id\]\)/);
+  assert.match(m, /label: 'Open in Approvals', icon: 'open', run: onOpenApprovals/);
+  assert.match(m, /'Always allow this… \(Approval rules\)'/);
+  assert.ok(m.indexOf('useEffect(() => { if (client && id') < m.indexOf("if (!client || !id) return null;"), 'hooks before the early return');
+  assert.match(src('SignedInShell.tsx'), /onOpenApprovals=\{\(\) => setPage\('approvals'\)\}/);
+});
+
+test('chat keys: ⌘P pin, ⇧⌘S export, ⌘⌫ archive (not while typing), ⌥⌘⌫ delete asks, ⇧⌘C copies the last reply, ⌘\\ sidebar', () => {
+  const v = src('ChatView.tsx');
+  assert.match(v, /k === 'p' && !e\.shiftKey && !e\.altKey\) hit\(\(\) => void controller\.pin\(id, !conv\.pinned\)\)/);
+  assert.match(v, /k === 's' && e\.shiftKey && !e\.altKey\) hit\(\(\) => setExportKey\(Date\.now\(\)\)\)/);
+  assert.match(v, /k === 'backspace' && !typing\) hit\(\(\) => \(e\.altKey \? setChatSheet\('delete'\) : void controller\.archive\(id, !conv\.archived\)\)\)/);
+  assert.match(v, /k === 'c' && e\.shiftKey && !e\.altKey\)/);
+  assert.match(src('SignedInShell.tsx'), /e\.key === '\\\\'\) \{ e\.preventDefault\(\); setRail\(v => !v\); \}/);
+  const list = src('ConversationList.tsx');
+  for (const k of ["shortcut: '⌘P'", "shortcut: '⇧⌘S'", "shortcut: '⌘⌫'", "shortcut: '⌥⌘⌫'", "shortcut: '⌘B'"]) assert.ok(list.includes(k), k);
+});
+
+test('sidebar menus: a chat can go to the board; a project has Rename, Fold all and Delete; chats drag onto projects', () => {
+  const list = src('ConversationList.tsx');
+  assert.match(list, /label: 'Add to board…', icon: 'board' as const, shortcut: '⌘B', run: \(\) => onAddToBoard\(c\.id\)/);
+  for (const label of ["'Rename…'", "'Fold all'", "'Delete project…'", "'Folders and variables…'", "'New chat here'"]) assert.ok(list.includes(`label: ${label}`), label);
+  assert.match(list, /onDragStart=\{e => \{ e\.dataTransfer\.setData\(CHAT_DRAG, c\.id\)/);
+  assert.match(list, /onDrop=\{e => \{ const id = e\.dataTransfer\.getData\(CHAT_DRAG\); setDropOn\(null\); if \(id\) \{ e\.preventDefault\(\); void controller\.moveToProject\(id, p\.id\); \} \}\}/);
+  assert.match(src('ChatView.tsx'), /useEffect\(\(\) => \{ if \(boardRequest > 0 && canBoard\) openCardForm\(\); \}, \[boardRequest\]\)/);
+});
