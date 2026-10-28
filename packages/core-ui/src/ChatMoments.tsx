@@ -156,7 +156,7 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
 }
 
 /** CH2: the chat's task list above the box (the latest plan), folded to one line. */
-export function TaskList({ turns, who }: { turns: readonly Turn[]; who?: string }): ReactNode {
+export function TaskList({ turns, who, waits = 0 }: { turns: readonly Turn[]; who?: string; waits?: number }): ReactNode {
   const [open, setOpen] = useState(false);
   const last = [...turns].reverse().find(t => t.role === 'assistant' && turnPlan(t.parts));
   const steps = last ? turnPlan(last.parts) : null;
@@ -166,8 +166,10 @@ export function TaskList({ turns, who }: { turns: readonly Turn[]; who?: string 
   return <section className="task-list" aria-label="Tasks">
     <button type="button" className="task-head" aria-expanded={open} onClick={() => setOpen(v => !v)}>
       <span className="chat-project-chevron" data-open={open || undefined}><UiIcon name="chevron" size={11}/></span>
-      <b>Tasks</b><span>{done} of {steps.length} done</span>{working && <span className="task-now">· {working.title}</span>}</button>
-    {open && <ol>{steps.map((s, i) => <li key={i} data-state={s.status}><span className="task-dot" aria-hidden="true">{s.status === 'done' ? <UiIcon name="check" size={10}/> : null}</span><span dir="auto">{s.title}</span>{who && s === working && <small>{who}</small>}</li>)}</ol>}
+      <b>Tasks</b><span>{done} of {steps.length} done</span>{working && <span className="task-now">· {working.title}</span>}
+      {/* CH1: approvals of this chat that wait for the owner, in amber. */}
+      {waits > 0 && <span className="task-waits">· {waits} {waits === 1 ? 'waits' : 'wait'} for you</span>}</button>
+    {open && <ol>{steps.map((s, i) => <li key={i} data-state={s.status}><span className="task-dot" aria-hidden="true">{s.status === 'done' ? <UiIcon name="check" size={10}/> : null}</span><span dir="auto">{s.title}</span>{who && (s === working || s.status === 'done') && <small>{who}</small>}</li>)}</ol>}
   </section>;
 }
 

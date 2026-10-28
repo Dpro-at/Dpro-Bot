@@ -318,7 +318,7 @@ export function sidebarPrefs(x: unknown): SidebarPrefs {
   const listed = Array.isArray(v.order) ? [...new Set(v.order.filter(isSection))] : [];
   return {
     order: [...listed, ...SIDEBAR_SECTIONS.filter((id) => !listed.includes(id))],
-    hidden: Array.isArray(v.hidden) ? [...new Set(v.hidden.filter(isSection))] : ['archived'],
+    hidden: Array.isArray(v.hidden) ? [...new Set(v.hidden.filter(isSection))] : ['running', 'archived'],
     folded: Array.isArray(v.folded) ? [...new Set(v.folded.filter((f): f is string => typeof f === 'string' && FOLDER_ID.test(f)))].slice(0, 200) : [],
   };
 }

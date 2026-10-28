@@ -26,14 +26,14 @@ test('sections: pinned, projects, other chats, archived; child chats under their
   assert.deepEqual(sections(list, [P], 'chat 4').other.map(c => c.title), ['Chat 4']);
 });
 
-test('sidebar choices: unknown ids dropped, new sections added, Archived hidden by default; moving a section', () => {
-  assert.deepEqual(DEFAULT_PREFS.hidden, ['archived']);
+test('sidebar choices: unknown ids dropped, new sections added, Running now and Archived hidden by default (shown via Edit); moving a section', () => {
+  assert.deepEqual(DEFAULT_PREFS.hidden, ['running', 'archived']);
   const p = readPrefs(JSON.stringify({ order: ['other', 'nope', 'pinned', 'other'], hidden: ['running', 'x'], folded: ['a', 5] }));
   assert.deepEqual(p.order, ['other', 'pinned', 'scheduled', 'running', 'projects', 'archived']);
   assert.deepEqual(p.hidden, ['running']);
   assert.deepEqual(p.folded, ['a']);
   assert.deepEqual(readPrefs('not json'), DEFAULT_PREFS);
-  assert.deepEqual(readPrefs({ order: ['pinned'] }).hidden, ['archived'], 'no saved hidden list: the usual one');
+  assert.deepEqual(readPrefs({ order: ['pinned'] }).hidden, ['running', 'archived'], 'no saved hidden list: the usual one');
   assert.deepEqual(moveSection(['a', 'b', 'c'], 'b', -1), ['b', 'a', 'c']);
   assert.deepEqual(moveSection(['a', 'b'], 'a', -1), ['a', 'b']);
   const now = new Date('2026-10-27T12:00:00Z');
@@ -62,7 +62,7 @@ test('rows are plain names with status only when there is something', () => {
   assert.match(html, />Other chats</);
   assert.equal((html.match(/class="chat-row-waits"/g) || []).length, 1);
   assert.match(html, /aria-label="2 waiting for you">2</);
-  assert.equal((html.match(/class="chat-row-working"/g) || []).length, 2, 'once in Running now, once in Other chats');
+  assert.equal((html.match(/class="chat-row-working"/g) || []).length, 1, 'in Other chats (Running now is shown via Edit)');
   assert.doesNotMatch(html, /session-kind|<select/, 'no icon per row, no project select');
 });
 

@@ -1,4 +1,5 @@
 import { ChatDetails, DetailsRail } from './ChatDetails';
+import type { PanelPart } from './ChatDetails';
 import { ApprovalCard, ChangesLine, DelegationCard, MomentsContext, NoticeCard, SteerLine, TaskList } from './ChatMoments';
 import { ScheduleSheet } from './ScheduleSheet';
 import { KeysSheet, ModeButton, ModelButton, PlusButton, ProjectChip, ProjectSheet, SlashList, WhoButton, slashMatches } from './ChatComposerControls';
@@ -219,6 +220,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const project = controller.activeProject();
   // CHAT-BUILD-01 stage 4 (CH8): the side panel opens on Details; hidden, it is a thin rail. The terminal is its own panel under the chat.
   const [pane, setPane] = useState<PaneName | null>('details');
+  const [focusPart, setFocusPart] = useState<{ id: PanelPart; n: number } | null>(null);
   const [termOpen, setTermOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [panes, setPanes] = useState<PanesController | null>(null);
@@ -232,6 +234,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     if (!active) return;
     const key = (e: globalThis.KeyboardEvent) => {
       if (e.metaKey && e.altKey && e.code === 'KeyI') { e.preventDefault(); setPane(p => (p === 'details' ? null : 'details')); }
+      // A narrow window shows the side panel over the chat: Esc closes it from anywhere (menus and sheets close first).
+      else if (e.key === 'Escape' && !e.defaultPrevented && window.innerWidth <= 1100 && !document.querySelector('[role="dialog"], .dk-menu')) setPane(p => (p ? null : p));
       else if (e.ctrlKey && e.shiftKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(true); terminal.tabs.add(); }
       else if (e.ctrlKey && !e.metaKey && e.code === 'Backquote' && terminal && client?.getSnapshot().user?.role === 'owner') { e.preventDefault(); setTermOpen(v => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '.' && controller.getSnapshot().activeId) { e.preventDefault(); void controller.stopAll(); }
@@ -407,7 +411,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     {projectSheet && <ProjectSheet controller={controller} id={projectSheet.id} onClose={() => setProjectSheet(null)}/>}
     {longDraft&&<DocumentEditor title="Message draft" files={[{id:'message',name:'message.md',content:s.draft}]} maxLength={100000} onChange={(_,text)=>controller.edit(text)} onClose={()=>setLongDraft(false)}/>}
     <div className="chat-dock">
-      <TaskList turns={s.turns} who={nameOf(convAgentId)}/>
+      <TaskList turns={s.turns} who={nameOf(convAgentId)} waits={activeConv?.waiting ?? 0}/>
       {s.notice && <p className="chat-notice" role="status">{s.notice}</p>}
       {mem?.notice && !remember && <p className="chat-notice" role="status">{mem.notice} <button type="button" className="link-button" onClick={() => memCtl?.clearNotice()}>OK</button></p>}
       <ContextMenu menu={moreMenu.menu} onClose={moreMenu.close}/>
@@ -473,8 +477,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} pr={owner && client ? { client, projectId: project.id } : undefined} onRefresh={() => void controller.refreshGit()}/> : undefined}
       placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
-      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')}/>
-    : pane === null && <DetailsRail controller={controller} onOpen={() => setPane('details')}/>}
+      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')} focusPart={focusPart}/>
+    : pane === null && <DetailsRail controller={controller} onOpen={part => { setFocusPart(f => ({ id: part, n: (f?.n ?? 0) + 1 })); setPane('details'); }}/>}
   {scheduleOpen && client && s.activeId && <ScheduleSheet client={client} chatId={s.activeId} onClose={() => setScheduleOpen(false)}/>}
   {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'}><header className="chat-inspector-head"><h2>{pane==='changes'?'Changes':'Files'}</h2><button title="Close side pane" aria-label="Close side pane" onClick={()=>setPane(null)}><UiIcon name="close" size={15}/></button></header>
     {pane === 'changes' ? <ChangesPane panes={panes}/> : <FilesPane panes={panes}/>}

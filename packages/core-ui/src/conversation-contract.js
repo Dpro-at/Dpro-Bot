@@ -272,7 +272,7 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'last') return { last: uuid(body.last) ? body.last : null };
   if (p.kind === 'sidebar') {
     const v = record(body.sidebar) ? body.sidebar : {};
-    return { sidebar: { order: sectionList(v.order) ? v.order : SIDEBAR_SECTIONS, hidden: sectionList(v.hidden) ? v.hidden : ['archived'], folded: folderList(v.folded) ? v.folded : [] } };
+    return { sidebar: { order: sectionList(v.order) ? v.order : SIDEBAR_SECTIONS, hidden: sectionList(v.hidden) ? v.hidden : ['running', 'archived'], folded: folderList(v.folded) ? v.folded : [] } };
   }
   if (p.kind === 'stop') return { ok: body.ok === true, status: ['stopping', 'complete', 'stopped', 'error'].includes(body.status) ? body.status : 'stopping' };
   throw Error('protocol');

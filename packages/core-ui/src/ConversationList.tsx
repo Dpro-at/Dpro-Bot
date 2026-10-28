@@ -172,9 +172,11 @@ export function ConversationList({ controller, onOpen, search, onNewChat, onAddT
       onContextMenu={(e: ReactMouseEvent) => menu.at(e, [{ label: 'New chat', icon: 'compose', shortcut: '⌘N', run: onNewChat }, ...(s.access !== 'denied' ? [{ label: 'New project…', icon: 'folder' as const, run: () => setProjectForm({ id: null }) }] : [])])}><UiIcon name="compose" size={14}/></button>}
     <button type="button" className="chat-new" aria-label="More for the chat list" title="New project · Edit sidebar"
       onClick={(e: ReactMouseEvent) => menu.at(e, [...(s.access !== 'denied' ? [{ label: 'New project…', icon: 'folder' as const, run: () => setProjectForm({ id: null }) }] : []), ...sectionItems])}>
-      <UiIcon name="more" size={14}/>{hiddenNeeds && <span className="chat-edge-dot" title="A hidden section has something waiting for you"/>}</button>
+      <UiIcon name="more" size={14}/></button>
   </div>;
   return <div className="conversations chat-sidebar">
+    {/* CH9: a hidden section that needs the owner still shows a small amber dot on the sidebar edge. */}
+    {hiddenNeeds && <button type="button" className="chat-edge-dot" aria-label="A hidden section has something waiting for you" title="A hidden section has something waiting for you · Edit sidebar…" onClick={() => setEditing(true)}/>}
     {header}
     {continueFrom && <ContinueElsewhere controller={controller} chatId={continueFrom} onDone={() => { setContinueFrom(null); onOpen(); }}/>}
     {projectForm && <ProjectSheet controller={controller} id={projectForm.id} onClose={() => setProjectForm(null)}/>}

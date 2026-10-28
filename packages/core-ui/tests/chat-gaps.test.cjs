@@ -141,3 +141,15 @@ test('changed files row shows +N −N; the summary notice can be read and starte
   assert.equal(msg.parts.find((p) => p.code === 'injection').text.length, 300, 'other notices stay one line');
   assert.deepEqual(msg.changes, { files: 2, undone: false, added: 7, removed: 3 });
 });
+
+test('small gaps: Esc closes the panel in a narrow window, a rail icon opens its part, the edge dot, Running now via Edit, waits in Tasks', () => {
+  const v = src('ChatView.tsx'), d = src('ChatDetails.tsx'), l = src('ConversationList.tsx'), m = src('ChatMoments.tsx');
+  assert.match(v, /e\.key === 'Escape' && !e\.defaultPrevented && window\.innerWidth <= 1100 && !document\.querySelector\('\[role="dialog"\], \.dk-menu'\)\) setPane/);
+  assert.match(v, /onOpen=\{part => \{ setFocusPart\(f => \(\{ id: part, n: \(f\?\.n \?\? 0\) \+ 1 \}\)\); setPane\('details'\); \}\}/);
+  assert.match(d, /className="details-part" data-part=\{id\}/);
+  assert.match(d, /onClick=\{\(\) => onOpen\(i\.id\)\}/);
+  assert.match(l, /\{hiddenNeeds && <button type="button" className="chat-edge-dot"/);
+  assert.match(src('chat-sidebar-prefs.ts'), /hidden: \['running', 'archived'\]/);
+  assert.match(m, /\{waits > 0 && <span className="task-waits">· \{waits\} \{waits === 1 \? 'waits' : 'wait'\} for you<\/span>\}/);
+  assert.match(v, /waits=\{activeConv\?\.waiting \?\? 0\}/);
+});
