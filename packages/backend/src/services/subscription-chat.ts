@@ -77,11 +77,13 @@ export async function chatImagesSeenBy(model:string|undefined,files:readonly unk
  return (await claudeImageBlocks(chatImageFiles(files))).map(b=>b.file);
 }
 type ClaudeImageBlock={type:'image';source:{type:'base64';media_type:string;data:string}};
+/** Claude takes an image of at most 5 MB as base64, so a file is sent only up to 3.75 MB; a bigger one gets the notice. */
+export const CLAUDE_IMAGE_RAW_BYTES=Math.floor(5*1024*1024/4)*3;
 /** Reads the chat's own image files (chatImageFiles: at most 4, only the images folder) into Claude image blocks; an unreadable or wrong file is left out. */
 export async function claudeImageBlocks(files:readonly string[]):Promise<(ClaudeImageBlock&{file:string})[]>{
  const out:(ClaudeImageBlock&{file:string})[]=[];
  for(const file of chatImageFiles(files)){
-  try{const st=await fs.stat(file);if(!st.isFile()||st.size>MAX_IMAGE_BYTES)continue;const bytes=await fs.readFile(file);const type=bytes.length<=MAX_IMAGE_BYTES?sniffImage(bytes):null;if(type)out.push({file,type:'image',source:{type:'base64',media_type:type,data:bytes.toString('base64')}});}catch{}
+  try{const st=await fs.stat(file);if(!st.isFile()||st.size>CLAUDE_IMAGE_RAW_BYTES)continue;const bytes=await fs.readFile(file);const type=bytes.length<=MAX_IMAGE_BYTES?sniffImage(bytes):null;if(type)out.push({file,type:'image',source:{type:'base64',media_type:type,data:bytes.toString('base64')}});}catch{}
  }
  return out;
 }

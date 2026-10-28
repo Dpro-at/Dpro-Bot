@@ -85,3 +85,9 @@ test('an image file that cannot be read stops the turn before Claude Code starts
  assert.equal(await fixture(`try{await api.runSubscription('subscription:claude',${JSON.stringify(workspace)},'x',new AbortController().signal,{appToolsOnly:true,images:${JSON.stringify([gone])}});console.log('unexpected');}catch(e){console.log(e.message);}`),'cli_input_invalid');
  assert.equal(readFileSync(record,'utf8'),'{}','never launched');
 });
+
+test('Claude Code gets an image only up to 3.75 MB (5 MB once in base64); a bigger one is left out', async () => {
+  const { CLAUDE_IMAGE_RAW_BYTES } = await import('../src/services/subscription-chat.ts');
+  assert.equal(CLAUDE_IMAGE_RAW_BYTES, 3932160);
+  assert.ok(Math.ceil(CLAUDE_IMAGE_RAW_BYTES / 3) * 4 <= 5 * 1024 * 1024);
+});
