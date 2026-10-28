@@ -2,6 +2,7 @@ import { all, one, sql } from '../../repositories/sql-steps.js';
 import type { Tool, ToolExecutionContext, ToolResult } from '../types.js';
 import { runTeamAssignment } from '../../services/team-delegation.js';
 import { subscriptionModel } from '../../services/subscription-chat.js';
+import { currentChatRun } from '../../services/chat-run-context.js';
 import { mayDelegate, orgRows, type OrgRow } from '../../services/agent-org.js';
 
 type Agent = { id: string; name: string; model: string; provider: string; temperature: number; max_tokens: number };
@@ -130,9 +131,11 @@ export const teamDelegateTool: Tool = {
       const { subscriptionAgentContext } = await import('../../services/subscription-agent-context.js');
       const instructions = await subscriptionAgentContext(target.id);
       const signal = AbortSignal.any([limit, stopper.signal]);
+      // The chat's thinking level goes with the hand-off (read once here, in the lead's run).
+      const thinking = currentChatRun()?.thinking;
       const reply = async (prompt: string): Promise<string> => {
         if (signal.aborted) throw Error('cancelled');
-        if (subscriptionModel(target.model)) return runSubscription(target.model, folder, prompt, signal, { appToolsOnly: true });
+        if (subscriptionModel(target.model)) return runSubscription(target.model, folder, prompt, signal, { appToolsOnly: true, thinking });
         if (target.provider === 'ollama' || target.provider === 'local') {
           const { ollamaToolChat } = await import('../../llm/ollama-tool-chat.js');
           const result = await ollamaToolChat({ model: target.model, messages: [{ role: 'user', content: prompt }], tools: [], temperature: target.temperature, maxTokens: Math.min(target.max_tokens || 2048, 8192), timeoutMs: CHILD_CALL_MS, signal });

@@ -15,6 +15,7 @@ import type { Tool, ToolResult } from '../types.js';
 import { chatWorkspace, runSubscription, subscriptionEnabled } from '../../services/subscription-chat.js';
 import { one, sql } from '../../repositories/sql-steps.js';
 import { startCodingRun } from '../../services/coding-runs.js';
+import { currentChatRun } from '../../services/chat-run-context.js';
 
 const APPS = { claude: 'Claude Code', codex: 'Codex', gemini: 'Google Gemini (Antigravity)' } as const;
 export const MAX_CODING_REQUEST_CHARS = 20_000;
@@ -53,7 +54,7 @@ export const askCodingAppTool: Tool = {
       // Without a project folder the coding app works in this chat's private folder (CORE-PICKER-03).
       folder ??= context?.sessionId ? await chatWorkspace(context.sessionId) : undefined;
       if (!folder) return fail('Choose a project folder for this chat first; the coding app works only inside it.');
-      const answer = await runSubscription(`subscription:${app}`, folder, PREFIX + request, run ? AbortSignal.any([AbortSignal.timeout(240_000), run.signal]) : AbortSignal.timeout(240_000), { readOnly: app === 'codex' });
+      const answer = await runSubscription(`subscription:${app}`, folder, PREFIX + request, run ? AbortSignal.any([AbortSignal.timeout(240_000), run.signal]) : AbortSignal.timeout(240_000), { readOnly: app === 'codex', thinking: currentChatRun()?.thinking });
       const text = answer.length > MAX_ANSWER_CHARS ? `${answer.slice(0, MAX_ANSWER_CHARS)}\n[answer shortened]` : answer;
       return { content: [{ type: 'text', text: `${APPS[app]} answered:\n${text}` }], details: { app } };
     } catch (error) {

@@ -80,3 +80,12 @@ test('Claude API: Deep turns use bounded extended thinking; Quick and Normal sen
   const agentic = readFileSync(new URL('../src/api/routes/agentic-chat.ts', import.meta.url), 'utf8');
   assert.match(agentic, /thinking: claudeThinkingFor\(currentChatRun\(\)\?\.thinking\)/);
 });
+
+test('the chat\'s thinking level also goes with a hand-off and with ask_coding_app', async () => {
+  const { readFileSync } = await import('node:fs');
+  const team = readFileSync(new URL('../src/tools/tasks/team.ts', import.meta.url), 'utf8');
+  const ask = readFileSync(new URL('../src/tools/cli/ask-coding-app.ts', import.meta.url), 'utf8');
+  assert.match(team, /const thinking = currentChatRun\(\)\?\.thinking;/);
+  assert.match(team, /runSubscription\(target\.model, folder, prompt, signal, \{ appToolsOnly: true, thinking \}\)/);
+  assert.match(ask, /readOnly: app === 'codex', thinking: currentChatRun\(\)\?\.thinking \}/);
+});
