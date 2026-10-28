@@ -795,6 +795,14 @@ button.status-item:hover { background:var(--row-hover); color:var(--text); }
 .app-shell .tool-running { margin:0; color:var(--text-3); font-size:11px; }
 .app-shell .worked-summary { color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-shell .worked-body { display:flex; flex-direction:column; gap:8px; margin:4px 0 4px 6px; padding-inline-start:10px; border-inline-start:1px solid var(--stroke-3); }
+/* CH2 item 4 / CH10 item 10: repeated kinds are one line in the folded row and one group when opened. */
+.app-shell .worked-seg { white-space:pre; }
+.app-shell .worked-seg + .worked-seg::before { content:" "; }
+.app-shell .worked-seg[data-error] { color:var(--danger); }
+.app-shell .worked-seg-caret { color:var(--text-4); }
+.app-shell .tool-group[data-error] > .scaffold-row svg { color:var(--danger); }
+.app-shell .tool-group-body { display:flex; flex-direction:column; margin:2px 0 4px 6px; padding-inline-start:10px; border-inline-start:1px solid var(--stroke-3); }
+.app-shell .tool-group-body .tool-row[data-error] .tool-target code { color:var(--danger); }
 .app-shell .thinking-body { margin:2px 0 4px 6px; padding:2px 0 2px 10px; border-inline-start:1px solid var(--stroke-3); font-size:12px; line-height:1.5; color:var(--text-3); }
 .app-shell .thinking-body[data-live] { max-block-size:160px; overflow:auto; }
 .app-shell .thinking-body .md p { margin-block-start:.4rem; }

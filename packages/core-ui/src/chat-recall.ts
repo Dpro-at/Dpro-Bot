@@ -154,6 +154,12 @@ export class ChatRecallController extends Store<RecallState> {
     const h = this.getSnapshot().handoff;
     this.publish({ draft: { done: (h?.done ?? []).join('\n'), left: (h?.left ?? []).join('\n'), next: (h?.next ?? []).join('\n'), questions: (h?.questions ?? []).join('\n') }, handoffNotice: undefined });
   }
+  /** "/note" in the composer: the same edit as the card's Edit, read first so an existing note is never replaced by an empty draft. */
+  async editHandoff() {
+    if (!this.getSnapshot().conversationId || this.getSnapshot().draft) return;
+    if (this.getSnapshot().handoffPhase !== 'ready') await this.loadHandoff();
+    if (this.getSnapshot().handoffPhase === 'ready' && !this.getSnapshot().draft) this.startEdit();
+  }
   editDraft(p: Partial<HandoffDraft>) { const d = this.getSnapshot().draft; if (d) this.publish({ draft: { ...d, ...p } }); }
   cancelEdit() { this.publish({ draft: null }); }
   /** Saves the owner's edit as a new version; the agent's next session starts from it. */

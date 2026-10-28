@@ -19,7 +19,13 @@ export type Conversation = WireConversation;
 export type Project = WireProject;
 /** about: the first words of the agent's description ("Frontend developer"), shown after its name; subAgentOf: whose sub-agent it is. */
 export type AgentChoice = Readonly<{ id: string; name: string; primary?: boolean; about?: string; subAgentOf?: string }>;
-export type ModelOption = Readonly<{ id: string; provider: 'ollama' | 'claude' | 'lmstudio' | 'subscription'; label: string; size: string; variants?: readonly Readonly<{ id: string; label: string }>[] }>;
+export type ModelOption = Readonly<{ id: string; provider: 'ollama' | 'claude' | 'lmstudio' | 'subscription'; label: string; size: string; think?: boolean; variants?: readonly Readonly<{ id: string; label: string; note?: string }>[] }>;
+/** CH3: the Thinking choice applies (Auto and each agent's own pass it where the model can; Claude Code / Codex sessions; a listed model marked think). */
+export const canThink = (model: string, models: readonly ModelOption[]): boolean => {
+  if (model === 'auto' || !model) return true;
+  const base = model.split('/')[0];
+  return /^subscription:(?:claude|codex):[a-f0-9]{32}$/.test(base) || models.some(m => m.id === base && m.think === true);
+};
 export type ConversationsState = Readonly<{
   access: 'ready' | 'denied';
   listPhase: 'idle' | 'loading' | 'ready' | 'error';
@@ -464,7 +470,7 @@ export class ConversationsController {
       let id = this.#state.activeId;
       const named = this.mentioned(message)?.id;
       if (!id) {
-        const c = await this.call('POST', '/api/chat/conversations', { ...(this.#state.model?{model:this.#state.model}:{}), ...(this.#state.mode !== 'auto' ? { mode: this.#state.mode } : {}), ...(this.#state.thinking !== 'normal' ? { thinking: this.#state.thinking } : {}), ...((named ?? this.#state.agentId) ? { agentId: named ?? this.#state.agentId } : {}), ...(this.#state.projectFilter ? { projectId: this.#state.projectFilter } : {}) });
+        const c = await this.call('POST', '/api/chat/conversations', { ...(this.#state.model?{model:this.#state.model}:{}), ...(this.#state.mode !== 'auto' ? { mode: this.#state.mode } : {}), ...(this.#state.thinking !== 'normal' && canThink(this.#state.model, this.#state.models) ? { thinking: this.#state.thinking } : {}), ...((named ?? this.#state.agentId) ? { agentId: named ?? this.#state.agentId } : {}), ...(this.#state.projectFilter ? { projectId: this.#state.projectFilter } : {}) });
         if (!this.live() || seq !== this.#openSeq) return;
         if ((c.status !== 201 && c.status !== 200) || !record(c.body) || !record(c.body.conversation)) throw new SessionFailure('unavailable');
         const conv = c.body.conversation as Conversation;
@@ -682,7 +688,8 @@ export class ConversationsController {
 
   /** CHAT-BUILD-01 stage 3 (CH3): Mode and Thinking are saved for the chat (a new chat takes them on its first message). */
   async setMode(mode: ChatMode) { await this.#setChatField('mode', mode); }
-  async setThinking(thinking: ChatThinking) { await this.#setChatField('thinking', thinking); }
+  /** Only for a model that can think: the saved choice is never changed for one that would ignore it. */
+  async setThinking(thinking: ChatThinking) { if (canThink(this.#state.model, this.#state.models)) await this.#setChatField('thinking', thinking); }
   /** Saved in the same queue as the model choice: a message sent right after a change waits for it (never runs in the old mode). */
   async #setChatField(field: 'mode' | 'thinking', value: string) {
     if (!this.live()) return;

@@ -80,7 +80,7 @@ export function HandoffCard({ c, agentId, agentName }: { c: ChatRecallController
     <h3>Where we left off {!d && <button type="button" className="link-button panel-head-tool" onClick={() => c.startEdit()}>Edit</button>}</h3>
     {d ? <form className="handoff-form" onSubmit={e => { e.preventDefault(); void c.saveHandoff(agentId); }}>
       {(['done', 'left', 'next', 'questions'] as const).map(k => <label key={k}><span>{k === 'done' ? 'Done' : k === 'left' ? 'Left' : k === 'next' ? 'Next' : 'Open questions'}</span>
-        <textarea rows={2} dir="auto" value={d[k]} placeholder="One item per line" onChange={e => c.editDraft({ [k]: e.target.value })}/></label>)}
+        <textarea rows={2} dir="auto" autoFocus={k === 'done'} value={d[k]} placeholder="One item per line" onChange={e => c.editDraft({ [k]: e.target.value })}/></label>)}
       <div className="actions"><button type="submit" className="primary" disabled={s.busy}>Save note</button><button type="button" onClick={() => c.cancelEdit()}>Cancel</button></div>
       {s.handoffNotice && <p className="card-notice" role="alert">{s.handoffNotice}</p>}
     </form>

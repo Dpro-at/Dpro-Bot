@@ -12,10 +12,12 @@ export const subscriptionModel=(value:unknown):value is string=>typeof value==='
 /** The coding app's own model after the slash (subscription:claude/opus, subscription:codex/gpt-6.1-sol), or undefined for its default (CORE-PICKER-02). */
 export const subscriptionVariant=(model:string):string|undefined=>model.match(/\/([a-z0-9][a-z0-9.-]{0,40})$/)?.[1];
 const CLAUDE_VARIANTS=[{id:'fable',label:'Fable'},{id:'opus',label:'Opus'},{id:'sonnet',label:'Sonnet'},{id:'haiku',label:'Haiku'}];
-/** Models the owner can pick for a coding app: Claude Code's aliases; Codex's own list for this account (~/.codex/models_cache.json, visible ones only). */
-export async function subscriptionVariants(kind:SubscriptionKind,home=os.homedir()):Promise<{id:string;label:string}[]>{
+/** CH3: Antigravity's own model keys (agy --model); Default stays the CLI's pick for the account. */
+export const GEMINI_VARIANTS:readonly {id:string;label:string;note:string}[]=[{id:'gemini-3.1-pro',label:'Gemini Pro',note:'Long documents and research'},{id:'gemini-3.8-flash',label:'Gemini Flash',note:'Quick'}];
+/** Models the owner can pick for a coding app: Claude Code's aliases; Codex's own list for this account (~/.codex/models_cache.json, visible ones only); Gemini Pro/Flash. */
+export async function subscriptionVariants(kind:SubscriptionKind,home=os.homedir()):Promise<{id:string;label:string;note?:string}[]>{
  if(kind==='claude')return CLAUDE_VARIANTS;
- if(kind==='gemini')return []; // The installed CLI owns its default model and account availability.
+ if(kind==='gemini')return GEMINI_VARIANTS.map(v=>({...v}));
  try{
   const raw=JSON.parse(await fs.readFile(path.join(home,'.codex','models_cache.json'),'utf8'));const list=Array.isArray(raw?.models)?raw.models:Array.isArray(raw)?raw:[];
   return list.filter((m:any)=>m&&m.visibility==='list'&&typeof m.slug==='string'&&/^[a-z0-9][a-z0-9.-]{0,40}$/.test(m.slug)).slice(0,20)
@@ -61,7 +63,7 @@ export async function subscriptionBinary(kind:SubscriptionKind){
  return null;
 }
 export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?:string,appToolsOnly=false,readOnly=false,editsOnly=false,addDirs:readonly string[]=[]){
- if(kind==='gemini'){if(nativeId)throw Error('session_missing');return ['--input-format','stream-json','--output-format','stream-json','--mode','plan','--sandbox','--disable-slash-commands','--print-timeout','180s',...(variant&&/^[a-z0-9][a-z0-9.-]{0,40}$/.test(variant)?['--model',variant]:[])];}
+ if(kind==='gemini'){if(nativeId)throw Error('session_missing');return ['--input-format','stream-json','--output-format','stream-json','--mode','plan','--sandbox','--disable-slash-commands','--print-timeout','180s',...(variant&&GEMINI_VARIANTS.some(v=>v.id===variant)?['--model',variant]:[])];}
  const args=kind==='claude'?['-p','--output-format','json','--no-session-persistence','--safe-mode','--restricted','--permission-mode','acceptEdits','--permission-prompts','none','--tools','Read,Write,Edit,Glob,Grep','--strict-mcp-config','--mcp-config','{"mcpServers":{}}']:
  ['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','workspace-write','--disable','plugins','--disable','skill_mcp_dependency_install','--json','-'];
  // CHAT-BUILD-01 (K3): a read-only call keeps Codex's shell for reading the project but it may not write anywhere.

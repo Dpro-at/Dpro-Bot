@@ -159,18 +159,60 @@ export function toolView(call: Pick<ToolCall, 'name' | 'input' | 'running'>): To
   return { kind: 'other', verb: v('Using', 'Used'), target: n.replace(/_/g, ' '), args: a };
 }
 
+const KIND_LABEL: Record<ToolKind, [string, string, string]> = {
+  command: ['ran', 'command', 'commands'], read: ['read', 'file', 'files'], write: ['wrote', 'file', 'files'], edit: ['edited', 'file', 'files'],
+  search: ['searched', 'time', 'times'], web: ['opened', 'page', 'pages'], browser: ['used the browser', 'time', 'times'],
+  memory: ['used memory', 'time', 'times'], board: ['updated the board', 'time', 'times'], other: ['used', 'tool', 'tools'],
+};
+const kindCount = (k: ToolKind, n: number) => `${KIND_LABEL[k][0]} ${n} ${n === 1 ? KIND_LABEL[k][1] : KIND_LABEL[k][2]}`;
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : '');
+const kindOf = (c: ToolCall) => toolView({ ...c, running: false }).kind;
+
 /** One line for a group of finished tool calls: "Ran 3 commands, read 2 files, searched 1 time". */
 export function workSummary(parts: readonly Part[]): string {
   const counts = new Map<ToolKind, number>();
-  for (const p of parts) if (p.kind === 'tools') for (const c of p.calls) { const k = toolView({ ...c, running: false }).kind; counts.set(k, (counts.get(k) ?? 0) + 1); }
-  const label: Record<ToolKind, [string, string, string]> = {
-    command: ['ran', 'command', 'commands'], read: ['read', 'file', 'files'], write: ['wrote', 'file', 'files'], edit: ['edited', 'file', 'files'],
-    search: ['searched', 'time', 'times'], web: ['opened', 'page', 'pages'], browser: ['used the browser', 'time', 'times'],
-    memory: ['used memory', 'time', 'times'], board: ['updated the board', 'time', 'times'], other: ['used', 'tool', 'tools'],
-  };
-  const out = [...counts].map(([k, n]) => `${label[k][0]} ${n} ${n === 1 ? label[k][1] : label[k][2]}`);
-  const s = out.join(', ');
-  return s ? s[0].toUpperCase() + s.slice(1) : '';
+  for (const p of parts) if (p.kind === 'tools') for (const c of p.calls) { const k = kindOf(c); counts.set(k, (counts.get(k) ?? 0) + 1); }
+  return cap([...counts].map(([k, n]) => kindCount(k, n)).join(', '));
+}
+
+/** "Ran 6 commands", "Read 1 file". */
+export const groupLabel = (kind: ToolKind, n: number) => cap(kindCount(kind, n));
+
+export type ReasoningPart = Extract<Part, { kind: 'reasoning' }>;
+export type WorkSegment = Readonly<{ kind: ToolKind | 'thought'; label: string; failed: number }>;
+/** CH10 item 10: the folded work row's parts, first-seen order: "Thought for 12s · Ran 6 commands · Read 4 files". */
+export function workSegments(parts: readonly Part[]): WorkSegment[] {
+  const thoughts = parts.filter((p): p is ReasoningPart => p.kind === 'reasoning' && !!p.text.trim());
+  const timed = thoughts.filter(p => p.startedAt !== undefined && p.endedAt !== undefined);
+  const secs = Math.round(timed.reduce((n, p) => n + (p.endedAt! - p.startedAt!), 0) / 1000);
+  const out: WorkSegment[] = thoughts.length ? [{ kind: 'thought', label: !timed.length ? 'Thought' : secs < 1 ? 'Thought briefly' : `Thought for ${duration(secs * 1000)}`, failed: 0 }] : [];
+  const counts = new Map<ToolKind, { n: number; failed: number }>();
+  for (const p of parts) if (p.kind === 'tools') for (const c of p.calls) { const k = kindOf(c); const e = counts.get(k) ?? { n: 0, failed: 0 }; e.n++; if (c.isError) e.failed++; counts.set(k, e); }
+  for (const [k, e] of counts) out.push({ kind: k, label: groupLabel(k, e.n), failed: e.failed });
+  return out;
+}
+
+export type WorkItem = Readonly<{ kind: 'part'; part: Part }> | Readonly<{ kind: 'group'; tool: ToolKind; calls: readonly ToolCall[]; entries: readonly (ToolCall | ReasoningPart)[] }>;
+/**
+ * CH2 item 4: a finished reply's work in its order, with back-to-back calls of
+ * one kind in one group ("Ran 6 commands"). Thinking between two calls of the
+ * same kind stays inside that group, in place; anything else ends the group.
+ */
+export function workGroups(parts: readonly Part[]): WorkItem[] {
+  const out: WorkItem[] = []; let held: ReasoningPart[] = [];
+  const flush = () => { for (const part of held) out.push({ kind: 'part', part }); held = []; };
+  for (const p of parts) {
+    if ((p.kind === 'text' && !p.text.trim()) || p.kind === 'images') continue;
+    if (p.kind === 'reasoning' && out.at(-1)?.kind === 'group') { held.push(p); continue; }
+    if (p.kind !== 'tools') { flush(); out.push({ kind: 'part', part: p }); continue; }
+    for (const c of p.calls) {
+      const k = kindOf(c); const last = out.at(-1);
+      if (last?.kind === 'group' && last.tool === k) { out[out.length - 1] = { ...last, calls: [...last.calls, c], entries: [...last.entries, ...held, c] }; held = []; }
+      else { flush(); out.push({ kind: 'group', tool: k, calls: [c], entries: [c] }); }
+    }
+  }
+  flush();
+  return out;
 }
 
 /** "12s", "1m 05s", "1h 02m". */

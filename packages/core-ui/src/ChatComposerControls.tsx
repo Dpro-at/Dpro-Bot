@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import type { ConversationsController, ModelOption } from './conversations';
+import { canThink } from './conversations';
 import type { ChatMode, ChatThinking } from './conversation-contract.js';
 import { ProjectFolderPicker } from './ProjectFolderPicker';
 import { Sheet } from './desktop-ui';
@@ -22,8 +23,8 @@ export const MODES: readonly { id: ChatMode; name: string; note: string; icon: U
 ];
 export const THINKING: readonly { id: ChatThinking; name: string }[] = [{ id: 'quick', name: 'Quick' }, { id: 'normal', name: 'Normal' }, { id: 'deep', name: 'Deep' }];
 export const COMPOSER_KEYS: readonly [string, string][] = [['Send', 'Enter'], ['New line', '⇧ Enter'], ['Stop', 'Esc'], ['Edit my last message', '↑'], ['New chat', '⌘N'], ['Search chats', '⌘F'], ['Commands', '⌘K'],
-  ['Who answers', '⌘J'], ['Answers with', '⇧⌘M'], ['Mode', '⇧⌘P'], ['Add files', '⌘U'], ['Long message editor', '⇧⌘E'], ['Keys', '⌘/']];
-export const SLASH: readonly { c: string; d: string }[] = [{ c: '/board', d: 'Add this chat to the board' }, { c: '/remember', d: 'Remember the last answer' }, { c: '/export', d: 'Save the chat as a Markdown file' }, { c: '/agent', d: 'Who answers' }, { c: '/model', d: 'Answers with' }];
+  ['Who answers', '⌘J'], ['Answers with', '⇧⌘M'], ['Mode', '⇧⌘P'], ['Add files', '⌘U'], ['Long message editor', '⇧⌘E'], ['Dictate (hold)', '⌥Space'], ['Keys', '⌘/']];
+export const SLASH: readonly { c: string; d: string }[] = [{ c: '/board', d: 'Add this chat to the board' }, { c: '/remember', d: 'Remember the last answer' }, { c: '/export', d: 'Save the chat as a Markdown file' }, { c: '/note', d: 'Edit "Where we left off"' }, { c: '/agent', d: 'Who answers' }, { c: '/model', d: 'Answers with' }];
 const APPS = [{ id: 'subscription:claude', name: 'Claude Code', Icon: ClaudeCodeIcon }, { id: 'subscription:codex', name: 'Codex', Icon: CodexIcon }, { id: 'subscription:gemini', name: 'Gemini', Icon: GeminiIcon }] as const;
 
 /** A small menu above a composer button; Esc or a click outside closes it. Arrows move, Enter picks.
@@ -118,9 +119,9 @@ export function WhoButton({ team, agents, value, label, onChange, open, setOpen 
   </span>;
 }
 
-/** What the model button says: "Auto", "qwen3 8b · Normal", "Claude Code · Sonnet · Deep". */
+/** What the model button says: "Auto", "qwen3 8b", "Claude Code · Sonnet · Deep" (the thinking word only for a model that can think). */
 export function answersLabel(model: string, models: readonly ModelOption[], thinking: ChatThinking): string {
-  const t = thinking === 'normal' ? '' : ` · ${THINKING.find(x => x.id === thinking)!.name}`;
+  const t = thinking === 'normal' || !canThink(model, models) ? '' : ` · ${THINKING.find(x => x.id === thinking)!.name}`;
   if (model === 'auto') return 'Auto';
   if (!model) return 'Each agent’s own';
   const [base, variant = ''] = model.split('/');
@@ -142,7 +143,7 @@ export function ModelButton({ controller, open, setOpen }: { controller: Convers
   const pick = (id: string) => { controller.selectModel(id); setOpen(false); };
   const on = (id: string) => s.model === id || (!!id && s.model.split('/')[0] === id && !s.model.includes('/'));
   const label = answersLabel(s.model, s.models, s.thinking), base = answersLabel(s.model, s.models, 'normal');
-  const think = s.thinking === 'normal' ? '' : THINKING.find(x => x.id === s.thinking)!.name;
+  const thinks = canThink(s.model, s.models), think = s.thinking === 'normal' || !thinks ? '' : THINKING.find(x => x.id === s.thinking)!.name;
   const app = APPS.find(a => s.model.startsWith(a.id));
   return <span className="composer-anchor" data-pop-anchor>
     <button type="button" className="composer-pill" aria-label={`Answers with: ${label}`} title={s.model.startsWith('subscription:') ? 'Answers with (⇧⌘M) · uses your signed-in coding app; Girru tools follow the agent’s grants and approvals; Stop cancels it' : 'Answers with (⇧⌘M)'} aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -154,12 +155,12 @@ export function ModelButton({ controller, open, setOpen }: { controller: Convers
         {local.map(m => <button key={m.id} type="button" role="radio" aria-checked={on(m.id)} className="pop-row" onClick={() => pick(m.id)}><span className="pop-text"><b>{m.label}</b><small>{m.provider === 'lmstudio' ? 'LM Studio' : 'Ollama'}{m.size ? ` · ${m.size}` : ''}</small></span></button>)}</>}
       {apps.map(a => <div key={a.id}><p className="pop-title"><a.Icon size={12}/>{a.name}<span>your plan</span></p>
         <button type="button" role="radio" aria-checked={on(a.id)} className="pop-row" onClick={() => pick(a.id)}><span className="pop-text"><b>Default</b></span></button>
-        {(a.model?.variants ?? []).map(v => <button key={v.id} type="button" role="radio" aria-checked={s.model === `${a.id}/${v.id}`} className="pop-row" onClick={() => pick(`${a.id}/${v.id}`)}><span className="pop-text"><b>{v.label}</b></span></button>)}</div>)}
+        {(a.model?.variants ?? []).map(v => <button key={v.id} type="button" role="radio" aria-checked={s.model === `${a.id}/${v.id}`} className="pop-row" onClick={() => pick(`${a.id}/${v.id}`)}><span className="pop-text"><b>{v.label}</b>{v.note && <small>{v.note}</small>}</span></button>)}</div>)}
       {claude.length > 0 && <><p className="pop-title"><ClaudeCodeIcon size={12}/>Claude (API key)<span>paid</span></p>
         {claude.map(m => <button key={m.id} type="button" role="radio" aria-checked={on(m.id)} className="pop-row" onClick={() => pick(m.id)}><span className="pop-text"><b>{m.label}</b></span></button>)}</>}
-      <div className="pop-think"><span>How deeply it thinks</span>
-        <span className="segmented" role="radiogroup" aria-label="How deeply it thinks">{THINKING.map(t => <button key={t.id} type="button" role="radio" aria-checked={s.thinking === t.id} onClick={() => void controller.setThinking(t.id)}>{t.name}</button>)}</span></div>
-      <p className="pop-note">Only for models that can think longer. Deep is slower and uses more of your plan. Coding apps use your own plan; Girru’s permissions still apply to their tools.</p>
+      {thinks && <div className="pop-think"><span>How deeply it thinks</span>
+        <span className="segmented" role="radiogroup" aria-label="How deeply it thinks">{THINKING.map(t => <button key={t.id} type="button" role="radio" aria-checked={s.thinking === t.id} onClick={() => void controller.setThinking(t.id)}>{t.name}</button>)}</span></div>}
+      <p className="pop-note">{thinks ? 'Deep is slower and uses more of your plan. ' : 'This model answers without thinking longer. '}Coding apps use your own plan; Girru’s permissions still apply to their tools.</p>
     </Pop>
   </span>;
 }

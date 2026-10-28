@@ -48,6 +48,7 @@ export class MicController {
   #rec: { stop(): Promise<Blob> } | null = null;
   #tick: ReturnType<typeof setInterval> | undefined;
   #disposed = false;
+  #opening = false; #held = false; #letGo = false;
   constructor(private readonly client: SessionClient, private readonly onText: (text: string) => void, private readonly device: MicDevice = browserMic) {}
   getSnapshot = () => this.#state;
   subscribe = (fn: () => void) => { this.#listeners.add(fn); return () => { this.#listeners.delete(fn); }; };
@@ -64,10 +65,15 @@ export class MicController {
   }
 
   async start() {
-    if (this.#state.phase !== 'idle') return;
-    try {
-      this.#rec = await this.device.open();
-    } catch { this.publish({ error: 'The microphone is blocked. Allow it for this page and try again.' }); return; }
+    if (this.#state.phase !== 'idle' || this.#opening) return;
+    this.#opening = true; this.#letGo = false;
+    let rec: { stop(): Promise<Blob> };
+    try { rec = await this.device.open(); }
+    catch { this.#opening = false; this.#held = false; this.publish({ error: 'The microphone is blocked. Allow it for this page and try again.' }); return; }
+    this.#opening = false;
+    // Let go (or closed) before the microphone opened: a short tap records nothing.
+    if (this.#letGo || this.#disposed) { this.#letGo = false; await rec.stop().catch(() => null); return; }
+    this.#rec = rec;
     this.publish({ phase: 'recording', seconds: 0, error: undefined });
     this.#tick = setInterval(() => {
       const seconds = this.#state.seconds + 1;
@@ -76,9 +82,15 @@ export class MicController {
     }, 1000);
   }
 
+  /** ⌥Space push-to-talk: recording runs while the keys are held (only when nothing else is recording). */
+  hold() { if (this.#state.phase !== 'idle' || this.#opening || this.#held) return; this.#held = true; void this.start(); }
+  /** The keys were let go: transcribe what was said; before the microphone opened, nothing is recorded. */
+  release() { if (!this.#held) return; this.#held = false; if (this.#opening) this.#letGo = true; else void this.stop(); }
+
   /** Stops recording and transcribes the clip. */
   async stop() {
     if (this.#state.phase !== 'recording' || !this.#rec) return;
+    this.#held = false;
     clearInterval(this.#tick);
     const rec = this.#rec; this.#rec = null;
     this.publish({ phase: 'transcribing' });
@@ -99,7 +111,8 @@ export class MicController {
 
   /** Drops the recording without transcribing it. */
   async cancel() {
-    clearInterval(this.#tick);
+    clearInterval(this.#tick); this.#held = false;
+    if (this.#opening) this.#letGo = true;
     const rec = this.#rec; this.#rec = null;
     if (rec) await rec.stop().catch(() => null);
     if (this.#state.phase === 'recording') this.publish({ phase: 'idle', seconds: 0 });
