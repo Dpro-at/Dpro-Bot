@@ -43,10 +43,13 @@ jobs:
         run: |
           node packages/core-ui/scripts/typecheck.cjs
           (cd packages/backend && npx tsc --noEmit -p .)
+      # Some tests start node with paths relative to their package, so each suite runs from it.
       - name: UI tests
-        run: node --test --test-concurrency=2 --test-timeout=90000 packages/core-ui/tests/*.test.cjs
+        working-directory: packages/core-ui
+        run: node --test --test-concurrency=2 --test-timeout=90000 tests/*.test.cjs
       - name: Desktop tests
-        run: node --test --test-timeout=90000 packages/desktop/test/*.test.cjs
+        working-directory: packages/desktop
+        run: node --test --test-timeout=90000 test/*.test.cjs
       # lmstudio.test.mjs needs a running LM Studio; PostgreSQL tests skip without AGENT_PLAYER_PG_TEST_URL.
       - name: Backend tests
         working-directory: packages/backend
