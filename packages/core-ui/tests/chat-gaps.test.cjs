@@ -66,7 +66,8 @@ test('approval card: the request is read at once (Allow once with no extra step)
   const m = src('ChatMoments.tsx');
   assert.match(m, /useEffect\(\(\) => \{ if \(client && id && state === 'waiting' && !detail\) void review\(\); \}, \[id\]\)/);
   assert.match(m, /label: 'Open in Approvals', icon: 'open', run: onOpenApprovals/);
-  assert.match(m, /'Always allow this… \(Approval rules\)'/);
+  assert.match(m, /'Always allow this… \(What agents may do\)'/);
+  assert.match(m, /alwaysAllow\(detail, onOpenRules \?\? \(\(\) => onOpenApprovals\(\)\)\)/);
   assert.ok(m.indexOf('useEffect(() => { if (client && id') < m.indexOf("if (!client || !id) return null;"), 'hooks before the early return');
   assert.match(src('SignedInShell.tsx'), /onOpenApprovals=\{\(\) => setPage\('approvals'\)\}/);
 });

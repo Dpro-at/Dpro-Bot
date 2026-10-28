@@ -130,3 +130,23 @@ test('a concurrent delegation is refused and the in-process guard is released af
   } finally { resume(); globalThis.fetch = prior; }
   assert.equal((await teamDelegateTool.execute({ agent_id: 'specialist', request: 'Following synthetic task.' }, context)).error, undefined);
 });
+
+test('CH6: a hand-off that cannot answer or runs out of time says why (Stop is not a time-out); nothing calls a model', async () => {
+  db.prepare("INSERT INTO agents_config(id,name,is_primary,provider,model) VALUES('no-model','No model',0,'ollama','')").run();
+  db.prepare("INSERT INTO agents_config(id,name,is_primary,provider,model) VALUES('elsewhere','Elsewhere',0,'openai','synthetic-other')").run();
+  const before = requests.length;
+  const none = await teamDelegateTool.execute({ agent_id: 'no-model', request: 'Synthetic task.' }, context);
+  assert.equal(none.error, 'team_request_refused'); assert.equal(none.details.status, 'no_model');
+  assert.match(none.content[0].text, /^Team request did not finish \(no_model\): /);
+  const other = await teamDelegateTool.execute({ agent_id: 'elsewhere', request: 'Synthetic task.' }, context);
+  assert.equal(other.details.status, 'model_unavailable');
+  assert.equal(requests.length, before);
+  const { teamFailure, DELEGATION_MS } = await import(join(backend, 'src/tools/tasks/team.ts'));
+  assert.equal(DELEGATION_MS, 240000);
+  assert.equal(teamFailure(Error('cancelled'), true, false), 'timed_out');
+  assert.equal(teamFailure(Error('cancelled'), true, true), undefined, 'the owner\'s Stop is not a time-out');
+  assert.equal(teamFailure(Error('model_unavailable'), false, false), 'model_unavailable');
+  assert.equal(teamFailure(Error('team_tool_refused'), false, false), undefined, 'other refusals keep the plain receipt');
+  const refused = await teamDelegateTool.execute({ agent_id: 'missing', request: 'No execution.' }, context);
+  assert.equal(refused.details, undefined, 'an agent it may not reach gets no reason');
+});

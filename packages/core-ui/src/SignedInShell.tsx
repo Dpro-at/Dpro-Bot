@@ -198,7 +198,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <main id="content" className="page-area">
       {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
-        {chat ? <ChatView active={page === 'chat'} titleSlot={titleSlot} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} placeRequest={placeRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
+        {chat ? <ChatView active={page === 'chat'} titleSlot={titleSlot} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} placeRequest={placeRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')} onOpenAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }} onOpenRules={user.role === 'owner' ? (agent, category) => { setApprovalsPlace(r => ({ place: 'perms', agent, category, n: (r?.n ?? 0) + 1 })); setPage('approvals'); } : undefined}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}
           onOpenMemory={(drawerId, memoryId) => { setMemoryFocus(f => ({ drawerId, memoryId, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/> : null}
       </section>

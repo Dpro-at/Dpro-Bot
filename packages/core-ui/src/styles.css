@@ -3173,3 +3173,11 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=add], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=add] { color:#9DB5AA; background:transparent; }
 .shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=del], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=del] { color:#F29BA0; background:transparent; }
 .shell[data-theme="dark"] .app-shell .chat-pane .diff-side[data-kind=empty], .app-shell[data-theme="dark"] .chat-pane .diff-side[data-kind=empty] { background:#111418; }
+
+/* Team moments (2026-10-28) */
+.app-shell .moment-card.handoff .team-moment { margin:2px 0 0; }
+.app-shell .moment-card.team-moment[data-tone="no"] { background:color-mix(in srgb,#F29BA0 9%,transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb,#F29BA0 30%,transparent); }
+.app-shell .moment-card.team-moment[data-tone="no"] > p > svg { color:#D9666E; }
+.shell[data-theme="dark"] .app-shell .moment-card.team-moment[data-tone="no"], .app-shell[data-theme="dark"] .moment-card.team-moment[data-tone="no"] { background:#2A1418; box-shadow:inset 0 0 0 1px #4A2228; color:#F3C9CC; }
+.shell[data-theme="dark"] .app-shell .moment-card.team-moment[data-tone="no"] > p > svg, .app-shell[data-theme="dark"] .moment-card.team-moment[data-tone="no"] > p > svg { color:#F29BA0; }
+.app-shell .perm-choice[data-focus] { border-radius:6px; box-shadow:0 0 0 1px var(--needs); }
