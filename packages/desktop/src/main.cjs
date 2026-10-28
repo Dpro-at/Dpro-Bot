@@ -203,6 +203,17 @@ ipcMain.handle('dpro:choose-project-folders', async event => {
 });
 const fromWelcome = event => mainWindow && event.sender === mainWindow.webContents && mainWindow.webContents.getURL().split('?')[0] === pathToFileURL(path.join(PAGES, 'welcome.html')).href;
 ipcMain.handle('dpro:discover-data', event => fromWelcome(event) ? discovered : []);
+// A project's folder in Finder / Explorer (right-click › Show in Finder), asked for by a window of the app.
+ipcMain.handle('dpro:reveal-folder', async (event, folder) => {
+  const sender = BrowserWindow.fromWebContents(event.sender);
+  if (!appOrigin || !sender || (sender !== mainWindow && !chatWindows.has(sender)) || event.senderFrame !== sender.webContents.mainFrame) return false;
+  let origin = null;
+  try { origin = new URL(event.senderFrame.url).origin; } catch { /* invalid */ }
+  if (origin !== appOrigin || typeof folder !== 'string' || folder.length > 4096 || !path.isAbsolute(folder) || /[\x00-\x1f]/.test(folder)) return false;
+  try { if (!fs.statSync(folder).isDirectory()) return false; } catch { return false; }
+  shell.showItemInFolder(path.join(folder, '.'));
+  return true;
+});
 ipcMain.handle('dpro:find-data', async event => {
   if (!fromWelcome(event)) return { ok: false };
   const result = await dialog.showOpenDialog(mainWindow, { title: 'Choose the folder containing agent-player.db', properties: ['openDirectory', 'showHiddenFiles'] });
