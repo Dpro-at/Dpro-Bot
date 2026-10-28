@@ -73,8 +73,8 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
   return live;
 }
 
-export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue, focusPart }: {
-  onContinue?: () => void; focusPart?: { id: PanelPart; n: number } | null;
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue, focusPart, switcher }: {
+  switcher?: ReactNode; onContinue?: () => void; focusPart?: { id: PanelPart; n: number } | null;
   controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
   onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
   onSchedule: () => void; onAddFolder: () => void;
@@ -166,12 +166,12 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
     else if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') menu.at(e, headerItems);
   };
   return <aside className="chat-panel chat-details" aria-label="Conversation details" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+    {switcher}
     <div className="details-status" role="status">
       <button type="button" className="details-context" aria-expanded={byModel} title="Tokens by model" onClick={() => setByModel(v => !v)}>
         <span>Context {ctx === null ? '—' : `${ctx}%`}</span>{ctx !== null && <meter min={0} max={100} value={ctx} aria-label="How full this chat is"/>}
         {tokens > 0 && <small>{kTokens(tokens)} tokens · by model</small>}</button>
       <span className="details-who">{working.length ? <><Faces names={working}/>{working.length} working</> : waits ? <span className="details-waits">{waits} {waits === 1 ? 'waits' : 'wait'} for you</span> : <>Ready</>}</span>
-      <button type="button" className="row-tool" aria-label="Hide the side panel" title="Hide the side panel (⌥⌘I)" onClick={onClose}><UiIcon name="inspector" size={13}/></button>
     </div>
     {byModel && <div className="details-usage">{live.usage.length ? live.usage.map(u => <div key={u.model}><span>{answersLabel(u.model, s.models, 'normal')}</span><span>{kTokens(u.tokensIn + u.tokensOut)}{localModel(u.model) ? ' · free' : ''}</span></div>) : <p className="panel-quiet">Tokens show here after the first reply.</p>}</div>}
     {shown.length === 1 && !s.turns.length && <p className="panel-quiet">Work, files and helpers show here while the team works.</p>}

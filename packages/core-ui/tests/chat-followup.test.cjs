@@ -30,8 +30,8 @@ test('the chat row menu and the ⋯ menu hold the chat actions; export and board
   const view = src('ChatView.tsx');
   for (const label of ['Rename', 'Open in a new window', 'Continue in another folder…', 'Export…', 'Remember the whole chat', 'Delete…']) assert.ok(view.includes(`label: '${label}'`), label);
   assert.match(view, /aria-label="More for this chat"/);
-  assert.match(view, /aria-label="Add to board" title="Add to board \(⌘B\)">\s*<UiIcon name="board" size=\{14\}\/><\/button>/);
-  assert.match(view, /aria-label="Export" title="Export as Markdown"/);
+  assert.match(view, /aria-label="Add to board" title="Add to board \(⌘B\)">\s*<UiIcon name="board" size=\{15\}\/><\/button>/);
+  assert.match(view, /openKey=\{exportKey\} bare\/>/, 'Export opens from the ⋯ menu (no button of its own)');
   assert.doesNotMatch(view, /<span>Add to board<\/span>|<span>Export<\/span>/);
 });
 

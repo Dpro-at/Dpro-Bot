@@ -234,3 +234,17 @@ test('coding apps: shown in Team with their own Stop; the terminal keeps only yo
   assert.match(panel, /setInterval\(\(\) => setPulse/, 'Team looks again while a reply runs');
   assert.doesNotMatch(src('TerminalPane.tsx'), /agentId|startedBy/, 'no agent tabs in the terminal');
 });
+
+test('CH1 match: the window keeps the board measures (title bar 40, footer 30, sidebar 256, side panel 320, column 768)', () => {
+  const css = src('styles.css'), block = css.slice(css.indexOf('/* CH1 match (2026-10-28)'));
+  assert.match(block, /\.app-shell \{ grid-template-rows:40px minmax\(0,1fr\) 30px; grid-template-columns:256px minmax\(0,1fr\); \}/);
+  assert.match(block, /\.app-shell \.chat-layout\[data-panel\] \{ grid-template-columns:minmax\(0,1fr\) 320px; \}/);
+  assert.match(block, /\.app-shell \.chat-column \{ max-inline-size:768px;/);
+  assert.match(block, /\.app-shell \.chat-composer \{ inline-size:100%; max-inline-size:768px;/);
+  assert.match(block, /--row-open:#24324A/);
+  const shell = src('SignedInShell.tsx'), view = src('ChatView.tsx');
+  assert.match(shell, /<div className="titlebar-tools end" ref=\{setTitleSlot\}\/>/);
+  assert.doesNotMatch(shell, /aria-label="Switch theme"/, 'the theme lives in Settings and Commands');
+  assert.doesNotMatch(view, /className="chat-topbar"|function ProjectBar/, 'no second bar under the title bar');
+  assert.match(view, /<PaneSwitch items=\{paneButtons\} pane=\{pane\} onPane=\{setPane\}\/>/);
+});

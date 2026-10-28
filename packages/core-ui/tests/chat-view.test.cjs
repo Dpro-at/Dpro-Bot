@@ -146,7 +146,7 @@ test('Stop pauses the queue; Send now sends the waiting message', async t => {
   await until(() => !c.getSnapshot().runId);
 });
 
-test('projects: create one, chats go into it, the chat shows the project bar; moving and removing', async t => {
+test('projects: create one, chats go into it, the side panel shows its folder and branch; moving and removing', async t => {
   const { c } = await fixture(t);
   await c.load(); await new Promise(r => setTimeout(r, 30));
   assert.match(await c.createProject({ name: 'App', folder: '', repoUrl: '' }), /working folder/);
@@ -161,9 +161,9 @@ test('projects: create one, chats go into it, the chat shows the project bar; mo
   assert.equal(conv.projectId, p.id);
   await until(() => c.getSnapshot().git?.branch === 'feature/panel');
   const html = view(c);
-  assert.match(html, /aria-label="Project"/);
+  assert.doesNotMatch(html, /aria-label="Project"/, 'CH1: no second bar under the title bar; the place shows in the side panel');
   assert.match(html, /\/fiction\/app/);
-  assert.match(html, /⎇ feature\/panel/);
+  assert.match(html, /feature\/panel/);
   assert.match(html, /github\.com\/example\/app/);
   const list = renderToStaticMarkup(React.createElement(ConversationList, { controller: c, onOpen: () => {} }));
   // CHAT-BUILD-01 stage 2: the project is a folder with its chats; New project is in the list's menus.
