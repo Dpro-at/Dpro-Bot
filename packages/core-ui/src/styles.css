@@ -2961,3 +2961,77 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .chat-composer-row { min-block-size:28px; }
 .app-shell .statusbar .status-item { line-height:13px; }
 .shell[data-theme="dark"] .app-shell .statusbar .status-item[aria-current=page], .app-shell[data-theme="dark"] .statusbar .status-item[aria-current=page] { background:#232832; color:var(--text); }
+/* CH3 match (2026-10-28): the composer measured against its board. */
+.app-shell .chat-composer .chat-attachments { display:flex; flex-wrap:wrap; gap:6px; margin:0; padding:0; }
+.app-shell .attach-chip { block-size:26px; box-sizing:border-box; gap:6px; padding:0 4px 0 8px; border-radius:7px; font-size:12px; box-shadow:none; background:color-mix(in srgb,var(--accent) 12%,var(--canvas)); color:var(--text-2); }
+.app-shell .attach-chip small { font-size:12px; color:var(--text-4); }
+.app-shell .attach-chip .row-tool { inline-size:16px; block-size:16px; min-block-size:16px; padding:0; color:var(--text-3); }
+.app-shell .attach-chip.bad { padding-inline-end:8px; color:#C2303C; background:color-mix(in srgb,#C2303C 10%,var(--canvas)); }
+.shell[data-theme="dark"] .app-shell .attach-chip, .app-shell[data-theme="dark"] .attach-chip { background:#222A38; color:#C3C8D1; }
+.shell[data-theme="dark"] .app-shell .attach-chip.bad, .app-shell[data-theme="dark"] .attach-chip.bad { background:#2A1418; color:#F29BA0; }
+.app-shell .chat-composer .composer-attach, .app-shell .chat-composer .mic-button { inline-size:28px; block-size:28px; min-block-size:28px; padding:0; border-radius:7px; background:transparent; box-shadow:none; color:var(--muted); margin:0; }
+.app-shell .chat-composer .composer-attach:hover, .app-shell .chat-composer .mic-button:hover { background:color-mix(in srgb,var(--text) 7%,transparent); color:var(--text); }
+.app-shell .composer-pill, .app-shell .composer-chip { min-block-size:28px; block-size:28px; font-size:12.5px; color:var(--text-2); gap:6px; }
+.app-shell .composer-pill .composer-face { inline-size:18px; block-size:18px; font-size:8px; font-weight:700; color:#08090C; background:#A7A1BD; }
+.pill-chev { display:inline-flex; transform:rotate(90deg); color:var(--text-3); }
+.pill-muted { color:var(--text-4); }
+.app-shell .chat-composer .round-button { inline-size:30px; block-size:30px; min-block-size:30px; }
+.app-shell .chat-composer .round-button:not(:disabled):not(.stop) { background:#3B7BF6; color:#fff; }
+.app-shell .attach-chip.bad .attach-name { max-inline-size:28rem; }
+.app-shell .composer-pill, .app-shell .composer-chip { color:color-mix(in srgb,var(--text) 92%,transparent); }
+/* CH2 match (2026-10-28): messages measured against their board. */
+.app-shell .chat-user .user-bubble { max-inline-size:520px; padding:10px 14px; border-radius:14px 14px 4px 14px; box-shadow:none; font-size:13.5px; line-height:1.5; }
+.shell[data-theme="dark"] .app-shell .chat-user .user-bubble, .app-shell[data-theme="dark"] .chat-user .user-bubble { background:#20252E; }
+.app-shell .user-bubble[data-folded] .turn-text { max-block-size:calc(13.5px * 1.5 * 3); }
+.user-files { display:flex; flex-wrap:wrap; gap:6px; margin-block-start:8px; }
+.user-file { display:inline-flex; align-items:center; gap:5px; block-size:22px; padding:0 8px; border-radius:6px; font-size:11.5px; color:var(--text-2); background:color-mix(in srgb,var(--text) 7%,transparent); }
+.shell[data-theme="dark"] .app-shell .user-file, .app-shell[data-theme="dark"] .user-file { background:#232832; color:#C3C8D1; }
+.app-shell .chat-user .user-actions { gap:6px; }
+.app-shell .chat-user .user-actions .ghost-action { color:var(--text-4); }
+.app-shell .chat-assistant { position:relative; padding-inline-start:40px; }
+.app-shell .chat-assistant > .reply-writer { margin:0 0 8px; font-size:12.5px; font-weight:600; gap:0; min-block-size:20px; }
+.app-shell .chat-assistant > .reply-writer .avatar { position:absolute; inset-inline-start:0; inset-block-start:0; inline-size:30px; block-size:30px; font-size:13px; font-weight:700; color:#08090C; background:#A7A1BD; }
+.reply-meta { font-weight:400; color:var(--text-4); white-space:pre; }
+.app-shell .chat-assistant .moment-line { font-size:12.5px; color:var(--text-3); }
+.app-shell .scaffold.worked > .scaffold-row { block-size:30px; inline-size:100%; padding:0 10px; gap:8px; border-radius:8px; font-size:12.5px; color:var(--text-3); background:color-mix(in srgb,var(--text) 4%,transparent); }
+.shell[data-theme="dark"] .app-shell .scaffold.worked > .scaffold-row, .app-shell[data-theme="dark"] .scaffold.worked > .scaffold-row { background:#13171E; color:#9AA4B2; }
+.app-shell .scaffold.worked .worked-summary { color:inherit; }
+.app-shell .scaffold.worked .caret { margin-inline-start:auto; }
+.app-shell .chat-assistant .chat-prose { font-size:13.5px; line-height:1.6; }
+.app-shell .chat-assistant { display:flex; flex-direction:column; gap:8px; }
+.app-shell .chat-assistant > * { margin-block:0; }
+/* CH8 match (2026-10-28): the side panel measured against its board. */
+.pane-switch > button { font-size:12px; }
+.shell[data-theme="dark"] .app-shell .pane-switch, .app-shell[data-theme="dark"] .pane-switch { background:#0B0D10; }
+.shell[data-theme="dark"] .app-shell .pane-switch > button[aria-checked=true], .app-shell[data-theme="dark"] .pane-switch > button[aria-checked=true] { background:#222833; color:#E8EDF3; }
+.app-shell .details-status { align-items:center; gap:12px; padding:10px 12px; border-radius:10px; }
+.shell[data-theme="dark"] .app-shell .details-status, .app-shell[data-theme="dark"] .details-status { background:#12151B; }
+.app-shell .details-context { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:4px; padding:0; }
+.details-context-line { display:flex; font-size:12px; color:var(--text-3); }
+.details-context-line b { margin-inline-start:auto; font-weight:600; color:var(--text); }
+.app-shell .details-context small { font-size:11px; color:var(--text-3); }
+.app-shell .details-context meter { inline-size:100%; block-size:5px; }
+.details-divider { inline-size:1px; align-self:stretch; background:color-mix(in srgb,var(--text) 10%,transparent); }
+.app-shell .details-who { font-size:12.5px; color:var(--text); display:flex; align-items:center; gap:6px; }
+.app-shell .details-part { border:0; padding:0 0 10px; }
+.app-shell .details-head { min-block-size:24px; }
+.app-shell .details-fold { font-size:11.5px; font-weight:600; color:var(--text-3); }
+.app-shell .details-head .link-button, .app-shell .details-head .panel-side { font-size:11.5px; font-weight:400; color:var(--text-4); }
+.app-shell .chat-details .details-row { min-block-size:0; padding:5px 8px; gap:10px; border-radius:8px; font-size:12.5px; }
+.app-shell .chat-details .details-row b { font-weight:400; font-size:12.5px; }
+.app-shell .chat-details .details-row small { font-size:11px; color:var(--text-4); }
+.app-shell .chat-details .details-row .panel-end { font-size:11.5px; color:var(--text-3); }
+.app-shell .chat-details .details-icon { inline-size:24px; block-size:24px; flex:none; display:grid; place-items:center; border-radius:7px; color:var(--text-2); background:color-mix(in srgb,var(--text) 12%,transparent); }
+.app-shell .chat-details .details-row .composer-face { inline-size:24px; block-size:24px; flex:none; font-size:10.5px; font-weight:700; color:#08090C; background:#A3AFC6; }
+.app-shell .chat-details .details-stop { inline-size:24px; block-size:24px; min-block-size:24px; border-radius:7px; background:color-mix(in srgb,var(--text) 7%,transparent); }
+.app-shell .chat-details .link-button { font-size:11.5px; }
+.git-rows { display:flex; flex-direction:column; gap:2px; }
+.git-tile[data-state=open] { color:var(--pr-open); background:color-mix(in srgb,var(--pr-open) 14%,transparent) !important; }
+.git-tile[data-state=merged] { color:var(--pr-merged); background:color-mix(in srgb,var(--pr-merged) 14%,transparent) !important; }
+.git-tile[data-state=closed] { color:var(--pr-closed); background:color-mix(in srgb,var(--pr-closed) 14%,transparent) !important; }
+.git-tile[data-state=draft] { color:var(--pr-draft); }
+.git-rows .git-note { margin:2px 8px 0; font-size:11px; color:var(--text-4); line-height:1.45; }
+.git-rows .git-links { display:flex; gap:12px; margin:4px 8px 0; }
+.git-rows code { font-size:10.5px; }
+.git-rows .pop-text a { color:inherit; text-decoration:none; }
+.git-rows .pop-text a:hover { text-decoration:underline; }

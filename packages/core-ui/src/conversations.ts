@@ -89,6 +89,17 @@ export function withAttachments(message: string, files: readonly { name: string;
   return [message || 'Please look at the attached files.', ...blocks].join('\n\n');
 }
 
+
+/** The typed text of a sent message and the files attached to it (withAttachments puts each file after the text). */
+export function splitAttached(content: string): { text: string; files: { name: string; kb: number }[] } {
+  const files: { name: string; kb: number }[] = [];
+  const re = /\n\nAttached file `([^`\n]{1,200})`:\n(```|~~~~)[^\n]*\n([\s\S]*?)\n\2(?=\n\nAttached file `|$)/g;
+  const first = content.search(/\n\nAttached file `[^`\n]{1,200}`:\n(```|~~~~)/);
+  if (first < 0) return { text: content, files };
+  for (const m of content.slice(first).matchAll(re)) files.push({ name: m[1], kb: Math.max(1, Math.ceil(m[3].length / 1024)) });
+  return files.length ? { text: content.slice(0, first), files } : { text: content, files: [] };
+}
+
 const emptyState = (): ConversationsState => Object.freeze({
     access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: 'auto', projects: [], projectFilter: '', git: null,
     runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], images: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',

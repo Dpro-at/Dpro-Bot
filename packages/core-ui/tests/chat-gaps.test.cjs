@@ -248,3 +248,25 @@ test('CH1 match: the window keeps the board measures (title bar 40, footer 30, s
   assert.doesNotMatch(view, /className="chat-topbar"|function ProjectBar/, 'no second bar under the title bar');
   assert.match(view, /<PaneSwitch items=\{paneButtons\} pane=\{pane\} onPane=\{setPane\}\/>/);
 });
+
+test('CH2: a sent message shows its files as chips (the text stays the typed text)', () => {
+  const { withAttachments, splitAttached } = require('../src/conversations.ts');
+  const sent = withAttachments('Check these.', [{ name: 'brand-kit.md', text: '# Brand\nteal' }, { name: 'notes.txt', text: 'a ```fence``` inside' }]);
+  assert.deepEqual(splitAttached(sent), { text: 'Check these.', files: [{ name: 'brand-kit.md', kb: 1 }, { name: 'notes.txt', kb: 1 }] });
+  assert.deepEqual(splitAttached('Just text with `code`'), { text: 'Just text with `code`', files: [] });
+  const view = src('ChatView.tsx');
+  assert.match(view, /aria-label="Edit and send again"/);
+  assert.match(view, /<Copy text=\{text\} label="Copy"\/>/);
+  assert.match(view, /className="reply-meta"/);
+});
+
+test('CH3 + CH8: chips inside the box, a red chip per file that cannot be read; the side panel as quiet rows', () => {
+  const view = src('ChatView.tsx'), css = src('styles.css');
+  assert.ok(view.indexOf('className="chat-attachments"') > view.indexOf('<form className="chat-composer"'), 'files sit inside the box');
+  assert.match(view, /className="attach-chip bad" role="alert"/);
+  assert.match(view, /const errors = files\.map\(f => controller\.attach\(\[f\]\)\)/);
+  assert.doesNotMatch(view, /className="fine-print">Uses your signed-in coding app/);
+  assert.match(view, /<section className="git-rows"/);
+  assert.match(css, /\.app-shell \.chat-composer \.round-button \{ inline-size:30px; block-size:30px;/);
+  assert.match(css, /\.app-shell \.chat-details \.details-icon \{ inline-size:24px; block-size:24px;/);
+});

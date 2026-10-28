@@ -169,8 +169,10 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
     {switcher}
     <div className="details-status" role="status">
       <button type="button" className="details-context" aria-expanded={byModel} title="Tokens by model" onClick={() => setByModel(v => !v)}>
-        <span>Context {ctx === null ? '—' : `${ctx}%`}</span>{ctx !== null && <meter min={0} max={100} value={ctx} aria-label="How full this chat is"/>}
-        {tokens > 0 && <small>{kTokens(tokens)} tokens · by model</small>}</button>
+        <span className="details-context-line">Context<b>{ctx === null ? '—' : `${ctx}%`}</b></span>
+        {tokens > 0 && <small>{kTokens(tokens)} tokens · by model ›</small>}
+        <meter min={0} max={100} value={ctx ?? 0} aria-label="How full this chat is"/></button>
+      <span className="details-divider" aria-hidden="true"/>
       <span className="details-who">{working.length ? <><Faces names={working}/>{working.length} working</> : waits ? <span className="details-waits">{waits} {waits === 1 ? 'waits' : 'wait'} for you</span> : <>Ready</>}</span>
     </div>
     {byModel && <div className="details-usage">{live.usage.length ? live.usage.map(u => <div key={u.model}><span>{answersLabel(u.model, s.models, 'normal')}</span><span>{kTokens(u.tokensIn + u.tokensOut)}{localModel(u.model) ? ' · free' : ''}</span></div>) : <p className="panel-quiet">Tokens show here after the first reply.</p>}</div>}
