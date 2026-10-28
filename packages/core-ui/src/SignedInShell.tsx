@@ -80,7 +80,10 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [chat, setChat] = useState<ConversationsController>();
   // A window opened for one chat (⌘O) carries `#chat=<id>`: open that chat once the list is in.
   useEffect(() => { const c = new ConversationsController(client); setChat(c); const linked = chatFromLink(window.location.hash);
-    void c.load().then(() => { if (!linked) return; try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* keep going */ } void c.open(linked); }); return () => c.dispose(); }, [client]);
+    void c.load().then(() => {
+      // CH11: after sign-in the window opens where the owner left it (the last open chat, if it still exists).
+      if (!linked) { void c.restoreLast(); return; }
+      try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch { /* keep going */ } void c.open(linked); }); return () => c.dispose(); }, [client]);
   // CHAT-PRO-02 D: search inside the chats (the sidebar box and the ⌘K box each keep their own).
   const [search, setSearch] = useState<{ side: ChatSearchController; palette: ChatSearchController }>();
   useEffect(() => { const s = { side: new ChatSearchController(client), palette: new ChatSearchController(client) }; setSearch(s); return () => { s.side.dispose(); s.palette.dispose(); }; }, [client]);
@@ -192,7 +195,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <main id="content" className="page-area">
       {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
-        {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')}
+        {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}
           onOpenMemory={(drawerId, memoryId) => { setMemoryFocus(f => ({ drawerId, memoryId, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/> : null}
       </section>

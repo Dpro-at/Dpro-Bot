@@ -61,6 +61,7 @@ export function conversationPath(path) {
   if (path === '/api/chat/project-folders') return { kind: 'folder-picker' };
   if (path === SIDEBAR_PATH) return { kind: 'sidebar' };
   if (path === '/api/chat/panel') return { kind: 'panel' };
+  if (path === '/api/chat/last') return { kind: 'last' };
   if (path === PROJECTS_PATH) return { kind: 'projects' };
   let pm = /^\/api\/chat\/projects\/([^/?#]+)$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project', id: pm[1] } : null;
@@ -113,6 +114,7 @@ export function allowedConversation(method, path, body) {
   if (p.kind === 'chat-stop') return method === 'POST' && body === undefined;
   if (p.kind === 'chat-schedule') return method === 'GET' || method === 'DELETE' ? body === undefined : method === 'PUT' && scheduleOk(body);
   if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
+  if (p.kind === 'last') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['last']) && (body.last === null || uuid(body.last));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
   if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-pr', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
@@ -186,7 +188,7 @@ function project(x) {
     folders: Array.isArray(x.folders) ? x.folders.slice(0, 8).filter(f => record(f) && typeof f.path === 'string').map(f => ({ path: f.path.slice(0, 1024), write: f.write === true })) : [] };
 }
 
-const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid', 'invalid_variable'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused'], 429: ['rate_limited', 'stt_busy'] };
+const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid', 'invalid_variable'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused', 'folder_fixed'], 429: ['rate_limited', 'stt_busy'] };
 
 /** A link on github.com only (repository, branch or compare page). */
 const githubUrl = x => typeof x === 'string' && x.length <= 600 && /^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}(\/[A-Za-z0-9._~%\/-]*(\.\.\.[A-Za-z0-9._~%\/-]+)?(\?expand=1)?)?$/.test(x);
@@ -264,6 +266,7 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
   if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
   if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
+  if (p.kind === 'last') return { last: uuid(body.last) ? body.last : null };
   if (p.kind === 'sidebar') {
     const v = record(body.sidebar) ? body.sidebar : {};
     return { sidebar: { order: sectionList(v.order) ? v.order : SIDEBAR_SECTIONS, hidden: sectionList(v.hidden) ? v.hidden : ['archived'], folded: folderList(v.folded) ? v.folded : [] } };

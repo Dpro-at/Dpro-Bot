@@ -80,7 +80,10 @@ async function ask(userId: string, owner: string, repo: string, branch: string):
   try {
     const pulls = await get(`${base}/pulls?state=all&per_page=5&sort=created&direction=desc&head=${encodeURIComponent(`${owner}:${branch}`)}`);
     if (!Array.isArray(pulls)) return { pr: null, unavailable: true };
-    const p = pulls.find((x): x is Record<string, unknown> => record(x) && record(x.head) && x.head.ref === branch);
+    // Only a pull request opened from this repository's own branch (not a fork's branch of the same name).
+    const fromHere = (x: Record<string, unknown>) => record(x.head) && record(x.head.repo) && record(x.head.repo.owner)
+      && String(x.head.repo.owner.login).toLowerCase() === owner.toLowerCase();
+    const p = pulls.find((x): x is Record<string, unknown> => record(x) && record(x.head) && x.head.ref === branch && fromHere(x));
     if (!p) return { pr: null };
     const number = p.number, url = p.html_url, sha = record(p.head) ? p.head.sha : null;
     // The link is this pull request on github.com (a renamed repository links under its new name).
@@ -98,8 +101,10 @@ async function ask(userId: string, owner: string, repo: string, branch: string):
 }
 
 /** The project's branch and GitHub repository from its git state, then the lookup. */
-export async function projectPullRequest(userId: string, git: { branch: string | null; remote: string | null }): Promise<PrLookup> {
+export async function projectPullRequest(userId: string, git: { branch: string | null; remote: string | null; defaultBranch?: string | null }): Promise<PrLookup> {
   const gh = githubRepo(git.remote);
   if (!gh || !git.branch || git.branch === 'HEAD') return { pr: null };
+  // The default branch is where pull requests land, not one of them: an old PR from it would mislead.
+  if (git.branch === (git.defaultBranch ?? (['main', 'master'].includes(git.branch) ? git.branch : null))) return { pr: null };
   return lookupPullRequest(userId, gh.owner, gh.repo, git.branch);
 }

@@ -65,7 +65,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, terminalRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -360,6 +360,14 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
           : 'Write it the way you would tell a person. The team picks who does what.'}</p>
+        {/* CH5 first run: nothing on this computer can answer yet (no local model, no key, no signed-in coding app). */}
+        {mode === 'live' && owner && s.modelsLoaded && s.models.length === 0 && onSetUpModel && <div className="first-run-card" role="note">
+          <UiIcon name="cpu" size={20}/>
+          <b>Your team needs a model to think with</b>
+          <span>Girru found no model on this computer yet. Sign in to Claude Code or Codex, or set up a free local model.</span>
+          <span className="first-run-actions"><button type="button" className="primary" onClick={onSetUpModel}>Use a coding app…</button>
+            <button type="button" className="ghost-action" onClick={onSetUpModel}>Local model…</button></span>
+        </div>}
         <div className="chat-suggestions">{SUGGESTIONS.map(t =>
           <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}>{t}</button>)}</div>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">

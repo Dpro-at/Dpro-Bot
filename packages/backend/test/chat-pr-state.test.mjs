@@ -64,7 +64,7 @@ const fake = async (url, init) => {
   if (typeof reply === 'number') return { ok: false, status: reply, json: async () => ({}) };
   return { ok: true, status: 200, url: answer.finalUrl ?? url, json: async () => reply ?? {} };
 };
-const pull = (over = {}) => ({ number: 38, title: 'Chat review fixes', state: 'open', draft: false, merged_at: null, html_url: 'https://github.com/acme/widgets/pull/38', head: { ref: 'feature/colours', sha: SHA }, ...over });
+const pull = (over = {}) => ({ number: 38, title: 'Chat review fixes', state: 'open', draft: false, merged_at: null, html_url: 'https://github.com/acme/widgets/pull/38', head: { ref: 'feature/colours', sha: SHA, repo: { owner: { login: 'acme' } } }, ...over });
 const reset = (a) => { answer = a; calls = []; pr.setGitHubForTests(fake, () => now); };
 const get = async (user = 'p-owner') => call(user, 'GET', `/api/chat/projects/${project.id}/pr`);
 
@@ -106,8 +106,15 @@ test('a branch without a pull request, a pull request of another repo and an unk
   assert.equal((await get()).json().pr.url, 'https://github.com/acme/gadgets/pull/38', 'a renamed repository links under its new name');
   reset({ '/pulls': [pull()], finalUrl: 'https://evil.example/repos/acme/widgets/pulls' });
   assert.deepEqual((await get()).json(), { pr: null, unavailable: true }, 'a redirect away from GitHub’s API is refused');
-  reset({ '/pulls': [pull({ head: { ref: 'other', sha: SHA } })] });
+  reset({ '/pulls': [pull({ head: { ref: 'other', sha: SHA, repo: { owner: { login: 'acme' } } } })] });
   assert.deepEqual((await get()).json(), { pr: null });
+  reset({ '/pulls': [pull({ head: { ref: 'feature/colours', sha: SHA, repo: { owner: { login: 'someone-else' } } } })] });
+  assert.deepEqual((await get()).json(), { pr: null }, 'a fork’s branch of the same name is not this branch');
+  reset({ '/pulls': [pull({ head: { ref: 'main', sha: SHA, repo: { owner: { login: 'acme' } } } })] });
+  for (const git of [{ branch: 'main', remote: 'https://github.com/acme/widgets.git', defaultBranch: 'main' }, { branch: 'main', remote: 'https://github.com/acme/widgets.git' }, { branch: 'trunk', remote: 'https://github.com/acme/widgets.git', defaultBranch: 'trunk' }]) {
+    assert.deepEqual(await pr.projectPullRequest('p-owner', git), { pr: null }, `the default branch ${git.branch} shows no pull request`);
+  }
+  assert.equal(calls.length, 0, 'the default branch: nothing is asked');
   reset({ '/pulls': [pull()] });
   assert.deepEqual(await pr.projectPullRequest('p-owner', { branch: 'main', remote: 'https://gitlab.com/acme/widgets.git' }), { pr: null });
   assert.equal(calls.length, 0, 'not on GitHub: nothing is asked');

@@ -28,6 +28,7 @@ import {projectFolders} from '../../services/project-folder-picker.js';
  * memory drawers, personality).
  */
 
+import path from 'node:path';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticateActiveUser } from '../../auth/route-guards.js';
 import {
@@ -377,6 +378,17 @@ const starting = new Set<string>();
 const STALE_AFTER_MS = 10_000;
 /** Chats whose files an Undo or Redo is putting back right now: no new turn starts meanwhile. */
 const undoing = new Set<string>();
+/** True when a chat that already has messages would move to a project on another folder (or out of / into one). */
+async function folderFixed(userId: string, id: string, projectId: string | null): Promise<boolean> {
+  const c = await findConversation(userId, id);
+  if (!c || (c.projectId ?? null) === (projectId ?? null)) return false;
+  const started = await q.one<{ n: number }>('SELECT COUNT(*) AS n FROM chat_messages WHERE session_id = ?', id);
+  if (!Number(started?.n)) return false;
+  const folderOf = async (pid: string | null) => (pid ? (await findProject(userId, pid))?.folder ?? null : null);
+  const [from, to] = await Promise.all([folderOf(c.projectId ?? null), folderOf(projectId ?? null)]);
+  return !from || !to || path.resolve(from) !== path.resolve(to);
+}
+
 export async function chatConversationRoutes(fastify: FastifyInstance) {
   if (!approvalListener) {
     approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); });
@@ -402,6 +414,19 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const sidebar = sidebarPrefs({ ...sidebarPrefs(await getPref(caller(request), 'chat-sidebar')), ...(request.body as object) });
     await setPref(caller(request), 'chat-sidebar', sidebar);
     return { sidebar };
+  });
+
+  // CH11: the chat that was open, so the next sign-in opens it again (per person, any device).
+  fastify.get('/api/chat/last', async (request) => {
+    const id = await getPref(caller(request), 'chat-last');
+    return { last: typeof id === 'string' && ID.test(id) && await findConversation(caller(request), id) ? id : null };
+  });
+  fastify.put('/api/chat/last', async (request: Req, reply) => {
+    const b: any = request.body;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'last') || !(b.last === null || (typeof b.last === 'string' && ID.test(b.last)))) return bad(reply, 'last must be a chat id or null');
+    if (b.last !== null && !(await findConversation(caller(request), b.last))) return notFound(reply);
+    await setPref(caller(request), 'chat-last', b.last);
+    return { last: b.last };
   });
 
   // ---- CHAT-BUILD-01 stage 4 (CH8): the side panel's data ----
@@ -496,6 +521,9 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.thinking !== undefined && !(CHAT_THINKING as readonly unknown[]).includes(b.thinking)) return bad(reply, 'thinking must be quick, normal or deep');
     if (b.queued !== undefined && (!Array.isArray(b.queued) || b.queued.length > 20 || b.queued.some((x: any) => !x || typeof x !== 'object' || Object.keys(x).some((k) => k !== 'key' && k !== 'text') || typeof x.key !== 'string' || !ID.test(x.key) && !/^[A-Za-z0-9-]{8,64}$/.test(x.key) || typeof x.text !== 'string' || !x.text.trim() || x.text.length > MESSAGE_CHARS))) return bad(reply, 'queued must be up to 20 { key, text } messages');
     if (b.projectId !== undefined && b.projectId !== null && (typeof b.projectId !== 'string' || !(await findProject(caller(request), b.projectId)))) return bad(reply, 'unknown project');
+    // CH5: the folder is fixed after the first message; moving keeps working only between projects on the same folder
+    // (Continue in another folder… starts a new chat for anything else).
+    if (b.projectId !== undefined && await folderFixed(caller(request), request.params.id!, b.projectId)) return reply.code(409).send({ code: 'folder_fixed', error: 'This chat already worked in its folder. Continue in another folder starts a new chat there.' });
     const c = await patchConversation(caller(request), request.params.id!, { title: cleanTitle(b.title), pinned: b.pinned, projectId: b.projectId, model: b.model, archived: b.archived, mode: b.mode, thinking: b.thinking, queued: b.queued === undefined ? undefined : await queuedSafe(caller(request), request.params.id!, b.queued) });
     return c ? { conversation: c } : notFound(reply);
   });

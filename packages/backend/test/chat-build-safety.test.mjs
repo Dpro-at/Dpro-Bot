@@ -262,6 +262,36 @@ test('stage 3: projects keep added folders; variables are encrypted, listed by n
   assert.deepEqual(await (await import(join(backendDir, 'src/services/project-variables.ts'))).listVariables('b-owner', p.id), [], 'variables go with the project');
 });
 
+test('the chat that was open is kept per person; only an existing chat of the caller', async () => {
+  const c = await newConversation();
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/last')).json(), { last: null });
+  assert.equal((await call('b-owner', 'PUT', '/api/chat/last', { last: c.id })).statusCode, 200);
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/last')).json(), { last: c.id });
+  assert.deepEqual((await call('b-other', 'GET', '/api/chat/last')).json(), { last: null }, 'another person keeps their own');
+  assert.equal((await call('b-other', 'PUT', '/api/chat/last', { last: c.id })).statusCode, 404, 'not someone else’s chat');
+  for (const body of [{}, { last: '../x' }, { last: c.id, more: 1 }]) assert.equal((await call('b-owner', 'PUT', '/api/chat/last', body)).statusCode, 400);
+  assert.equal((await call('b-owner', 'DELETE', `/api/chat/conversations/${c.id}`)).statusCode, 200);
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/last')).json(), { last: null }, 'a deleted chat is not opened');
+  assert.equal((await call('b-owner', 'PUT', '/api/chat/last', { last: null })).statusCode, 200);
+});
+
+test('the folder is fixed after the first message: moving to a project on another folder is refused', async () => {
+  const { mkdtempSync } = await import('node:fs');
+  const one = (await call('b-owner', 'POST', '/api/chat/projects', { name: 'One', folder: mkdtempSync(join(dir, 'one-')) })).json().project;
+  const two = (await call('b-owner', 'POST', '/api/chat/projects', { name: 'Two', folder: mkdtempSync(join(dir, 'two-')) })).json().project;
+  const c = (await call('b-owner', 'POST', '/api/chat/conversations', { projectId: one.id })).json().conversation;
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, { projectId: two.id })).statusCode, 200, 'no message yet: it may still move');
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, { projectId: one.id })).statusCode, 200);
+  const { addUserMessage } = await import(join(backendDir, 'src/repositories/chat-conversations.ts'));
+  await addUserMessage(c.id, 'Start here', rid());
+  for (const projectId of [two.id, null]) {
+    const r = await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, { projectId });
+    assert.equal(r.statusCode, 409, `to ${projectId ?? 'no project'}`);
+    assert.equal(r.json().code, 'folder_fixed');
+  }
+  assert.equal((await call('b-owner', 'PUT', `/api/chat/conversations/${c.id}`, { projectId: one.id, pinned: true })).statusCode, 200, 'same project: other changes still save');
+});
+
 test('stage 4: a chat on a schedule sends its message at the time, once; the list shows the next run', async () => {
   const c = await newConversation();
   const sched = await import(join(backendDir, 'src/services/chat-schedules.ts'));
