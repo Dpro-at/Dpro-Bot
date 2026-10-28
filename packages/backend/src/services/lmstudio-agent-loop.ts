@@ -24,7 +24,7 @@ import type { ToolResult } from '../tools/types.js';
 
 export interface CompatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
+  content: string | ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[];
   tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
 }
@@ -33,7 +33,7 @@ export interface LmStudioLoopOptions {
   /** OpenAI-compatible base, e.g. http://127.0.0.1:1234/v1 */
   url: string;
   model: string;
-  messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+  messages: { role: 'system' | 'user' | 'assistant'; content: string; images?: { type: string; data: string }[] }[];
   tools: ApiTool[];
   execute: (name: string, args: Record<string, unknown>) => Promise<ToolResult>;
   write: (frame: LoopFrame) => void;
@@ -66,7 +66,8 @@ export async function runLmStudioAgentLoop(o: LmStudioLoopOptions): Promise<{ st
   const fetchImpl = o.fetchImpl ?? fetch;
   const now = o.now ?? Date.now;
   const maxSteps = o.maxSteps ?? LOCAL_MAX_STEPS;
-  const messages: CompatMessage[] = o.messages.map((m) => ({ role: m.role, content: m.content }));
+  // CHAT-GAPS-01: a message with images becomes text plus data-URL image parts (OpenAI-compatible).
+  const messages: CompatMessage[] = o.messages.map((m) => ({ role: m.role, content: m.images?.length ? [{ type: 'text' as const, text: m.content }, ...m.images.map((i) => ({ type: 'image_url' as const, image_url: { url: `data:${i.type};base64,${i.data}` } }))] : m.content }));
   const tools = o.tools.length ? toOllamaTools(o.tools) : undefined;
   let step = 0;
   let answer = '';

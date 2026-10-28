@@ -10,7 +10,8 @@ export type Part =
   | Readonly<{ kind: 'text'; text: string }>
   | Readonly<{ kind: 'tools'; step: number; calls: readonly ToolCall[] }>
   | Readonly<{ kind: 'steer'; text: string; step: number }>
-  | Readonly<{ kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit'; text?: string }>;
+  | Readonly<{ kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit' | 'images_not_seen'; text?: string }>
+  | Readonly<{ kind: 'images'; images: readonly Readonly<{ id: string; type: string; name: string }>[] }>;
 export type TurnStatus = 'running' | 'complete' | 'stopped' | 'error';
 export type Turn = Readonly<{
   key: string; role: 'user' | 'assistant'; content: string; parts: readonly Part[]; status: TurnStatus;
@@ -38,13 +39,14 @@ export function liveTurn(runId: string, now: number, agentId?: string): Turn {
 function fromWirePart(p: WirePart): Part {
   if (p.kind === 'tools') return { kind: 'tools', step: p.step, calls: p.calls.map(c => ({ ...c, running: false })) };
   if (p.kind === 'reasoning') return p.ms !== undefined ? { kind: 'reasoning', text: p.text, startedAt: 0, endedAt: p.ms } : { kind: 'reasoning', text: p.text };
-  if (p.kind === 'steer' || p.kind === 'notice') return p;
+  if (p.kind === 'steer' || p.kind === 'notice' || p.kind === 'images') return p;
   return { kind: 'text', text: p.text };
 }
 
 /** A stored message as a transcript turn. */
 export function fromWire(m: WireMessage): Turn {
-  const parts = m.role === 'assistant' ? (m.parts?.length ? m.parts.map(fromWirePart) : m.content ? [{ kind: 'text' as const, text: m.content }] : []) : [];
+  // A message you sent keeps only its images (CHAT-GAPS-01); a reply keeps all its parts.
+  const parts = m.role === 'assistant' ? (m.parts?.length ? m.parts.map(fromWirePart) : m.content ? [{ kind: 'text' as const, text: m.content }] : []) : (m.parts ?? []).filter(p => p.kind === 'images').map(fromWirePart);
   return Object.freeze({ key: m.id, role: m.role === 'user' ? 'user' : 'assistant', content: m.content, parts, status: m.status, runId: m.runId, durationMs: m.durationMs, lastSeq: 0, ...(m.code ? { code: m.code } : {}), ...(m.agentId ? { agentId: m.agentId } : {}), ...(m.changes ? { changes: m.changes } : {}) });
 }
 
@@ -100,7 +102,7 @@ export function applyEvent(turn: Turn, e: RunEvent, received: number): Turn {
       parts.push({ kind: 'steer', text: e.content, step: e.step });
       break;
     case 'notice':
-      if ((e.code === 'injection' || e.code === 'summarized' || e.code === 'plan_limit') && !parts.some(p => p.kind === 'notice' && p.code === e.code)) parts.push({ kind: 'notice', code: e.code, ...(e.text ? { text: e.text } : {}) });
+      if ((e.code === 'injection' || e.code === 'summarized' || e.code === 'plan_limit' || e.code === 'images_not_seen') && !parts.some(p => p.kind === 'notice' && p.code === e.code)) parts.push({ kind: 'notice', code: e.code, ...(e.text ? { text: e.text } : {}) });
       break;
     case 'end':
       closeReasoning();

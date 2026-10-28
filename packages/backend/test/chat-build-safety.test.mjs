@@ -262,6 +262,32 @@ test('stage 3: projects keep added folders; variables are encrypted, listed by n
   assert.deepEqual(await (await import(join(backendDir, 'src/services/project-variables.ts'))).listVariables('b-owner', p.id), [], 'variables go with the project');
 });
 
+test('images: saved with the chat (checked by their bytes), kept on the message, sent to a model that can see, removed with the chat', async () => {
+  const { existsSync } = await import('node:fs');
+  const c = await newConversation();
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), randomBytes(64)]).toString('base64');
+  const up = await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/images`, { data: png, name: 'screen/shot.png' });
+  assert.equal(up.statusCode, 201, up.body);
+  const img = up.json().image;
+  assert.equal(img.type, 'image/png'); assert.equal(img.name, 'screen shot.png');
+  for (const body of [{ data: Buffer.from('<svg onload=alert(1)>').toString('base64') }, { data: 'not base64!' }, { data: png, path: '/etc' }]) assert.equal((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/images`, body)).statusCode, 400, JSON.stringify(body).slice(0, 40));
+  assert.equal((await call('b-other', 'POST', `/api/chat/conversations/${c.id}/images`, { data: png })).statusCode, 404, 'not someone else’s chat');
+  assert.equal((await call('b-other', 'GET', `/api/chat/conversations/${c.id}/images/${img.id}`)).statusCode, 404);
+  assert.equal((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/images/${img.id}`)).json().image.data, png);
+  assert.equal((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId: rid(), message: 'x', images: ['f'.repeat(32)] })).statusCode, 400, 'only images of this chat');
+  const before = bodies.length, runId = rid();
+  assert.equal((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId, message: 'What is in the picture?', images: [img.id] })).statusCode, 202);
+  await ended(runId);
+  const sent = JSON.parse(bodies.slice(before).find((x) => x.includes('What is in the picture?')));
+  assert.deepEqual(sent.messages.at(-1).images, [png], 'the local model gets the image');
+  const user = (await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/messages?limit=5`)).json().messages.find((m) => m.role === 'user');
+  assert.deepEqual(user.parts, [{ kind: 'images', images: [{ id: img.id, type: 'image/png', name: 'screen shot.png' }] }]);
+  const folder = join(dir, '.data', 'chat-images', c.id);
+  assert.ok(existsSync(folder));
+  assert.equal((await call('b-owner', 'DELETE', `/api/chat/conversations/${c.id}`)).statusCode, 200);
+  assert.equal(existsSync(folder), false, 'removed with the chat');
+});
+
 test('chat settings: the done-in-the-background notice is on by default and saved per person', async () => {
   assert.deepEqual((await call('b-owner', 'GET', '/api/chat/settings')).json(), { settings: { notifyDone: true } });
   assert.equal((await call('b-owner', 'PUT', '/api/chat/settings', { notifyDone: false })).statusCode, 200);

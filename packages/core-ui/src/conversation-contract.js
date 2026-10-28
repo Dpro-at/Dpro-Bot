@@ -41,6 +41,11 @@ const num = x => (Number.isFinite(x) && x >= 0 ? Math.round(x) : undefined);
 export const TRANSCRIBE_PATH = '/api/chat/transcribe';
 /** Base64 characters for the largest clip the backend takes (6 MB of audio). */
 export const MAX_AUDIO_CHARS = Math.ceil((6 * 1024 * 1024) / 3) * 4;
+/** CHAT-GAPS-01: one image (base64) up to 5 MB, up to 4 per message. */
+export const MAX_IMAGE_CHARS = Math.ceil((5 * 1024 * 1024) / 3) * 4;
+export const MAX_IMAGES = 4;
+const IMAGE_ID = /^[a-f0-9]{32}$/;
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 export const STT_LANGUAGES = ['auto', 'ar', 'en', 'de'];
 
 /** CHAT-BUILD-01 stage 2 (CH9): the chat sidebar's sections, order and folded projects, per person. */
@@ -86,6 +91,10 @@ export function conversationPath(path) {
   // CHAT-BUILD-01 stage 4 (CH8): the side panel's data for one chat.
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/(usage|team|schedule|stop)$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: `chat-${m[2]}`, id: m[1] } : null;
+  m = /^\/api\/chat\/conversations\/([^/?#]+)\/images$/.exec(path);
+  if (m) return uuid(m[1]) ? { kind: 'images', id: m[1] } : null;
+  m = /^\/api\/chat\/conversations\/([^/?#]+)\/images\/([a-f0-9]{32})$/.exec(path);
+  if (m) return uuid(m[1]) ? { kind: 'image', id: m[1], image: m[2] } : null;
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/runs$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: 'runs', id: m[1] } : null;
   m = /^\/api\/chat\/runs\/([^/?#]+)\/events(?:\?after=(0|[1-9]\d{0,8}))?$/.exec(path);
@@ -119,7 +128,7 @@ export function allowedConversation(method, path, body) {
   if (p.kind === 'last') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['last']) && (body.last === null || uuid(body.last));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
-  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-pr', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables'].includes(p.kind);
+  if (method === 'GET') return body === undefined && ['list', 'messages', 'events', 'projects', 'project-git', 'project-pr', 'project-changes', 'project-diff', 'project-tree', 'project-file', 'transcribe', 'variables', 'image'].includes(p.kind);
   if (method === 'POST' && p.kind === 'transcribe') return record(body) && onlyKeys(body, ['audio', 'language']) && typeof body.audio === 'string' && body.audio.length > 0 && body.audio.length <= MAX_AUDIO_CHARS && /^[A-Za-z0-9+/]+={0,2}$/.test(body.audio)
     && (body.language === undefined || STT_LANGUAGES.includes(body.language));
   if (method === 'DELETE') return body === undefined && (p.kind === 'one' || p.kind === 'project' || p.kind === 'variable');
@@ -133,7 +142,9 @@ export function allowedConversation(method, path, body) {
     && (body.name === undefined || (title(body.name) && body.name.trim().length > 0)) && (body.folder === undefined || body.folder === null || folderOk(body.folder)) && (body.repoUrl === undefined || body.repoUrl === null || repoOk(body.repoUrl));
   if (method === 'POST' && p.kind === 'list') return record(body) && onlyKeys(body, ['title', 'agentId', 'projectId', 'model', 'mode', 'thinking']) && (body.title === undefined || title(body.title)) && (body.agentId === undefined || agentId(body.agentId)) && (body.projectId === undefined || uuid(body.projectId)) && savedModel(body.model)
     && (body.mode === undefined || CHAT_MODES.includes(body.mode)) && (body.thinking === undefined || CHAT_THINKING.includes(body.thinking));
-  if (method === 'POST' && p.kind === 'runs') return record(body) && onlyKeys(body, ['runId', 'message', 'model', 'agentId']) && (body.agentId === undefined || agentId(body.agentId)) && validRunId(body.runId) && text(body.message, MAX_MESSAGE) && body.message.trim().length > 0
+  if (method === 'POST' && p.kind === 'images') return record(body) && onlyKeys(body, ['data', 'name']) && typeof body.data === 'string' && body.data.length > 0 && body.data.length <= MAX_IMAGE_CHARS && /^[A-Za-z0-9+/]+={0,2}$/.test(body.data) && (body.name === undefined || (typeof body.name === 'string' && body.name.length <= 200));
+  if (method === 'GET' && p.kind === 'image') return body === undefined;
+  if (method === 'POST' && p.kind === 'runs') return record(body) && onlyKeys(body, ['runId', 'message', 'model', 'agentId', 'images']) && (body.images === undefined || (Array.isArray(body.images) && body.images.length <= MAX_IMAGES && body.images.every(x => typeof x === 'string' && IMAGE_ID.test(x)))) && (body.agentId === undefined || agentId(body.agentId)) && validRunId(body.runId) && text(body.message, MAX_MESSAGE) && body.message.trim().length > 0
     && (body.model === undefined || (typeof body.model === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(body.model)));
   if (method === 'POST' && p.kind === 'stop') return body === undefined;
   if (method === 'PUT' && p.kind === 'one') return record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['title', 'pinned', 'projectId', 'model', 'archived', 'mode', 'thinking', 'queued']) && (body.projectId === undefined || body.projectId === null || uuid(body.projectId)) && (body.title === undefined || body.title === null || title(body.title)) && (body.pinned === undefined || typeof body.pinned === 'boolean') && (body.archived === undefined || typeof body.archived === 'boolean') && savedModel(body.model)
@@ -161,7 +172,7 @@ function call(x) {
     ...(typeof x.isError === 'boolean' ? { isError: x.isError } : {}), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}), ...(typeof x.approvalId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(x.approvalId) ? { approvalId: x.approvalId } : {}) };
 }
 /** CHAT-BUILD-01 stage 5: notices kept with a reply, and their codes. */
-const KEPT_NOTICES = ['injection', 'summarized', 'plan_limit'];
+const KEPT_NOTICES = ['injection', 'summarized', 'plan_limit', 'images_not_seen'];
 
 function part(x) {
   if (!record(x)) throw Error('protocol');
@@ -169,6 +180,7 @@ function part(x) {
   if (x.kind === 'reasoning') return { kind: 'reasoning', text: str(x.text, 1000000), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}) };
   if (x.kind === 'tools' && Array.isArray(x.calls) && x.calls.length <= 200) return { kind: 'tools', step: num(x.step) ?? 0, calls: x.calls.map(call) };
   if (x.kind === 'steer') return { kind: 'steer', text: str(x.text, 4000), step: num(x.step) ?? 0 };
+  if (x.kind === 'images' && Array.isArray(x.images) && x.images.length <= MAX_IMAGES) return { kind: 'images', images: x.images.filter(i => record(i) && typeof i.id === 'string' && IMAGE_ID.test(i.id) && IMAGE_TYPES.includes(i.type)).map(i => ({ id: i.id, type: i.type, name: str(i.name, 120) })) };
   if (x.kind === 'notice' && KEPT_NOTICES.includes(x.code)) return { kind: 'notice', code: x.code, ...(typeof x.text === 'string' ? { text: x.text.slice(0, x.code === 'summarized' ? 2400 : 300) } : {}) };
   return null;
 }
@@ -190,7 +202,7 @@ function project(x) {
     folders: Array.isArray(x.folders) ? x.folders.slice(0, 8).filter(f => record(f) && typeof f.path === 'string').map(f => ({ path: f.path.slice(0, 1024), write: f.write === true })) : [] };
 }
 
-const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid', 'invalid_variable'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused', 'folder_fixed'], 429: ['rate_limited', 'stt_busy'] };
+const ERROR_CODES = { 503: ['stt_unavailable', 'checkpoint_unavailable'], 500: ['stt_failed'], 400: ['invalid_request', 'invalid_project', 'bad_path', 'no_folder', 'stt_invalid', 'invalid_variable', 'invalid_image'], 404: ['not_found'], 409: ['conversation_busy', 'run_id_reused', 'folder_fixed'], 429: ['rate_limited', 'stt_busy'] };
 
 /** A link on github.com only (repository, branch or compare page). */
 const githubUrl = x => typeof x === 'string' && x.length <= 600 && /^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}(\/[A-Za-z0-9._~%\/-]*(\.\.\.[A-Za-z0-9._~%\/-]+)?(\?expand=1)?)?$/.test(x);
@@ -268,6 +280,8 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
   if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
   if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
+  if (p.kind === 'images') { const v = record(body.image) ? body.image : {}; if (typeof v.id !== 'string' || !IMAGE_ID.test(v.id) || !IMAGE_TYPES.includes(v.type)) throw Error('protocol'); return { image: { id: v.id, type: v.type, name: str(v.name, 120), size: num(v.size) ?? 0 } }; }
+  if (p.kind === 'image') { const v = record(body.image) ? body.image : {}; if (typeof v.id !== 'string' || !IMAGE_ID.test(v.id) || !IMAGE_TYPES.includes(v.type) || typeof v.data !== 'string' || v.data.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/]+={0,2}$/.test(v.data)) throw Error('protocol'); return { image: { id: v.id, type: v.type, name: str(v.name, 120), data: v.data } }; }
   if (p.kind === 'chat-settings') return { settings: { notifyDone: !(record(body.settings) && body.settings.notifyDone === false) } };
   if (p.kind === 'last') return { last: uuid(body.last) ? body.last : null };
   if (p.kind === 'sidebar') {
@@ -286,7 +300,7 @@ export function projectRunEvent(x) {
 /** Typed reasons a run may end with (CHAT-PRO-02 G: LM Studio not running). */
 const END_CODES = ['model_unavailable', 'local_model_missing', 'lmstudio_not_running', 'subscription_org_blocked'];
 /** Notices a running turn may show (CHAT-BUILD-01); never part of the answer. */
-const NOTICE_CODES = ['rate_limited', 'claude_key_missing', 'local_model_slow', 'injection', 'summarized', 'plan_limit'];
+const NOTICE_CODES = ['rate_limited', 'claude_key_missing', 'local_model_slow', 'injection', 'summarized', 'plan_limit', 'images_not_seen'];
 function projectEvent(x) {
   if (!record(x) || !Number.isSafeInteger(x.seq) || x.seq < 1) throw Error('protocol');
   const seq = x.seq;

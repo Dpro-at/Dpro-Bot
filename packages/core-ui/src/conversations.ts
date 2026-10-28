@@ -4,7 +4,7 @@
 // and a queue of messages typed while the agent is still working.
 import { SessionFailure } from './session-failure';
 import type { SessionClient } from './session';
-import { MAX_MESSAGE, MAX_MESSAGE_BYTES, SIDEBAR_PATH, validRunId } from './conversation-contract.js';
+import { MAX_IMAGES, MAX_IMAGE_CHARS, MAX_MESSAGE, MAX_MESSAGE_BYTES, SIDEBAR_PATH, validRunId } from './conversation-contract.js';
 import { DEFAULT_PREFS, readPrefs } from './chat-sidebar-prefs';
 import { notifyDone } from './ChatMoments';
 import type { SidebarPrefs } from './chat-sidebar-prefs';
@@ -48,6 +48,8 @@ export type ConversationsState = Readonly<{
   queue: readonly { key: string; text: string }[];
   /** Text files attached to the next message (read in the browser). */
   attachments: readonly { name: string; text: string }[];
+  /** CHAT-GAPS-01: images waiting to be sent with the next message (base64, checked again on the server). */
+  images: readonly { key: string; name: string; type: string; data: string }[];
   /** After Stop the queue waits for the owner (Send now) instead of going on its own. */
   queuePaused: boolean;
   /** CHAT-PRO-02 D: a message to scroll to and highlight once (from search); `n` changes per request. */
@@ -89,7 +91,7 @@ export function withAttachments(message: string, files: readonly { name: string;
 
 const emptyState = (): ConversationsState => Object.freeze({
     access: 'ready', listPhase: 'idle', conversations: [], activeId: null, threadPhase: 'empty', turns: [], draft: '', agentId: '', replyAgent: '', agents: [], models: [], model: 'auto', projects: [], projectFilter: '', git: null,
-    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',
+    runId: null, starting: false, stopping: false, reconnecting: false, queue: [], queuePaused: false, attachments: [], images: [], focus: null, hasEarlier: false, loadingEarlier: false, sidebar: DEFAULT_PREFS, mode: 'auto', thinking: 'normal',
 });
 
 export class ConversationsController {
@@ -146,6 +148,19 @@ export class ConversationsController {
     return null;
   }
   detach(name: string) { this.publish({ attachments: this.#state.attachments.filter(f => f.name !== name) }); }
+  /** CHAT-GAPS-01: images for the next message (PNG, JPEG, GIF, WebP; up to 4, 5 MB each). */
+  attachImages(files: readonly { name: string; type: string; data: string }[]): string | null {
+    const next = [...this.#state.images];
+    for (const f of files) {
+      if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(f.type)) return `${f.name}: only PNG, JPEG, GIF and WebP images can be attached.`;
+      if (f.data.length > MAX_IMAGE_CHARS) return `${f.name} is too big (an image can be up to 5 MB).`;
+      if (next.length >= MAX_IMAGES) return `Up to ${MAX_IMAGES} images go with one message.`;
+      next.push({ key: this.newId(), name: f.name.slice(0, 120), type: f.type, data: f.data });
+    }
+    this.publish({ images: next });
+    return null;
+  }
+  detachImage(key: string) { this.publish({ images: this.#state.images.filter(i => i.key !== key) }); }
 
   /** The last sent message (↑ in an empty composer). */
   recall(): string | undefined { return this.#history.at(-1); }
@@ -408,7 +423,9 @@ export class ConversationsController {
   /** Sends the draft (or `text`); while the agent works, the message waits in the queue. */
   async send(text?: string) {
     const files = text === undefined ? this.#state.attachments : [];
-    const message = withAttachments((text ?? this.#state.draft).trim(), files);
+    const images = text === undefined ? this.#state.images : [];
+    const typed = text ?? this.#state.draft;
+    const message = withAttachments((text ?? this.#state.draft).trim() || (images.length ? `(${images.length === 1 ? 'An image' : `${images.length} images`} attached)` : ''), files);
     if (!this.live() || !message) return;
     // CHAT-BUILD-01: never refuse silently; say why and keep the text in the box.
     if (message.length > MAX_MESSAGE || new TextEncoder().encode(JSON.stringify(message)).length > MAX_MESSAGE_BYTES) {
@@ -417,6 +434,7 @@ export class ConversationsController {
     }
     if(this.#pendingModelWrites)await this.#modelWrites;if(!this.live())return;
     if(this.#state.activeId&&this.#modelSaveFailures.has(this.#state.activeId)){this.publish({notice:'The model choice was not saved. Choose it again before sending.'});return;}
+    if ((this.#state.runId || this.#state.starting) && images.length) { this.publish({ notice: 'Images go with a message once the team is done with this one. Send them after the reply.' }); return; }
     if (this.#state.runId || this.#state.starting) {
       this.publish({ queue: [...this.#state.queue, { key: this.newId(), text: message }], ...(text === undefined ? { draft: '' } : {}) });
       this.#saveQueue(this.#state.activeId, this.#state.queue);
@@ -428,7 +446,7 @@ export class ConversationsController {
     try { runId = `run-${this.newId()}`; } catch { this.publish({ notice: 'A secure id is not available here. Nothing was sent.' }); return; }
     if (!validRunId(runId)) return;
     const optimistic = userTurn(`pending:${runId}`, message, runId, true);
-    this.publish({ starting: true, notice: undefined, turns: [...this.#state.turns, optimistic], threadPhase: 'ready', ...(text === undefined ? { draft: '', attachments: [] } : {}) });
+    this.publish({ starting: true, notice: undefined, turns: [...this.#state.turns, optimistic], threadPhase: 'ready', ...(text === undefined ? { draft: '', attachments: [], images: [] } : {}) });
     try {
       let id = this.#state.activeId;
       const named = this.mentioned(message)?.id;
@@ -439,13 +457,26 @@ export class ConversationsController {
         const conv = c.body.conversation as Conversation;
         id = conv.id;
         this.publish({ activeId: id, conversations: [conv, ...this.#state.conversations.filter(x => x.id !== id)] });
+        this.rememberLast(id);
       }
       // CHAT-PRO-02 I: "@Name" or the reply picker chooses who writes this reply.
       const convAgent = this.#state.conversations.find(x => x.id === id)?.agentId ?? (this.#state.agentId || null);
       const writer = named ?? (this.#state.replyAgent || undefined);
       const agentForRun = writer && writer !== convAgent ? writer : undefined;
       if (named && named !== this.#state.replyAgent && this.#state.activeId) this.publish({ replyAgent: named === convAgent ? '' : named });
-      const body = { runId, message, ...(this.#state.model ? { model: this.#state.model } : {}), ...(agentForRun ? { agentId: agentForRun } : {}) };
+      // CHAT-GAPS-01: images are saved with the chat first; the message names them.
+      const imageIds: string[] = [];
+      for (const img of images) {
+        const u = await this.call('POST', `/api/chat/conversations/${id}/images`, { data: img.data, name: img.name });
+        if (!this.live() || seq !== this.#openSeq) return;
+        if (u.status !== 201 || !record(u.body) || !record(u.body.image) || typeof u.body.image.id !== 'string') {
+          this.publish({ starting: false, turns: this.#state.turns.filter(t => t !== optimistic), draft: this.#state.draft || typed, attachments: files, images,
+            notice: `${img.name} could not be attached${record(u.body) && typeof u.body.error === 'string' ? `: ${u.body.error}` : '.'} Nothing was sent.` });
+          return;
+        }
+        imageIds.push(u.body.image.id);
+      }
+      const body = { runId, message, ...(this.#state.model ? { model: this.#state.model } : {}), ...(agentForRun ? { agentId: agentForRun } : {}), ...(imageIds.length ? { images: imageIds } : {}) };
       // CHAT-BUILD-01: a lost answer is retried with the same runId; the server returns the accepted turn instead of a second one.
       let r: Awaited<ReturnType<typeof this.call>> | undefined;
       for (let attempt = 0; !r; attempt++) {

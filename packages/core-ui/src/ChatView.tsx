@@ -9,7 +9,7 @@ import {DocumentEditor} from './DocumentEditor';
 import { RecoveryApprovals } from './RecoveryApprovals';
 import { ChatAvatar } from './ChatAvatar';
 import {CodingSessions} from './CodingSessions';
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { ConversationsController, ModelOption } from './conversations';
 import { AgentPanel } from './AgentPanel';
@@ -144,9 +144,12 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const onFiles = async (list: FileList | null) => {
     if (!list?.length) return;
     try {
-      if([...list].some(f=>/^(image|audio|video)\//.test(f.type)||/\.(pdf|zip|gz|png|jpe?g|gif|webp|mp4|mov|mp3|wav)$/i.test(f.name))){setAttachError('This chat attaches text and code files. Images, PDFs and other binary files are not supported here yet.');return;}
+      // CHAT-GAPS-01: images go to a model that can see; other binary files are still refused.
+      const pics=[...list].filter(f=>/^image\/(png|jpeg|gif|webp)$/.test(f.type));
+      if(pics.length){const read=await Promise.all(pics.map(f=>new Promise<{name:string;type:string;data:string}>((ok,no)=>{const r=new FileReader();r.onload=()=>ok({name:f.name,type:f.type,data:String(r.result).replace(/^data:[^,]*,/,'')});r.onerror=()=>no(r.error);r.readAsDataURL(f);})));setAttachError(controller.attachImages(read));if(pics.length===list.length){if(picker.current)picker.current.value='';return;}}
+      if([...list].some(f=>!pics.includes(f)&&(/^(image|audio|video)\//.test(f.type)||/\.(pdf|zip|gz|png|jpe?g|gif|webp|mp4|mov|mp3|wav|svg)$/i.test(f.name)))){setAttachError('This chat attaches text and code files and PNG, JPEG, GIF or WebP images. PDFs and other binary files are not supported here yet.');return;}
       if([...list].some(f=>f.size>2_000_000)){setAttachError('Choose smaller text files. Each attachment can contain up to 60,000 characters.');return;}
-      const files = await Promise.all([...list].map(async f => ({ name: f.name, text: await f.text() })));
+      const files = await Promise.all([...list].filter(f=>!pics.includes(f)).map(async f => ({ name: f.name, text: await f.text() })));
       setAttachError(controller.attach(files));
     } catch { setAttachError('The file could not be read.'); }
     if (picker.current) picker.current.value = '';
@@ -434,7 +437,9 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           <button type="button" className="ghost-action" aria-label="Remove from the queue" onClick={() => controller.removeQueued(q.key)}><UiIcon name="trash" size={13}/></button>
         </li>)}
       </ul>}
-      {(s.attachments.length > 0 || attachError) && <div className="chat-attachments" aria-label="Attached files">
+      {(s.attachments.length > 0 || s.images.length > 0 || attachError) && <div className="chat-attachments" aria-label="Attached files">
+        {s.images.map(i => <span key={i.key} className="attach-chip image" dir="ltr"><img src={`data:${i.type};base64,${i.data}`} alt="" className="attach-thumb"/><span className="attach-name">{i.name}</span>
+          <button type="button" className="row-tool" aria-label={`Remove ${i.name}`} onClick={() => controller.detachImage(i.key)}><UiIcon name="trash" size={11}/></button></span>)}
         {s.attachments.map(f => <span key={f.name} className="attach-chip" dir="ltr"><button type="button" className="attachment-preview" title={`Read ${f.name}`} onClick={()=>setAttachmentPreview(f.name)}><UiIcon name="file" size={12}/>{f.name}</button><small>{Math.ceil(f.text.length / 1000)}k</small>
           <button type="button" className="row-tool" aria-label={`Remove ${f.name}`} onClick={() => controller.detach(f.name)}><UiIcon name="trash" size={11}/></button></span>)}
         {attachError && <span className="attach-error" role="alert">{attachError}</span>}
@@ -453,7 +458,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           onChange={e => controller.edit(e.target.value)} onPaste={e=>{if(e.clipboardData.files.length){e.preventDefault();void onFiles(e.clipboardData.files);}}} onKeyDown={onKeyDown} disabled={s.access === 'denied'}/>
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
-            accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*"/>
+            accept=".txt,.md,.csv,.json,.yml,.yaml,.xml,.toml,.ini,.log,.ts,.tsx,.js,.jsx,.mjs,.cjs,.py,.rb,.go,.rs,.java,.php,.sh,.sql,.html,.css,text/*,image/png,image/jpeg,image/gif,image/webp"/>
           {!s.activeId && onChooseContext && <ProjectChip controller={controller} onNewProject={() => setProjectSheet({ id: null })}/>}
           <PlusButton onFiles={() => picker.current?.click()} onLong={() => setLongDraft(true)}/>
           <ModeButton value={s.mode} onChange={m => void controller.setMode(m)} open={popover === 'mode'} setOpen={v => setPopover(v ? 'mode' : null)}/>
@@ -642,6 +647,20 @@ function ProjectBar({ name, folder, repoUrl, git }: { name: string; folder: stri
 }
 
 /** The user's message: right-aligned, pinned while its answer scrolls; long text folds. */
+/** CH2: an image sent in this chat, read from the chat (never from the internet). */
+function ChatImage({ id, name }: { id: string; name: string }) {
+  const { client, conversationId } = useContext(MomentsContext);
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!client || !conversationId) return;
+    let live = true;
+    void client.request({ method: 'GET', path: `/api/chat/conversations/${conversationId}/images/${id}` } as never)
+      .then(r => { const v = (r.body as { image?: { type: string; data: string } } | null)?.image; if (live && r.status === 200 && v) setSrc(`data:${v.type};base64,${v.data}`); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [client, conversationId, id]);
+  return src ? <img className="user-image" src={src} alt={name} title={name}/> : <span className="user-image placeholder" title={name}><UiIcon name="image" size={14}/></span>;
+}
+
 function UserMessage({ turn, onRemember, onKey, highlight }: { turn: Turn; onRemember?: () => void; onKey?: (id: string) => void; highlight?: boolean }) {
   const [open, setOpen] = useState(false);
   // The pinned bubble stays short (3 lines) so the answer under it stays readable.
@@ -651,6 +670,7 @@ function UserMessage({ turn, onRemember, onKey, highlight }: { turn: Turn; onRem
       <p className="sr-only">You</p>
       <div className="turn-text" dir="auto">{splitSecrets(turn.content).map((p, i) => p.kind === 'text' ? p.text
         : <SecretChip key={i} type={p.type} id={p.id} onOpen={onKey}/>)}</div>
+      {turn.parts.map((p, i) => p.kind === 'images' ? <div key={i} className="user-images">{p.images.map(img => <ChatImage key={img.id} id={img.id} name={img.name}/>)}</div> : null)}
     </div>
     <div className="user-actions">
       {long && <button type="button" className="chat-more" onClick={() => setOpen(v => !v)}>{open ? 'Show less' : 'Show all'}</button>}
@@ -846,6 +866,7 @@ function PartView({ part, live = false, last = false }: { part: Part; live?: boo
   if (part.kind === 'reasoning') return part.text.trim() ? <Thinking part={part} live={live && last && part.endedAt === undefined}/> : null;
   if (part.kind === 'steer') return <SteerLine part={part}/>;
   if (part.kind === 'notice') return <NoticeCard part={part}/>;
+  if (part.kind === 'images') return null;
   return <ToolStep calls={part.calls} live={live}/>;
 }
 

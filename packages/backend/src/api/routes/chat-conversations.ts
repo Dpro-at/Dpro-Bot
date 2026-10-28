@@ -48,6 +48,7 @@ import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { CheckpointError, changedFiles, lineCounts, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
 import { changesSomething } from '../../tools/registry.js';
 import { projectPullRequest } from '../../services/github-pr-state.js';
+import { ChatImageError, MAX_IMAGES_PER_MESSAGE, MAX_IMAGE_BYTES, readChatImage, saveChatImage } from '../../services/chat-images.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
@@ -171,7 +172,7 @@ interface TurnStart { code: number; body: Record<string, unknown>; retryAfter?: 
  * Starts one turn of a saved conversation (checked input). Shared by POST runs and by the
  * continuation after the owner decides a waiting approval (CHAT-BUILD-01).
  */
-async function startTurn(t: { userId: string; role: string; c: Conversation; runId: string; message: string; model?: string; agentId?: string }): Promise<TurnStart> {
+async function startTurn(t: { userId: string; role: string; c: Conversation; runId: string; message: string; model?: string; agentId?: string; images?: string[] }): Promise<TurnStart> {
   const { userId, c } = t;
   const b = { runId: t.runId, message: t.message, model: t.model, agentId: t.agentId };
   const send = (code: number, body: Record<string, unknown>): TurnStart => ({ code, body });
@@ -229,6 +230,9 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   if (stale && !chatRuns.get(stale.run_id) && !starting.has(stale.run_id) && Date.now() - Number(stale.started_at) > STALE_AFTER_MS) await recoverStaleRun(stale.run_id).catch(() => false);
   const refused = await accept();
   if (refused) return refused;
+  // CHAT-GAPS-01: the message's images (already saved with this chat) are kept on it and go to the model.
+  const images = (t.images ?? []).map((id) => readChatImage(c.id, id)).filter((x): x is NonNullable<typeof x> => !!x);
+  if (images.length) await q.run("UPDATE chat_messages SET parts = ? WHERE run_id = ? AND role = 'user'", JSON.stringify([{ kind: 'images', images: images.map((i) => ({ id: i.id, type: i.type, name: i.name })) }]), b.runId).catch(() => undefined);
   let userMessage: ConversationMessage, messages: ReturnType<typeof historyFor>, turns: HistoryTurn[], handoff: Awaited<ReturnType<typeof packHandoffText>> | null;
   try {
     userMessage = (await listConversationMessages(c.id)).find(m => m.runId === b.runId && m.role === 'user')!;
@@ -278,6 +282,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     execute: (runReply) => withChatRun(runContext, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
+      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name })) } : {}),
       ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
       ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
       ...(codingFolder ? { fileReadRoot: codingFolder } : {}),
@@ -583,9 +588,26 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (b.model !== undefined && (typeof b.model !== 'string' || !MODEL.test(b.model))) return bad(reply, 'invalid model');
     // CHAT-PRO-02 I: another agent of the team may write this reply (owner only: other users talk to the conversation's agent).
     if (b.agentId !== undefined && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
-    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: b.runId, message: b.message, model: b.model, agentId: b.agentId });
+    if (b.images !== undefined && (!Array.isArray(b.images) || b.images.length > MAX_IMAGES_PER_MESSAGE || b.images.some((id: unknown) => !readChatImage(c.id, id)))) return bad(reply, `images must be up to ${MAX_IMAGES_PER_MESSAGE} images saved with this chat`);
+    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: b.runId, message: b.message, model: b.model, agentId: b.agentId, images: b.images });
     if (out.retryAfter) reply.header('Retry-After', out.retryAfter);
     return reply.code(out.code).send(out.body);
+  });
+
+  // ---- CHAT-GAPS-01: images in a chat (saved with it, for a model that can see) ----
+  fastify.post('/api/chat/conversations/:id/images', { bodyLimit: Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4096 }, async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    const b: any = request.body;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'data' && k !== 'name')) return bad(reply, 'data (base64) and an optional name');
+    try { return reply.code(201).send({ image: saveChatImage(c.id, b.data, b.name) }); }
+    catch (err) { if (err instanceof ChatImageError) return reply.code(400).send({ error: err.message, code: 'invalid_image' }); throw err; }
+  });
+  fastify.get('/api/chat/conversations/:id/images/:imageId', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    const img = c ? readChatImage(c.id, (request.params as { imageId?: string }).imageId) : null;
+    if (!img) return notFound(reply);
+    return { image: { id: img.id, type: img.type, name: img.name, size: img.size, data: img.bytes.toString('base64') } };
   });
 
   // ---- board cards made from a conversation (CHAT-PRO-02 I step 2): owner only, like the board ----

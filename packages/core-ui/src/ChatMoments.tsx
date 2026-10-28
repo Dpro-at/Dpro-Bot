@@ -32,6 +32,7 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
     {part.text && <div className="moment-actions"><button type="button" className="link-button" aria-expanded={shown} onClick={() => setShown(v => !v)}>{shown ? 'Hide the text' : 'Show the text'}</button></div>}
     {shown && part.text && <blockquote dir="auto">{part.text}</blockquote>}
   </div>;
+  if (part.code === 'images_not_seen') return <p className="moment-line"><UiIcon name="image" size={12}/>{part.text ?? 'This model does not see images in this chat.'}</p>;
   if (part.code === 'plan_limit' && shown) return <p className="moment-line"><UiIcon name="pulse" size={12}/>Kept the model. It answers again when its plan allows.</p>;
   if (part.code === 'plan_limit') return <div className="moment-card" data-tone="needs" role="note">
     <p><UiIcon name="pulse" size={14}/>{part.text ?? 'The coding app hit its plan limit.'}</p>
