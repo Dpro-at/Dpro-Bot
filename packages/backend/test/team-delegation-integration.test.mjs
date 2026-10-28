@@ -81,23 +81,26 @@ test('non-owner, non-primary, self and missing-agent assignments never call a pr
   assert.equal(requests.length, before);
 });
 
-// Linux reports a script's interpreter as the process executable, so the CLI identity check refuses the
-// script-based fake CLIs (and real script CLIs too): tracked as SUB-LINUX-01, macOS covers this path for now.
-test('all three subscription selections use their selected CLI with agent context and never fall back to Ollama', { skip: process.platform === 'linux' ? 'SUB-LINUX-01: script CLIs fail the process identity check on Linux' : false }, async () => {
+// A coding app never runs in the home folder itself (project_required), so this test works in a project folder below HOME.
+test('all three subscription selections use their selected CLI with agent context and never fall back to Ollama', async () => {
+  const project = join(dir, 'project'); mkdirSync(project, { recursive: true });
+  const inProject = { ...context, workspaceDir: project, fileReadRoot: project };
   const before = requests.length;
   mkdirSync(join(dir, '.local', 'bin'), { recursive: true });
   const script = `#!${process.execPath}\nlet input='';process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>{if(!input.includes('Synthetic specialist instructions'))process.exit(2);const answer=JSON.stringify({type:'answer',text:'Synthetic CLI specialist result'});const name=process.argv[1].split('/').pop();if(name==='claude')console.log(JSON.stringify({type:'result',result:answer}));else if(name==='agy'){console.log(JSON.stringify({event:'init',init:{permission_mode:'request-review'}}));console.log(JSON.stringify({event:'result',result:{status:'SUCCESS',response:answer}}));}else console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:answer}}));});\n`;
   for (const file of ['codex', 'claude', 'agy']) writeFileSync(join(dir, '.local', 'bin', file), script, { mode: 0o700 });
   process.env.DPRO_SUBSCRIPTION_CHAT = '1';
   for (const provider of ['codex', 'claude', 'gemini']) {
-    const result = await teamDelegateTool.execute({ agent_id: 'specialist', reply_source: `subscription:${provider}`, request: 'Read only this supplied synthetic task.' }, context);
+    const result = await teamDelegateTool.execute({ agent_id: 'specialist', reply_source: `subscription:${provider}`, request: 'Read only this supplied synthetic task.' }, inProject);
     assert.equal(result.error, undefined, JSON.stringify(result));
     assert.equal(result.details.model, `subscription:${provider}`);
     assert.match(result.content[0].text, /Synthetic CLI specialist result/);
   }
+  // HOME itself is never a project, also when the temp folder is reached through a symlink (macOS /var -> /private/var).
+  assert.equal((await teamDelegateTool.execute({ agent_id: 'specialist', reply_source: 'subscription:codex', request: 'Home folder task.' }, context)).error, 'team_request_refused');
   assert.equal(requests.length, before, 'no local-model fallback');
   assert.equal(db.prepare("SELECT model FROM agents_config WHERE id='specialist'").get().model, 'synthetic-model', 'per-task source never changes saved agent model');
-  assert.ok((await teamDelegateTool.execute({ agent_id: 'specialist', reply_source: 'subscription:codex:unreviewed', request: 'Invalid source.' }, context)).error);
+  assert.ok((await teamDelegateTool.execute({ agent_id: 'specialist', reply_source: 'subscription:codex:unreviewed', request: 'Invalid source.' }, inProject)).error);
 });
 
 test('changing the stored project after the approval request fails before inference', async () => {
