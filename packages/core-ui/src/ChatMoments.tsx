@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SessionClient } from './session';
 import type { Part, ToolCall, Turn } from './turns';
-import { turnPlan } from './turns';
+import { duration, turnPlan } from './turns';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, useMenu } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
@@ -120,10 +120,11 @@ export function DelegationCard({ call }: { call: ToolCall }) {
   const name = agentName?.(input.agent_id) ?? input.agent_id ?? 'an agent';
   const state = call.running ? 'Working' : call.approvalId ? 'Waits for you' : call.isError ? 'Did not finish' : 'Done';
   return <div className="moment-card handoff" data-tone={call.approvalId ? 'needs' : undefined}>
-    <p><UiIcon name="users" size={14}/><span>{call.approvalId ? 'Wants to hand to' : 'Handed to'} <b>{name}</b></span><span className="moment-hint">{state}{call.ms && !call.running ? ` · ${Math.round(call.ms / 1000)}s` : ''}</span></p>
+    {/* CH6: who it went to (face and name), the state and how long on the right. */}
+    <p className="handoff-head"><UiIcon name="handoff" size={14}/><span className="handoff-verb">{call.approvalId ? 'Wants to hand to' : 'Handed to'}</span><span className="composer-face" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span><b>{name}</b><span className="moment-hint handoff-state">{state}{call.ms && !call.running ? ` · ${duration(call.ms)}` : ''}</span></p>
     {input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}
     {call.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick={onStop}><UiIcon name="stop" size={11}/>Stop</button><span className="moment-hint">Stops this chat’s work, the handed part too</span></div>}
-    {call.output && !call.approvalId && <><button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(v => !v)}>{open ? 'Hide the report' : `${name}’s report`}</button>
+    {call.output && !call.approvalId && <><button type="button" className="handoff-fold" aria-expanded={open} onClick={() => setOpen(v => !v)}><span className="caret" aria-hidden="true"><UiIcon name="chevron" size={12}/></span>{`${name}’s report`}</button>
       {open && <div className="handoff-report" dir="auto">{call.output}</div>}</>}
     {call.approvalId && <ApprovalCard call={call} who="The lead"/>}
   </div>;

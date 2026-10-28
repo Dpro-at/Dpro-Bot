@@ -110,6 +110,7 @@ const shapes = {
   calc: <><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 7h6M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01"/></>,
   laptop: <><rect x="5" y="6" width="14" height="9" rx="1"/><path d="M3 18h18"/></>,
   book: <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/>,
+  handoff: <><path d="M3 12h11"/><path d="M10 8l4 4-4 4"/><path d="M17 5h3v14h-3"/></>,
   branch: <><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></>,
   pr: <><circle cx="6" cy="6" r="2.5"/><path d="M6 8.5V21"/><path d="M18 15V9a3 3 0 0 0-3-3h-4"/><path d="M13 3l-2 3 2 3"/><circle cx="18" cy="18" r="2.5"/></>,
   inspector: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></>,

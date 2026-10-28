@@ -56,9 +56,9 @@ export const QUIET_MS = 1500;
 export const LIVE_ROWS = 4;
 
 const SUGGESTIONS = [
-  'Plan this week for the team and put the tasks on the board',
-  'Review what the agents did today and list open questions',
-  'Draft a short update for the company in Arabic and English',
+  'Plan this week and put the tasks on the board',
+  'Review what the agents did today',
+  'Draft a short update in Arabic and English',
 ];
 
 /**
@@ -364,7 +364,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const moments = { client, conversationId: s.activeId, onOpenApprovals, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
-  return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
+  return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-empty={empty || undefined} data-max={(maximized && termOpen) || undefined}>
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
     {/* CH1: the chat's tools sit in the window's title bar (Terminal · Add to board · ⋯ · side panel); no second bar. */}
     {active && titleSlot && createPortal(<span className="chat-title-tools" role="toolbar" aria-label="This chat">
@@ -382,6 +382,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       {s.threadPhase === 'loading' && <p className="chat-loading" role="status"><span className="pulse" aria-hidden="true"/>Opening the conversation</p>}
       {empty ? <div className="chat-empty">
         {/* CHAT-BUILD-01 stage 3 (CH5): one sentence and three ideas. */}
+        <span className="chat-empty-tile" aria-hidden="true"><UiIcon name="message" size={22}/></span>
         <h2 className="chat-wordmark">What should the team do?</h2>
         <p className="chat-tagline">{mode === 'mock'
           ? 'Offline practice: replies are fictional and nothing leaves this page.'
@@ -394,8 +395,6 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           <span className="first-run-actions"><button type="button" className="primary" onClick={onSetUpModel}>Use a coding app…</button>
             <button type="button" className="ghost-action" onClick={onSetUpModel}>Local model…</button></span>
         </div>}
-        <div className="chat-suggestions">{SUGGESTIONS.map(t =>
-          <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}>{t}</button>)}</div>
       </div> : <div className="chat-column" role="log" aria-live="polite" aria-relevant="additions">
         {s.hasEarlier && <button type="button" className="ghost-action chat-earlier" disabled={s.loadingEarlier} onClick={() => void controller.loadEarlier()}>{s.loadingEarlier ? 'Loading earlier messages…' : 'Show earlier messages'}</button>}
         {s.turns.map((t, i) => t.role === 'user'
@@ -455,7 +454,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
           <li key={a.id} role="option" aria-selected={i === Math.min(pick, suggestions.length - 1)}><button type="button" onMouseDown={e => { e.preventDefault(); choose(a.name); }}>
             <span className="avatar" aria-hidden="true">{a.name.slice(0, 1).toUpperCase()}</span>{a.name}</button></li>)}</ul>}
         <textarea id="chat-input" ref={input} rows={1} dir="auto" value={s.draft} maxLength={100000}
-          placeholder={running ? 'Steer the work now, or ⌥Enter to send it after this reply' : agentName ? `Message ${agentName}` : s.turns.length ? 'Reply, or type @ to bring in a teammate…' : 'Write a message…'}
+          placeholder={running ? 'Steer the work now, or ⌥Enter to send it after this reply' : agentName ? `Message ${agentName}` : s.turns.length ? 'Reply, or type @ to bring in a teammate…' : 'Ask anything, add files, or type @…'}
           onChange={e => controller.edit(e.target.value)} onPaste={e=>{if(e.clipboardData.files.length){e.preventDefault();void onFiles(e.clipboardData.files);}}} onKeyDown={onKeyDown} disabled={s.access === 'denied'}/>
         <div className="chat-composer-row">
           <input ref={picker} type="file" multiple hidden onChange={e => void onFiles(e.target.files)}
@@ -475,6 +474,9 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
             : <button type="submit" className="round-button" disabled={(!s.draft.trim() && !s.attachments.length) || s.access === 'denied'} aria-label={busy ? 'Queue the message' : 'Send'}><UiIcon name="arrow-up" size={15}/></button>}
         </div>
       </form>
+      {/* CH5: an empty chat keeps the box in the middle, with three ideas under it. */}
+      {empty && <div className="chat-suggestions">{SUGGESTIONS.map(t =>
+        <button key={t} type="button" className="chat-suggestion" onClick={() => {controller.edit(t);input.current?.focus();}}>{t}</button>)}</div>}
     </div>
     {terminal && termOpen && <section className="chat-terminal" aria-label="Terminal"><TerminalPane tabs={terminal.tabs} prefs={terminal.prefs} projectId={folderProject} maximized={maximized} onToggleMax={() => setMaximized(v => !v)} onClose={() => { setMaximized(false); setTermOpen(false); }}/></section>}
   </div>
