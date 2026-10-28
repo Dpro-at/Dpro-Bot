@@ -147,7 +147,9 @@ export function agentCardResponse(path, status, body) {
       const list = body.models.filter(m => record(m) && modelId(m.id) && ['local', 'ollama', 'claude', 'lmstudio','subscription'].includes(m.provider) && (m.provider==='subscription') === /^subscription:(?:(?:claude|codex)(?::[a-f0-9]{32})?|gemini)$/.test(m.id) && (m.provider === 'lmstudio') === m.id.startsWith('lmstudio:')).slice(0, 200)
         .map(m => ({ id: m.id, provider: m.provider === 'claude' || m.provider === 'lmstudio' || m.provider==='subscription' ? m.provider : 'ollama', label: str(String(m.label ?? m.name ?? m.id).replace(/^[^A-Za-z0-9]+/u, ''), 80), size: str(m.size, 20),
           // CORE-PICKER-02: a coding app's own models (Claude Code aliases, the Codex account's list).
-          ...(m.provider === 'subscription' && Array.isArray(m.variants) ? { variants: m.variants.filter(v => record(v) && typeof v.id === 'string' && /^[a-z0-9][a-z0-9.-]{0,40}$/.test(v.id)).slice(0, 20).map(v => ({ id: v.id, label: str(v.label ?? v.id, 40) })) } : {}) }));
+          // CH3: think = the model can think longer (the Thinking choice shows); a variant may carry a short note.
+          ...(m.think === true ? { think: true } : {}),
+          ...(m.provider === 'subscription' && Array.isArray(m.variants) ? { variants: m.variants.filter(v => record(v) && typeof v.id === 'string' && /^[a-z0-9][a-z0-9.-]{0,40}$/.test(v.id)).slice(0, 20).map(v => ({ id: v.id, label: str(v.label ?? v.id, 40), ...(typeof v.note === 'string' && v.note.trim() ? { note: str(v.note, 60) } : {}) })) } : {}) }));
       return { models: list };
     }
     case 'persona-current': {

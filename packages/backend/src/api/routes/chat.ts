@@ -45,8 +45,8 @@ import { loadRunPermissions } from '../../tools/agent-permissions.js';
 import { createModelRouter, ModelRouter } from '../../services/model-router.js';
 import { CostTracker } from '../../services/cost-tracker.js';
 import { ModelUnavailable, runOllamaAgentLoop } from '../../services/ollama-agent-loop.js';
-import { OLLAMA_URL, DEFAULT_OLLAMA_MODEL, ollamaThinkOption } from '../../llm/ollama.js';
-import { resolveLocalModel } from '../../llm/local-models.js';
+import { OLLAMA_URL, DEFAULT_OLLAMA_MODEL, ollamaThinkOption, chatThinkFor } from '../../llm/ollama.js';
+import { resolveLocalModel, listLocalModels } from '../../llm/local-models.js';
 import { lmStudioApiUrl, lmStudioModelName, lmStudioNotRunningMessage } from '../../llm/lmstudio.js';
 import { runLmStudioAgentLoop } from '../../services/lmstudio-agent-loop.js';
 import { contextPack, messageRecall, type ContextPack, type MessageRecall } from '../../memory/context/pack.js';
@@ -370,14 +370,6 @@ export function capMiddle(text: string, max: number): string {
 
 /** A notice frame: shown in the chat while the turn runs, never stored as answer text. */
 export const noticeFrame = (code: string, extra: Record<string, unknown> = {}) => `data: ${JSON.stringify({ type: 'notice', code, ...extra })}\n\n`;
-
-/** CHAT-BUILD-01 stage 3: the chat's Thinking choice for a local model (Quick = off, Deep = on, Normal = the server default). */
-function chatThinkOption(): { think?: boolean; thinkOptional?: boolean } {
-  const t = currentChatRun()?.thinking;
-  if (t === 'deep') return { think: true, thinkOptional: true };
-  if (t === 'quick') return { think: false, thinkOptional: true };
-  return ollamaThinkOption();
-}
 
 export interface ChatTurnInput {
   agentId?: string;
@@ -1125,6 +1117,9 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
   const upstreamAbort = new AbortController();
   reply.raw.once?.('close', () => { if (!reply.raw.writableEnded) upstreamAbort.abort(); });
   const startedAt = Date.now();
+  // CH3: the installed model's capabilities decide whether a Thinking level is sent at all.
+  const thinking = currentChatRun()?.thinking;
+  const thinkCaps = thinking && thinking !== 'normal' ? (await listLocalModels().catch(() => [])).find((m) => m.name === model)?.capabilities : undefined;
   try {
     const result = await runOllamaAgentLoop({
       url: OLLAMA_URL,
@@ -1136,7 +1131,7 @@ You: [Present results with \`\`\`spec blocks showing temperature, conditions, et
       signal: upstreamAbort.signal,
       temperature,
       maxTokens,
-      ...chatThinkOption(),
+      ...chatThinkFor(thinking, thinkCaps),
       // MEM-CACHE-01: a fixed window and a kept-loaded model let Ollama reuse the prompt prefix.
       numCtx: contextBudget().numCtx,
       keepAlive: keepAliveValue(),

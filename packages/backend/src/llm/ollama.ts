@@ -23,3 +23,15 @@ export function ollamaThinkOption(): { think?: boolean } {
   if (value === 'false' || value === '0') return { think: false };
   return {};
 }
+
+/**
+ * CHAT-BUILD-01 stage 3 (CH3): a chat's Thinking choice for a local model (Quick = off, Deep = on, Normal = the server default).
+ * A model whose capabilities are known and lack "thinking" gets no level it would ignore; the chat's saved choice is untouched.
+ * Unknown capabilities (older Ollama) keep the optional flag: a 400 retries without it.
+ */
+export function chatThinkFor(thinking: string | undefined, capabilities: readonly string[] = []): { think?: boolean; thinkOptional?: boolean } {
+  if (capabilities.length && !capabilities.includes('thinking')) return ollamaThinkOption();
+  if (thinking === 'deep') return { think: true, thinkOptional: true };
+  if (thinking === 'quick') return { think: false, thinkOptional: true };
+  return ollamaThinkOption();
+}

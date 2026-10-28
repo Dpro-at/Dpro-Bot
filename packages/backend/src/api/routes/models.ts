@@ -20,7 +20,7 @@ export async function modelsRoutes(fastify: FastifyInstance) {
       const settings = await settingsManager.getSettings();
 
       const allModels: any[] = [];
-      if(subscriptionEnabled())for(const kind of ['claude','codex','gemini'] as const)if(await subscriptionBinary(kind))allModels.push({id:'subscription:'+kind,provider:'subscription',label:kind==='claude'?'Claude Code · existing account':kind==='codex'?'Codex · existing ChatGPT account':'Google Gemini · Antigravity account',size:'',variants:await subscriptionVariants(kind)});
+      if(subscriptionEnabled())for(const kind of ['claude','codex','gemini'] as const)if(await subscriptionBinary(kind))allModels.push({id:'subscription:'+kind,provider:'subscription',label:kind==='claude'?'Claude Code · existing account':kind==='codex'?'Codex · existing ChatGPT account':'Google Gemini · Antigravity account',size:'',variants:await subscriptionVariants(kind),...(kind!=='gemini'?{think:true}:{})});
 
       // 1. Add Ollama chat models (if available). Embedding models are left
       // out: they cannot answer a chat (CORE-MODEL-01).
@@ -32,6 +32,8 @@ export async function modelsRoutes(fastify: FastifyInstance) {
           size: formatSize(m.size),
           modifiedAt: m.modifiedAt,
           details: m.details,
+          // CH3: only a model that says it can think gets the Thinking choice.
+          ...(m.capabilities.includes('thinking') ? { think: true } : {}),
           available: true,
         }));
         allModels.push(...ollamaModels);
@@ -59,6 +61,7 @@ export async function modelsRoutes(fastify: FastifyInstance) {
             provider: 'claude',
             description: 'Most powerful, best for complex tasks',
             size: 'API',
+            think: true,
             available: true,
           },
           {
@@ -67,6 +70,7 @@ export async function modelsRoutes(fastify: FastifyInstance) {
             provider: 'claude',
             description: 'Balanced performance and speed',
             size: 'API',
+            think: true,
             available: true,
           },
           {
@@ -75,6 +79,7 @@ export async function modelsRoutes(fastify: FastifyInstance) {
             provider: 'claude',
             description: 'Fastest, great for simple tasks',
             size: 'API',
+            think: true,
             available: true,
           },
         ];

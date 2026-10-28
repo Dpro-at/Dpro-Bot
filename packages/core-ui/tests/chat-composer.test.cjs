@@ -10,7 +10,7 @@ const { ConversationsController } = require('../src/conversations.ts');
 const CID = '3f0c2b6e-1d2a-4f4e-9b1a-6c7d8e9f0a1b', PID = '9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b';
 
 test('the model button says Auto, each agent’s own, or provider · model · thinking', () => {
-  const models = [{ id: 'subscription:claude', provider: 'subscription', label: 'Claude Code', size: '', variants: [{ id: 'sonnet', label: 'Sonnet' }] }, { id: 'qwen3:8b', provider: 'ollama', label: 'qwen3 8b', size: '' }];
+  const models = [{ id: 'subscription:claude', provider: 'subscription', label: 'Claude Code', size: '', think: true, variants: [{ id: 'sonnet', label: 'Sonnet' }] }, { id: 'qwen3:8b', provider: 'ollama', label: 'qwen3 8b', size: '', think: true }];
   assert.equal(answersLabel('auto', models, 'normal'), 'Auto');
   assert.equal(answersLabel('', models, 'normal'), 'Each agent’s own');
   assert.equal(answersLabel('subscription:claude/sonnet', models, 'deep'), 'Claude Code · Sonnet · Deep');

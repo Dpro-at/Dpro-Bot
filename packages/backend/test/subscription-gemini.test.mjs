@@ -16,7 +16,11 @@ test('Gemini ids, output and native-session isolation',async()=>{
  assert.throws(()=>subscriptionAnswer('gemini',JSON.stringify({response:'legacy-format'})));
  assert.throws(()=>subscriptionAnswer('gemini',[...frames,{event:'step_update',step_update:{step_type:'tool',tool_name:'run_command'}}].map(x=>JSON.stringify(x)).join('\n')));
  assert.throws(()=>subscriptionAnswer('gemini','{"response":"bad","error":{"code":401}}'));
- assert.deepEqual(await subscriptionVariants('gemini'),[]);
+ // CH3: Gemini Pro / Gemini Flash under the Gemini group; only a listed key reaches agy --model.
+ assert.deepEqual(await subscriptionVariants('gemini'),[{id:'gemini-3.1-pro',label:'Gemini Pro',note:'Long documents and research'},{id:'gemini-3.8-flash',label:'Gemini Flash',note:'Quick'}]);
+ const pro=subscriptionArgs('gemini',undefined,'gemini-3.1-pro');assert.deepEqual(pro.slice(pro.indexOf('--model'),pro.indexOf('--model')+2),['--model','gemini-3.1-pro']);
+ for(const v of ['gemini-9-unknown','--yolo','opus',''])assert.ok(!subscriptionArgs('gemini',undefined,v).includes('--model'),v);
+ assert.equal(subscriptionModel('subscription:gemini/gemini-3.8-flash'),true);
 });
 test('Antigravity uses an empty private workspace and refuses unsafe ambient CLI settings',async()=>{
  const root=await fs.mkdtemp('/tmp/dpro-agy-config-test-');const home=root+'/synthetic-home';await fs.mkdir(home+'/.gemini/antigravity-cli',{recursive:true});
