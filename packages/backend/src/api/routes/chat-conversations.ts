@@ -283,7 +283,7 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
     execute: (runReply) => withChatRun(runContext, () => executeChatTurn(runReply, {
       agentId: resolvedReplyAgent, messages, stream: true, sessionId: c.id, userId, uiSet: 'chat',
       runId: b.runId, conversation: { turns }, handoff,
-      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name })) } : {}),
+      ...(images.length ? { images: images.map((i) => ({ type: i.type, data: i.bytes.toString('base64'), name: i.name, file: i.file })) } : {}),
       ...(project?.folders.some((f) => f.write) ? { writeFolders: project.folders.filter((f) => f.write).map((f) => f.path) } : {}),
       ...(project ? { memoryScope: { project: project.slug }, ...(project.folder ? { fileReadRoot: project.folder } : {}) } : {}),
       ...(codingFolder ? { fileReadRoot: codingFolder } : {}),

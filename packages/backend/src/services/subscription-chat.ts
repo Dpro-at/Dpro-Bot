@@ -62,7 +62,12 @@ export async function subscriptionBinary(kind:SubscriptionKind){
  for(const dir of await subscriptionSearchDirs()){const file=path.join(dir,kind==='gemini'?'agy':kind);try{if((await fs.stat(file)).isFile()){await fs.access(file,fs.constants.X_OK);return file;}}catch{}}
  return null;
 }
-export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?:string,appToolsOnly=false,readOnly=false,editsOnly=false,addDirs:readonly string[]=[]){
+/** CHAT-GAPS-01: images a coding app may see — only files of Girru's own chat-images folder, at most 4 (Codex takes them with -i). */
+export function chatImageFiles(files:readonly unknown[]|undefined):string[]{
+ const base=path.resolve(dataPath('chat-images'))+path.sep;
+ return (files??[]).filter((f):f is string=>typeof f==='string'&&path.isAbsolute(f)&&path.resolve(f).startsWith(base)&&/\.(png|jpg|gif|webp)$/.test(f)).slice(0,4).map(f=>path.resolve(f));
+}
+export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?:string,appToolsOnly=false,readOnly=false,editsOnly=false,addDirs:readonly string[]=[],images:readonly string[]=[]){
  if(kind==='gemini'){if(nativeId)throw Error('session_missing');return ['--input-format','stream-json','--output-format','stream-json','--mode','plan','--sandbox','--disable-slash-commands','--print-timeout','180s',...(variant&&GEMINI_VARIANTS.some(v=>v.id===variant)?['--model',variant]:[])];}
  const args=kind==='claude'?['-p','--output-format','json','--no-session-persistence','--safe-mode','--restricted','--permission-mode','acceptEdits','--permission-prompts','none','--tools','Read,Write,Edit,Glob,Grep','--strict-mcp-config','--mcp-config','{"mcpServers":{}}']:
  ['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check','--sandbox','workspace-write','--disable','plugins','--disable','skill_mcp_dependency_install','--json','-'];
@@ -73,6 +78,7 @@ export function subscriptionArgs(kind:SubscriptionKind,nativeId?:string,variant?
  if(appToolsOnly){if(kind==='claude')args[args.indexOf('--tools')+1]='';else{args[args.indexOf('--sandbox')+1]='read-only';args.splice(1,0,'--disable','shell_tool','--disable','unified_exec','-c','web_search="disabled"');}}
  if(nativeId){if(kind==='claude')args.push('--resume',nativeId,'--fork-session');else args.splice(args.length-1,1,'fork',nativeId,'-');}
  if(variant&&/^[a-z0-9][a-z0-9.-]{0,40}$/.test(variant)){if(kind==='claude')args.push('--model',variant);else args.splice(1,0,'-m',variant);}
+ if(kind==='codex')for(const file of chatImageFiles(images))args.splice(1,0,'-i',file);
  return args;
 }
 export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
@@ -87,14 +93,14 @@ export function subscriptionAnswer(kind:SubscriptionKind,stdout:string):string{
  const rows=stdout.split('\n').filter(Boolean).map(line=>JSON.parse(line));const answers=rows.filter(r=>r.type==='item.completed'&&r.item?.type==='agent_message'&&typeof r.item.text==='string');
  if(!answers.length||rows.some(r=>r.type==='error'||r.type==='turn.failed'))throw Error('cli_failed');return answers.map(r=>r.item.text).join('\n\n');
 }
-export async function runSubscription(model:string,folder:string,prompt:string,signal:AbortSignal,options:{appToolsOnly?:boolean;readOnly?:boolean;editsOnly?:boolean;addDirs?:readonly string[]}={}):Promise<string>{
+export async function runSubscription(model:string,folder:string,prompt:string,signal:AbortSignal,options:{appToolsOnly?:boolean;readOnly?:boolean;editsOnly?:boolean;addDirs?:readonly string[];images?:readonly string[]}={}):Promise<string>{
  if(!subscriptionEnabled()||!subscriptionModel(model))throw Error('cli_disabled');
  const cwd=await fs.realpath(safeChildCwd(folder));if(!(await fs.stat(cwd)).isDirectory()||cwd===os.homedir()||cwd===path.parse(cwd).root)throw Error('project_required');
  const kind=model.startsWith('subscription:claude')?'claude':model.startsWith('subscription:gemini')?'gemini':'codex',bin=await subscriptionBinary(kind);
  let nativeId:string|undefined;const opaque=model.split('/')[0].split(':')[2];
  if(opaque){const ref=await findSession(opaque);if(!ref||ref.source!==(kind==='claude'?'claude-code':'codex'))throw Error('session_missing');const session=await readSession(ref);if(!session.cwd||await fs.realpath(session.cwd)!==cwd)throw Error('session_folder_mismatch');nativeId=path.basename(ref.file).match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\.jsonl$/)?.[1];if(!nativeId)throw Error('session_missing');}if(!bin)throw Error('cli_missing');if(signal.aborted)throw Error('cancelled');
  if(typeof prompt!=='string'||Buffer.byteLength(prompt,'utf8')>200000)throw Error('cli_input_invalid');
- const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs);
+ const args=subscriptionArgs(kind,nativeId,subscriptionVariant(model),options.appToolsOnly,options.readOnly,options.editsOnly,options.addDirs,options.images);
  const env=minimalChildEnv({NO_COLOR:'1',TERM:'dumb'});env.PATH=[path.dirname(bin),env.PATH].filter(Boolean).join(path.delimiter);
  const geminiConfig=kind==='gemini'?await geminiReplyConfig():undefined;
  if(geminiConfig){env.AGY_CLI_DISABLE_AUTO_UPDATE='1';env.AGY_CLI_NONINTERACTIVE_HEADLESS='1';}

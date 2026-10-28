@@ -7,7 +7,7 @@ import {narrowProjectMemory} from '../../tools/memory/project-access.js';
 import { FakeRaw } from '../../services/chat-runs.js';
 import { vaultChatFrames } from '../../services/chat-secrets.js';
 import { currentChatRun } from '../../services/chat-run-context.js';
-import {subscriptionModel,subscriptionEnabled,runSubscription} from '../../services/subscription-chat.js';
+import {subscriptionModel,subscriptionEnabled,runSubscription,chatImageFiles} from '../../services/subscription-chat.js';
 import {subscriptionAgentContext,subscriptionReplyPrompt} from '../../services/subscription-agent-context.js';
 import { agentSkillsPrompt } from '../../skills/central-store.js';
 import { safeConsole } from '../../services/safe-error-log.js';
@@ -481,13 +481,15 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
         const registry=await createAgentToolsRegistry({userId,sessionId,agentId:selectedAgent.id,workspaceDir:input.fileReadRoot,fileReadRoot:input.fileReadRoot,memoryDrawers:drawers,chatPlan:true});
         let toolStep=0;
         // CHAT-GAPS-01: a coding app here gets Girru's tools only, not files: it is told the image names and the chat says so.
-        if(input.images?.length){currentChatRun()?.notice?.('images_not_seen',`${subscriptionSource?.includes('codex')?'Codex':subscriptionSource?.includes('gemini')?'Gemini':'Claude Code'} does not see images in this chat yet. Pick Claude, or a local model that can see, to show it the image.`);history+=`\n\n(The owner attached ${input.images.length} image${input.images.length===1?'':'s'}: ${input.images.map(i=>i.name??'image').join(', ')}. You cannot see them; say so if they matter.)`;}
+        // Codex sees them (-i, files of the chat's own image folder); Claude Code and Gemini are told the names and the chat says so.
+        const seen=subscriptionSource?.startsWith('subscription:codex')?chatImageFiles(input.images?.map(i=>i.file)):[];
+        if(input.images?.length&&!seen.length){currentChatRun()?.notice?.('images_not_seen',`${subscriptionSource?.includes('codex')?'Codex':subscriptionSource?.includes('gemini')?'Gemini':'Claude Code'} does not see images in this chat yet. Pick Claude, or a local model that can see, to show it the image.`);history+=`\n\n(The owner attached ${input.images.length} image${input.images.length===1?'':'s'}: ${input.images.map(i=>i.name??'image').join(', ')}. You cannot see them; say so if they matter.)`;}
         const replyPrompt=subscriptionReplyPrompt(context+(systemPromptAppend?`\n\n${systemPromptAppend}`:''),history);
         {const run=currentChatRun();if(run)run.usage={model:subscriptionSource!,tokensIn:estimateTokens(replyPrompt)};}
         const answer=await subscriptionToolLoop({prompt:replyPrompt,signal:abort.signal,
           tools:registry.getAll().map(t=>({name:t.name,description:t.description,input_schema:t.input_schema})),
           // CHAT-BUILD-01 stage 3: "Accept edits" lets the coding app edit files in the chat's folders (its write folders too).
-          reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,currentChatRun()?.chatMode==='accept_edits'?{editsOnly:true,addDirs:input.writeFolders??[]}:{appToolsOnly:true}),
+          reply:prompt=>runSubscription(subscriptionSource,input.fileReadRoot!,prompt,abort.signal,currentChatRun()?.chatMode==='accept_edits'?{editsOnly:true,addDirs:input.writeFolders??[],images:seen}:{appToolsOnly:true,images:seen}),
           execute:(name,args)=>{toolStep++;if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_start',step:toolStep,tools:[{id:`subscription-${toolStep}`,name,input:JSON.stringify(args)}]})}\n\n`);return registry.execute(name,args);},
           onTool:(name,result)=>{if(!reply.raw.writableEnded)reply.raw.write(`data: ${JSON.stringify({type:'tool_result',step:toolStep,results:[{id:`subscription-${toolStep}`,name,output:result.content.filter(b=>b.type==='text').map(b=>b.text??'').join('\n').slice(0,2000),isError:!!result.error}]})}\n\n`);},
         });

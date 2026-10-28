@@ -390,3 +390,16 @@ test('CH6: the team list carries the live step of each delegated agent (empty wh
   assert.match(team, /execute: async \(name, args\) => \{ setStep\(session, target\.id, name\); try \{ return await registry\.execute\(name, args\); \} finally \{ setStep\(session, target\.id, 'thinking'\); \} \}/);
   assert.match(team, /finally \{ active\.delete\(key\); setStep\(session, params\.agent_id as string, null\);/);
 });
+
+test('images: Codex gets the chat\'s own image files with -i; nothing outside the images folder, at most 4', async () => {
+  const { subscriptionArgs, chatImageFiles } = await import('../src/services/subscription-chat.ts');
+  const { dataPath } = await import('../src/config/data-root.ts');
+  const base = dataPath('chat-images');
+  const ok = [1, 2, 3, 4, 5].map(n => join(base, 'chat-1', `${'a'.repeat(31)}${n}.png`));
+  assert.deepEqual(chatImageFiles([...ok, '/etc/passwd', join(base, '..', 'x.png'), 'relative.png', join(base, 'c', 'y.svg')]), ok.slice(0, 4));
+  const args = subscriptionArgs('codex', undefined, undefined, true, false, false, [], [ok[0], '/etc/hosts.png']);
+  assert.deepEqual(args.slice(args.indexOf('-i'), args.indexOf('-i') + 2), ['-i', ok[0]]);
+  assert.equal(args.filter(a => a === '-i').length, 1);
+  assert.equal(args.at(-1), '-', 'the prompt still comes on stdin');
+  assert.ok(!subscriptionArgs('claude', undefined, undefined, true, false, false, [], [ok[0]]).includes(ok[0]), 'Claude Code is not given files');
+});
