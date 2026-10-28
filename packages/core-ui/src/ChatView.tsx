@@ -361,7 +361,17 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   });
   // CHAT-BUILD-01 stage 5: what the trust moments in the thread need (approvals, undo, switch to Auto, start fresh).
-  const moments = { client, conversationId: s.activeId, onOpenApprovals, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
+  // CH6: while a reply works, the step each delegated agent is on (read every 3 s from the chat's team).
+  const [steps, setSteps] = useState<readonly { agentId: string; tool: string; at: string }[]>([]);
+  useEffect(() => {
+    if (!client || !s.activeId || !s.runId) { setSteps([]); return; }
+    let on = true; const id = s.activeId;
+    const read = async () => { try { const r = await client.request({ method: 'GET', path: `/api/chat/conversations/${id}/team` } as never); if (on && r.status === 200) setSteps(((r.body as { steps?: { agentId: string; tool: string; at: string }[] }).steps) ?? []); } catch { /* the card keeps "Thinking…" */ } };
+    void read(); const t = setInterval(() => void read(), 3000);
+    return () => { on = false; clearInterval(t); };
+  }, [client, s.activeId, s.runId]);
+  const moments = { client, conversationId: s.activeId, onOpenApprovals, steps,
+    agentAbout: (id?: string) => s.agents.find(a => a.id === id)?.about, subAgentOf: (id?: string) => s.agents.find(a => a.id === id)?.subAgentOf, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
     onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-empty={empty || undefined} data-max={(maximized && termOpen) || undefined}>
@@ -718,7 +728,8 @@ function AssistantTurn({ turn, last, onRetry, writer, writerRole, recovery, onSu
         {/* CH1: the plan's quiet line comes after the work row. */}
         {plan && <p className="moment-line"><UiIcon name="list" size={12}/>Plan: {plan.length} {plan.length === 1 ? 'step' : 'steps'}, {plan.filter(s => s.status === 'done').length} done · the steps are in Tasks above the box</p>}
         {/* CHAT-BUILD-01 stage 5: hand-offs, what waits for you and notices stay in view when the work is folded. */}
-        {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.name === 'team_delegate').map(c => <DelegationCard key={`h${c.id}`} call={c}/>)}
+        {/* CH6: a hand-off to a sub-agent of someone handed work in the same reply sits inside that person's card. */}
+        <HandOffs calls={work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.name === 'team_delegate')}/>
         {work.flatMap(p => (p.kind === 'tools' ? p.calls : [])).filter(c => c.approvalId && c.name !== 'team_delegate').map(c => <ApprovalCard key={`p${c.id}`} call={c}/>)}
         {tools > 0 && work.filter(p => p.kind === 'steer' || p.kind === 'notice').map((p, i) => <PartView key={`n${i}`} part={p}/>)}
         {answer.map((p, i) => <PartView key={`a${i}`} part={p}/>)}
@@ -933,6 +944,16 @@ function ToolDetail({ call, kind, command, args }: { call: ToolCall; kind: ToolK
     </div>}
     {call.running && <p className="tool-running">Running…</p>}
   </div>;
+}
+
+function HandOffs({ calls }: { calls: ToolCall[] }) {
+  const { subAgentOf } = useContext(MomentsContext);
+  const target = (c: ToolCall) => { try { return (JSON.parse(c.input) as { agent_id?: string }).agent_id; } catch { return undefined; } };
+  const ids = new Set(calls.map(target));
+  const inside = (c: ToolCall) => { const p = subAgentOf?.(target(c)); return !!p && ids.has(p); };
+  return <>{calls.filter(c => !inside(c)).map(c => <DelegationCard key={`h${c.id}`} call={c}>
+    {calls.filter(k => inside(k) && subAgentOf?.(target(k)) === target(c)).map(k => <DelegationCard key={`s${k.id}`} call={k} nested/>)}
+  </DelegationCard>)}</>;
 }
 
 function WorkedRow({ parts, ms }: { parts: Part[]; ms: number | null }) {

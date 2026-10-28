@@ -3070,3 +3070,13 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .handoff-fold .caret { display:inline-flex; transition:transform .15s; }
 .handoff-fold[aria-expanded=true] .caret { transform:rotate(90deg); }
 .app-shell .handoff-fold { justify-content:flex-start; min-block-size:26px; }
+.handoff-about { color:var(--text-4); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-inline-size:0; }
+.handoff-sub { margin:10px 0 0 33px; }
+.handoff-sub .handoff-head .composer-face { inline-size:18px; block-size:18px; background:#A3AFC6; }
+.handoff-sub .handoff-head b { font-size:12.5px; }
+.handoff-sub .handoff-ask { margin-block-start:4px; font-size:12px; color:var(--text-3); }
+.handoff-live { display:flex; align-items:center; gap:8px; margin-block-start:10px; padding:6px 10px; border-radius:8px; font-size:12px; color:var(--text-2); background:color-mix(in srgb,var(--text) 5%,transparent); }
+.shell[data-theme="dark"] .app-shell .handoff-live, .app-shell[data-theme="dark"] .handoff-live { background:#0F1114; }
+.handoff-step { flex:1; min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; }
+.app-shell .handoff-stop { inline-size:22px; block-size:22px; min-block-size:22px; border-radius:6px; background:color-mix(in srgb,var(--text) 7%,transparent); }
+.app-shell .handoff-head .handoff-verb, .app-shell .handoff-head b, .app-shell .handoff-head .handoff-state { white-space:nowrap; flex:none; } .app-shell .handoff-head .handoff-about { flex:1 1 auto; }

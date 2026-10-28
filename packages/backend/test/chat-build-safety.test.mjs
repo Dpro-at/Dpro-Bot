@@ -381,3 +381,12 @@ test('coding apps: Team lists each one an agent started, with its own Stop; Stop
   assert.equal(two.signal.aborted, true);
   two.done();
 });
+
+test('CH6: the team list carries the live step of each delegated agent (empty when none works)', async () => {
+  const c = await newConversation();
+  assert.deepEqual((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/team`)).json().steps, []);
+  const { readFileSync } = await import('node:fs');
+  const team = readFileSync(join(backendDir, 'src/tools/tasks/team.ts'), 'utf8');
+  assert.match(team, /execute: async \(name, args\) => \{ setStep\(session, target\.id, name\); try \{ return await registry\.execute\(name, args\); \} finally \{ setStep\(session, target\.id, 'thinking'\); \} \}/);
+  assert.match(team, /finally \{ active\.delete\(key\); setStep\(session, params\.agent_id as string, null\);/);
+});

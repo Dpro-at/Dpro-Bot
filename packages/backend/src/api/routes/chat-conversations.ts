@@ -43,7 +43,7 @@ import { chatRuns, MAX_RUNNING_PER_USER, type RunEvent } from '../../services/ch
 import { openSseStream } from '../../services/chat-sse.js';
 import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
-import { stopDelegations } from '../../tools/tasks/team.js';
+import { delegationSteps, stopDelegations } from '../../tools/tasks/team.js';
 import { codingRunsFor, stopCodingRun, stopCodingRuns } from '../../services/coding-runs.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { CheckpointError, changedFiles, lineCounts, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
@@ -479,6 +479,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     return {
       team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })),
       apps: apps.map(a => ({ id: a.id, app: a.app, agentName: a.agentId ? names.get(a.agentId) ?? a.agentId : null, about: a.about, startedAt: a.startedAt })),
+      steps: delegationSteps(c.id),
     };
   });
   // Stop one coding app working in this chat (its row in Team).

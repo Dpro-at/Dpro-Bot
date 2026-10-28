@@ -46,3 +46,22 @@ test('hand-off cards and the task list', () => {
   const html = renderToStaticMarkup(React.createElement(TaskList, { turns: [{ key: 'a', role: 'assistant', content: '', parts: [{ kind: 'tools', step: 1, calls: [plan] }], status: 'running', runId: null, durationMs: null, lastSeq: 0 }] }));
   assert.match(html, /Tasks<\/b><span>1 of 2 done<\/span><span class="task-now">· Write/);
 });
+
+test('CH6: the role after the name, a sub-agent nested in its lead\'s card, and the live step with Stop', () => {
+  const names = { cx: 'Codex Frontend', hh: 'Hero helper', qa: 'QA Tester' };
+  const ctx = { agentName: id => names[id] ?? id, agentAbout: id => (id === 'cx' ? 'Frontend developer' : undefined), subAgentOf: id => (id === 'hh' ? 'cx' : undefined),
+    steps: [{ agentId: 'qa', tool: 'read_file', at: new Date().toISOString() }], onStop: () => {} };
+  const call = (id, agent, extra = {}) => ({ id, name: 'team_delegate', input: JSON.stringify({ agent_id: agent, request: `Task for ${agent}` }), running: false, ms: 40000, ...extra });
+  const wrap = el => renderToStaticMarkup(React.createElement(MomentsContext.Provider, { value: ctx }, el));
+  const lead = wrap(React.createElement(DelegationCard, { call: call('a', 'cx') }, React.createElement(DelegationCard, { call: call('b', 'hh'), nested: true })));
+  assert.match(lead, /<b>Codex Frontend<\/b><span class="handoff-about">Frontend developer<\/span>/);
+  assert.match(lead, /class="handoff-sub"><p class="handoff-head"><span class="handoff-verb">Codex Frontend handed to its sub-agent<\/span><span class="composer-face" aria-hidden="true">H<\/span><b>Hero helper<\/b>/);
+  assert.match(wrap(React.createElement(DelegationCard, { call: call('c', 'hh') })), /Handed to Codex Frontend’s sub-agent/, 'alone, it says whose sub-agent it is');
+  const live = wrap(React.createElement(DelegationCard, { call: call('d', 'qa', { running: true, ms: undefined }) }));
+  assert.match(live, /class="handoff-live" role="status"><span class="pulse" aria-hidden="true"><\/span><span class="handoff-step">Reading read_file|class="handoff-live" role="status"><span class="pulse" aria-hidden="true"><\/span><span class="handoff-step">Reading/);
+  assert.match(live, /aria-label="Stop"/);
+  assert.match(live, /Working/);
+  const { conversationResponse } = require('../src/conversation-contract.js');
+  const team = conversationResponse(`/api/chat/conversations/${CID}/team`, 200, { team: [], apps: [], steps: [{ agentId: 'qa', tool: 'read_file', at: 'now' }, { agentId: 'x', tool: 'bad tool!', at: '' }] });
+  assert.deepEqual(team.steps, [{ agentId: 'qa', tool: 'read_file', at: 'now' }]);
+});

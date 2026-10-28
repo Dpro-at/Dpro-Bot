@@ -17,7 +17,8 @@ import type { Turn } from './turns';
 
 export type Conversation = WireConversation;
 export type Project = WireProject;
-export type AgentChoice = Readonly<{ id: string; name: string; primary?: boolean }>;
+/** about: the first words of the agent's description ("Frontend developer"), shown after its name; subAgentOf: whose sub-agent it is. */
+export type AgentChoice = Readonly<{ id: string; name: string; primary?: boolean; about?: string; subAgentOf?: string }>;
 export type ModelOption = Readonly<{ id: string; provider: 'ollama' | 'claude' | 'lmstudio' | 'subscription'; label: string; size: string; variants?: readonly Readonly<{ id: string; label: string }>[] }>;
 export type ConversationsState = Readonly<{
   access: 'ready' | 'denied';
@@ -329,7 +330,8 @@ export class ConversationsController {
     try {
       const r = await this.client.request({ method: 'GET', path: '/api/agents' });
       if (!this.live() || r.status !== 200 || !record(r.body) || !Array.isArray(r.body.agents)) return;
-      this.publish({ agents: (r.body.agents as { id: string; name?: string; isPrimary?: boolean }[]).map(a => ({ id: a.id, name: a.name ?? a.id, ...(a.isPrimary ? { primary: true } : {}) })) });
+      const about = (d: unknown) => { const t = typeof d === 'string' ? d.split(/[.\n]/)[0].trim() : ''; return t && t.length <= 64 ? t : ''; };
+      this.publish({ agents: (r.body.agents as { id: string; name?: string; isPrimary?: boolean; description?: string; subAgentOf?: string | null }[]).map(a => ({ id: a.id, name: a.name ?? a.id, ...(a.isPrimary ? { primary: true } : {}), ...(about(a.description) ? { about: about(a.description) } : {}), ...(typeof a.subAgentOf === 'string' && a.subAgentOf ? { subAgentOf: a.subAgentOf } : {}) })) });
     } catch { /* the picker stays on the primary agent */ }
   }
 
