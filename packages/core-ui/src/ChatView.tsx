@@ -26,7 +26,7 @@ import { Markdown } from './markdown';
 import { UiIcon } from './ui-icons';
 import { ClaudeCodeIcon, CodexIcon, GeminiIcon } from './brand-icons';
 import type { UiIconName } from './ui-icons';
-import { approxTokens, duration, splitWork, toolCount, toolView, turnOutputs, turnPlan, turnSuggestions, withoutPlan, workSummary } from './turns';
+import { approxTokens, duration, groupLabel, splitWork, toolCount, toolView, turnOutputs, turnPlan, turnSuggestions, withoutPlan, workGroups, workSegments, type WorkItem } from './turns';
 import type { CardSuggestion, PlanStep } from './turns';
 import { ChatCardsController, activityLine, cardDraftFrom } from './chat-board';
 import type { ChatCard, ChatProgress } from './chat-board';
@@ -928,16 +928,20 @@ function ToolStep({ calls, live }: { calls: readonly ToolCall[]; live: boolean }
 
 const KIND_ICON: Record<ToolKind, UiIconName> = { command: 'terminal', read: 'file', write: 'file', edit: 'pencil', search: 'search', web: 'globe', browser: 'globe', memory: 'brain', board: 'board', other: 'tool' };
 
-function ToolRow({ call }: { call: ToolCall }) {
+const stepTime = (ms: number) => (duration(ms) === '0s' ? `${(ms / 1000).toFixed(1)}s` : duration(ms));
+
+/** `bare`: inside a "Ran 6 commands" group a command shows only its text (the group says what was done). */
+function ToolRow({ call, bare = false }: { call: ToolCall; bare?: boolean }) {
   const [open, setOpen] = useState(false);
   const v = toolView(call);
   const hasDetail = !!(call.output || call.input.length > 2);
+  const plain = bare && v.kind === 'command' && !!v.target;
   return <div className="tool-row" data-error={call.isError || undefined} data-open={open || undefined}>
     {(() => { const Row = hasDetail ? 'button' : 'div'; return <Row {...(hasDetail ? { type: 'button' as const, 'aria-expanded': open, onClick: () => setOpen(v => !v) } : {})} className="scaffold-row" data-static={hasDetail ? undefined : true}>
       {call.running ? <span className="spinner" aria-hidden="true"/> : <UiIcon name={call.isError ? 'alert' : KIND_ICON[v.kind]} size={12}/>}
-      <span className="tool-title"><span className={call.running ? 'shimmer' : 'tool-verb'}>{v.verb}</span>{v.target && <span className="tool-target" dir="auto">{v.kind === 'command' ? <code>{v.target}</code> : v.target}</span>}</span>
+      <span className="tool-title">{plain ? <span className="sr-only">{v.verb}</span> : <span className={call.running ? 'shimmer' : 'tool-verb'}>{v.verb}</span>}{v.target && <span className="tool-target" dir="auto">{v.kind === 'command' ? <code>{v.target}</code> : v.target}</span>}</span>
       {call.isError && <span className="tool-meta error">failed</span>}
-      {!call.running && call.ms !== undefined && call.ms >= 100 && <span className="tool-meta">{duration(call.ms) === '0s' ? `${(call.ms / 1000).toFixed(1)}s` : duration(call.ms)}</span>}
+      {!call.running && call.ms !== undefined && call.ms >= 100 && <span className="tool-meta">{stepTime(call.ms)}</span>}
       {hasDetail && <span className="caret" aria-hidden="true"><UiIcon name="chevron" size={11}/></span>}
     </Row>; })()}
     {open && <ToolDetail call={call} kind={v.kind} command={v.command} args={v.args}/>}
@@ -968,16 +972,40 @@ function HandOffs({ calls }: { calls: ToolCall[] }) {
   </DelegationCard>)}</>;
 }
 
-function WorkedRow({ parts, ms }: { parts: Part[]; ms: number | null }) {
+export function WorkedRow({ parts, ms }: { parts: Part[]; ms: number | null }) {
   const [open, setOpen] = useState(false);
-  const summary = workSummary(parts);
+  // CH10 item 10: one part per kind, "Thought for 12s › · Ran 6 commands › · Read 4 files ›".
+  const segments = workSegments(parts);
   return <div className="scaffold worked" data-open={open || undefined}>
     <button type="button" className="scaffold-row" aria-expanded={open} onClick={() => setOpen(v => !v)}>
       <UiIcon name="check" size={14}/><span>{ms !== null ? `Worked for ${duration(ms)}` : 'Worked'}</span>
-      {summary && <span className="worked-summary">· {summary}</span>}
+      {segments.length > 0 && <span className="worked-summary">{segments.map(s => <span key={s.kind} className="worked-seg" data-error={s.failed > 0 || undefined}><span aria-hidden="true">· </span>{s.label}{s.failed > 0 && `, ${s.failed} failed`}<span className="worked-seg-caret" aria-hidden="true"> ›</span></span>)}</span>}
       <span className="caret" aria-hidden="true"><UiIcon name="chevron" size={11}/></span>
     </button>
-    {open && <div className="worked-body">{parts.map((p, i) => <PartView key={i} part={p}/>)}</div>}
+    {open && <div className="worked-body">{workGroups(parts).map((it, i) => <WorkItemView key={i} item={it}/>)}</div>}
+  </div>;
+}
+
+/** CH2 item 4: back-to-back steps of one kind are one line ("Ran 6 commands") that opens to each step. */
+function WorkItemView({ item }: { item: WorkItem }) {
+  if (item.kind === 'part') return <PartView part={item.part}/>;
+  if (item.entries.length === 1) return <div className="scaffold tool-step"><ToolRow call={item.calls[0]}/></div>;
+  return <ToolGroup item={item}/>;
+}
+
+function ToolGroup({ item }: { item: Extract<WorkItem, { kind: 'group' }> }) {
+  const failed = item.calls.filter(c => c.isError).length;
+  const [open, setOpen] = useState(failed > 0);
+  const ms = item.calls.reduce((n, c) => n + (c.ms ?? 0), 0);
+  return <div className="scaffold tool-step tool-group" data-error={failed > 0 || undefined} data-open={open || undefined}>
+    <button type="button" className="scaffold-row" aria-expanded={open} onClick={() => setOpen(v => !v)}>
+      <UiIcon name={failed ? 'alert' : KIND_ICON[item.tool]} size={12}/>
+      <span className="tool-title"><span className="tool-verb">{groupLabel(item.tool, item.calls.length)}</span></span>
+      {failed > 0 && <span className="tool-meta error">{failed} failed</span>}
+      {ms >= 100 && <span className="tool-meta">{stepTime(ms)}</span>}
+      <span className="caret" aria-hidden="true"><UiIcon name="chevron" size={11}/></span>
+    </button>
+    {open && <div className="tool-group-body">{item.entries.map((e, i) => ('kind' in e ? <PartView key={`t${i}`} part={e}/> : <ToolRow key={e.id} call={e} bare/>))}</div>}
   </div>;
 }
 
