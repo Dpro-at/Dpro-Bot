@@ -168,7 +168,10 @@ export class ConversationsController {
     void this.loadAgents();
     void this.loadModels();
     void this.loadProjects();
+    void this.call('GET', '/api/chat/settings').then(r => { if (r.status === 200 && record(r.body) && record(r.body.settings)) this.#notifyDone = r.body.settings.notifyDone !== false; }).catch(() => undefined);
   }
+  /** CH10: Settings › General can turn off the notice when long work ends in the background. */
+  #notifyDone = true;
 
   /** The team for the agent picker (owner only; others talk to the primary agent). */
   #modelsAt = 0;
@@ -545,7 +548,7 @@ export class ConversationsController {
     const stopped = this.#state.turns.at(-1)?.status === 'stopped';
     // CHAT-BUILD-01 stage 5 (CH10): long work that ends while the window is in the back sends a desktop notification.
     const last = this.#state.turns.at(-1);
-    if (last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
+    if (this.#notifyDone && last?.role === 'assistant' && (last.durationMs ?? 0) >= 60_000) notifyDone('Girru', `${this.#state.conversations.find(c => c.id === this.#state.activeId)?.title ?? 'A chat'}: ${last.status === 'complete' ? 'done' : last.status === 'error' ? 'stopped with an error' : 'stopped'}.`);
     this.publish({ runId: null, stopping: false, reconnecting: false, queuePaused: stopped && this.#state.queue.length > 0 });
     void this.refreshList();
     if (stopped) return;

@@ -62,6 +62,7 @@ export function conversationPath(path) {
   if (path === SIDEBAR_PATH) return { kind: 'sidebar' };
   if (path === '/api/chat/panel') return { kind: 'panel' };
   if (path === '/api/chat/last') return { kind: 'last' };
+  if (path === '/api/chat/settings') return { kind: 'chat-settings' };
   if (path === PROJECTS_PATH) return { kind: 'projects' };
   let pm = /^\/api\/chat\/projects\/([^/?#]+)$/.exec(path);
   if (pm) return uuid(pm[1]) ? { kind: 'project', id: pm[1] } : null;
@@ -114,6 +115,7 @@ export function allowedConversation(method, path, body) {
   if (p.kind === 'chat-stop') return method === 'POST' && body === undefined;
   if (p.kind === 'chat-schedule') return method === 'GET' || method === 'DELETE' ? body === undefined : method === 'PUT' && scheduleOk(body);
   if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
+  if (p.kind === 'chat-settings') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['notifyDone']) && typeof body.notifyDone === 'boolean';
   if (p.kind === 'last') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['last']) && (body.last === null || uuid(body.last));
   if (p.kind === 'sidebar') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && Object.keys(body).length > 0 && onlyKeys(body, ['order', 'hidden', 'folded'])
     && (body.order === undefined || sectionList(body.order)) && (body.hidden === undefined || sectionList(body.hidden)) && (body.folded === undefined || folderList(body.folded));
@@ -266,6 +268,7 @@ export function conversationResponse(path, status, body) {
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
   if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
   if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
+  if (p.kind === 'chat-settings') return { settings: { notifyDone: !(record(body.settings) && body.settings.notifyDone === false) } };
   if (p.kind === 'last') return { last: uuid(body.last) ? body.last : null };
   if (p.kind === 'sidebar') {
     const v = record(body.sidebar) ? body.sidebar : {};

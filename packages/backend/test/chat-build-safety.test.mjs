@@ -262,6 +262,14 @@ test('stage 3: projects keep added folders; variables are encrypted, listed by n
   assert.deepEqual(await (await import(join(backendDir, 'src/services/project-variables.ts'))).listVariables('b-owner', p.id), [], 'variables go with the project');
 });
 
+test('chat settings: the done-in-the-background notice is on by default and saved per person', async () => {
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/settings')).json(), { settings: { notifyDone: true } });
+  assert.equal((await call('b-owner', 'PUT', '/api/chat/settings', { notifyDone: false })).statusCode, 200);
+  assert.deepEqual((await call('b-owner', 'GET', '/api/chat/settings')).json(), { settings: { notifyDone: false } });
+  assert.deepEqual((await call('b-other', 'GET', '/api/chat/settings')).json(), { settings: { notifyDone: true } });
+  for (const body of [{}, { notifyDone: 'no' }, { notifyDone: true, x: 1 }]) assert.equal((await call('b-owner', 'PUT', '/api/chat/settings', body)).statusCode, 400);
+});
+
 test('the chat that was open is kept per person; only an existing chat of the caller', async () => {
   const c = await newConversation();
   assert.deepEqual((await call('b-owner', 'GET', '/api/chat/last')).json(), { last: null });

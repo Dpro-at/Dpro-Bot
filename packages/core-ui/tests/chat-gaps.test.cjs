@@ -90,3 +90,15 @@ test('sidebar menus: a chat can go to the board; a project has Rename, Fold all 
   assert.match(list, /onDrop=\{e => \{ const id = e\.dataTransfer\.getData\(CHAT_DRAG\); setDropOn\(null\); if \(id\) \{ e\.preventDefault\(\); void controller\.moveToProject\(id, p\.id\); \} \}\}/);
   assert.match(src('ChatView.tsx'), /useEffect\(\(\) => \{ if \(boardRequest > 0 && canBoard\) openCardForm\(\); \}, \[boardRequest\]\)/);
 });
+
+test('Settings › General turns the done-in-the-background notice on or off; the plan-limit card can keep the model', () => {
+  const { allowedConversation: allow, conversationResponse: res } = require('../src/conversation-contract.js');
+  assert.equal(allow('GET', '/api/chat/settings', undefined), true);
+  assert.equal(allow('PUT', '/api/chat/settings', { notifyDone: false }), true);
+  for (const b of [{}, { notifyDone: 'no' }, { notifyDone: true, x: 1 }]) assert.equal(allow('PUT', '/api/chat/settings', b), false);
+  assert.deepEqual(res('/api/chat/settings', 200, { settings: { notifyDone: false } }), { settings: { notifyDone: false } });
+  assert.deepEqual(res('/api/chat/settings', 200, {}), { settings: { notifyDone: true } }, 'on unless turned off');
+  assert.match(src('conversations.ts'), /if \(this\.#notifyDone && last\?\.role === 'assistant' && \(last\.durationMs \?\? 0\) >= 60_000\) notifyDone\(/);
+  assert.match(src('AppSettings.tsx'), /\{live&&<ChatNoticeSettings client=\{client!\}\/>\}/);
+  assert.match(src('ChatMoments.tsx'), />Keep this model</);
+});

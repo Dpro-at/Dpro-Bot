@@ -416,6 +416,15 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     return { sidebar };
   });
 
+  // CH10: chat settings per person (Settings › General): a desktop notice when long work ends in the background.
+  fastify.get('/api/chat/settings', async (request) => { const v: any = await getPref(caller(request), 'chat-settings'); return { settings: { notifyDone: v?.notifyDone !== false } }; });
+  fastify.put('/api/chat/settings', async (request: Req, reply) => {
+    const b: any = request.body;
+    if (!b || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => k !== 'notifyDone') || typeof b.notifyDone !== 'boolean') return bad(reply, 'notifyDone must be true or false');
+    await setPref(caller(request), 'chat-settings', { notifyDone: b.notifyDone });
+    return { settings: { notifyDone: b.notifyDone } };
+  });
+
   // CH11: the chat that was open, so the next sign-in opens it again (per person, any device).
   fastify.get('/api/chat/last', async (request) => {
     const id = await getPref(caller(request), 'chat-last');
