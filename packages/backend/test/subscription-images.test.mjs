@@ -60,10 +60,10 @@ test('who sees images: Codex and Claude Code the chat\'s files; Gemini none (the
  assert.match(route,/images:seen,thinking/);
 });
 
-const run=promisify(execFile),binary=join(home,'.local','bin','claude'),record=join(root,'record.json');
+const run=promisify(execFile),binary=join(home,'.local','bin','claude'),record=join(home,'.local','bin','record.json');
 const source=new URL('../src/services/subscription-chat.ts',import.meta.url).href;
 // Fake claude: records its argv and stdin, then answers in the format its flags ask for.
-const FAKE=`const fs=require('node:fs');let s='';process.stdin.on('data',x=>s+=x);process.stdin.on('end',()=>{fs.writeFileSync(${JSON.stringify(record)},JSON.stringify({argv:process.argv.slice(2),stdin:s}));
+const FAKE=`const fs=require('node:fs');let s='';process.stdin.on('data',x=>s+=x);process.stdin.on('end',()=>{fs.writeFileSync(require('node:path').join(__dirname,'record.json'),JSON.stringify({argv:process.argv.slice(2),stdin:s}));
  if(process.argv.includes('stream-json')){const m=JSON.parse(s.trim());const n=m.message.content.filter(c=>c.type==='image').length;
   for(const row of [{type:'system',subtype:'init'},{type:'assistant',message:{content:[{type:'text',text:'x'}]}},{type:'result',subtype:'success',is_error:false,result:'saw '+n+' images'}])process.stdout.write(JSON.stringify(row)+'\\n');}
  else process.stdout.write(JSON.stringify({type:'result',result:'text:'+s}));});`;

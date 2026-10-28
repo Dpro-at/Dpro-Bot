@@ -83,7 +83,7 @@ export const CLAUDE_IMAGE_RAW_BYTES=Math.floor(5*1024*1024/4)*3;
 export async function claudeImageBlocks(files:readonly string[]):Promise<(ClaudeImageBlock&{file:string})[]>{
  const out:(ClaudeImageBlock&{file:string})[]=[];
  for(const file of chatImageFiles(files)){
-  try{const st=await fs.stat(file);if(!st.isFile()||st.size>CLAUDE_IMAGE_RAW_BYTES)continue;const bytes=await fs.readFile(file);const type=bytes.length<=MAX_IMAGE_BYTES?sniffImage(bytes):null;if(type)out.push({file,type:'image',source:{type:'base64',media_type:type,data:bytes.toString('base64')}});}catch{}
+  try{const bytes=await fs.readFile(file);const type=bytes.length<=CLAUDE_IMAGE_RAW_BYTES?sniffImage(bytes):null;if(type)out.push({file,type:'image',source:{type:'base64',media_type:type,data:bytes.toString('base64')}});}catch{}
  }
  return out;
 }
