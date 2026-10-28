@@ -218,3 +218,19 @@ test('images: when an image cannot be saved, nothing is sent and the text, files
     assert.match(c.getSnapshot().notice, /could not be attached/);
   } finally { c.dispose(); }
 });
+
+test('coding apps: shown in Team with their own Stop; the terminal keeps only your shells', () => {
+  const { allowedConversation: allow, conversationResponse: res } = require('../src/conversation-contract.js');
+  const id = '11111111-1111-4111-8111-111111111111', run = 'a'.repeat(32);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/${run}/stop`, undefined), true);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/${run}/stop`, { x: 1 }), false);
+  assert.equal(allow('GET', `/api/chat/conversations/${id}/apps/${run}/stop`, undefined), false);
+  assert.equal(allow('POST', `/api/chat/conversations/${id}/apps/../stop`, undefined), false);
+  const team = res(`/api/chat/conversations/${id}/team`, 200, { team: [], apps: [{ id: run, app: 'Claude Code', agentName: 'QA Tester', about: 'Check the hero', startedAt: 'now', secret: 'x' }, { id: 'bad', app: 'Codex' }] });
+  assert.deepEqual(team.apps, [{ id: run, app: 'Claude Code', agentName: 'QA Tester', about: 'Check the hero', startedAt: 'now' }]);
+  const panel = src('ChatDetails.tsx');
+  assert.match(panel, /live\.apps\.map\(a => <Row key=\{a\.id\} icon="terminal"/);
+  assert.match(panel, /\/apps\/\$\{id\}\/stop/);
+  assert.match(panel, /setInterval\(\(\) => setPulse/, 'Team looks again while a reply runs');
+  assert.doesNotMatch(src('TerminalPane.tsx'), /agentId|startedBy/, 'no agent tabs in the terminal');
+});

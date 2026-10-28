@@ -42,7 +42,9 @@ export type Usage = { model: string; tokensIn: number; tokensOut: number; replie
 export type Delegation = { agentId: string; agentName: string; model: string; status: 'started' | 'answered' | 'waiting_approval' | 'failed'; at: string };
 export type Schedule = { every: 'hourly' | 'daily' | 'weekly'; at: string; weekday: number | null; message: string; paused: boolean; nextRun: string };
 export type Connection = { id: string; name: string; enabled: boolean; needsYou: boolean };
-type Live = { usage: Usage[]; team: Delegation[]; schedule: Schedule | null; connections: Connection[] | null };
+/** A coding app (Claude Code, Codex, Gemini) doing a part for an agent of this chat, while it runs. */
+export type CodingApp = { id: string; app: string; agentName: string | null; about: string; startedAt: string };
+type Live = { usage: Usage[]; team: Delegation[]; apps: CodingApp[]; schedule: Schedule | null; connections: Connection[] | null };
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const scheduleWords = (s: Schedule) => s.every === 'hourly' ? `Runs every hour at :${s.at.slice(3)}` : s.every === 'daily' ? `Runs every day at ${s.at}` : `Runs every ${WEEKDAYS[s.weekday ?? 0]} at ${s.at}`;
 const kTokens = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
@@ -50,9 +52,9 @@ const localModel = (m: string) => !/^(claude-|subscription:)/.test(m);
 
 /** The chat's live data for the panel (usage, delegations, schedule, connections); quiet on failure. */
 function useLive(client: SessionClient | undefined, chatId: string | null, owner: boolean, tick: number): Live {
-  const [live, setLive] = useState<Live>({ usage: [], team: [], schedule: null, connections: null });
+  const [live, setLive] = useState<Live>({ usage: [], team: [], apps: [], schedule: null, connections: null });
   useEffect(() => {
-    if (!client || !chatId) { setLive({ usage: [], team: [], schedule: null, connections: null }); return; }
+    if (!client || !chatId) { setLive({ usage: [], team: [], apps: [], schedule: null, connections: null }); return; }
     let on = true;
     const get = async (path: string) => { try { const r = await client.request({ method: 'GET', path } as never); return r.status === 200 ? r.body as Record<string, unknown> : null; } catch { return null; } };
     void (async () => {
@@ -61,6 +63,7 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
       setLive({
         usage: Array.isArray(u?.usage) ? u!.usage as Usage[] : [],
         team: Array.isArray(t?.team) ? t!.team as Delegation[] : [],
+        apps: Array.isArray(t?.apps) ? t!.apps as CodingApp[] : [],
         schedule: (s?.schedule as Schedule) ?? null,
         connections: Array.isArray(c?.servers) ? (c!.servers as Record<string, unknown>[]).map(x => ({ id: String(x.id), name: String(x.name ?? x.id), enabled: x.enabled === true, needsYou: x.enabled === true && (!!x.lastError || x.active === false) })) : null,
       });
@@ -83,7 +86,11 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
   const [byModel, setByModel] = useState(false);
   const [drag, setDrag] = useState<PanelPart | null>(null);
   const menu = useMenu();
-  const live = useLive(client, s.activeId, owner, s.turns.length + (s.runId ? 1 : 0));
+  // While a reply runs, look again every few seconds so coding apps an agent starts show up (and leave) in Team.
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => { if (!s.runId) return; const t = setInterval(() => setPulse(p => p + 1), 4000); return () => clearInterval(t); }, [s.runId]);
+  const live = useLive(client, s.activeId, owner, s.turns.length + (s.runId ? 1 : 0) + pulse * 2);
+  const stopApp = (id: string) => { if (!s.activeId) return; void client?.request({ method: 'POST', path: `/api/chat/conversations/${s.activeId}/apps/${id}/stop` } as never).catch(() => undefined).finally(() => setPulse(p => p + 1)); };
   useEffect(() => { void (async () => { try { const r = await client?.request({ method: 'GET', path: PANEL_PATH } as never); if (r?.status === 200) setPrefsState(readPanel((r.body as any)?.panel)); } catch { /* the usual order */ } })(); }, [client]);
   const setPrefs = (p: PanelPrefs) => { setPrefsState(p); void client?.request({ method: 'PUT', path: PANEL_PATH, body: p } as never).catch(() => undefined); };
   const project = controller.activeProject();
@@ -92,7 +99,7 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
   const lead = nameOf(conv?.agentId ?? s.agentId);
   const running = s.turns.find(t => t.role === 'assistant' && t.status === 'running');
   const writers = [...new Set(s.turns.filter(t => t.role === 'assistant').map(t => t.agentId ?? conv?.agentId ?? ''))];
-  const working = [...(running ? [nameOf(running.agentId ?? conv?.agentId)] : []), ...live.team.filter(d => d.status === 'started').map(d => d.agentName)];
+  const working = [...(running ? [nameOf(running.agentId ?? conv?.agentId)] : []), ...live.team.filter(d => d.status === 'started').map(d => d.agentName), ...live.apps.map(a => a.app)];
   const waits = (conv?.waiting ?? 0) + live.team.filter(d => d.status === 'waiting_approval').length;
   const trace = recall?.latest(s.turns.filter(t => t.role === 'assistant').map(t => t.key));
   const ctx = trace?.context.numCtx && trace.context.promptTokens ? Math.min(100, Math.round(trace.context.promptTokens / trace.context.numCtx * 100)) : null;
@@ -115,12 +122,14 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
           end={owner ? <button type="button" className="link-button" onClick={onSchedule}>Change</button> : undefined}/>
           : owner && s.activeId ? <button type="button" className="link-button panel-add" onClick={onSchedule}><UiIcon name="clock" size={12}/>Run this chat on a schedule…</button> : null}
       </>, more: placeExtra },
-    team: { has: writers.length > 0 || !!running || live.team.length > 0, summary: working.length ? `${working.length} working` : waits ? `${waits} waits for you` : `${writers.length || 1} ${writers.length === 1 ? 'agent' : 'agents'}`, tone: working.length ? 'work' : waits ? 'needs' : undefined,
+    team: { has: writers.length > 0 || !!running || live.team.length > 0 || live.apps.length > 0, summary: working.length ? `${working.length} working` : waits ? `${waits} waits for you` : `${writers.length || 1} ${writers.length === 1 ? 'agent' : 'agents'}`, tone: working.length ? 'work' : waits ? 'needs' : undefined,
       body: <>
         <Row face={lead} name={lead} sub={`Leads · ${answersLabel(s.model, s.models, s.thinking)}`} end={running && !running.agentId ? <StopButton onStop={onStop}/> : <span className="panel-end">{running ? 'Working' : 'Ready'}</span>}/>
         {writers.filter(w => w && w !== (conv?.agentId ?? '')).map(w => <Row key={w} face={nameOf(w)} name={nameOf(w)} sub="Wrote a reply here" end={running?.agentId === w ? <StopButton onStop={onStop}/> : undefined}/>)}
         {live.team.slice(0, more.has('team') ? 50 : 3).map((d, i) => <Row key={`${d.agentId}-${i}`} face={d.agentName} name={d.agentName} sub={`Handed a part · ${answersLabel(d.model, s.models, 'normal')}`} indent
           end={d.status === 'started' ? <StopButton onStop={onStop}/> : <span className="panel-end" data-tone={d.status === 'waiting_approval' ? 'needs' : d.status === 'failed' ? 'error' : undefined}>{d.status === 'answered' ? 'Done' : d.status === 'waiting_approval' ? 'Waits for you' : d.status === 'failed' ? 'Failed' : ''}</span>}/>)}
+        {live.apps.map(a => <Row key={a.id} icon="terminal" name={a.app} indent sub={[a.agentName ? `Working for ${a.agentName}` : 'Working', a.about].filter(Boolean).join(' · ')}
+          end={<button type="button" className="row-tool details-stop" aria-label={`Stop ${a.app}`} title={`Stop ${a.app} (only this part)`} onClick={() => stopApp(a.id)}><UiIcon name="stop" size={10}/></button>}/>)}
       </>, more: live.team.length > 3 && !more.has('team') ? <ShowMore n={live.team.length - 3} onClick={() => setMore(new Set([...more, 'team']))}/> : undefined },
     results: { has: changed > 0 || outputs.length > 0 || !!resultsExtra, summary: changed ? `+${s.git?.added ?? 0} −${s.git?.removed ?? 0}` : `${outputs.length} ${outputs.length === 1 ? 'file' : 'files'}`,
       side: changed ? <button type="button" className="link-button" onClick={() => onOpenPane('changes')}>Review</button> : undefined,

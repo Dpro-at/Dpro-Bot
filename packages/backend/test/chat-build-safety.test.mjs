@@ -361,3 +361,23 @@ test('stage 4: panel layout per person; team list; Stop for the whole chat', asy
   assert.deepEqual((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/stop`)).json(), { ok: true, stopped: 0 });
   assert.equal((await call('b-other', 'POST', `/api/chat/conversations/${c.id}/stop`)).statusCode, 404);
 });
+
+test('coding apps: Team lists each one an agent started, with its own Stop; Stop for the chat ends them too', async () => {
+  const { startCodingRun } = await import('../src/services/coding-runs.ts');
+  const c = await newConversation();
+  const run = startCodingRun(c.id, 'Claude Code', null, 'Check the hero at phone width\nmore detail');
+  const apps = (await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/team`)).json().apps;
+  assert.equal(apps.length, 1);
+  assert.deepEqual({ id: apps[0].id, app: apps[0].app, agentName: apps[0].agentName, about: apps[0].about }, { id: run.id, app: 'Claude Code', agentName: null, about: 'Check the hero at phone width' });
+  assert.equal((await call('b-other', 'POST', `/api/chat/conversations/${c.id}/apps/${run.id}/stop`)).statusCode, 404, 'not someone else’s chat');
+  assert.equal(run.signal.aborted, false);
+  assert.deepEqual((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/apps/${run.id}/stop`)).json(), { ok: true });
+  assert.equal(run.signal.aborted, true);
+  run.done();
+  assert.deepEqual((await call('b-owner', 'GET', `/api/chat/conversations/${c.id}/team`)).json().apps, []);
+  assert.equal((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/apps/${run.id}/stop`)).statusCode, 404, 'gone once it ended');
+  const two = startCodingRun(c.id, 'Codex', null, 'x');
+  assert.equal((await call('b-owner', 'POST', `/api/chat/conversations/${c.id}/stop`)).json().stopped, 1);
+  assert.equal(two.signal.aborted, true);
+  two.done();
+});

@@ -44,6 +44,7 @@ import { openSseStream } from '../../services/chat-sse.js';
 import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
+import { codingRunsFor, stopCodingRun, stopCodingRuns } from '../../services/coding-runs.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 import { CheckpointError, changedFiles, lineCounts, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
 import { changesSomething } from '../../tools/registry.js';
@@ -469,7 +470,22 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!c) return notFound(reply);
     const rows = await q.all<{ agent_id: string; name: string | null; model: string; status: string; created_at: string }>(
       'SELECT r.agent_id, a.name, r.model, r.status, r.created_at FROM team_delegation_results r LEFT JOIN agents_config a ON a.id = r.agent_id WHERE r.owner_id = ? AND r.session_id = ? ORDER BY r.created_at DESC LIMIT 20', userId, c.id).catch(() => []);
-    return { team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })) };
+    const apps = codingRunsFor(c.id);
+    const names = new Map<string, string>();
+    for (const id of new Set(apps.map(a => a.agentId).filter((x): x is string => !!x))) {
+      const a = await q.one<{ name: string | null }>('SELECT name FROM agents_config WHERE id = ?', id).catch(() => undefined);
+      names.set(id, a?.name || id);
+    }
+    return {
+      team: rows.map((r) => ({ agentId: r.agent_id, agentName: r.name || r.agent_id, model: r.model, status: r.status, at: r.created_at })),
+      apps: apps.map(a => ({ id: a.id, app: a.app, agentName: a.agentId ? names.get(a.agentId) ?? a.agentId : null, about: a.about, startedAt: a.startedAt })),
+    };
+  });
+  // Stop one coding app working in this chat (its row in Team).
+  fastify.post('/api/chat/conversations/:id/apps/:runId/stop', async (request: Req, reply) => {
+    const c = await findConversation(caller(request), request.params.id!);
+    if (!c) return notFound(reply);
+    return stopCodingRun(c.id, request.params.runId) ? { ok: true } : notFound(reply);
   });
   // Stop everything in this chat: its reply and the helpers it handed work to (⌘. in the window).
   fastify.post('/api/chat/conversations/:id/stop', async (request: Req, reply) => {
@@ -477,7 +493,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!c) return notFound(reply);
     const run = chatRuns.activeFor(c.id);
     if (run) run.requestStop();
-    return { ok: true, stopped: (run ? 1 : 0) + stopDelegations(c.id) };
+    return { ok: true, stopped: (run ? 1 : 0) + stopDelegations(c.id) + stopCodingRuns(c.id) };
   });
   // A chat that runs on a schedule (owner): the saved message is sent again at the chosen time.
   fastify.get('/api/chat/conversations/:id/schedule', { config: { access: 'owner' } }, async (request: Req, reply) => {

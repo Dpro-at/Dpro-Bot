@@ -91,6 +91,8 @@ export function conversationPath(path) {
   // CHAT-BUILD-01 stage 4 (CH8): the side panel's data for one chat.
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/(usage|team|schedule|stop)$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: `chat-${m[2]}`, id: m[1] } : null;
+  m = /^\/api\/chat\/conversations\/([^/?#]+)\/apps\/([a-f0-9]{32})\/stop$/.exec(path);
+  if (m) return uuid(m[1]) ? { kind: 'app-stop', id: m[1], run: m[2] } : null;
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/images$/.exec(path);
   if (m) return uuid(m[1]) ? { kind: 'images', id: m[1] } : null;
   m = /^\/api\/chat\/conversations\/([^/?#]+)\/images\/([a-f0-9]{32})$/.exec(path);
@@ -121,7 +123,7 @@ export function allowedConversation(method, path, body) {
   const p = conversationPath(path);
   if (!p) return false;
   if (p.kind === 'chat-usage' || p.kind === 'chat-team') return method === 'GET' && body === undefined;
-  if (p.kind === 'chat-stop') return method === 'POST' && body === undefined;
+  if (p.kind === 'chat-stop' || p.kind === 'app-stop') return method === 'POST' && body === undefined;
   if (p.kind === 'chat-schedule') return method === 'GET' || method === 'DELETE' ? body === undefined : method === 'PUT' && scheduleOk(body);
   if (p.kind === 'panel') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['order', 'folded']) && (body.order === undefined || partList(body.order)) && (body.folded === undefined || partList(body.folded));
   if (p.kind === 'chat-settings') return method === 'GET' ? body === undefined : method === 'PUT' && record(body) && onlyKeys(body, ['notifyDone']) && typeof body.notifyDone === 'boolean';
@@ -276,7 +278,9 @@ export function conversationResponse(path, status, body) {
     return { runId: body.runId, ...(body.replayed === true ? { replayed: true } : {}), ...(record(body.userMessage) ? { userMessage: message(body.userMessage) } : {}) };
   }
   if (p.kind === 'chat-usage') return { usage: (Array.isArray(body.usage) ? body.usage : []).slice(0, 50).filter(record).map(u => ({ model: str(u.model, 120), tokensIn: num(u.tokensIn) ?? 0, tokensOut: num(u.tokensOut) ?? 0, replies: num(u.replies) ?? 0 })) };
-  if (p.kind === 'chat-team') return { team: (Array.isArray(body.team) ? body.team : []).slice(0, 20).filter(record).map(t => ({ agentId: str(t.agentId, 128), agentName: str(t.agentName, 80), model: str(t.model, 120), status: ['started', 'answered', 'waiting_approval', 'failed'].includes(t.status) ? t.status : 'failed', at: str(t.at, 40) })) };
+  if (p.kind === 'chat-team') return { team: (Array.isArray(body.team) ? body.team : []).slice(0, 20).filter(record).map(t => ({ agentId: str(t.agentId, 128), agentName: str(t.agentName, 80), model: str(t.model, 120), status: ['started', 'answered', 'waiting_approval', 'failed'].includes(t.status) ? t.status : 'failed', at: str(t.at, 40) })),
+    apps: (Array.isArray(body.apps) ? body.apps : []).slice(0, 20).filter(a => record(a) && typeof a.id === 'string' && /^[a-f0-9]{32}$/.test(a.id)).map(a => ({ id: a.id, app: str(a.app, 60), agentName: typeof a.agentName === 'string' ? str(a.agentName, 80) : null, about: str(a.about, 120), startedAt: str(a.startedAt, 40) })) };
+  if (p.kind === 'app-stop') { if (body.ok !== true) throw Error('protocol'); return { ok: true }; }
   if (p.kind === 'chat-stop') return { ok: body.ok === true, stopped: num(body.stopped) ?? 0 };
   if (p.kind === 'chat-schedule') return body.ok === true ? { ok: true } : { schedule: scheduleView(body.schedule) };
   if (p.kind === 'panel') { const v = record(body.panel) ? body.panel : {}; return { panel: { order: partList(v.order) ? v.order : PANEL_PARTS, folded: partList(v.folded) ? v.folded : [] } }; }
