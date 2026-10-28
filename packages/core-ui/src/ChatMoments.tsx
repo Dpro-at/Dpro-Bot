@@ -2,15 +2,17 @@
 // team of agents trustworthy — Allow once / Deny where an agent waits for you, hand-off cards, what you
 // said while it worked, text that tried to give orders, the chat summed up, a plan limit, undo what an
 // agent changed — and the task list above the box. Each is one sentence and at most one action.
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { SessionClient } from './session';
 import type { Part, ToolCall, Turn } from './turns';
 import { duration, toolView, turnPlan } from './turns';
 import { UiIcon } from './ui-icons';
 import { ContextMenu, useMenu } from './desktop-ui';
+import type { MenuItem } from './desktop-ui';
 import { ApprovalVerificationSheet } from './ApprovalVerificationSheet';
 import { paramView, requestTitle } from './ApprovalPage';
+import { permissionCategories } from './hire-contract.js';
 
 export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
@@ -19,6 +21,8 @@ export type Moments = {
   onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
   /** CH3 ⇧⌘Z: each changes card on screen, by message id — whether its changes are undone, and its own Redo. */
   changeCards?: Map<string, { undone: boolean; redo: () => void }>;
+  /** CH6/CH10 team moments: put text in the box (never sent by itself), open an agent's page, open what an agent may do for one action. */
+  onDraft?: (text: string) => void; onOpenAgent?: (agentId: string) => void; onOpenRules?: (agentId: string, category: string) => void;
 };
 export const MomentsContext = createContext<Moments>({});
 
@@ -58,10 +62,14 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
 
 /** CH1/CH6: an agent waits for you — review what it wants, then Allow once / Deny right in the chat (also in Approvals).
  * The stored request must be this call's tool in this chat; its parameters are shown before Allow once. */
-type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean };
-export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
-  const { client, conversationId, onOpenApprovals } = useContext(MomentsContext);
-  const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'allowed' | 'denied' | 'gone'>('waiting');
+type Detail = { id: string; toolName: string; sessionId?: string; status: string; paramsHash: string; params: unknown; maskedFields?: string[]; verificationRequired?: boolean; agentId?: string | null; category?: string | null };
+/** CH6/CH10: after Deny, how long "You said no" offers Allow now before the no is sent (a sent no is final). */
+export const DENY_UNDO_MS = 6000;
+/** `what`: the request in the owner's words ("hand this to QA Tester"); the tool's title otherwise. */
+export function ApprovalCard({ call, who, what }: { call: ToolCall; who?: string; what?: string }) {
+  const { client, conversationId, onOpenApprovals, onOpenRules } = useContext(MomentsContext);
+  const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'saidNo' | 'allowed' | 'denied' | 'gone'>('waiting');
+  const denyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const more = useMenu();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [notice, setNotice] = useState('');
@@ -75,7 +83,7 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
       const v = (d.body as any)?.approval as Detail | undefined;
       if (d.status !== 200 || !v) { setState('gone'); return; }
       if (v.toolName !== call.name || (conversationId && v.sessionId && v.sessionId !== conversationId)) { setState('gone'); setNotice('This card does not match the request it names. Check it in Approvals.'); return; }
-      if (v.status !== 'pending') { setState(v.status === 'denied' ? 'denied' : 'allowed'); return; }
+      if (v.status !== 'pending') { setState(v.status === 'denied' ? 'denied' : v.status === 'expired' ? 'gone' : 'allowed'); return; }
       setDetail(v); setState('review');
     } catch { setState('waiting'); setNotice('No connection. Try again.'); }
   };
@@ -89,11 +97,21 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
   };
   // The request is read at once, so its details and Allow once show without an extra step (what is shown is what is allowed).
   useEffect(() => { if (client && id && state === 'waiting' && !detail) void review(); }, [id]);
-  const deny = async () => { setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); } catch { setState('waiting'); } };
+  const sendDeny = async () => { denyTimer.current = null; setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); } catch { setState('waiting'); } };
+  // CH6/CH10 "You said no": a reviewed request waits a few seconds before the no is sent, so Allow now can still allow it
+  // (with the owner's click and the same Allow once request; nothing is allowed by itself). Leaving the chat sends the no at once.
+  const deny = () => { if (state !== 'review' || !detail) { void sendDeny(); return; } setState('saidNo'); denyTimer.current = setTimeout(() => void sendDeny(), DENY_UNDO_MS); };
+  const allowNow = () => { if (denyTimer.current) clearTimeout(denyTimer.current); denyTimer.current = null; setState('review'); if (detail?.verificationRequired) setVerify(true); else void allow(); };
+  useEffect(() => () => { if (denyTimer.current) { clearTimeout(denyTimer.current); void client?.request({ method: 'POST', path: `/api/approvals/${id}/deny` } as never).catch(() => null); } }, []);
   if (!client || !id) return null;
   const title = requestTitle(call.name, null);
+  const said = what ?? title;
   if (state === 'allowed') return <p className="moment-line"><UiIcon name="check" size={12}/>Allowed: {title}. The chat carries on with the result.</p>;
-  if (state === 'denied') return <p className="moment-line"><UiIcon name="close" size={12}/>Denied: {title}. It did not run.</p>;
+  if (state === 'denied') return <p className="moment-line"><UiIcon name="close" size={12}/>You said no: {said}. It did not run.</p>;
+  if (state === 'saidNo') return <div className="moment-card team-moment" data-tone="no" role="status">
+    <p><UiIcon name="close" size={14}/>You said no: {said}.</p>
+    <div className="moment-actions"><button type="button" className="moment-main" onClick={allowNow}>Allow now</button></div>
+  </div>;
   if (state === 'gone') return <p className="moment-line">{notice || 'This request is no longer waiting. See Approvals.'}</p>;
   const view = detail ? paramView(detail.params, detail.maskedFields ?? []) : null;
   return <div className="moment-card" data-tone="needs">
@@ -107,11 +125,39 @@ export function ApprovalCard({ call, who }: { call: ToolCall; who?: string }) {
       <button type="button" className="link-button" disabled={state === 'busy'} onClick={() => void deny()}>Deny</button>
       <span className="moment-hint">Also in Approvals</span>
       {onOpenApprovals && <button type="button" className="dk-icon moment-more" aria-label="More for this request" title="More for this request"
-        onClick={e => more.at(e, [{ label: 'Open in Approvals', icon: 'open', run: onOpenApprovals }, { label: 'Always allow this… (Approval rules)', icon: 'check', run: onOpenApprovals }])}><UiIcon name="more" size={14}/></button>}
+        onClick={e => more.at(e, [{ label: 'Open in Approvals', icon: 'open', run: onOpenApprovals }, alwaysAllow(detail, onOpenRules ?? (() => onOpenApprovals()))])}><UiIcon name="more" size={14}/></button>}
     </div>
     <ContextMenu menu={more.menu} onClose={more.close}/>
     {notice && <p className="moment-hint" role="status">{notice}</p>}
     {verify && detail && <ApprovalVerificationSheet client={client} id={detail.id} paramsHash={detail.paramsHash} toolName={title} onClose={() => setVerify(false)} onApprove={receipt => { setVerify(false); void allow(receipt); }}/>}
+  </div>;
+}
+
+/** CH6/CH10 Stop asking for one person: "What agents may do" with that agent and action picked (its Allow is the rule).
+ * Hand-offs, commands and a tool's own request always ask; no rule lifts them, so the item says so. */
+export function alwaysAllow(detail: Pick<Detail, 'agentId' | 'category'> | null, open: (agentId: string, category: string) => void): Exclude<MenuItem, 'sep'> {
+  const category = detail?.category ?? '';
+  if (!detail?.agentId || !(permissionCategories as readonly string[]).includes(category)) return { label: 'Always asks: no rule can allow this', icon: 'lock', disabled: true, run: () => {} };
+  return { label: 'Always allow this… (What agents may do)', icon: 'check', run: () => open(detail.agentId!, category) };
+}
+
+/** CH6/CH10: why a hand-off did not finish, from the hand-off's own receipt ("Team request did not finish (timed_out): …"). */
+export type HandOffFailure = 'timed_out' | 'no_model' | 'model_unavailable';
+export function handOffFailure(call: Pick<ToolCall, 'name' | 'output' | 'running'>): HandOffFailure | null {
+  if (call.name !== 'team_delegate' || call.running || !call.output) return null;
+  return (/^Team request did not finish \((timed_out|no_model|model_unavailable)\): /.exec(call.output)?.[1] as HandOffFailure | undefined) ?? null;
+}
+
+/** CH6/CH10: a hand-off that ran out of time or whose person cannot answer — one sentence and the owner's next step. */
+function HandOffMoment({ why, name, agentId, request }: { why: HandOffFailure; name: string; agentId?: string; request?: string }) {
+  const { onDraft, onOpenAgent } = useContext(MomentsContext);
+  const timed = why === 'timed_out';
+  // Hand it again only drafts a message to the lead; it is sent (and approved) like any other.
+  const act = timed ? (onDraft && request ? { label: 'Hand it again', run: () => onDraft(`Hand this to ${name} again: ${request}`) } : null)
+    : onOpenAgent && agentId ? { label: 'Set a model', run: () => onOpenAgent(agentId) } : null;
+  return <div className="moment-card team-moment" data-tone="needs" role="note">
+    <p><UiIcon name={timed ? 'clock' : 'cpu'} size={14}/>{timed ? `${name} ran out of time.` : `${name} cannot answer: ${why === 'no_model' ? 'no model is set' : 'its model is not available'}.`}</p>
+    {act && <div className="moment-actions"><button type="button" className="moment-main" onClick={act.run}>{act.label}</button></div>}
   </div>;
 }
 
@@ -124,13 +170,15 @@ export function DelegationCard({ call, nested, children }: { call: ToolCall; nes
   const name = agentName?.(input.agent_id) ?? input.agent_id ?? 'an agent';
   const about = agentAbout?.(input.agent_id);
   const parentId = subAgentOf?.(input.agent_id);
-  const state = call.running ? 'Working' : call.approvalId ? 'Waits for you' : call.isError ? 'Did not finish' : 'Done';
+  const why = handOffFailure(call);
+  const state = call.running ? 'Working' : call.approvalId ? 'Waits for you' : why === 'timed_out' ? 'Ran out of time' : why ? 'Cannot answer' : call.isError ? 'Did not finish' : 'Done';
+  const moment = why && <HandOffMoment why={why} name={name} agentId={input.agent_id} request={input.request}/>;
   const time = call.ms && !call.running ? ` · ${duration(call.ms)}` : '';
   // CH6: a hand-off to a sub-agent says whose it is; under its lead's card it is one nested line.
   const verb = call.approvalId ? 'Wants to hand to' : nested && parentId ? `${agentName?.(parentId) ?? 'It'} handed to its sub-agent` : parentId ? `Handed to ${agentName?.(parentId) ?? 'a lead'}’s sub-agent` : 'Handed to';
   const step = call.running ? steps?.find(x => x.agentId === input.agent_id) : undefined;
   const head = <p className="handoff-head">{!nested && <UiIcon name="handoff" size={14}/>}<span className="handoff-verb">{verb}</span><span className="composer-face" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span><b>{name}</b>{about && !nested && <span className="handoff-about">{about}</span>}<span className="moment-hint handoff-state">{state}{time}</span></p>;
-  if (nested) return <div className="handoff-sub">{head}{input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}</div>;
+  if (nested) return <div className="handoff-sub">{head}{input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}{moment}</div>;
   return <div className="moment-card handoff" data-tone={call.approvalId ? 'needs' : undefined}>
     {head}
     {input.request && <p className="handoff-ask" dir="auto">{input.request}</p>}
@@ -139,9 +187,10 @@ export function DelegationCard({ call, nested, children }: { call: ToolCall; nes
     {call.running && <div className="handoff-live" role="status"><span className="pulse" aria-hidden="true"/><span className="handoff-step">{stepLabel(step?.tool)}</span>
       {step && <Since at={step.at}/>}
       {onStop && <button type="button" className="row-tool handoff-stop" aria-label="Stop" title="Stop (also stops what it was handed)" onClick={onStop}><UiIcon name="stop" size={10}/></button>}</div>}
-    {call.output && !call.approvalId && <><button type="button" className="handoff-fold" aria-expanded={open} onClick={() => setOpen(v => !v)}><span className="caret" aria-hidden="true"><UiIcon name="chevron" size={12}/></span>{`${name}’s report`}</button>
+    {moment}
+    {call.output && !call.approvalId && !why && <><button type="button" className="handoff-fold" aria-expanded={open} onClick={() => setOpen(v => !v)}><span className="caret" aria-hidden="true"><UiIcon name="chevron" size={12}/></span>{`${name}’s report`}</button>
       {open && <div className="handoff-report" dir="auto">{call.output}</div>}</>}
-    {call.approvalId && <ApprovalCard call={call} who="The lead"/>}
+    {call.approvalId && <ApprovalCard call={call} who="The lead" what={`hand this to ${name}`}/>}
   </div>;
 }
 

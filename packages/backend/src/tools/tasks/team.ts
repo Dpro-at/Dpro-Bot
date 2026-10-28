@@ -5,7 +5,20 @@ import { subscriptionModel } from '../../services/subscription-chat.js';
 import { mayDelegate, orgRows, type OrgRow } from '../../services/agent-org.js';
 
 type Agent = { id: string; name: string; model: string; provider: string; temperature: number; max_tokens: number };
-const fail = (): ToolResult => ({ content: [{ type: 'text', text: 'Team request could not run. Check the selected agent, configured reply source, grants and approval.' }], error: 'team_request_refused' });
+/** CH6/CH10: why a hand-off did not finish, so the chat can offer the owner's next step (it never re-runs by itself). */
+export type TeamFailure = 'timed_out' | 'no_model' | 'model_unavailable';
+const WHY: Record<TeamFailure, string> = { timed_out: 'the agent ran out of time (4 minutes)', no_model: 'the agent has no model set', model_unavailable: 'the agent\'s model is not available' };
+const fail = (why?: TeamFailure): ToolResult => why
+  ? { content: [{ type: 'text', text: `Team request did not finish (${why}): ${WHY[why]}. Nothing runs again by itself; tell the owner.` }], error: 'team_request_refused', details: { status: why } }
+  : { content: [{ type: 'text', text: 'Team request could not run. Check the selected agent, configured reply source, grants and approval.' }], error: 'team_request_refused' };
+/** The whole hand-off's time limit (every model call and tool of the child together). */
+export const DELEGATION_MS = 240_000;
+/** A failed hand-off's reason: the time limit (not the owner's Stop), or a model the child cannot use; otherwise none. */
+export function teamFailure(err: unknown, timedOut: boolean, stopped: boolean): TeamFailure | undefined {
+  if (stopped) return undefined;
+  if (timedOut) return 'timed_out';
+  return err instanceof Error && err.message === 'model_unavailable' ? 'model_unavailable' : undefined;
+}
 
 /**
  * The calling agent may coordinate at all: an owner chat, not itself a delegated child or task run,
@@ -97,11 +110,14 @@ export const teamDelegateTool: Tool = {
     const session = context!.sessionId ?? '';
     if (session) { const set = delegations.get(session) ?? new Set(); set.add(stopper); delegations.set(session, set); }
     let resultId: string | undefined;
+    const limit = AbortSignal.timeout(DELEGATION_MS);
     const { startTeamResult, finishTeamResult } = await import('../../services/team-results.js');
     try {
       const saved = await sql().read(one<Agent>('SELECT id,name,model,provider,temperature,max_tokens FROM agents_config WHERE id=?', params.agent_id));
       const target = saved ? { ...saved, model: params.reply_source ?? saved.model } : undefined;
-      if (!target?.model || (!subscriptionModel(target.model) && !['ollama', 'local', 'claude'].includes(target.provider))) return fail();
+      if (!target) return fail();
+      if (!target.model?.trim()) return fail('no_model');
+      if (!subscriptionModel(target.model) && !['ollama', 'local', 'claude'].includes(target.provider)) return fail('model_unavailable');
       const { chatWorkspace, runSubscription } = await import('../../services/subscription-chat.js');
       const folder = context!.fileReadRoot ?? await chatWorkspace(context!.sessionId!);
       // Recompute rather than copy the parent's grants/permissions to the child.
@@ -113,7 +129,7 @@ export const teamDelegateTool: Tool = {
       });
       const { subscriptionAgentContext } = await import('../../services/subscription-agent-context.js');
       const instructions = await subscriptionAgentContext(target.id);
-      const signal = AbortSignal.any([AbortSignal.timeout(240000), stopper.signal]);
+      const signal = AbortSignal.any([limit, stopper.signal]);
       const reply = async (prompt: string): Promise<string> => {
         if (signal.aborted) throw Error('cancelled');
         if (subscriptionModel(target.model)) return runSubscription(target.model, folder, prompt, signal, { appToolsOnly: true });
@@ -137,9 +153,10 @@ export const teamDelegateTool: Tool = {
       });
       await finishTeamResult(resultId, result);
       return result;
-    } catch {
-      if (resultId) await finishTeamResult(resultId, fail()).catch(() => {});
-      return fail();
+    } catch (err) {
+      const out = fail(teamFailure(err, limit.aborted, stopper.signal.aborted));
+      if (resultId) await finishTeamResult(resultId, out).catch(() => {});
+      return out;
     }
     finally { active.delete(key); setStep(session, params.agent_id as string, null); const set = delegations.get(session); set?.delete(stopper); if (set && !set.size) delegations.delete(session); }
   },
