@@ -127,3 +127,17 @@ test('reply actions: Answer again on the last finished reply; Copy shows its key
   assert.match(v, /onStop: \(\) => void controller\.stopAll\(\)/);
   assert.match(src('ChatMoments.tsx'), /\{call\.running && onStop && <div className="moment-actions"><button type="button" className="link-button" onClick=\{onStop\}>/);
 });
+
+test('changed files row shows +N −N; the summary notice can be read and started from', () => {
+  const { conversationResponse: res } = require('../src/conversation-contract.js');
+  const m = src('ChatMoments.tsx');
+  assert.match(m, /<span className="diff-add">\+\{turn\.changes\.added\}<\/span> <span className="diff-del">−\{turn\.changes\.removed\}<\/span>/);
+  assert.match(m, /\{shown \? 'Hide the summary' : 'Read the summary'\}/);
+  assert.match(m, /m\.onStartFresh!\(summary \|\| head\)/);
+  const long = `3 older messages were summed up.\n\n${'s'.repeat(2000)}`;
+  const out = res('/api/chat/conversations/9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b/messages', 200, { messages: [{ id: 'm1', role: 'assistant', content: 'x', parts: [{ kind: 'notice', code: 'summarized', text: long }, { kind: 'notice', code: 'injection', text: 'i'.repeat(900) }], status: 'complete', runId: null, durationMs: null, createdAt: '', changes: { files: 2, undone: false, added: 7, removed: 3 } }], activeRunId: null, conversation: { id: '9a8b7c6d-1d2a-4f4e-9b1a-6c7d8e9f0a1b', title: 't', agentId: null, projectId: null, pinned: false, preview: '', createdAt: '', updatedAt: '' } });
+  const msg = out.messages[0];
+  assert.equal(msg.parts.find((p) => p.code === 'summarized').text.length, long.length, 'the summary is kept whole (up to 2400)');
+  assert.equal(msg.parts.find((p) => p.code === 'injection').text.length, 300, 'other notices stay one line');
+  assert.deepEqual(msg.changes, { files: 2, undone: false, added: 7, removed: 3 });
+});

@@ -45,7 +45,7 @@ import { AUTO_MODEL, executeChatTurn } from './chat.js';
 import { addApprovalDecidedListener } from '../../tools/approvals.js';
 import { stopDelegations } from '../../tools/tasks/team.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
-import { CheckpointError, changedFiles, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
+import { CheckpointError, changedFiles, lineCounts, restore, snapshot, snapshotState } from '../../services/chat-checkpoints.js';
 import { changesSomething } from '../../tools/registry.js';
 import { projectPullRequest } from '../../services/github-pr-state.js';
 import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, schedulesByChat, setSchedule } from '../../services/chat-schedules.js';
@@ -262,8 +262,9 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
       if (before && checkpointFolder) {
         const after = await snapshot(checkpointFolder).catch(() => null);
         const files = after && after !== before ? (await changedFiles(before, after).catch(() => [])).length : 0;
-        if (files) await q.run("UPDATE chat_messages SET checkpoint_folder = ?, checkpoint_before = ?, checkpoint_after = ?, checkpoint_files = ?, checkpoint_undone = 0 WHERE run_id = ? AND role = 'assistant'",
-          checkpointFolder, before, after, files, b.runId).catch(() => undefined);
+        const lines = files && after ? await lineCounts(before, after).catch(() => null) : null;
+        if (files) await q.run("UPDATE chat_messages SET checkpoint_folder = ?, checkpoint_before = ?, checkpoint_after = ?, checkpoint_files = ?, checkpoint_undone = 0, checkpoint_added = ?, checkpoint_removed = ? WHERE run_id = ? AND role = 'assistant'",
+          checkpointFolder, before, after, files, lines?.added ?? null, lines?.removed ?? null, b.runId).catch(() => undefined);
       } else if (state === 'blocked' && chatRuns.get(b.runId)?.parts.some(p => p.kind === 'tools' && p.calls.some(call => changesSomething({ name: call.name })))) {
         // No snapshot could be taken safely here: the reply says "Undo not available for this folder" instead of offering it.
         await q.run("UPDATE chat_messages SET checkpoint_files = -1 WHERE run_id = ? AND role = 'assistant'", b.runId).catch(() => undefined);

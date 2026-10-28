@@ -169,7 +169,7 @@ function part(x) {
   if (x.kind === 'reasoning') return { kind: 'reasoning', text: str(x.text, 1000000), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}) };
   if (x.kind === 'tools' && Array.isArray(x.calls) && x.calls.length <= 200) return { kind: 'tools', step: num(x.step) ?? 0, calls: x.calls.map(call) };
   if (x.kind === 'steer') return { kind: 'steer', text: str(x.text, 4000), step: num(x.step) ?? 0 };
-  if (x.kind === 'notice' && KEPT_NOTICES.includes(x.code)) return { kind: 'notice', code: x.code, ...(typeof x.text === 'string' ? { text: x.text.slice(0, 300) } : {}) };
+  if (x.kind === 'notice' && KEPT_NOTICES.includes(x.code)) return { kind: 'notice', code: x.code, ...(typeof x.text === 'string' ? { text: x.text.slice(0, x.code === 'summarized' ? 2400 : 300) } : {}) };
   return null;
 }
 
@@ -181,7 +181,7 @@ function message(x) {
     runId: validRunId(x.runId) ? x.runId : null, durationMs: num(x.durationMs) ?? null, createdAt: str(x.createdAt, 40),
     ...(x.code === 'run_interrupted' ? { code: 'run_interrupted' } : {}),
     ...(agentId(x.agentId) ? { agentId: x.agentId } : {}),
-    ...(record(x.changes) && num(x.changes.files) ? { changes: { files: num(x.changes.files), undone: x.changes.undone === true } } : record(x.changes) && x.changes.unavailable === true ? { changes: { files: 0, undone: false, unavailable: true } } : {}) };
+    ...(record(x.changes) && num(x.changes.files) ? { changes: { files: num(x.changes.files), undone: x.changes.undone === true, ...(Number.isSafeInteger(x.changes.added) && x.changes.added >= 0 && Number.isSafeInteger(x.changes.removed) && x.changes.removed >= 0 ? { added: x.changes.added, removed: x.changes.removed } : {}) } } : record(x.changes) && x.changes.unavailable === true ? { changes: { files: 0, undone: false, unavailable: true } } : {}) };
 }
 
 function project(x) {
@@ -298,7 +298,7 @@ function projectEvent(x) {
     return { seq, type: 'tool_result', step: num(x.step) ?? 0, results: x.results.map(r => ({ id: str(r?.id, 128), name: str(r?.name, 128), output: str(r?.output, 12000), isError: r?.isError === true, ...(num(r?.ms) !== undefined ? { ms: num(r.ms) } : {}), ...(typeof r?.approvalId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(r.approvalId) ? { approvalId: r.approvalId } : {}) })) };
   }
   if (x.type === 'notice' && NOTICE_CODES.includes(x.code)) {
-    return { seq, type: 'notice', code: x.code, ...(num(x.waitSec) !== undefined ? { waitSec: num(x.waitSec) } : {}), ...(typeof x.model === 'string' ? { model: str(x.model, 100) } : {}), ...(typeof x.text === 'string' ? { text: str(x.text, 300) } : {}) };
+    return { seq, type: 'notice', code: x.code, ...(num(x.waitSec) !== undefined ? { waitSec: num(x.waitSec) } : {}), ...(typeof x.model === 'string' ? { model: str(x.model, 100) } : {}), ...(typeof x.text === 'string' ? { text: str(x.text, x.code === 'summarized' ? 2400 : 300) } : {}) };
   }
   if (x.type === 'steer') return { seq, type: 'steer', content: str(x.content, 4000), step: num(x.step) ?? 0 };
   if (x.type === 'end' && ['complete', 'stopped', 'error'].includes(x.status)) {

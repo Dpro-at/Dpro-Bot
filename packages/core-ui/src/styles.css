@@ -738,6 +738,10 @@ button.status-item:hover { background:var(--row-hover); color:var(--text); }
 .app-shell .chat-column { max-inline-size:48rem; margin:0 auto; padding:18px 24px 160px; display:flex; flex-direction:column; gap:14px; }
 .app-shell .chat-loading { display:flex; align-items:center; gap:8px; justify-content:center; padding:40px; font-size:12px; color:var(--text-3); }
 .app-shell .moment-more { margin-inline-start:auto; }
+.app-shell .moment-summary { white-space:pre-wrap; max-block-size:16rem; overflow:auto; font-size:12.5px; color:var(--text-2); }
+/* Line counts only: green added, red removed (readable on light and dark). */
+.app-shell .diff-add { color:#1A7F37; font-variant-numeric:tabular-nums; } .app-shell .diff-del { color:#CF222E; font-variant-numeric:tabular-nums; }
+.shell[data-theme="dark"] .app-shell .diff-add, .app-shell[data-theme="dark"] .diff-add { color:#3FB950; } .shell[data-theme="dark"] .app-shell .diff-del, .app-shell[data-theme="dark"] .diff-del { color:#F85149; }
 .app-shell .chat-project-row[data-drop] { background:var(--row-active); box-shadow:inset 0 0 0 1px var(--accent); }
 /* CH5 first run: one quiet card; the composer stays usable. */
 .app-shell .first-run-card { display:grid; justify-items:center; gap:6px; max-inline-size:28rem; margin-block:10px 4px; padding:16px 18px; border-radius:12px; background:var(--surface); box-shadow:0 0 0 1px var(--border); text-align:center; font-size:13px; color:var(--text-2); }

@@ -86,6 +86,19 @@ export async function changedFiles(before: string, after: string): Promise<{ sta
   return files;
 }
 
+/** Lines added and removed between two snapshots of the same folder (binary files count as none). */
+export async function lineCounts(before: string, after: string): Promise<{ added: number; removed: number }> {
+  const a = split(before), b = split(after);
+  if (a.top !== b.top || a.rel !== b.rel) throw new CheckpointError('Different folders');
+  const out = await git(a.top, ['diff', '--no-renames', '--numstat', '-z', a.tree, b.tree, '--', ...(a.rel ? [literal(a.rel)] : [])]);
+  let added = 0, removed = 0;
+  for (const row of out.split('\u0000')) {
+    const m = /^(\d+)\t(\d+)\t/.exec(row);
+    if (m) { added += Number(m[1]); removed += Number(m[2]); }
+  }
+  return { added, removed };
+}
+
 /** Puts the files changed between `from` and `to` back to `to` (Undo: from=after, to=before). */
 export async function restore(from: string, to: string): Promise<number> {
   const files = await changedFiles(to, from);

@@ -38,9 +38,16 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
     {m.onSwitchAuto && <div className="moment-actions"><button type="button" className="moment-main" onClick={m.onSwitchAuto}>Switch to Auto</button>
       <button type="button" className="link-button" onClick={() => setShown(true)}>Keep this model</button></div>}
   </div>;
+  // The first paragraph says what happened; the rest is the summary itself.
+  const [head, ...rest] = (part.text ?? 'Older messages were summed up to keep room for the work.').split('\n\n');
+  const summary = rest.join('\n\n').trim();
   return <div className="moment-card" role="note">
-    <p><UiIcon name="layers" size={14}/>{part.text ?? 'Older messages were summed up to keep room for the work.'} Nothing is deleted; the full history stays in the chat.</p>
-    {m.onStartFresh && <div className="moment-actions"><button type="button" className="link-button" onClick={() => m.onStartFresh!(part.text ?? '')}>Start fresh with a summary</button></div>}
+    <p><UiIcon name="layers" size={14}/>{head} Nothing is deleted; the full history stays in the chat.</p>
+    <div className="moment-actions">
+      {summary && <button type="button" className="link-button" aria-expanded={shown} onClick={() => setShown(v => !v)}>{shown ? 'Hide the summary' : 'Read the summary'}</button>}
+      {m.onStartFresh && <button type="button" className="link-button" onClick={() => m.onStartFresh!(summary || head)}>Start fresh with this summary</button>}
+    </div>
+    {shown && summary && <blockquote dir="auto" className="moment-summary">{summary}</blockquote>}
   </div>;
 }
 
@@ -140,7 +147,8 @@ export function ChangesLine({ turn, messageId }: { turn: Turn; messageId: string
   };
   const n = turn.changes.files;
   return <div className="moment-line changes">
-    <UiIcon name="diff" size={12}/><span>{undone ? `Undone: ${n} ${n === 1 ? 'file is' : 'files are'} back as before.` : `Changed ${n} ${n === 1 ? 'file' : 'files'}.`}</span>
+    <UiIcon name="diff" size={12}/><span>{undone ? `Undone: ${n} ${n === 1 ? 'file is' : 'files are'} back as before.` : `Changed ${n} ${n === 1 ? 'file' : 'files'}`}
+      {!undone && turn.changes?.added !== undefined && <> <span className="diff-add">+{turn.changes.added}</span> <span className="diff-del">−{turn.changes.removed}</span></>}{undone ? '' : '.'}</span>
     {!undone && onReviewChanges && <button type="button" className="link-button" onClick={onReviewChanges}>Review</button>}
     <button type="button" className="link-button" disabled={busy} onClick={() => void go(undone)}>{undone ? 'Redo' : 'Undo these changes'}</button>
     {error && <span className="moment-hint" role="alert">{error}</span>}
