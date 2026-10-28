@@ -101,6 +101,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const [settingsTab,setSettingsTab]=useState<SettingsTab>('general');
   const [memoryPane,setMemoryPane]=useState<MemorySettingsPane>('rules');
   const [slot,setSlot]=useState<HTMLElement|null>(null);
+  const [titleSlot,setTitleSlot]=useState<HTMLElement|null>(null);
   const ownSidebar=OWN_SIDEBAR.includes(page);
   const [settingsVisit,setSettingsVisit]=useState(0);
   const [terminalRequest,setTerminalRequest]=useState(0);
@@ -173,11 +174,10 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <div className="titlebar-tools">
         <button type="button" className="tool" aria-label={rail ? 'Hide the sidebar' : 'Show the sidebar'} title={rail ? 'Hide the sidebar (⌘\\)' : 'Show the sidebar (⌘\\)'} aria-pressed={rail} onClick={() => setRail(v => !v)}><UiIcon name="sidebar" size={14}/></button>
       </div>
-      <p className="titlebar-title">{pageTitle}{page === 'chat' && activeProject && <span className="titlebar-project" title={activeProject.folder ?? activeProject.name}>{activeProject.name}</span>}</p>
-      <div className="titlebar-tools end">
-        <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Search or run a command (⌘K)"><UiIcon name="search" size={13}/>Search or run a command<kbd>⌘K</kbd></button>
-        <button type="button" className="tool" onClick={toggleTheme} aria-label="Switch theme" title="Switch theme"><UiIcon name={theme === 'dark' ? 'sun' : 'moon'} size={14}/></button>
-      </div>
+      <p className="titlebar-title">{page === 'chat' && activeProject && <span className="titlebar-tile" aria-hidden="true"><UiIcon name="folder" size={12}/></span>}{pageTitle}{page === 'chat' && activeProject && <span className="titlebar-project" title={activeProject.folder ?? activeProject.name}>{activeProject.name}</span>}</p>
+      {/* CH1/SH1: Commands sits in the middle of the title bar; the theme lives in Settings › General and in Commands. */}
+      <button type="button" className="titlebar-cmdk" onClick={() => setPalette(true)} aria-label="Search or run a command (⌘K)"><UiIcon name="search" size={13}/>Commands<kbd>⌘K</kbd></button>
+      <div className="titlebar-tools end" ref={setTitleSlot}/>
     </header>
     <aside className="sidebar">
       {/* The open section owns the sidebar: the chat list only in Chat; other sections render their places into the slot. */}
@@ -197,7 +197,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     <main id="content" className="page-area">
       {notice}
       <section className="page page-chat" aria-label="Chat" hidden={page !== 'chat'}>
-        {chat ? <ChatView active={page === 'chat'} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
+        {chat ? <ChatView active={page === 'chat'} titleSlot={titleSlot} onChooseContext={newChat} terminalRequest={terminalRequest} boardRequest={boardRequest} controller={chat} mode={mode} client={client} onAddConnector={() => setPage('mcp')} onSetUpModel={() => openSettings('replies')} onOpenApprovals={() => setPage('approvals')}
           onOpenCard={(boardId, cardId) => { setPage('board'); void board?.reveal(boardId, cardId); }}
           onOpenMemory={(drawerId, memoryId) => { setMemoryFocus(f => ({ drawerId, memoryId, n: (f?.n ?? 0) + 1 })); setPage('memory'); }}/> : null}
       </section>

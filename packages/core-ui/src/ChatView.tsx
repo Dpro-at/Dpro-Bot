@@ -10,6 +10,7 @@ import { RecoveryApprovals } from './RecoveryApprovals';
 import { ChatAvatar } from './ChatAvatar';
 import {CodingSessions} from './CodingSessions';
 import { useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { ConversationsController, ModelOption } from './conversations';
 import { AgentPanel } from './AgentPanel';
@@ -66,7 +67,7 @@ const SUGGESTIONS = [
  * finished turn folds its work into "Worked for …". Behaviour lives in
  * ConversationsController; this file is layout and local view state only.
  */
-export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, active = true }: { controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
+export function ChatView({ controller, mode, productName = 'Girru', client, onAddConnector, onOpenCard, onOpenMemory, onChooseContext, onSetUpModel, onOpenApprovals, terminalRequest = 0, boardRequest = 0, active = true, titleSlot = null }: { titleSlot?: HTMLElement | null; controller: ConversationsController; mode: 'live' | 'mock'; productName?: string; terminalRequest?: number; boardRequest?: number; client?: SessionClient; onChooseContext?:()=>void; onAddConnector?: () => void; onSetUpModel?: () => void; onOpenApprovals?: () => void; onOpenCard?: (boardId: string, cardId: string) => void; onOpenMemory?: (drawerId: string, memoryId: string) => void; active?: boolean }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -315,7 +316,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
   const folderProject = project?.folder ? project.id : null;
   useEffect(() => { panes?.setProject(folderProject); }, [panes, folderProject]);
   const paneButtons: { name: PaneName; icon: UiIconName; label: string }[] = [
-    { name: 'details', icon: 'sidebar', label: 'Details' },
+    { name: 'details', icon: 'info', label: 'Details' },
     ...(panes ? [{ name: 'changes' as const, icon: 'diff' as const, label: 'Changes' }, { name: 'files' as const, icon: 'folder' as const, label: 'Files' }] : []),
   ];
   const previewFile=s.attachments.find(f=>f.name===attachmentPreview);
@@ -342,6 +343,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       { label: 'Open in a new window', icon: 'open', shortcut: '⌘O', run: () => openChatWindow(id) },
       { label: 'Continue in another folder…', icon: 'folder', run: () => setChatSheet('continue') },
       { label: 'Export…', icon: 'download', shortcut: '⇧⌘S', run: () => setExportKey(Date.now()) },
+      ...(mode === 'live' ? [{ label: avatarOn ? 'Hide the avatar' : 'Show the agent as an avatar', icon: 'avatar' as const, checked: avatarOn, run: toggleAvatar }] : []),
       ...(canRemember ? [{ label: 'Remember the whole chat', icon: 'brain' as const, disabled: !s.turns.some(t => t.role === 'assistant' && t.status === 'complete'), run: rememberAll }] : []),
       'sep',
       { label: 'Delete…', icon: 'trash', danger: true, shortcut: '⌥⌘⌫', run: () => setChatSheet('delete') },
@@ -364,18 +366,17 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-max={(maximized && termOpen) || undefined}>
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>
-    <div className="chat-topbar">
-      {project ? <ProjectBar name={project.name} folder={project.folder} repoUrl={project.repoUrl} git={s.git}/> : <span className="project-bar-item" aria-label="Chat context">General chat · no project folder</span>}
-      {client && s.activeId && s.threadPhase !== 'loading' && <ExportMenu key={s.activeId} client={client} conversationId={s.activeId} disabled={running} openKey={exportKey}/>}
+    {/* CH1: the chat's tools sit in the window's title bar (Terminal · Add to board · ⋯ · side panel); no second bar. */}
+    {active && titleSlot && createPortal(<span className="chat-title-tools" role="toolbar" aria-label="This chat">
+      {client && s.activeId && s.threadPhase !== 'loading' && <ExportMenu key={s.activeId} client={client} conversationId={s.activeId} disabled={running} openKey={exportKey} bare/>}
+      {terminal && owner && <button type="button" className="tool" aria-pressed={termOpen} aria-label="Terminal" title={termOpen ? 'Hide the terminal (⌃`)' : 'Terminal (⌃`)'} onClick={() => setTermOpen(v => !v)}><UiIcon name="terminal" size={15}/></button>}
       {canBoard && <button type="button" className="tool chat-to-board" onClick={() => cardForm ? setCardForm(null) : openCardForm()} aria-pressed={!!cardForm} aria-label="Add to board" title="Add to board (⌘B)">
-        <UiIcon name="board" size={14}/></button>}
-      {s.activeId && activeConv && <button type="button" className="tool chat-more" aria-label="More for this chat" title="More for this chat" aria-haspopup="menu"
-        onClick={e => moreMenu.at(e, moreItems())}><UiIcon name="more" size={14}/></button>}
-      {mode === 'live' && <button type="button" className="tool chat-avatar-toggle" aria-label="Avatar" aria-pressed={avatarOn} onClick={toggleAvatar} title={avatarOn ? 'Hide the avatar' : 'Show the agent as an avatar that speaks its replies'}><UiIcon name="avatar" size={14}/></button>}
-      <span className="pane-bar" role="toolbar" aria-label="Side panes">{terminal && owner && <button type="button" className="tool" aria-pressed={termOpen} aria-label="Terminal" title={termOpen ? 'Hide the terminal (⌃`)' : 'Terminal (⌃`)'} onClick={() => setTermOpen(v => !v)}><UiIcon name="terminal" size={14}/></button>}{paneButtons.map(b =>
-        <button key={b.name} type="button" className="tool" aria-pressed={pane === b.name} aria-label={b.label} title={pane === b.name ? `Hide ${b.label.toLowerCase()}` : b.label}
-          onClick={() => setPane(p => p === b.name ? null : b.name)}><UiIcon name={b.icon} size={14}/></button>)}</span>
-    </div>
+        <UiIcon name="board" size={15}/></button>}
+      {s.activeId && activeConv && <button type="button" className="tool chat-more" aria-label="More for this chat" title="Rename · Pin · Move to project · Export · Remember the whole chat · Delete…" aria-haspopup="menu"
+        onClick={e => moreMenu.at(e, moreItems())}><UiIcon name="more" size={15}/></button>}
+      <button type="button" className="tool" aria-pressed={pane !== null} aria-label={pane !== null ? 'Hide the side panel' : 'Show the side panel'} title={pane !== null ? 'Hide the side panel (⌥⌘I)' : 'Show the side panel (⌥⌘I)'}
+        onClick={() => setPane(p => p === null ? 'details' : null)}><UiIcon name="inspector" size={15}/></button>
+    </span>, titleSlot)}
     {mode === 'live' && avatarOn && <ChatAvatar turns={s.turns} agentId={convAgentId ?? s.agentId ?? ''} agentName={nameOf(convAgentId ?? s.agentId)} onClose={toggleAvatar}/>}
     <div className="chat-thread" ref={thread} onScroll={onScroll} aria-label="Conversation">
       {s.threadPhase === 'loading' && <p className="chat-loading" role="status"><span className="pulse" aria-hidden="true"/>Opening the conversation</p>}
@@ -482,10 +483,11 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
       resultsExtra={project?.folder && s.git?.branch ? <GitHubCard git={s.git} pr={owner && client ? { client, projectId: project.id } : undefined} onRefresh={() => void controller.refreshGit()}/> : undefined}
       placeExtra={client && owner && project?.folder ? <details className="details-more"><summary>Coding sessions in this folder</summary><CodingSessions key={project.id + ':' + project.folder} client={client} controller={controller} folder={project.folder}/></details> : undefined}
       onOpenPane={p => (p === 'terminal' ? setTermOpen(true) : setPane(p))} onStop={() => void controller.stopAll()}
-      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')} focusPart={focusPart}/>
+      onSchedule={() => setScheduleOpen(true)} onAddFolder={() => project && setProjectSheet({ id: project.id })} onContinue={() => setChatSheet('continue')} focusPart={focusPart}
+      switcher={<PaneSwitch items={paneButtons} pane={pane} onPane={setPane}/>}/>
     : pane === null && <DetailsRail controller={controller} onOpen={part => { setFocusPart(f => ({ id: part, n: (f?.n ?? 0) + 1 })); setPane('details'); }}/>}
   {scheduleOpen && client && s.activeId && <ScheduleSheet client={client} chatId={s.activeId} onClose={() => setScheduleOpen(false)}/>}
-  {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'}><header className="chat-inspector-head"><h2>{pane==='changes'?'Changes':'Files'}</h2><button title="Close side pane" aria-label="Close side pane" onClick={()=>setPane(null)}><UiIcon name="close" size={15}/></button></header>
+  {panes && (pane === 'changes' || pane === 'files') && <aside className="chat-panel chat-pane" aria-label={pane === 'changes' ? 'Changes' : 'Files'} onKeyDown={e => { if (e.key === 'Escape') setPane(null); }}><PaneSwitch items={paneButtons} pane={pane} onPane={setPane}/>
     {pane === 'changes' ? <ChangesPane panes={panes}/> : <FilesPane panes={panes}/>}
   </aside>}
 
@@ -603,7 +605,7 @@ function RenameSheet({ title, onClose, onSave }: { title: string; onClose: () =>
 }
 
 /** CHAT-PRO-02 F: "Export" — the conversation as a Markdown file, optionally with a summary of the tool calls. */
-function ExportMenu({ client, conversationId, disabled, openKey = 0 }: { client: SessionClient; conversationId: string; disabled: boolean; openKey?: number }) {
+function ExportMenu({ client, conversationId, disabled, openKey = 0, bare = false }: { client: SessionClient; conversationId: string; disabled: boolean; openKey?: number; bare?: boolean }) {
   const [open, setOpen] = useState(false);
   useEffect(() => { if (openKey) { setOpen(true); } }, [openKey]);
   const [tools, setTools] = useState(false);
@@ -616,8 +618,8 @@ function ExportMenu({ client, conversationId, disabled, openKey = 0 }: { client:
     setNote(r.ok ? exportNote(r.file) : r.message);
   };
   return <span className="chat-export">
-    <button type="button" className="tool chat-export-button" aria-expanded={open} aria-haspopup="dialog" aria-label="Export" title="Export as Markdown"
-      onClick={() => { setOpen(v => !v); setNote(null); }}><UiIcon name="download" size={14}/></button>
+    {!bare && <button type="button" className="tool chat-export-button" aria-expanded={open} aria-haspopup="dialog" aria-label="Export" title="Export as Markdown"
+      onClick={() => { setOpen(v => !v); setNote(null); }}><UiIcon name="download" size={14}/></button>}
     {open && <div className="chat-export-pop" role="dialog" aria-label="Export this conversation" onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}>
       <strong>Export as Markdown</strong>
       <label className="chat-export-check"><input type="checkbox" checked={tools} onChange={e => setTools(e.target.checked)}/> Include tool calls (collapsed summary)</label>
@@ -632,19 +634,12 @@ function ExportMenu({ client, conversationId, disabled, openKey = 0 }: { client:
   </span>;
 }
 
-function ProjectBar({ name, folder, repoUrl, git }: { name: string; folder: string | null; repoUrl: string | null; git: { branch: string | null; remote: string | null; dirty: boolean | null } | null }) {
-  const home = folder?.match(/^\/Users\/[^/]+/)?.[0];
-  const shortFolder = folder && home ? `~${folder.slice(home.length)}` : folder;
-  const repo = repoUrl ?? git?.remote ?? null;
-  const repoHref = repo && /^https:\/\//.test(repo) ? repo : null;
-  return <div className="project-bar" aria-label="Project">
-    <span className="project-bar-name"><UiIcon name="board" size={12}/>{name}</span>
-    {shortFolder && <span className="project-bar-item" dir="ltr" title={folder ?? undefined}><UiIcon name="file" size={11}/>{shortFolder}</span>}
-    {git?.branch && <span className="project-bar-item" dir="ltr" title={git.dirty ? 'Uncommitted changes' : 'Clean'}>⎇ {git.branch}{git.dirty ? <i className="project-dirty" aria-label="uncommitted changes"/> : null}</span>}
-    {repo && (repoHref ? <a className="project-bar-item" href={repoHref} target="_blank" rel="noopener noreferrer" dir="ltr"><UiIcon name="globe" size={11}/>{repo.replace(/^https:\/\//, '')}</a>
-      : <span className="project-bar-item" dir="ltr"><UiIcon name="globe" size={11}/>{repo}</span>)}
-  </div>;
+/** CH1: the side panel's three views, a switch on its top (not a row of buttons in the chat). */
+function PaneSwitch({ items, pane, onPane }: { items: { name: PaneName; icon: UiIconName; label: string }[]; pane: PaneName | null; onPane: (p: PaneName) => void }) {
+  return <div className="pane-switch" role="radiogroup" aria-label="Side panel view">{items.map(b =>
+    <button key={b.name} type="button" role="radio" aria-checked={pane === b.name} aria-label={b.label} title={b.label} onClick={() => onPane(b.name)}><UiIcon name={b.icon} size={15}/></button>)}</div>;
 }
+
 
 /** The user's message: right-aligned, pinned while its answer scrolls; long text folds. */
 /** CH2: an image sent in this chat, read from the chat (never from the internet). */

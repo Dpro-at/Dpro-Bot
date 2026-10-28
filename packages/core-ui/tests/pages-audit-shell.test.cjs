@@ -13,7 +13,7 @@ test('⌘K reaches every Apps, Library and Settings place; the approvals count s
 });
 test('Settings opens from the footer gear and ⌘, — no extra sidebar gear or account-menu item',()=>{
  assert.doesNotMatch(shell,/sidebar-settings/);assert.doesNotMatch(shell,/>Settings<\/button>/);
- assert.match(shell,/Search or run a command<kbd>⌘K/);
+ assert.match(shell,/aria-label="Search or run a command \(⌘K\)"><UiIcon name="search" size=\{13\}\/>Commands<kbd>⌘K/);
 });
 test('an MCP connection is not an app: Apps links open it in Settings › MCP connections (S-10)',()=>{const {tileActions}=require('../src/WorkspaceApplications.tsx');
  assert.deepEqual(tileActions({id:'a',kind:'mcp',name:'X'},{owner:true},{open(){},onAccountConnections(){},onPermissions(){}}),[]);

@@ -2898,3 +2898,66 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .task-dot { inline-size:14px; block-size:14px; border-radius:50%; display:grid; place-items:center; background:var(--secondary); color:#3FA66B; flex-shrink:0; }
 .app-shell .task-list li[data-state="active"] .task-dot { background:color-mix(in srgb,var(--accent) 25%,transparent); }
 .app-shell .task-list li[data-state="done"] > span:not(.task-dot) { color:var(--text-3); }
+
+/* CH1 match (2026-10-28): the Chat window measured against the approved board, part by part (docs/designs/dpro-all/CH1-compare.md). */
+/* Window: title bar 40, footer 30, sidebar 256, side panel 320. */
+.app-shell { grid-template-rows:40px minmax(0,1fr) 30px; grid-template-columns:256px minmax(0,1fr); }
+.app-shell[data-rail=closed] { grid-template-columns:0 minmax(0,1fr); }
+.app-shell .statusbar { height:30px; font-size:11.5px; }
+.app-shell .statusbar .status-item { border-radius:6px; padding:3px 7px; min-block-size:0; block-size:auto; }
+.app-shell .titlebar { position:relative; flex-wrap:nowrap; min-block-size:40px; gap:8px; padding-inline:12px; }
+.app-shell .titlebar .tool { inline-size:28px; block-size:28px; min-block-size:28px; border-radius:7px; }
+.app-shell .titlebar .tool[aria-pressed=true] { background:color-mix(in srgb,var(--text) 9%,transparent); color:var(--text); }
+.app-shell .titlebar-title { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:600; color:var(--text); min-inline-size:0; }
+.app-shell .titlebar-project { margin:0; font-weight:400; color:var(--text-3); }
+.titlebar-tile { inline-size:20px; block-size:20px; flex:none; display:grid; place-items:center; border-radius:6px; background:color-mix(in srgb,var(--text) 8%,transparent); color:var(--text-2); }
+.app-shell .titlebar-cmdk { position:absolute; inset-inline-start:50%; transform:translateX(-50%); inline-size:240px; min-inline-size:0; block-size:26px; padding:0 10px; gap:8px; border-radius:6px; font-size:12px; box-shadow:none; background:color-mix(in srgb,var(--text) 6%,transparent); }
+.app-shell .titlebar-cmdk kbd { box-shadow:none; padding:0; font-size:11px; }
+.chat-title-tools { display:flex; align-items:center; gap:8px; }
+/* Sidebar */
+.app-shell .sidebar { border-inline-end:1px solid var(--border); }
+.app-shell .chat-sidebar-top { gap:6px; margin:0 2px 8px; }
+.app-shell .chat-sidebar-top .conversation-search { margin:0; block-size:28px; border-radius:6px; background:color-mix(in srgb,var(--text) 6%,transparent); }
+.app-shell .chat-sidebar-top .conversation-filter { block-size:28px; min-block-size:28px; border:0; box-shadow:none; background:transparent; font-size:12px; }
+.app-shell .chat-sidebar-top .chat-new { inline-size:28px; block-size:28px; border-radius:6px; background:color-mix(in srgb,var(--text) 6%,transparent); color:var(--text); }
+.app-shell .chat-section-title { margin:0; padding:10px 8px 4px; font-size:11px; font-weight:600; color:var(--text-4); }
+.app-shell .chat-row, .app-shell .chat-project-row { min-block-size:25px; padding:5px 8px; border-radius:7px; gap:8px; color:var(--text); }
+.app-shell .chat-project-row { padding-inline:6px; gap:7px; font-size:13px; }
+.app-shell .chat-row .chat-row-time { font-size:11px; color:var(--text-4); }
+.app-shell .chat-row[aria-current=true], .app-shell .chat-row[aria-current=page], .app-shell .chat-row[aria-selected=true] { background:var(--row-open); color:var(--text); }
+.app-shell .chat-project-chats .chat-row { padding-inline-start:8px; margin-inline-start:18px; inline-size:calc(100% - 18px); }
+.app-shell .chat-project-count { margin-inline-start:auto; font-size:11px; color:var(--text-4); }
+/* Conversation: column 768, the composer and the task list as wide as it. */
+.app-shell .chat-column { max-inline-size:768px; padding-inline:0; }
+.app-shell .chat-thread { padding-inline:48px; }
+.app-shell .chat-dock { padding:0 48px 16px; }
+.app-shell .chat-composer { inline-size:100%; max-inline-size:768px; margin-inline:auto; border-radius:14px; padding:10px 12px; }
+.app-shell .task-list { max-inline-size:768px; border-radius:10px; }
+/* Side panel: 320, a switch on top, the status as a card. */
+.app-shell .chat-layout[data-panel] { grid-template-columns:minmax(0,1fr) 320px; }
+.app-shell .chat-layout[data-panel=rail] { grid-template-columns:minmax(0,1fr) auto; }
+.pane-switch { display:flex; gap:2px; margin:10px 12px 0; padding:2px; border-radius:8px; background:color-mix(in srgb,var(--text) 6%,transparent); }
+.pane-switch > button { flex:1; block-size:26px; min-block-size:26px; display:grid; place-items:center; border:0; border-radius:6px; background:transparent; box-shadow:none; color:var(--text-3); padding:0; }
+.pane-switch > button[aria-checked=true] { background:color-mix(in srgb,var(--text) 13%,transparent); color:var(--text); }
+.app-shell .details-status { margin:10px 12px; padding:8px 10px; border:0; border-radius:9px; background:color-mix(in srgb,var(--text) 4%,transparent); }
+/* Dark: the board's palette. */
+.shell[data-theme="dark"] .app-shell, .app-shell[data-theme="dark"] { --canvas:#0F1114; --surface:#121418; --sidebar:#121418; --border:#22262E; --row-open:#24324A; }
+.shell[data-theme="dark"] .app-shell .statusbar, .app-shell[data-theme="dark"] .statusbar { background:#0B0D10; }
+.app-shell { --row-open:var(--row-active); }
+.shell[data-theme="dark"] .app-shell .chat-panel[aria-label="Conversation details"], .app-shell[data-theme="dark"] .chat-panel[aria-label="Conversation details"] { background:var(--canvas); }
+.app-shell .chat-row[data-child], .app-shell .chat-project-chats .chat-row[data-child] { margin-inline-start:30px; inline-size:calc(100% - 30px); padding-inline-start:10px; border-radius:0 7px 7px 0; color:var(--text-2); }
+/* CH1 match, second pass (re-measured). */
+.app-shell .titlebar-cmdk { position:static; transform:none; margin-inline:auto; inline-size:260px; box-sizing:border-box; }
+.shell[data-theme="dark"] .app-shell .titlebar, .app-shell[data-theme="dark"] .titlebar { background:#121418; }
+.app-shell .chat-section-title { line-height:13px; }
+.app-shell .chat-row { line-height:15px; }
+.app-shell .chat-project-row { line-height:16px; }
+.app-shell .statusbar .status-item, .app-shell .statusbar .statusbar-group { align-self:center; }
+.app-shell .statusbar .statusbar-group { block-size:auto; display:flex; align-items:center; gap:14px; }
+.shell[data-theme="dark"] .app-shell .task-list, .app-shell[data-theme="dark"] .task-list { background:#13171E; box-shadow:inset 0 0 0 1px #20252E; }
+.shell[data-theme="dark"] .app-shell .chat-composer, .app-shell[data-theme="dark"] .chat-composer { background:#161A21; box-shadow:inset 0 0 0 1px #262C36; }
+.app-shell .chat-composer { gap:10px; }
+.app-shell .chat-composer textarea { min-block-size:20px; padding-block:0; line-height:1.4; font-size:13.5px; }
+.app-shell .chat-composer-row { min-block-size:28px; }
+.app-shell .statusbar .status-item { line-height:13px; }
+.shell[data-theme="dark"] .app-shell .statusbar .status-item[aria-current=page], .app-shell[data-theme="dark"] .statusbar .status-item[aria-current=page] { background:#232832; color:var(--text); }

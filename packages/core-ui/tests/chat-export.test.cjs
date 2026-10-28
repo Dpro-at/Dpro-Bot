@@ -3,6 +3,8 @@
 require('./load.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const React = require('../node_modules/react');
 const { renderToStaticMarkup } = require('../node_modules/react-dom/server');
 const { SessionClient, allowedRequest } = require('../src/session.ts');
@@ -97,12 +99,12 @@ test('export of a mock conversation: writers, text and (only when asked) tool ca
   assert.deepEqual(missing, { ok: false, message: 'This conversation no longer exists.' });
 });
 
-test('the chat top bar shows Export for an open conversation; a failed export shows a notice', async t => {
+test('Export opens from the chat\'s ⋯ menu in the title bar (CH1); a failed export shows a notice', async t => {
   const { c, client } = await fixture(t);
-  assert.ok(!renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock', client })).includes('chat-export-button'), 'no Export on an empty chat');
-  c.edit('Hello there'); await c.send(); await until(() => !c.getSnapshot().runId);
-  const html = renderToStaticMarkup(React.createElement(ChatView, { controller: c, mode: 'mock', client }));
-  assert.match(html, /chat-export-button/); assert.match(html, /aria-label="Export" title="Export as Markdown"/);
+  const view = fs.readFileSync(path.join(__dirname, '..', 'src', 'ChatView.tsx'), 'utf8');
+  assert.match(view, /label: 'Export…', icon: 'download', shortcut: '⇧⌘S', run: \(\) => setExportKey\(Date\.now\(\)\)/);
+  assert.match(view, /\{!bare && <button type="button" className="tool chat-export-button"/);
+  assert.match(view, /createPortal\(<span className="chat-title-tools"/);
   const r = await c.exportMarkdown('conv-99999999');
   assert.equal(r.ok, false); assert.equal(c.getSnapshot().notice, 'This conversation no longer exists.');
 });
