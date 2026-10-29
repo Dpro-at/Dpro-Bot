@@ -159,6 +159,7 @@ type Rule = { methods: '*' | 'write' | readonly string[]; prefix?: string; exact
 export const TIER_RULES: readonly Rule[] = [
   // --- owner: host takeover, code execution, whole-database and key access ---
   { methods: '*', prefix: '/api/database', access: 'owner' },        // raw SQL, restore, wipe, backups
+  { methods: '*', prefix: '/api/backups', access: 'owner' },         // whole-data backups and restore (BACKUP-01)
   { methods: '*', prefix: '/api/sandbox', access: 'owner' },         // command execution (native fallback)
   { methods: '*', prefix: '/api/terminal', access: 'owner' },        // interactive shell on the host (TERM-01)
   { methods: ['GET'], exact: '/api/onboarding/team-catalogue', access: 'owner' }, // company setup catalogue (ONBOARD-TEAM-01)

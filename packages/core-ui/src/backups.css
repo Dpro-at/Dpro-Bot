@@ -1,0 +1,50 @@
+/* Settings › Backups (BACKUP-01, board Backup1): properties, the list, the selected backup. */
+.settings-content[data-pane=backups]>.preferences-page{max-width:none;height:100%}
+.backups{display:flex;flex-direction:column;gap:12px;min-height:0;height:100%}
+.backups-head{display:flex;align-items:flex-start;gap:12px}
+.backups-head>div{flex:1;min-width:0}
+.backups-head>button{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto}
+.backups-alert{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:12px;line-height:1.5;color:var(--danger)}
+.backups-alert>svg{flex:0 0 14px;margin-top:2px}
+.backups-notice{margin:0;font-size:12px;color:var(--muted)}
+.backups-props{display:flex;flex-direction:column}
+.backups-prop{display:grid;grid-template-columns:18px 110px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:36px;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--text);font:inherit;font-size:12.5px;text-align:start}
+.backups-prop>svg{color:var(--muted)}
+.backups-prop>span{color:var(--muted)}
+.backups-prop strong{font-weight:500;overflow-wrap:anywhere}
+.backups-prop small{color:var(--muted);font-weight:400}
+button.backups-prop{cursor:pointer}
+button.backups-prop:hover{background:var(--row-active)}
+.backups-panes{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:0;min-height:0;flex:1}
+.backups-list{display:flex;flex-direction:column;min-width:0;overflow:auto;padding-inline-end:14px}
+.backups-row{display:grid;grid-template-columns:16px auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:36px;padding:0 12px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;color:var(--text);font:inherit;font-size:12.5px;text-align:start;cursor:default}
+.backups-row strong{font-weight:500;white-space:nowrap}
+.backups-row span,.backups-row small{color:var(--muted)}
+.backups-row>svg{color:var(--muted)}
+.backups-row[aria-selected=true]{background:var(--row-active);box-shadow:inset 2px 0 0 var(--accent)}
+.backups-foot{margin:10px 2px 0}
+.backups-empty{padding:30px 12px;color:var(--muted);text-align:center;font-size:12.5px}
+.backups-inspector{display:flex;flex-direction:column;gap:10px;min-width:0;overflow:auto;padding:2px 2px 2px 18px;border-inline-start:1px solid var(--border)}
+.backups-inspector h3{margin:0;font-size:15px}
+.backups-kind{color:var(--muted);font-size:11px}
+.backups-parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:12.5px}
+.backups-parts li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:start;gap:8px}
+.backups-parts svg{color:var(--muted);margin-top:2px}
+.backups-parts small{color:var(--danger);font-size:11.5px}
+.backups-parts small[data-ok]{color:#3FB97B}
+.backups-actions{display:flex;align-items:center;gap:8px;margin-top:4px}
+.backups-actions>button:first-child{display:inline-flex;align-items:center;gap:7px}
+.backups-note{margin-top:auto}
+.backups-steps{margin:10px 0 0;padding-inline-start:18px;font-size:12.5px;line-height:1.7;color:var(--muted)}
+.backups-field{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.backups-field input{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.backups-restarting{display:flex;flex-direction:column;align-items:center;gap:10px;margin:auto;max-width:420px;text-align:center;color:var(--muted)}
+.backups-restarting strong{color:var(--text);font-size:15px}
+.shell-footer .footer-alert-dot{display:inline-block;flex:0 0 7px;align-self:center;width:7px;height:7px!important;min-height:0!important;line-height:0;padding:0;border-radius:50%;background:var(--danger);margin-inline-start:2px}
+@media(max-width:960px){.backups-panes{display:flex;flex-direction:column;overflow:auto}.backups-list{flex:0 0 auto;max-height:240px;padding:0}.backups-inspector{border-inline-start:0;border-top:1px solid var(--border);padding:14px 2px}.backups-prop{grid-template-columns:18px 90px minmax(0,1fr) auto}}
+.app-shell .backups{display:flex;flex-direction:column;justify-content:flex-start;gap:12px}
+.app-shell .backups>*{flex:0 0 auto}
+.app-shell .backups>.backups-panes{flex:1 1 auto;min-height:0}
+.app-shell .backups button.backups-prop,.app-shell .backups .backups-row{box-shadow:none;border-radius:6px;justify-content:initial;padding:0 6px}
+.app-shell .backups .backups-row{border-radius:0;padding:0 12px;border-bottom:1px solid var(--border)!important}
+.app-shell .backups p.backups-notice,.app-shell .backups p.backups-alert{background:transparent;padding:0;border:0;box-shadow:none;max-width:none;min-height:0;height:auto}

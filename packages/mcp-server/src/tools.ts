@@ -90,6 +90,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['two_step','devices','sign_out_device','updates','check_updates']},id:{type:'string',maxLength:24}},required:['operation'],additionalProperties:false},
   },
   {
+    name:'workspace_backups',title:'Backups',
+    description:'Owner-session only. Girru backs up the whole data folder by itself every day at 03:00 (or on waking after it) and before every update, to a folder outside the data folder that only the owner can open; it keeps 14 days and 4 Sundays. status reads it: the folder, when the next one runs, the last one and whether it passed its check, a failure if the last try failed, and the list. Only on the owner\u2019s explicit instruction: back_up_now (one backup now; kind before_update before you update Girru). Restoring a backup replaces the owner\u2019s data, so the owner does it in Settings \u203a Backups; this tool never restores, deletes or moves backups.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['status','back_up_now']},kind:{type:'string',enum:['manual','before_update']}},required:['operation'],additionalProperties:false},
+  },
+  {
     name:'skill_library',title:'Skill library',
     description:'Owner-session only. Skills are written guidance (Markdown); they never grant tools, connections or memory. Read: list (with which agents use each skill), read (a skill\u2019s files), agent (one agent\u2019s skills), catalogue (Girru\u2019s official catalogue, read only), found (skills the folder scan found on this computer: names, place and state only), look + look_status (find skill packages from coding apps on this computer; nothing there changes), preview (read a found package before adding). Write only on the owner\u2019s explicit instruction: add (a new package from look, after preview, with its hash; it stays unassigned and changes no agent). Giving a skill to an agent, taking it back and updating an installed copy change what agents follow, so the owner does them in the app after its review; this tool refuses them. Adding from Girru\u2019s catalogue needs the owner\u2019s authenticator code, so it is done by the owner in the app only. Adding what the folder scan found is done by the owner in the app. Removing a skill from Girru is not available.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','read','agent','catalogue','found','look','look_status','preview','add']},id:{type:'string',maxLength:36,description:'skill id'},agentId:{type:'string',maxLength:128},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64}},required:['operation'],additionalProperties:false},
@@ -324,6 +329,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'chats': return await chatsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'account_settings': return await accountSettingsTool(args,deps);
+      case 'workspace_backups': return await workspaceBackupsTool(args,deps);
       case 'skill_library': return await skillLibraryTool(args,deps);
       case 'personality_library': return await personalityLibraryTool(args,deps);
       case 'specialty_library': return await specialtyLibraryTool(args,deps);
@@ -611,6 +617,18 @@ async function accountSettingsTool(args:Record<string,unknown>,{backend}:Handler
   return ok('That device is signed out; it must sign in again.',await backend.request('POST','/api/auth/sessions/'+args.id+'/sign-out'));
  }
  throw new InputError('operation must be two_step, devices, sign_out_device, updates or check_updates');
+}
+
+const BACKUPS_REFUSED='Restoring, deleting or moving backups is done by the owner in Settings \u203a Backups. This tool reads the backups (status) and, on the owner\u2019s instruction, makes one now (back_up_now).';
+async function workspaceBackupsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ if(args.operation==='status'){only(args,['operation']);return ok('Backups: every day at 03:00 and before every update, kept outside the data folder.',await backend.request('GET','/api/backups'));}
+ if(args.operation==='back_up_now'){
+  only(args,['operation','kind']);
+  if(args.kind!==undefined&&args.kind!=='manual'&&args.kind!=='before_update')throw new InputError('kind must be manual or before_update');
+  const r=obj(await backend.request('POST','/api/backups',{kind:args.kind==='before_update'?'before-update':'manual'}));
+  return ok(obj(r.backup).checked===false?'Backed up, but a part did not pass its check: tell the owner.':'Backed up and checked.',r);
+ }
+ throw new InputError(BACKUPS_REFUSED);
 }
 
 const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Array.isArray(x);

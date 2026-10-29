@@ -20,6 +20,9 @@ import { config as loadDotenv } from 'dotenv';
 import { bootstrapSecrets, SecretsBootstrapError } from './secrets-bootstrap.js';
 import { checkIsolatedServerEnv, ISOLATED_ENV } from './isolation.js';
 import { checkIsolatedTree } from './isolated-tree.js';
+import { existsSync } from 'node:fs';
+import { dataRoot } from './data-root.js';
+import { applyPendingRestore, RESTORE_MARKER } from '../services/backups.js';
 
 if (process.env[ISOLATED_ENV] === '1') {
   // src/config (or dist/config) -> packages/backend -> packages -> repo root.
@@ -33,6 +36,12 @@ if (process.env[ISOLATED_ENV] === '1') {
   }
 } else {
   loadDotenv({ quiet: true });
+}
+
+// BACKUP-01: a restore asked for before the last stop is put in place now, before any store opens.
+if (existsSync(path.join(dataRoot(), RESTORE_MARKER))) {
+  const done = await applyPendingRestore();
+  if (done) console.log(done.ok ? `[Backups] Restored backup ${done.id}` : `[Backups] Restore of ${done.id} failed: ${done.error}`);
 }
 
 try {

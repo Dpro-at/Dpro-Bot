@@ -16,6 +16,7 @@ if (!process.env.NODE_ENV) {
 import path from 'node:path';
 import { buildServer } from './app.js';
 import { initializeBackend } from './startup.js';
+import { onRestartRequest, RESTART_EXIT_CODE } from './restart-request.js';
 import { config } from '../config/index.js';
 import { dataRoot, mainDatabasePath } from '../config/data-root.js';
 import { dbDriver } from '../db/pg/config.js';
@@ -124,7 +125,7 @@ ${storageLines()}
 }
 
 let shuttingDown = false;
-async function shutdown(): Promise<void> {
+async function shutdown(code = 0): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   const deadline = setTimeout(() => process.exit(1), 20000);
@@ -145,11 +146,13 @@ async function shutdown(): Promise<void> {
     if (!(await flushAuditWritesWithin(SHUTDOWN_AUDIT_FLUSH_MS, () => getOrchestrator().flush()))) {
       console.warn(`[Server] Some orchestrator writes did not finish within ${SHUTDOWN_AUDIT_FLUSH_MS} ms of shutdown`);
     }
-    process.exit(0);
+    process.exit(code);
   } catch {
     process.exit(1);
   }
 }
+// BACKUP-01: a restore asks for a clean stop with the restart code; the desktop app starts again.
+onRestartRequest(() => { void shutdown(RESTART_EXIT_CODE); });
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void shutdown(); });
 // INSTALLER-05: the desktop app asks over IPC (Windows has no SIGTERM for a child).
 if (process.env[LAUNCH_TOKEN_ENV] && typeof process.send === 'function') {

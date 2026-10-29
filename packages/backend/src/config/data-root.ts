@@ -84,6 +84,20 @@ function envDir(name: string, file: boolean): string | null {
   return file ? path.dirname(path.resolve(v)) : path.resolve(v);
 }
 
+const insideDir = (child: string, parent: string) => { const r = path.relative(parent, child); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
+/** BACKUP-01: ~/Girru Backups (GIRRU_BACKUPS_DIR), or next to the data folder when home is inside it (isolated runs). */
+export function defaultBackupsFolder(): string {
+  const env = (process.env.GIRRU_BACKUPS_DIR ?? '').trim();
+  if (env) return path.resolve(env);
+  const home = path.join(os.homedir(), 'Girru Backups');
+  return insideDir(realish(home), realish(dataRoot())) ? path.join(path.dirname(path.resolve(dataRoot())), 'Girru Backups') : home;
+}
+let savedBackupsFolder: string | null = null;
+/** The owner's choice, kept in the database (app_settings) and loaded here on start (services/backups.ts). */
+export function setSavedBackupsFolder(folder: string | null): void { savedBackupsFolder = folder && path.isAbsolute(folder) ? folder : null; }
+/** Where backups are kept: the owner's choice, else the default. */
+export function backupsFolder(): string { return savedBackupsFolder ?? defaultBackupsFolder(); }
+
 /**
  * Every folder that holds private server data, canonical (realpath'd) and
  * deduplicated. The one list used by the agent file sandbox
@@ -94,6 +108,7 @@ function envDir(name: string, file: boolean): string | null {
  *    AGENT_PLAYER_DATA_DIR moves the root);
  *  - folders of stores that can sit outside the root: the main DB
  *    (`DATABASE_PATH`), audit DB, encryption vault, credential backups;
+ *  - the backups folder (a copy of all of it, keys included);
  *  - uploads (`UPLOADS_DIR` / `STORAGE_BASE_DIR`, or the legacy
  *    `<cwd>/../../.data/uploads`) and the legacy memory folder: uploads hold
  *    per-user private files (avatars, attachments, profile pictures) that
@@ -115,6 +130,8 @@ export function protectedDataDirs(): string[] {
     envDir('UPLOADS_DIR', false) ?? dataPathOr(path.join(cwd, '..', '..', '.data', 'uploads'), 'uploads'),
     envDir('STORAGE_BASE_DIR', false),
     dataPathOr(path.join(cwd, '..', '..', '.data', 'memory'), 'memory'),
+    // BACKUP-01: backups hold a copy of everything above, keys included.
+    backupsFolder(),
   ];
   const out = new Set<string>();
   for (const d of dirs) {
