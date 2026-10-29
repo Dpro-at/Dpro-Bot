@@ -9,7 +9,7 @@ import type { UiIconName } from './ui-icons';
 import { Avatar, ContextMenu, IconButton, Notice, Popover, Sheet, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
 import { DocumentEditor } from './DocumentEditor';
-import { RulesController, followers, reaches, ruleGroups, whoWords } from './agent-rules';
+import { RulesController, followers, reaches, ruleGroups, ruleLine, whoWords } from './agent-rules';
 import type { Rule, RuleAgent, RuleChange, RuleVersion, RuleWho } from './agent-rules';
 import type { SessionClient } from './session';
 
@@ -85,7 +85,7 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
                 onClick={() => { c.select(r.id); listRef.current?.focus(); }} onContextMenu={(e: ReactMouseEvent) => { c.select(r.id); menu.at(e, itemsFor(r)); }}>
                 <span className="dk-row-icon" title={WHERE_TIP(r)}><UiIcon name={WHERE_ICON(r)} size={15}/></span>
                 <span className="dk-row-text"><span className="dk-row-main" dir="auto">{r.text}</span>
-                  <span className="dk-row-sub">{r.status === 'suggested' ? `${agents.find(a => a.id === r.suggestedBy)?.name ?? 'An agent'} suggests · ${whoWords(r, agents, s.projects)}${r.projectId ? '' : ' · everywhere'}` : whoWords(r, agents, s.projects)}</span></span>
+                  <span className="dk-row-sub">{r.when && <><span className="rules-when" title="Only in this case"><UiIcon name="branch" size={11}/>When {r.when}</span> · </>}{r.status === 'suggested' ? `${agents.find(a => a.id === r.suggestedBy)?.name ?? 'An agent'} suggests · ${whoWords(r, agents, s.projects)}${r.projectId ? '' : ' · everywhere'}` : whoWords(r, agents, s.projects)}</span></span>
                 {r.paused && <span className="rules-paused"><UiIcon name="pause" size={11}/>Paused</span>}
               </div>)}</div>)}
             {!groups.length && s.phase === 'ready' && <p className="dk-empty">No rule reaches {agent?.name ?? 'this choice'} here. <button type="button" className="link-button" onClick={() => setFilter({ agentId: '', projectId: '' })}>Show all</button></p>}
@@ -106,16 +106,21 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
 function RuleInspector({ c, rule, agents, onHistory, onMenu }: { c: RulesController; rule: Rule | null; agents: readonly RuleAgent[]; onHistory: () => void; onMenu: (e: ReactMouseEvent) => void }) {
   const s = useSyncExternalStore(c.subscribe, c.getSnapshot, c.getSnapshot);
   const [text, setText] = useState(rule?.text ?? '');
+  // RULES-02: a rule may apply only in a case ("When …"); null = always.
+  const [when, setWhen] = useState<string | null>(rule?.when ?? null);
+  const whenRef = useRef<HTMLInputElement>(null);
   const [reach, setReach] = useState<{ projectId: string | null; who: RuleWho; targets: string[] }>({ projectId: rule?.projectId ?? null, who: rule?.who ?? 'all', targets: [...(rule?.targets ?? [])] });
   const [editor, setEditor] = useState(false);
   const area = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (!rule) area.current?.focus(); }, []);
   const save = (change: RuleChange) => {
-    if (!rule) { const t = (change.text ?? text).trim(); if (t) void c.create({ text: t, projectId: change.projectId ?? reach.projectId, who: change.who ?? reach.who, targets: change.targets ?? reach.targets }); return; }
+    if (!rule) { const t = (change.text ?? text).trim(); const w = change.when !== undefined ? change.when : when?.trim() || null; if (t) void c.create({ text: t, when: w, projectId: change.projectId ?? reach.projectId, who: change.who ?? reach.who, targets: change.targets ?? reach.targets }); return; }
     void c.change(rule.id, change);
   };
   // Saves by itself: a moment after typing stops, and when the field is left.
   useEffect(() => { if (!rule || text.trim() === rule.text || !text.trim()) return; const t = setTimeout(() => save({ text: text.trim() }), 800); return () => clearTimeout(t); }, [text]);
+  useEffect(() => { if (!rule || when === null || !when.trim() || when.trim() === rule.when) return; const t = setTimeout(() => save({ when: when.trim() }), 800); return () => clearTimeout(t); }, [when]);
+  const setCase = (only: boolean) => { if (!only) { setWhen(null); if (rule?.when) save({ when: null }); } else { setWhen(w => w ?? ''); requestAnimationFrame(() => whenRef.current?.focus()); } };
   const setWho = (who: RuleWho) => { const next = { ...reach, who, targets: who === reach.who ? reach.targets : [] }; setReach(next); if (who === 'all' || next.targets.length) save({ who, targets: next.targets }); };
   const toggle = (t: string) => { const targets = reach.targets.includes(t) ? reach.targets.filter(x => x !== t) : [...reach.targets, t]; setReach({ ...reach, targets }); if (targets.length) save({ who: reach.who, targets }); };
   const setWhere = (projectId: string | null) => { setReach({ ...reach, projectId }); save({ projectId }); };
@@ -129,6 +134,14 @@ function RuleInspector({ c, rule, agents, onHistory, onMenu }: { c: RulesControl
       {rule && !suggested && <IconButton icon="more" label="More" onClick={onMenu}/>}
       <IconButton icon="close" label="Close" shortcut="Esc" onClick={() => c.select(null)}/></div>
     {suggested && <p className="rules-from"><Avatar name={by ?? 'Agent'} size={20}/>{by} suggests this{rule?.reason ? <> · <span className="fine-print">Why: “{rule.reason}”</span></> : null}</p>}
+    <div className="dk-field">When it applies
+      <span className="dk-segmented" role="group" aria-label="When it applies">
+        <button type="button" aria-pressed={when === null} onClick={() => setCase(false)}>Always</button>
+        <button type="button" aria-pressed={when !== null} onClick={() => setCase(true)}><UiIcon name="branch" size={12}/>Only when…</button></span>
+      {when !== null && <label className="rules-when-field"><b>When</b><input ref={whenRef} dir="auto" aria-label="The case" maxLength={300} value={when} placeholder="the task changes a screen"
+        onChange={e => setWhen(e.target.value)} onBlur={() => { const w = when.trim(); if (rule && w && w !== rule.when) save({ when: w }); }}
+        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); c.select(null); } }}/></label>}
+      {when !== null && <small className="fine-print">Say the case the way you would tell a person. Agents follow the rule only then.</small>}</div>
     <label className="dk-field">The rule
       <textarea ref={area} rows={4} dir="auto" value={text} placeholder="One sentence, the way you would tell a person. For example: Run the tests before you say a task is done."
         onChange={e => setText(e.target.value)} onBlur={() => { if (text.trim() && text.trim() !== rule?.text) save({ text: text.trim() }); }}
@@ -147,10 +160,11 @@ function RuleInspector({ c, rule, agents, onHistory, onMenu }: { c: RulesControl
           <button key={t.id} type="button" className="rules-chip" aria-pressed={reach.targets.includes(t.id)} onClick={() => toggle(t.id)}>{reach.who === 'agents' && <Avatar name={t.name} size={16}/>}{t.name}</button>)}
         {reach.who === 'departments' && !s.departments.length && <small className="fine-print">No departments yet. Set them on each agent’s page.</small>}</span>}
       <small className="fine-print">{reach.who !== 'all' && !reach.targets.length ? 'Choose at least one.' : `${n} ${n === 1 ? 'agent follows' : 'agents follow'} it${reach.projectId ? ' in this project' : ''}.`}</small></div>
+    {text.trim() && <p className="rules-reads"><b>The agent reads:</b> <span dir="auto">{ruleLine({ text: text.trim(), when: when?.trim() || null })}</span></p>}
     {rule && !suggested && <p className="rules-from">{rule.source === 'agent' ? <>Suggested by {by}, used by you</> : <>Written by you</>} · {new Date(rule.createdAt.replace(' ', 'T') + (rule.createdAt.includes('Z') ? '' : 'Z')).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>}
     {rule && !suggested && rule.version > 1 && <button type="button" className="link-button rules-versions" onClick={onHistory}><UiIcon name="history" size={13}/>{rule.version - 1} earlier {rule.version === 2 ? 'version' : 'versions'}</button>}
     {suggested && <span className="rules-decide"><button type="button" disabled={s.busy} onClick={() => void c.decide(rule!.id, false)}>Dismiss</button><button type="button" className="primary" disabled={s.busy} onClick={() => void c.decide(rule!.id, true)}>Use this rule</button></span>}
-    <small className="fine-print rules-order">A project rule comes after an everywhere rule, and a rule for chosen agents comes last. When two disagree, the later one wins.</small>
+    <small className="fine-print rules-order">A rule without “When” always applies. A project rule comes after an everywhere rule, and a rule for chosen agents comes last. When two disagree, the later one wins.</small>
     {editor && <DocumentEditor title="Rule" files={[{ id: 'rule', name: 'Rule.md', content: text }]} maxLength={2000} onChange={(_, t) => setText(t)} onClose={() => { setEditor(false); if (text.trim() && text.trim() !== rule?.text) save({ text: text.trim() }); }}/>}
   </div>;
 }
@@ -173,7 +187,7 @@ function AgentSees({ c, agents, projects, initial, onClose }: { c: RulesControll
     });
     return () => { on = false; };
   }, [agentId, projectId]);
-  const textOf = (id: string) => list?.find(r => r.id === id)?.text ?? '';
+  const textOf = (id: string) => { const r = list?.find(x => x.id === id); return r ? ruleLine(r) : ''; };
   const open = (id: string) => { c.select(id); onClose(); };
   const tier = (r: Rule) => (r.who === 'agents' ? 'this agent' : r.projectId ? projects.find(p => p.id === r.projectId)?.name ?? 'project' : 'everywhere');
   return <Sheet title="What an agent sees" onClose={onClose} wide actions={<button type="button" className="primary" onClick={onClose}>Done</button>}>
@@ -181,14 +195,14 @@ function AgentSees({ c, agents, projects, initial, onClose }: { c: RulesControll
       <label className="dk-field">Agent<select value={agentId} onChange={e => setAgentId(e.target.value)}>{agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
       <label className="dk-field">In<select value={projectId} onChange={e => setProjectId(e.target.value)}><option value="">A chat without a project</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     </div>
-    {list === null ? <p className="fine-print" role="status">Reading…</p> : list.length ? <ol className="rules-sees">{list.map(r => <li key={r.id} dir="auto">{r.text} <span className="fine-print">· {tier(r)}</span></li>)}</ol>
+    {list === null ? <p className="fine-print" role="status">Reading…</p> : list.length ? <ol className="rules-sees">{list.map(r => <li key={r.id} dir="auto">{r.when && <span className="rules-when-lead">When {r.when}: </span>}{r.text} <span className="fine-print">· {tier(r)}</span></li>)}</ol>
       : <p className="fine-print">No rule reaches this agent here.</p>}
     {check === 'checking' && <p className="fine-print" role="status">Checking for rules that disagree…</p>}
     {check && check !== 'checking' && check.conflicts.map(x => <div key={`${x.a}-${x.b}`} className="rules-conflict" role="alert"><UiIcon name="alert" size={14}/>
       <span>Two rules disagree: “{textOf(x.a)}” and “{textOf(x.b)}”.{x.why ? ` ${x.why}` : ''} The later one, “{textOf(x.b)}”, wins.
         <span className="rules-conflict-open"><button type="button" className="link-button" onClick={() => open(x.a)}>Open the first</button><button type="button" className="link-button" onClick={() => open(x.b)}>Open the second</button></span></span></div>)}
     {check && check !== 'checking' && !check.checked && <p className="fine-print">The local model could not check whether rules disagree right now.</p>}
-    <p className="fine-print">This is the list, in this order, that the agent gets before a task. When two disagree, the later one wins. Paused rules are left out.</p>
+    <p className="fine-print">This is the list, in this order, that the agent gets before a task. When two disagree, the later one wins; two rules for different cases do not disagree. Paused rules are left out.</p>
   </Sheet>;
 }
 

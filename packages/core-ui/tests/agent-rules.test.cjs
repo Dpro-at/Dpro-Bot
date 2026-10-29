@@ -9,16 +9,16 @@ const { ruleGroups, whoWords, followers, reaches, RulesController } = require('.
 const { allowedRequest } = require('../src/session.ts');
 const src = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const ID = '3f0c2b6e-1d2a-4f4e-9b1a-6c7d8e9f0a1b';
-const rule = (x) => ({ id: ID, text: 'Chat in Arabic', projectId: null, who: 'all', targets: [], paused: false, status: 'active', source: 'owner', suggestedBy: null, reason: null, version: 1, createdAt: '2026-10-29T09:00:00.000Z', updatedAt: '', ...x });
+const rule = (x) => ({ id: ID, text: 'Chat in Arabic', when: null, projectId: null, who: 'all', targets: [], paused: false, status: 'active', source: 'owner', suggestedBy: null, reason: null, version: 1, createdAt: '2026-10-29T09:00:00.000Z', updatedAt: '', ...x });
 
 test('contract: only the Rules routes and shapes pass', () => {
   const ok = [['GET', '/api/agent-rules'], ['GET', `/api/agent-rules/effective?agentId=agent-1&projectId=p1`], ['GET', `/api/agent-rules/conflicts?agentId=agent-1`], ['GET', `/api/agent-rules/${ID}/versions`],
     ['POST', '/api/agent-rules', { text: 'x', who: 'departments', targets: ['development'] }], ['POST', '/api/agent-rules/starter'],
     ['POST', `/api/agent-rules/${ID}/delete`], ['POST', `/api/agent-rules/${ID}/undo-delete`], ['POST', `/api/agent-rules/${ID}/accept`], ['POST', `/api/agent-rules/${ID}/dismiss`],
-    ['POST', `/api/agent-rules/${ID}/versions/2/restore`], ['PUT', `/api/agent-rules/${ID}`, { paused: true }]];
+    ['POST', `/api/agent-rules/${ID}/versions/2/restore`], ['PUT', `/api/agent-rules/${ID}`, { paused: true }], ['PUT', `/api/agent-rules/${ID}`, { when: 'a screen changes' }], ['PUT', `/api/agent-rules/${ID}`, { when: null }]];
   for (const [m, p, b] of ok) { assert.ok(allowedAgentRules(m, p, b), `${m} ${p}`); assert.ok(allowedRequest(m, p, b), `session ${m} ${p}`); }
   const no = [['POST', '/api/agent-rules', { text: '' }], ['POST', '/api/agent-rules', { text: 'x', extra: 1 }], ['POST', '/api/agent-rules', { who: 'all' }],
-    ['PUT', `/api/agent-rules/${ID}`, {}], ['PUT', `/api/agent-rules/${ID}`, { who: 'everyone' }], ['DELETE', `/api/agent-rules/${ID}`],
+    ['PUT', `/api/agent-rules/${ID}`, {}], ['PUT', `/api/agent-rules/${ID}`, { who: 'everyone' }], ['PUT', `/api/agent-rules/${ID}`, { when: 'x'.repeat(301) }], ['PUT', `/api/agent-rules/${ID}`, { when: 3 }], ['DELETE', `/api/agent-rules/${ID}`],
     ['POST', `/api/agent-rules/${ID}/delete`, { x: 1 }], ['GET', '/api/agent-rules/effective?agentId='], ['POST', '/api/agent-rules/../users'], ['POST', '/api/agent-rules/suggestions', { text: 'x' }]];
   for (const [m, p, b] of no) assert.equal(allowedAgentRules(m, p, b), false, `${m} ${p} ${JSON.stringify(b)}`);
   assert.equal(agentRulesRoute('/api/agent-rulesX'), false);
@@ -26,7 +26,7 @@ test('contract: only the Rules routes and shapes pass', () => {
 
 test('contract: a rule comes back with its own fields only; a refused rule keeps its one-line reason', () => {
   const page = agentRulesResponse('/api/agent-rules', 200, { rules: [rule({ createdBy: 'owner-id', secret: 'x' })], suggestions: [], departments: ['development'], starter: ['a'] });
-  assert.deepEqual(Object.keys(page.rules[0]).sort(), ['createdAt', 'id', 'paused', 'projectId', 'reason', 'source', 'status', 'suggestedBy', 'targets', 'text', 'updatedAt', 'version', 'who']);
+  assert.deepEqual(Object.keys(page.rules[0]).sort(), ['createdAt', 'id', 'paused', 'projectId', 'reason', 'source', 'status', 'suggestedBy', 'targets', 'text', 'updatedAt', 'version', 'when', 'who']);
   assert.deepEqual(agentRulesResponse('/api/agent-rules', 400, { error: 'Write the rule as a sentence', code: 'invalid_rule' }), { code: 'invalid_rule', error: 'Write the rule as a sentence' });
   assert.deepEqual(agentRulesResponse(`/api/agent-rules/${ID}/delete`, 404, { error: 'x' }), { code: 'not_found' });
   assert.deepEqual(agentRulesResponse(`/api/agent-rules/${ID}/delete`, 200, { ok: true, undoMs: 600000 }), { ok: true, undoMs: 600000 });
@@ -79,4 +79,13 @@ test('wiring: Rules is the owner\'s place in the Agents sidebar with a "needs yo
   assert.equal((p.match(/className="primary"/g) ?? []).length, 3, 'New rule, Use this rule (only for a suggestion) and the sheet\'s Done');
   for (const re of [/onContextMenu=/, /e\.key === 'Delete' \|\| e\.key === 'Backspace'/, /e\.key\.toLowerCase\(\) === 'z' && s\.lastDeleted/, /<Notice toast=\{s\.toast\} onUndo=/, /What an agent sees/, /Two rules disagree/, /The later one, “\{textOf\(x\.b\)\}”, wins/, /Start with our usual rules/, /DocumentEditor/]) assert.match(p, re);
   assert.match(src('scripts/application-server.cjs'), /if \(agentRulesRoute\(target\)\) return allowedAgentRules\(method, target, body\);/);
+});
+
+test('RULES-02: a rule with a case reads "When X: rule"; the page offers Always / Only when… and shows what the agent reads', () => {
+  const { ruleLine } = require('../src/agent-rules.ts');
+  assert.equal(ruleLine({ text: 'Ask me first.', when: 'a hand-off fails twice' }), 'When a hand-off fails twice: Ask me first.');
+  assert.equal(ruleLine({ text: 'Chat in Arabic.', when: null }), 'Chat in Arabic.');
+  const p = src('src/AgentRules.tsx');
+  for (const re of [/aria-label="When it applies"/, />Always<\/button>/, /Only when…<\/button>/, /aria-label="The case"/, /<b>The agent reads:<\/b>/, /className="rules-when" title="Only in this case"/, /rules-when-lead/, /two rules for different cases do not disagree/]) assert.match(p, re);
+  assert.equal(agentRulesResponse(`/api/agent-rules/${ID}/versions`, 200, { versions: [{ version: 1, text: 't', when: 'w', changedAt: 'x' }] }).versions[0].when, 'w');
 });

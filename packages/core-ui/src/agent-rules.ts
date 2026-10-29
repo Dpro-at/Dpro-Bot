@@ -4,8 +4,8 @@
 import type { SessionClient } from './session';
 
 export type RuleWho = 'all' | 'departments' | 'agents';
-export type Rule = Readonly<{ id: string; text: string; projectId: string | null; who: RuleWho; targets: readonly string[]; paused: boolean; status: 'active' | 'suggested'; source: 'owner' | 'agent'; suggestedBy: string | null; reason: string | null; version: number; createdAt: string; updatedAt: string }>;
-export type RuleVersion = Readonly<{ version: number; text: string; changedAt: string }>;
+export type Rule = Readonly<{ id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: readonly string[]; paused: boolean; status: 'active' | 'suggested'; source: 'owner' | 'agent'; suggestedBy: string | null; reason: string | null; version: number; createdAt: string; updatedAt: string }>;
+export type RuleVersion = Readonly<{ version: number; text: string; when: string | null; changedAt: string }>;
 export type RuleProject = Readonly<{ id: string; name: string }>;
 export type RuleAgent = Readonly<{ id: string; name: string; department: string | null }>;
 export type RuleGroup = Readonly<{ id: string; title: string; icon: 'bulb' | 'globe' | 'folder' | 'avatar'; rules: readonly Rule[] }>;
@@ -13,7 +13,7 @@ export type RulesState = Readonly<{
   phase: 'idle' | 'loading' | 'ready' | 'error'; rules: readonly Rule[]; suggestions: readonly Rule[]; departments: readonly string[]; projects: readonly RuleProject[];
   selected: string | null; notice: string | null; toast: { id: number; text: string; undo: boolean } | null; lastDeleted: string | null; busy: boolean;
 }>;
-export type RuleChange = Partial<{ text: string; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean }>;
+export type RuleChange = Partial<{ text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean }>;
 
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 const err = (body: unknown, fallback: string) => (record(body) && typeof body.error === 'string' ? body.error : fallback);
@@ -32,6 +32,8 @@ export function ruleGroups(rules: readonly Rule[], suggestions: readonly Rule[],
   return out;
 }
 
+/** How an agent reads a rule (the server's words): "When X: rule", or the rule alone. */
+export const ruleLine = (r: Pick<Rule, 'text' | 'when'>) => (r.when ? `When ${r.when}: ${r.text}` : r.text);
 /** Who follows a rule, in words ("All agents", "Development · 3 agents", "QA Tester"). */
 export function whoWords(r: Pick<Rule, 'who' | 'targets' | 'projectId'>, agents: readonly RuleAgent[], projects: readonly RuleProject[] = []): string {
   const where = r.projectId ? ` · ${projects.find(p => p.id === r.projectId)?.name ?? 'a project'}` : '';
@@ -99,7 +101,7 @@ export class RulesController {
   change(id: string, change: RuleChange) { return this.#write('PUT', `/api/agent-rules/${id}`, change); }
   async duplicate(id: string) {
     const r = this.find(id); if (!r) return null;
-    return this.create({ text: r.text, projectId: r.projectId, who: r.who, targets: [...r.targets], paused: true });
+    return this.create({ text: r.text, when: r.when, projectId: r.projectId, who: r.who, targets: [...r.targets], paused: true });
   }
   async remove(id: string) {
     this.#publish({ busy: true });

@@ -68,8 +68,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_rules',title:'Rules agents follow',
-    description:'Owner-session only. The owner\u2019s rules for how agents work (Agents \u203a Rules). Read: list (rules in the order agents get them, paused ones marked, and suggestions waiting), effective (agentId, projectId?: the exact list that agent gets there, the later one wins), versions (id). suggest (text, reason?, projectId?, who?, targets?): propose a rule; it waits for the owner. Adding, changing, pausing, deleting rules and deciding suggestions stay with the owner in the app. who is all, departments (targets = department names) or agents (targets = agent ids); projectId null = everywhere.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:RULE_OPS},id:{type:'string',maxLength:36},text:{type:'string',maxLength:2000},reason:{type:'string',maxLength:500},projectId:{type:['string','null'],maxLength:64},who:{type:'string',enum:['all','departments','agents']},targets:{type:'array',maxItems:50,items:{type:'string',maxLength:120}},agentId:{type:'string',maxLength:120}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. The owner\u2019s rules for how agents work (Agents \u203a Rules). Read: list (rules in the order agents get them, paused ones marked, and suggestions waiting), effective (agentId, projectId?: the exact list that agent gets there, the later one wins), versions (id). suggest (text, when?, reason?, projectId?, who?, targets?): propose a rule (when = the one case it applies in; leave out for always); it waits for the owner. Adding, changing, pausing, deleting rules and deciding suggestions stay with the owner in the app. who is all, departments (targets = department names) or agents (targets = agent ids); projectId null = everywhere.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:RULE_OPS},id:{type:'string',maxLength:36},text:{type:'string',maxLength:2000},when:{type:['string','null'],maxLength:300},reason:{type:'string',maxLength:500},projectId:{type:['string','null'],maxLength:64},who:{type:'string',enum:['all','departments','agents']},targets:{type:'array',maxItems:50,items:{type:'string',maxLength:120}},agentId:{type:'string',maxLength:120}},required:['operation'],additionalProperties:false},
   },
   {
     name:'workspace_footer',title:'Footer sections',
@@ -929,8 +929,8 @@ async function workspaceRulesTool(args:Record<string,unknown>,{backend}:HandlerD
  const op=args.operation as string;
  const ruleId=()=>{if(typeof args.id!=='string'||!/^[0-9a-f-]{36}$/.test(args.id))throw new InputError('id must be a rule id from list');return args.id;};
  const fields=(keys:string[])=>Object.fromEntries(keys.filter(k=>k in args).map(k=>[k,args[k]]));
- const RULE=['text','projectId','who','targets'];
- const rule=(r:any)=>r&&({id:r.id,text:r.text,projectId:r.projectId??null,who:r.who,targets:r.targets??[],paused:!!r.paused,status:r.status,source:r.source,reason:r.reason??null,version:r.version});
+ const RULE=['text','when','projectId','who','targets'];
+ const rule=(r:any)=>r&&({id:r.id,text:r.text,when:r.when??null,projectId:r.projectId??null,who:r.who,targets:r.targets??[],paused:!!r.paused,status:r.status,source:r.source,reason:r.reason??null,version:r.version});
  switch(op){
   case 'list':{only(args,['operation']);const r=obj(await backend.request('GET','/api/agent-rules'));const rules=((r.rules as any[])??[]).map(rule),suggestions=((r.suggestions as any[])??[]).map(rule);return ok(`${rules.length} rules (${rules.filter(x=>x.paused).length} paused), ${suggestions.length} suggestions waiting. Order: everywhere, then a project, then rules for chosen agents; the later one wins.`,{rules,suggestions,departments:r.departments??[]});}
   case 'effective':{only(args,['operation','agentId','projectId']);if(typeof args.agentId!=='string'||!args.agentId)throw new InputError('agentId is required');const qs=new URLSearchParams({agentId:args.agentId,...(typeof args.projectId==='string'&&args.projectId?{projectId:args.projectId}:{})});const rules=((obj(await backend.request('GET',`/api/agent-rules/effective?${qs}`)).rules as any[])??[]).map(rule);return ok(`${rules.length} rules reach this agent there, in this order.`,{rules});}

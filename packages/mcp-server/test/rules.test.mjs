@@ -17,7 +17,7 @@ test('workspace_rules: list and effective read; only rule fields come back', asy
  const {backend}=fake();
  const r=await callTool('workspace_rules',{operation:'list'},{backend});
  assert.match(r.content[0].text,/2 rules \(1 paused\), 1 suggestions waiting/);
- assert.deepEqual(Object.keys(r.structuredContent.rules[0]).sort(),['id','paused','projectId','reason','source','status','targets','text','version','who']);
+ assert.deepEqual(Object.keys(r.structuredContent.rules[0]).sort(),['id','paused','projectId','reason','source','status','targets','text','version','when','who']);
  assert.doesNotMatch(JSON.stringify(r),/secret-owner-id/);
  const e=await callTool('workspace_rules',{operation:'effective',agentId:'a-dev',projectId:'p1'},{backend});
  assert.equal(e.structuredContent.rules[0].text,'Chat in Arabic');
@@ -25,9 +25,10 @@ test('workspace_rules: list and effective read; only rule fields come back', asy
 
 test('workspace_rules: suggest waits for the owner; every change and every decision on a suggestion is refused over MCP', async () => {
  const {backend,calls}=fake();
- const s=await callTool('workspace_rules',{operation:'suggest',text:'Read the README first',reason:'missed steps'},{backend});
+ const s=await callTool('workspace_rules',{operation:'suggest',text:'Ask me before you go on',when:'a hand-off fails twice',reason:'missed steps'},{backend});
  assert.match(s.content[0].text,/waits for the owner/);
- assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agent-rules/suggestions',body:{text:'Read the README first',reason:'missed steps'}});
+ assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agent-rules/suggestions',body:{text:'Ask me before you go on',when:'a hand-off fails twice',reason:'missed steps'}});
+ assert.equal(s.structuredContent.rule.when,'a hand-off fails twice');
  const before=calls.length;
  for(const op of ['create','edit','pause','delete','undo_delete','restore_version','accept','dismiss','starter','approve','set']){
   const r=await callTool('workspace_rules',{operation:op,id:RID},{backend});

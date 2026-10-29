@@ -9,7 +9,7 @@ const ITEM = new RegExp(`^/api/agent-rules/(${ID})$`);
 const ACTION = new RegExp(`^/api/agent-rules/(${ID})/(delete|undo-delete|accept|dismiss|versions)$`);
 const RESTORE = new RegExp(`^/api/agent-rules/(${ID})/versions/([1-9][0-9]{0,5})/restore$`);
 const EFFECTIVE = /^\/api\/agent-rules\/(effective|conflicts)\?agentId=[A-Za-z0-9_.%-]{1,200}(&projectId=[A-Za-z0-9_-]{1,64})?$/;
-const FIELDS = ['text', 'projectId', 'who', 'targets', 'paused'];
+const FIELDS = ['text', 'when', 'projectId', 'who', 'targets', 'paused'];
 
 export function agentRulesRoute(path) {
   return typeof path === 'string' && (path === RULES_PATH || path.startsWith(`${RULES_PATH}/`) || path.startsWith(`${RULES_PATH}?`));
@@ -21,6 +21,7 @@ function ruleBody(body, partial) {
   if (!keys.length || !keys.every(k => FIELDS.includes(k))) return false;
   if (!partial && typeof body.text !== 'string') return false;
   if ('text' in body && (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 2000)) return false;
+  if ('when' in body && body.when !== null && (typeof body.when !== 'string' || body.when.length > 300)) return false;
   if ('projectId' in body && body.projectId !== null && (typeof body.projectId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(body.projectId))) return false;
   if ('who' in body && !['all', 'departments', 'agents'].includes(body.who)) return false;
   if ('targets' in body && (!Array.isArray(body.targets) || body.targets.length > 50 || !body.targets.every(t => typeof t === 'string' && t.length > 0 && t.length <= 120))) return false;
@@ -45,7 +46,7 @@ const str = (x, max) => (typeof x === 'string' ? x.slice(0, max) : null);
 function rule(r) {
   if (!record(r) || typeof r.id !== 'string' || typeof r.text !== 'string') throw Error('protocol');
   return {
-    id: r.id, text: r.text.slice(0, 2000), projectId: str(r.projectId, 64), who: ['all', 'departments', 'agents'].includes(r.who) ? r.who : 'all',
+    id: r.id, text: r.text.slice(0, 2000), when: str(r.when, 300), projectId: str(r.projectId, 64), who: ['all', 'departments', 'agents'].includes(r.who) ? r.who : 'all',
     targets: Array.isArray(r.targets) ? r.targets.filter(t => typeof t === 'string').slice(0, 50) : [], paused: r.paused === true,
     status: r.status === 'suggested' ? 'suggested' : 'active', source: r.source === 'agent' ? 'agent' : 'owner',
     suggestedBy: str(r.suggestedBy, 120), reason: str(r.reason, 500), version: Number.isSafeInteger(r.version) ? r.version : 1,
@@ -62,7 +63,7 @@ export function agentRulesResponse(path, status, body) {
     if ('rules' in body) return { rules: rules(body.rules) };
     if ('added' in body) return { added: rules(body.added) };
     if ('conflicts' in body) return { checked: body.checked === true, conflicts: Array.isArray(body.conflicts) ? body.conflicts.slice(0, 10).filter(c => record(c) && typeof c.a === 'string' && typeof c.b === 'string').map(c => ({ a: c.a, b: c.b, why: str(c.why, 200) ?? '' })) : [] };
-    if ('versions' in body) return { versions: Array.isArray(body.versions) ? body.versions.slice(0, 200).filter(v => record(v) && Number.isSafeInteger(v.version) && typeof v.text === 'string').map(v => ({ version: v.version, text: v.text.slice(0, 2000), changedAt: str(v.changedAt, 40) ?? '' })) : [] };
+    if ('versions' in body) return { versions: Array.isArray(body.versions) ? body.versions.slice(0, 200).filter(v => record(v) && Number.isSafeInteger(v.version) && typeof v.text === 'string').map(v => ({ version: v.version, text: v.text.slice(0, 2000), when: str(v.when, 300), changedAt: str(v.changedAt, 40) ?? '' })) : [] };
     if (body.ok === true) return { ok: true, undoMs: Number.isSafeInteger(body.undoMs) ? body.undoMs : 0 };
     throw Error('protocol');
   }

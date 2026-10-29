@@ -16,6 +16,7 @@ export const ruleSuggestTool: Tool = {
     type: 'object',
     properties: {
       text: { type: 'string', description: 'The rule, one sentence (up to 2000 characters)' },
+      when: { type: 'string', description: 'Only for a rule that applies in one case: that case in a short line, e.g. "a hand-off fails twice" (leave out for always)' },
       reason: { type: 'string', description: 'Why, in one short sentence (what went wrong or what it saves)' },
       who: { type: 'string', enum: ['all', 'departments'], description: 'all agents (default) or the departments in targets' },
       targets: { type: 'array', items: { type: 'string' }, description: 'Department names when who is departments' },
@@ -28,7 +29,7 @@ export const ruleSuggestTool: Tool = {
     const projectId = params.this_project === true ? await sessionProject(context?.sessionId) : null;
     if (params.this_project === true && !projectId) return fail('Not suggested: this chat has no project; leave this_project out to suggest it everywhere.');
     try {
-      const rule = await suggestRule({ text: params.text, projectId, who: params.who === 'departments' ? 'departments' : 'all', targets: params.who === 'departments' && Array.isArray(params.targets) ? params.targets : [] }, context?.agentId ?? null, params.reason);
+      const rule = await suggestRule({ text: params.text, when: typeof params.when === 'string' && params.when.trim() ? params.when : null, projectId, who: params.who === 'departments' ? 'departments' : 'all', targets: params.who === 'departments' && Array.isArray(params.targets) ? params.targets : [] }, context?.agentId ?? null, params.reason);
       return { content: [{ type: 'text', text: rule.status === 'active' ? 'This rule already exists; nothing new was suggested.' : 'Rule suggested. It waits for the owner in Agents › Rules; do not ask again in this reply.' }], details: { ruleSuggestion: { id: rule.id, text: rule.text } } };
     } catch (err) {
       if (err instanceof RuleInputError) return fail(`Not suggested: ${err.message}.`);

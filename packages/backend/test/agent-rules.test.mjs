@@ -139,3 +139,24 @@ test('rules that disagree: the local model is asked once per list, its answer is
   assert.deepEqual(await rules.ruleConflicts([list[0]], async () => { throw Error('not asked'); }), { conflicts: [], checked: true }, 'one rule cannot disagree');
   assert.equal((await call('r-user', 'GET', '/api/agent-rules/conflicts?agentId=a-dev')).statusCode, 403);
 });
+
+test('RULES-02: a rule with a case is read as "When X: rule"; the case is saved, versioned, cleared, suggested and checked', async () => {
+  const r = (await call('r-owner', 'POST', '/api/agent-rules', { text: 'Start with a design board; build it after my OK.', when: 'When the task changes a screen:', projectId: 'p-dpro' })).json().rule;
+  assert.equal(r.when, 'the task changes a screen', 'a leading "When" and the colon are taken off');
+  const text = await rules.rulesContext('a-dev', { projectId: 'p-dpro' });
+  assert.match(text, /applies only in that case[^\n]*if unsure, follow it/);
+  assert.match(text, /\d\. When the task changes a screen: Start with a design board; build it after my OK\./);
+  const edited = (await call('r-owner', 'PUT', `/api/agent-rules/${r.id}`, { when: 'a screen changes' })).json().rule;
+  assert.deepEqual([edited.when, edited.version], ['a screen changes', 2], 'a new case is a new version');
+  assert.equal((await call('r-owner', 'GET', `/api/agent-rules/${r.id}/versions`)).json().versions[0].when, 'the task changes a screen');
+  assert.equal((await call('r-owner', 'PUT', `/api/agent-rules/${r.id}`, { when: '' })).json().rule.when, null, 'an empty case means always');
+  assert.equal((await call('r-owner', 'POST', `/api/agent-rules/${r.id}/versions/1/restore`)).json().rule.when, 'the task changes a screen');
+  assert.equal((await call('r-owner', 'POST', '/api/agent-rules', { text: 'x', when: 'y'.repeat(301) })).statusCode, 400);
+  const s = await ruleSuggestTool.execute({ text: 'Ask me before you go on.', when: 'a hand-off fails twice' }, { agentId: 'a-qa', sessionId: 's-dpro' });
+  assert.match(s.content[0].text, /waits for the owner/);
+  assert.equal((await call('r-owner', 'GET', '/api/agent-rules')).json().suggestions.find((x) => x.text === 'Ask me before you go on.').when, 'a hand-off fails twice');
+  let prompt = '';
+  await rules.ruleConflicts([{ id: 'c1', version: 1, text: 'Write long reports.', when: 'the owner asks for a report' }, { id: 'c2', version: 1, text: 'Keep answers short.', when: null }], async (p) => { prompt = p; return { ok: true, text: '{"conflicts":[]}' }; });
+  assert.match(prompt, /1\. When the owner asks for a report: Write long reports\.\n2\. Keep answers short\./);
+  assert.match(prompt, /rules for cases that cannot happen at the same time do not contradict/);
+});

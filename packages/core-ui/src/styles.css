@@ -3239,3 +3239,11 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .rules-conflict { display:flex; gap:8px; align-items:flex-start; padding:9px 10px; margin-block-end:12px; border-radius:8px; background:var(--mem-warn-bg); color:var(--mem-warn); font-size:12.5px; line-height:1.5; }
 .app-shell .rules-conflict > svg { flex:none; margin-block-start:2px; }
 .app-shell .rules-conflict-open { display:inline-flex; gap:12px; margin-inline-start:8px; }
+/* RULES-02: a rule that applies only in a case ("When …"). */
+.app-shell .rules-when { display:inline-flex; align-items:center; gap:4px; color:var(--accent); }
+.app-shell .rules-when-lead { color:var(--accent); }
+.app-shell .rules-when-field { display:flex !important; align-items:center; gap:8px; padding:0 0 0 10px; border-radius:8px; box-shadow:inset 0 0 0 1px var(--border); }
+.app-shell .rules-when-field b { color:var(--accent); font-size:12.5px; font-weight:600; }
+.app-shell .rules-when-field input { flex:1; border:0; box-shadow:none; background:transparent; min-inline-size:0; }
+.app-shell .rules-reads { margin:0 !important; padding:9px 10px; border-radius:8px; background:color-mix(in srgb,var(--text) 5%,transparent); font-size:12px !important; color:var(--text-2) !important; line-height:1.5; }
+.app-shell .rules-reads b { color:var(--text); font-weight:600; }
