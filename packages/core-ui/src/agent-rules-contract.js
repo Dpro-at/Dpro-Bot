@@ -9,6 +9,8 @@ const ITEM = new RegExp(`^/api/agent-rules/(${ID})$`);
 const ACTION = new RegExp(`^/api/agent-rules/(${ID})/(delete|undo-delete|accept|dismiss|versions)$`);
 const RESTORE = new RegExp(`^/api/agent-rules/(${ID})/versions/([1-9][0-9]{0,5})/restore$`);
 const EFFECTIVE = /^\/api\/agent-rules\/(effective|conflicts)\?agentId=[A-Za-z0-9_.%-]{1,200}(&projectId=[A-Za-z0-9_-]{1,64})?$/;
+const BASIC = /^\/api\/agent-rules\/basics\/(basic:[a-z-]{1,40})(\/own)?$/;
+const FILES = /^\/api\/agent-rules\/files\/[A-Za-z0-9_-]{1,64}$/;
 const FIELDS = ['text', 'when', 'projectId', 'who', 'targets', 'paused'];
 
 export function agentRulesRoute(path) {
@@ -30,15 +32,22 @@ function ruleBody(body, partial) {
 }
 export function allowedAgentRules(method, path, body) {
   if (!agentRulesRoute(path)) return false;
-  if (method === 'GET') return body === undefined && (path === RULES_PATH || EFFECTIVE.test(path) || (ACTION.exec(path)?.[2] === 'versions'));
+  if (method === 'GET') return body === undefined && (path === RULES_PATH || FILES.test(path) || EFFECTIVE.test(path) || (ACTION.exec(path)?.[2] === 'versions'));
   if (method === 'POST') {
     if (path === RULES_PATH) return ruleBody(body, false);
     if (path === `${RULES_PATH}/starter`) return body === undefined;
+    const b = BASIC.exec(path);
+    if (b) return !!b[2] && body === undefined;
+    if (FILES.test(path)) return record(body) && Object.keys(body).length === 1 && (body.mode === 'private' || body.mode === 'project');
     const a = ACTION.exec(path);
     if (a && a[2] !== 'versions') return body === undefined;
     return RESTORE.test(path) && body === undefined;
   }
-  if (method === 'PUT') return ITEM.test(path) && ruleBody(body, true);
+  if (method === 'PUT') {
+    const b = BASIC.exec(path);
+    if (b) return !b[2] && record(body) && Object.keys(body).length === 1 && typeof body.paused === 'boolean';
+    return ITEM.test(path) && ruleBody(body, true);
+  }
   return false;
 }
 
@@ -48,18 +57,28 @@ function rule(r) {
   return {
     id: r.id, text: r.text.slice(0, 2000), when: str(r.when, 300), projectId: str(r.projectId, 64), who: ['all', 'departments', 'agents'].includes(r.who) ? r.who : 'all',
     targets: Array.isArray(r.targets) ? r.targets.filter(t => typeof t === 'string').slice(0, 50) : [], paused: r.paused === true,
-    status: r.status === 'suggested' ? 'suggested' : 'active', source: r.source === 'agent' ? 'agent' : 'owner',
+    status: r.status === 'suggested' ? 'suggested' : 'active', source: r.source === 'agent' ? 'agent' : r.source === 'basic' ? 'basic' : 'owner',
     suggestedBy: str(r.suggestedBy, 120), reason: str(r.reason, 500), version: Number.isSafeInteger(r.version) ? r.version : 1,
     createdAt: str(r.createdAt, 40) ?? '', updatedAt: str(r.updatedAt, 40) ?? '',
   };
 }
 const rules = x => (Array.isArray(x) ? x.slice(0, 400).map(rule) : []);
+const basic = b => ({ ...rule(b), locked: record(b) && b.locked === true });
+const ACTIONS = ['create', 'add', 'update', 'unchanged', 'tracked', 'link'];
+function files(f) {
+  if (!record(f)) throw Error('protocol');
+  return { projectId: str(f.projectId, 64) ?? '', hasFolder: typeof f.folder === 'string' || f.hasFolder === true, mode: f.mode === 'project' ? 'project' : 'private', written: f.written === true, upToDate: f.upToDate === true,
+    files: Array.isArray(f.files) ? f.files.slice(0, 8).filter(x => record(x) && typeof x.name === 'string' && ACTIONS.includes(x.action)).map(x => ({ name: x.name.slice(0, 40), action: x.action })) : [],
+    rules: str(f.rules, 60000) ?? '' };
+}
 /** Only rule fields (or a known code; a refused rule keeps its one-line reason) pass back to the page. */
 export function agentRulesResponse(path, status, body) {
   if (status === 200 || status === 201) {
     if (!record(body)) throw Error('protocol');
-    if (path === RULES_PATH && 'rules' in body) return { rules: rules(body.rules), suggestions: rules(body.suggestions), departments: Array.isArray(body.departments) ? body.departments.filter(d => typeof d === 'string').slice(0, 100) : [], starter: Array.isArray(body.starter) ? body.starter.filter(d => typeof d === 'string').slice(0, 20) : [] };
+    if (path === RULES_PATH && 'rules' in body) return { basics: Array.isArray(body.basics) ? body.basics.slice(0, 20).map(basic) : [], rules: rules(body.rules), suggestions: rules(body.suggestions), departments: Array.isArray(body.departments) ? body.departments.filter(d => typeof d === 'string').slice(0, 100) : [], starter: Array.isArray(body.starter) ? body.starter.filter(d => typeof d === 'string').slice(0, 20) : [] };
     if ('rule' in body) return { rule: rule(body.rule) };
+    if ('basic' in body) return { basic: basic(body.basic) };
+    if ('files' in body) return { files: files(body.files) };
     if ('rules' in body) return { rules: rules(body.rules) };
     if ('added' in body) return { added: rules(body.added) };
     if ('conflicts' in body) return { checked: body.checked === true, conflicts: Array.isArray(body.conflicts) ? body.conflicts.slice(0, 10).filter(c => record(c) && typeof c.a === 'string' && typeof c.b === 'string').map(c => ({ a: c.a, b: c.b, why: str(c.why, 200) ?? '' })) : [] };

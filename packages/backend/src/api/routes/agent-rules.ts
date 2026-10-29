@@ -16,14 +16,19 @@
  *   POST   /api/agent-rules/:id/accept | /dismiss   a suggestion -> { rule }
  *   GET    /api/agent-rules/effective?agentId=&projectId=  -> { rules }  what that agent gets, in order
  *   GET    /api/agent-rules/conflicts?agentId=&projectId=  -> { conflicts: [{a,b,why}], checked }  rules there that disagree (local model; b wins)
+ *   PUT    /api/agent-rules/basics/:id               { paused } -> { basic }  (a safety basic stays on: 400)
+ *   POST   /api/agent-rules/basics/:id/own           -> 201 { rule }  the owner's own version, after the basics
+ *   GET    /api/agent-rules/files/:projectId         -> { files }  what writing the coding app files would do (reads only)
+ *   POST   /api/agent-rules/files/:projectId         { mode: private|project } -> { files }  write them (the owner's button)
  *   400 { error, code: 'invalid_rule' } · 404 { error, code: 'not_found' }
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authorizeActiveRole } from '../../auth/route-guards.js';
 import { q } from '../../repositories/sql-steps.js';
+import { RuleFilesError, filesState, syncWrittenProjects, writeFiles } from '../../services/agent-rule-files.js';
 import {
   RuleInputError, STARTER_RULES, suggestRule, UNDO_MS, addStarterRules, createRule, decideSuggestion, deleteRule, editRule,
-  effectiveRules, listRules, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
+  effectiveRules, listRules, ownVersion, pauseBasic, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
 } from '../../services/agent-rules.js';
 
 const OWNER_ONLY = ['owner'] as const;
@@ -39,6 +44,37 @@ const missing = (reply: FastifyReply) => reply.code(404).send({ error: 'Rule not
 export async function agentRulesRoutes(fastify: FastifyInstance) {
   const config = { access: 'owner' as const };
   const id = (request: Req) => (ID.test(request.params.id ?? '') ? request.params.id! : null);
+  // RULES-03: after a rule changes, the coding app files of the projects the owner already wrote follow.
+  fastify.addHook('onResponse', async (request, reply) => {
+    if ((request.method === 'POST' || request.method === 'PUT') && reply.statusCode < 300 && !/\/(suggestions|files\/[^/]+)$/.test(request.url.split('?')[0])) void syncWrittenProjects();
+  });
+  const PROJECT = /^[A-Za-z0-9_-]{1,64}$/;
+  const filesError = (reply: FastifyReply, err: unknown) => {
+    if (err instanceof RuleFilesError) return reply.code(err.code === 'not_found' ? 404 : 400).send({ error: err.message, code: err.code });
+    throw err;
+  };
+  fastify.put('/api/agent-rules/basics/:id', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const b = request.body as { paused?: unknown } | null;
+    if (!b || typeof b !== 'object' || Object.keys(b).length !== 1 || typeof b.paused !== 'boolean') return reply.code(400).send({ error: 'A basic is { paused }', code: 'invalid_rule' });
+    try { const basic = await pauseBasic(String(request.params.id), b.paused); return basic ? { basic } : missing(reply); } catch (err) { return bad(reply, err); }
+  });
+  fastify.post('/api/agent-rules/basics/:id/own', { config }, async (request: Req, reply) => {
+    const by = owner(request, reply); if (by === null) return reply;
+    try { const rule = await ownVersion(String(request.params.id), by); return rule ? reply.code(201).send({ rule }) : missing(reply); } catch (err) { return bad(reply, err); }
+  });
+  fastify.get('/api/agent-rules/files/:id', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const pid = String(request.params.id); if (!PROJECT.test(pid)) return missing(reply);
+    try { return { files: await filesState(pid) }; } catch (err) { return filesError(reply, err); }
+  });
+  fastify.post('/api/agent-rules/files/:id', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const pid = String(request.params.id); if (!PROJECT.test(pid)) return missing(reply);
+    const b = request.body as { mode?: unknown } | null;
+    if (!b || typeof b !== 'object' || Object.keys(b).length !== 1 || (b.mode !== 'private' && b.mode !== 'project')) return reply.code(400).send({ error: 'mode is private or project', code: 'invalid_rule' });
+    try { return { files: await writeFiles(pid, b.mode) }; } catch (err) { return filesError(reply, err); }
+  });
 
   fastify.get('/api/agent-rules', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;

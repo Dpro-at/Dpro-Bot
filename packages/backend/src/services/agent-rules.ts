@@ -20,7 +20,7 @@ export type RuleWho = 'all' | 'departments' | 'agents';
 export type RuleStatus = 'active' | 'suggested' | 'dismissed' | 'deleted';
 export interface AgentRule {
   id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean;
-  status: RuleStatus; source: 'owner' | 'agent'; suggestedBy: string | null; reason: string | null;
+  status: RuleStatus; source: 'owner' | 'agent' | 'basic'; suggestedBy: string | null; reason: string | null;
   version: number; createdAt: string; updatedAt: string;
 }
 export interface RuleVersion { version: number; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean; changedAt: string }
@@ -97,9 +97,9 @@ let last = 0;
 const stamp = () => { const t = Math.max(Date.now(), last + 1); last = t; return new Date(t).toISOString(); };
 const ORDER = "ORDER BY CASE WHEN who = 'agents' THEN 2 WHEN project_id IS NOT NULL THEN 1 ELSE 0 END, created_at, id";
 /** Every rule the page shows (active and paused, then suggestions), in the order agents get them. */
-export async function listRules(): Promise<{ rules: AgentRule[]; suggestions: AgentRule[] }> {
+export async function listRules(): Promise<{ basics: (AgentRule & { locked: boolean })[]; rules: AgentRule[]; suggestions: AgentRule[] }> {
   const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status IN ('active','suggested') ${ORDER}`);
-  return { rules: rows.filter((r) => r.status === 'active').map(toRule), suggestions: rows.filter((r) => r.status === 'suggested').map(toRule) };
+  return { basics: await basicRules(), rules: rows.filter((r) => r.status === 'active').map(toRule), suggestions: rows.filter((r) => r.status === 'suggested').map(toRule) };
 }
 export async function getRule(id: string): Promise<AgentRule | null> {
   const r = await q.one<Row>('SELECT * FROM agent_rules WHERE id = ?', id);
@@ -177,10 +177,7 @@ export async function decideSuggestion(id: string, use: boolean): Promise<AgentR
 
 /** "Our usual rules": the working rules the owner already uses, added paused so they are read first. */
 export const STARTER_RULES: readonly string[] = [
-  'Chat with me in Arabic; write code, comments and docs in English.',
-  'When you take a task, write a handoff note when you stop: what is done, what is left, what comes next.',
   'Never name a competitor in anything public.',
-  'Ask before you install software, delete files or data, or contact an outside service.',
   'Every screen change starts as a design board; build it after my OK.',
   'Commit only on a feature branch, never on main, and never push without my OK.',
 ];
@@ -192,6 +189,40 @@ export async function addStarterRules(by: string): Promise<AgentRule[]> {
   }
   return out;
 }
+
+/**
+ * RULES-03: Girru basics, the rules every agent starts with. They come first, for all agents,
+ * everywhere; the owner's rules come after them and win. Safety rules are locked (always on,
+ * for everyone); the others can be paused. None is edited or deleted; the owner writes their own
+ * version instead. The texts live here so they update with Girru.
+ */
+export interface BasicRule { id: string; text: string; when: string | null; locked: boolean; version: number }
+export const BASIC_RULES: readonly BasicRule[] = [
+  { id: 'basic:secrets', text: 'Never show, send or save a secret: keys, tokens, passwords, .env files.', when: null, locked: true, version: 1 },
+  { id: 'basic:ask-first', text: 'Ask the owner before you delete files or data, install software, pay, or contact an outside service.', when: null, locked: true, version: 1 },
+  { id: 'basic:language', text: 'Reply in the language the owner writes in; write code, comments, docs, commits and file names in English.', when: null, locked: false, version: 1 },
+  { id: 'basic:handoff', text: 'Write a handoff note: what is done, what is left, what comes next.', when: 'you stop in the middle of a task', locked: false, version: 1 },
+  { id: 'basic:checked', text: 'Say what you checked and what you did not; never say a task is done before it is.', when: null, locked: false, version: 1 },
+];
+const asRule = (b: BasicRule, paused: boolean): AgentRule => ({ id: b.id, text: b.text, when: b.when, projectId: null, who: 'all', targets: [], paused, status: 'active', source: 'basic', suggestedBy: null, reason: null, version: b.version, createdAt: '', updatedAt: '' });
+/** The basics with the owner's pauses (a locked one is never paused). */
+export async function basicRules(): Promise<(AgentRule & { locked: boolean })[]> {
+  const paused = new Set((await q.all<{ id: string }>('SELECT id FROM agent_rule_basics WHERE paused = 1').catch(() => [])).map((r) => r.id));
+  return BASIC_RULES.map((b) => ({ ...asRule(b, !b.locked && paused.has(b.id)), locked: b.locked }));
+}
+export async function pauseBasic(id: string, paused: boolean): Promise<(AgentRule & { locked: boolean }) | null> {
+  const b = BASIC_RULES.find((x) => x.id === id);
+  if (!b) return null;
+  if (b.locked) throw new RuleInputError('This safety rule is always on');
+  await q.run('INSERT INTO agent_rule_basics(id,paused,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET paused=excluded.paused, updated_at=CURRENT_TIMESTAMP', id, paused ? 1 : 0);
+  return (await basicRules()).find((x) => x.id === id) ?? null;
+}
+/** "Write my own version…": the owner's rule from a basic (everywhere, all agents); it comes later, so it wins. */
+export async function ownVersion(id: string, by: string): Promise<AgentRule | null> {
+  const b = BASIC_RULES.find((x) => x.id === id);
+  return b ? createRule({ text: b.text, when: b.when }, by) : null;
+}
+const unlocked = (b: AgentRule & { locked: boolean }): AgentRule => { const { locked: _locked, ...r } = b; return r; };
 
 /** Does this rule reach this agent in this project? */
 export function ruleApplies(r: Pick<AgentRule, 'projectId' | 'who' | 'targets'>, agent: { id: string; department: string | null }, projectId: string | null): boolean {
@@ -205,7 +236,12 @@ export async function effectiveRules(agentId: string, projectId: string | null):
   const agent = await q.one<{ id: string; department: string | null }>('SELECT id, department FROM agents_config WHERE id = ?', agentId);
   if (!agent) return [];
   const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status = 'active' AND paused = 0 ${ORDER}`);
-  return rows.map(toRule).filter((r) => ruleApplies(r, agent, projectId));
+  return [...(await basicRules()).filter((b) => !b.paused).map(unlocked), ...rows.map(toRule).filter((r) => ruleApplies(r, agent, projectId))];
+}
+/** The rules any coding app in a project folder gets: the basics, then the owner's rules for all agents there. */
+export async function projectFileRules(projectId: string): Promise<AgentRule[]> {
+  const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status = 'active' AND paused = 0 AND who = 'all' AND (project_id IS NULL OR project_id = ?) ${ORDER}`, projectId);
+  return [...(await basicRules()).filter((b) => !b.paused).map(unlocked), ...rows.map(toRule)];
 }
 /** The project a chat belongs to (NULL = none). */
 export async function sessionProject(sessionId: string | null | undefined): Promise<string | null> {

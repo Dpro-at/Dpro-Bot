@@ -76,7 +76,7 @@ test('wiring: Rules is the owner\'s place in the Agents sidebar with a "needs yo
   assert.match(d, /if \(department === 'rules' && owner && controller\)/);
   assert.match(d, /<span className="dk-place-name">Rules<\/span>\{rules>0&&<span className="dk-place-badge"/);
   const p = src('src/AgentRules.tsx');
-  assert.equal((p.match(/className="primary"/g) ?? []).length, 3, 'New rule, Use this rule (only for a suggestion) and the sheet\'s Done');
+  assert.equal((p.match(/className="primary"/g) ?? []).length, 4, 'New rule; Use this rule (only for a suggestion); Done and Write the files, each in its own sheet');
   for (const re of [/onContextMenu=/, /e\.key === 'Delete' \|\| e\.key === 'Backspace'/, /e\.key\.toLowerCase\(\) === 'z' && s\.lastDeleted/, /<Notice toast=\{s\.toast\} onUndo=/, /What an agent sees/, /Two rules disagree/, /The later one, “\{textOf\(x\.b\)\}”, wins/, /Start with our usual rules/, /DocumentEditor/]) assert.match(p, re);
   assert.match(src('scripts/application-server.cjs'), /if \(agentRulesRoute\(target\)\) return allowedAgentRules\(method, target, body\);/);
 });
@@ -88,4 +88,16 @@ test('RULES-02: a rule with a case reads "When X: rule"; the page offers Always 
   const p = src('src/AgentRules.tsx');
   for (const re of [/aria-label="When it applies"/, />Always<\/button>/, /Only when…<\/button>/, /aria-label="The case"/, /<b>The agent reads:<\/b>/, /className="rules-when" title="Only in this case"/, /rules-when-lead/, /two rules for different cases do not disagree/]) assert.match(p, re);
   assert.equal(agentRulesResponse(`/api/agent-rules/${ID}/versions`, 200, { versions: [{ version: 1, text: 't', when: 'w', changedAt: 'x' }] }).versions[0].when, 'w');
+});
+
+test('RULES-03: basics and coding app files pass the contract; the page shows the basics first, a lock for safety, and the files sheet', () => {
+  for (const [m, p, b] of [['PUT', '/api/agent-rules/basics/basic:language', { paused: true }], ['POST', '/api/agent-rules/basics/basic:handoff/own'], ['GET', '/api/agent-rules/files/p1'], ['POST', '/api/agent-rules/files/p1', { mode: 'private' }]]) assert.ok(allowedAgentRules(m, p, b) && allowedRequest(m, p, b), `${m} ${p}`);
+  for (const [m, p, b] of [['PUT', '/api/agent-rules/basics/basic:language', { paused: 'yes' }], ['PUT', '/api/agent-rules/basics/../x', { paused: true }], ['POST', '/api/agent-rules/files/p1', { mode: 'public' }], ['POST', '/api/agent-rules/files/p1'], ['POST', '/api/agent-rules/basics/basic:x/own', { a: 1 }]]) assert.equal(allowedAgentRules(m, p, b), false, `${m} ${p}`);
+  const page = agentRulesResponse('/api/agent-rules', 200, { basics: [rule({ id: 'basic:secrets', source: 'basic', locked: true })], rules: [], suggestions: [] });
+  assert.deepEqual([page.basics[0].source, page.basics[0].locked], ['basic', true]);
+  const f = agentRulesResponse('/api/agent-rules/files/p1', 200, { files: { projectId: 'p1', folder: '/secret/path', mode: 'private', written: true, upToDate: true, files: [{ name: 'CLAUDE.md', action: 'add' }, { name: 'x', action: 'rm -rf' }], rules: 'r' } });
+  assert.deepEqual([f.files.hasFolder, f.files.files.length, 'folder' in f.files], [true, 1, false], 'the folder path itself never reaches the page');
+  assert.deepEqual(agentRulesResponse('/api/agent-rules/files/p1', 200, f), f, 'checked twice (bridge, then page) it stays the same');
+  const p = src('src/AgentRules.tsx');
+  for (const re of [/aria-label="Girru basics"/, /b\.locked \? 'shield' : 'sparkle'/, /Always on/, /Write my own version…/, /Coding app files · up to date/, /Private on this computer/, /With the project \(in Git\)/, /Write the files/, /selected\.source !== 'basic'\) \{ e\.preventDefault\(\); void c\.remove/]) assert.match(p, re);
 });

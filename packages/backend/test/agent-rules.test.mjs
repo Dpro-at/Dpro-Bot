@@ -46,7 +46,7 @@ const { ruleSuggestTool } = await import(join(backendDir, 'src/tools/rules/rule-
 const app = await buildServer({ logger: false });
 await app.ready();
 const call = (user, method, url, payload) => app.inject({ method, url, headers: { authorization: `Bearer ${generateToken(user, 1)}` }, ...(payload ? { payload } : {}) });
-const texts = (list) => list.map((r) => r.text);
+const texts = (list) => list.filter((r) => r.source !== 'basic' && !String(r.id).startsWith('basic:')).map((r) => r.text);
 
 test('where and who decide who gets a rule; the order is everywhere, project, chosen agents; paused rules are left out', async () => {
   const add = async (body) => { const r = await call('r-owner', 'POST', '/api/agent-rules', body); assert.equal(r.statusCode, 201, r.body); return r.json().rule; };
@@ -69,7 +69,7 @@ test('where and who decide who gets a rule; the order is everywhere, project, ch
 
 test('the effective list reaches the agent instructions (by the chat\'s project), with the order explained', async () => {
   const text = await subscriptionAgentContext('a-dev', { sessionId: 's-dpro' });
-  assert.match(text, /## Owner rules\nThe owner set these rules[^\n]*later one wins[^\n]*\n1\. Everywhere for all\n2\. Dpro for development\n/);
+  assert.match(text, /## Owner rules\nThe owner set these rules[^\n]*later one wins[^\n]*\n1\. Never show, send or save a secret[\s\S]*\n6\. Everywhere for all\n7\. Dpro for development\n/);
   assert.doesNotMatch(text, /Paused everywhere|Other project only|Agent rule for QA/);
   assert.equal(await rules.rulesContext('a-lead', { projectId: 'p-dpro' }).then((t) => t.includes('Dpro for development')), false, 'not in that department');
 });
@@ -159,4 +159,70 @@ test('RULES-02: a rule with a case is read as "When X: rule"; the case is saved,
   await rules.ruleConflicts([{ id: 'c1', version: 1, text: 'Write long reports.', when: 'the owner asks for a report' }, { id: 'c2', version: 1, text: 'Keep answers short.', when: null }], async (p) => { prompt = p; return { ok: true, text: '{"conflicts":[]}' }; });
   assert.match(prompt, /1\. When the owner asks for a report: Write long reports\.\n2\. Keep answers short\./);
   assert.match(prompt, /rules for cases that cannot happen at the same time do not contradict/);
+});
+
+test('RULES-03: Girru basics come first for every agent; safety ones are locked; the others pause; my own version comes after', async () => {
+  const page = (await call('r-owner', 'GET', '/api/agent-rules')).json();
+  assert.deepEqual(page.basics.map((b) => [b.id, b.locked]), [['basic:secrets', true], ['basic:ask-first', true], ['basic:language', false], ['basic:handoff', false], ['basic:checked', false]]);
+  const eff = await rules.effectiveRules('a-qa', null);
+  assert.deepEqual(eff.slice(0, 5).map((r) => r.id), rules.BASIC_RULES.map((b) => b.id), 'the basics come first');
+  assert.equal((await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:secrets', { paused: true })).statusCode, 400, 'a safety rule stays on');
+  assert.equal((await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:language', { paused: true })).json().basic.paused, true);
+  assert.ok(!(await rules.effectiveRules('a-qa', null)).some((r) => r.id === 'basic:language'), 'a paused basic is not sent');
+  const own = (await call('r-owner', 'POST', '/api/agent-rules/basics/basic:handoff/own')).json().rule;
+  assert.deepEqual([own.text, own.when, own.source], ['Write a handoff note: what is done, what is left, what comes next.', 'you stop in the middle of a task', 'owner']);
+  const after = await rules.effectiveRules('a-qa', null);
+  assert.ok(after.findIndex((r) => r.id === own.id) > after.findIndex((r) => r.id === 'basic:handoff'), 'my version comes later, so it wins');
+  await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:language', { paused: false });
+  assert.equal((await call('r-user', 'PUT', '/api/agent-rules/basics/basic:language', { paused: true })).statusCode, 403);
+});
+
+test('RULES-03: coding app files — one source, a pointer line for Claude Code and Gemini, the rules in AGENTS.md; my notes kept; private stays out of Git', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { writeFileSync, readFileSync, symlinkSync, existsSync } = await import('node:fs');
+  const folder = mkdtempSync(join(dir, 'proj-'));
+  execFileSync('git', ['init', '-q', folder]);
+  writeFileSync(join(folder, 'CLAUDE.md'), '# My notes\nKeep this.\n');
+  db.prepare(`INSERT INTO chat_projects (id, user_id, name, slug, folder) VALUES ('p-files', 'r-owner', 'Files', 'files', ?)`).run(folder);
+  const before = (await call('r-owner', 'GET', '/api/agent-rules/files/p-files')).json().files;
+  assert.deepEqual(before.files.map((f) => [f.name, f.action]), [['.girru/rules.md', 'create'], ['CLAUDE.md', 'add'], ['GEMINI.md', 'create'], ['AGENTS.md', 'create']]);
+  assert.equal(existsSync(join(folder, '.girru')), false, 'looking writes nothing');
+  const w = (await call('r-owner', 'POST', '/api/agent-rules/files/p-files', { mode: 'private' })).json().files;
+  assert.equal(w.upToDate, true);
+  const source = readFileSync(join(folder, '.girru/rules.md'), 'utf8');
+  assert.match(source, /1\. Never show, send or save a secret/);
+  assert.match(source, /When you stop in the middle of a task: Write a handoff note/);
+  const claude = readFileSync(join(folder, 'CLAUDE.md'), 'utf8');
+  assert.match(claude, /^# My notes\nKeep this\.\n\n<!-- girru:rules[^\n]*-->\n@\.girru\/rules\.md\n<!-- \/girru:rules -->\n$/);
+  assert.match(readFileSync(join(folder, 'GEMINI.md'), 'utf8'), /@\.girru\/rules\.md/);
+  const agents = readFileSync(join(folder, 'AGENTS.md'), 'utf8');
+  assert.match(agents, /# Rules[\s\S]*1\. Never show, send or save a secret[\s\S]*<!-- \/girru:rules -->/);
+  assert.doesNotMatch(agents, /@\.girru/, 'Codex has no imports: AGENTS.md carries the rules');
+  const exclude = readFileSync(join(folder, '.git/info/exclude'), 'utf8');
+  assert.match(exclude, /# girru:rules[^\n]*\n\/\.girru\/\n\/CLAUDE\.md\n\/GEMINI\.md\n\/AGENTS\.md\n# \/girru:rules/);
+  assert.equal(execFileSync('git', ['-C', folder, 'status', '--porcelain']).toString(), '', 'nothing shows to Git');
+  // A rule change re-writes the files by itself; the pointer lines stay as they are.
+  await call('r-owner', 'POST', '/api/agent-rules', { text: 'Use the project test command.', projectId: 'p-files' });
+  for (let i = 0; i < 50 && !readFileSync(join(folder, '.girru/rules.md'), 'utf8').includes('Use the project test command.'); i++) await new Promise((r) => setTimeout(r, 20));
+  assert.match(readFileSync(join(folder, '.girru/rules.md'), 'utf8'), /Use the project test command\./);
+  assert.equal(readFileSync(join(folder, 'CLAUDE.md'), 'utf8'), claude, 'the pointer file did not change');
+  assert.match(readFileSync(join(folder, 'AGENTS.md'), 'utf8'), /Use the project test command\./);
+  // With the project: the exclude part goes away; Girru still never commits.
+  await call('r-owner', 'POST', '/api/agent-rules/files/p-files', { mode: 'project' });
+  assert.doesNotMatch(readFileSync(join(folder, '.git/info/exclude'), 'utf8'), /girru:rules/);
+  assert.match(execFileSync('git', ['-C', folder, 'status', '--porcelain']).toString(), /\?\? AGENTS\.md/);
+  // A link is never written through; a tracked file stays untouched while private.
+  const other = mkdtempSync(join(dir, 'proj-'));
+  execFileSync('git', ['init', '-q', other]);
+  writeFileSync(join(dir, 'outside.md'), 'outside\n');
+  symlinkSync(join(dir, 'outside.md'), join(other, 'GEMINI.md'));
+  writeFileSync(join(other, 'AGENTS.md'), '# Team\n');
+  execFileSync('git', ['-C', other, 'add', 'AGENTS.md']);
+  db.prepare(`INSERT INTO chat_projects (id, user_id, name, slug, folder) VALUES ('p-safe', 'r-owner', 'Safe', 'safe', ?)`).run(other);
+  const safe = (await call('r-owner', 'POST', '/api/agent-rules/files/p-safe', { mode: 'private' })).json().files;
+  assert.deepEqual(safe.files.map((f) => [f.name, f.action]).filter(([n]) => n !== '.girru/rules.md' && n !== 'CLAUDE.md'), [['GEMINI.md', 'link'], ['AGENTS.md', 'tracked']]);
+  assert.equal(readFileSync(join(dir, 'outside.md'), 'utf8'), 'outside\n');
+  assert.equal(readFileSync(join(other, 'AGENTS.md'), 'utf8'), '# Team\n');
+  assert.equal((await call('r-owner', 'POST', '/api/agent-rules/files/p-dpro', { mode: 'private' })).json().code, 'no_folder');
+  assert.equal((await call('r-user', 'POST', '/api/agent-rules/files/p-files', { mode: 'private' })).statusCode, 403);
 });

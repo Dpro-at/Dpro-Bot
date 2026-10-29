@@ -10,7 +10,7 @@ import { Avatar, ContextMenu, IconButton, Notice, Popover, Sheet, useMenu } from
 import type { MenuItem } from './desktop-ui';
 import { DocumentEditor } from './DocumentEditor';
 import { RulesController, followers, reaches, ruleGroups, ruleLine, whoWords } from './agent-rules';
-import type { Rule, RuleAgent, RuleChange, RuleVersion, RuleWho } from './agent-rules';
+import type { BasicRule, FilesState, Rule, RuleAgent, RuleChange, RuleVersion, RuleWho } from './agent-rules';
 import type { SessionClient } from './session';
 
 const NEW = 'new';
@@ -33,11 +33,21 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
   const agent = agents.find(a => a.id === filter.agentId) ?? null;
   const shown = (r: Rule) => reaches(r, agent, filter.projectId || null) && (!filter.projectId || r.projectId === filter.projectId || !r.projectId);
   const groups = useMemo(() => ruleGroups(s.rules.filter(shown), s.suggestions, s.projects), [s.rules, s.suggestions, s.projects, filter, agents]);
-  const order = groups.flatMap(g => g.rules.map(r => r.id));
+  const showBasics = !filter.projectId || true;
+  const order = [...(showBasics ? s.basics.map(b => b.id) : []), ...groups.flatMap(g => g.rules.map(r => r.id))];
+  // RULES-03: projects with a folder and no rules of their own still get coding app files.
+  const fileOnly = s.projects.filter(p => p.folder && !groups.some(g => g.id === `project:${p.id}`));
+  const [filesFor, setFilesFor] = useState<string | null>(null);
+  const filesWords = (id: string) => { const f = s.files[id]; return !f ? 'Coding app files…' : f.upToDate ? 'Coding app files · up to date' : f.written ? 'Coding app files · will update' : 'Coding app files · not written'; };
+  const filesLink = (id: string) => s.files[id] || s.projects.find(p => p.id === id)?.folder ? <button type="button" className="link-button rules-files-link" title="Rules written once to .girru/rules.md; CLAUDE.md and GEMINI.md point to it, AGENTS.md carries them" onClick={() => setFilesFor(id)}><UiIcon name="file" size={11}/>{filesWords(id)}</button> : null;
   const selected = s.selected === NEW ? null : c.find(s.selected);
   const filters = (filter.agentId ? 1 : 0) + (filter.projectId ? 1 : 0);
 
-  const itemsFor = (r: Rule): MenuItem[] => r.status === 'suggested'
+  const basicItems = (b: BasicRule): MenuItem[] => [
+    ...(b.locked ? [] : [{ label: b.paused ? 'Turn on' : 'Pause', icon: (b.paused ? 'play' : 'pause') as UiIconName, shortcut: 'P', run: () => void c.pauseBasic(b.id, !b.paused) }]),
+    { label: 'Write my own version…', icon: 'pencil', run: () => void c.ownVersion(b.id) },
+  ];
+  const itemsFor = (r: Rule): MenuItem[] => r.source === 'basic' ? basicItems(r as BasicRule) : r.status === 'suggested'
     ? [{ label: 'Use this rule', icon: 'check', run: () => void c.decide(r.id, true) }, { label: 'Dismiss', icon: 'close', run: () => void c.decide(r.id, false) }]
     : [
       { label: r.paused ? 'Turn on' : 'Pause', icon: r.paused ? 'play' : 'pause', shortcut: 'P', run: () => void c.change(r.id, { paused: !r.paused }) },
@@ -49,13 +59,13 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
   const listKey = (e: ReactKeyboardEvent) => {
     const i = order.indexOf(s.selected ?? '');
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = order[Math.min(order.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (n) c.select(n); }
-    else if ((e.key === 'Delete' || e.key === 'Backspace') && selected?.status === 'active') { e.preventDefault(); void c.remove(selected.id); }
-    else if (e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey && selected?.status === 'active') { e.preventDefault(); void c.change(selected.id, { paused: !selected.paused }); }
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && selected?.status === 'active' && selected.source !== 'basic') { e.preventDefault(); void c.remove(selected.id); }
+    else if (e.key.toLowerCase() === 'p' && !e.metaKey && !e.ctrlKey && selected?.status === 'active' && selected.source !== 'basic') { e.preventDefault(); void c.change(selected.id, { paused: !selected.paused }); }
     else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && s.lastDeleted) { e.preventDefault(); void c.undo(); }
     else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'e') { e.preventDefault(); setSees(true); }
     else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && selected) menu.at(e, itemsFor(selected));
   };
-  const empty = s.phase === 'ready' && !s.rules.length && !s.suggestions.length;
+  const empty = s.phase === 'ready' && !s.basics.length && !s.rules.length && !s.suggestions.length;
 
   return <section className="dk-mem rules-page" aria-label="Rules" data-inspector={s.selected ? 'open' : undefined} onKeyDown={listKey}>
     <div className="dk-content">
@@ -80,7 +90,15 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
             <span className="rules-empty-actions"><button type="button" disabled={s.busy} onClick={() => void c.starter()}>Start with our usual rules</button><button type="button" onClick={() => c.select(NEW)}><UiIcon name="plus" size={13}/>New rule</button></span>
             <small className="fine-print">"Our usual rules" adds them paused, so you look first.</small></div>
           : <div className="dk-list" role="listbox" aria-label="Rules" tabIndex={0} ref={listRef}>
-            {groups.map(g => <div key={g.id} className="dk-list-group" role="group" aria-label={g.title}><h3>{g.title}</h3>
+            {showBasics && s.basics.length > 0 && <div className="dk-list-group" role="group" aria-label="Girru basics"><h3><UiIcon name="sparkle" size={11}/>Girru basics<span className="rules-group-side">comes with Girru</span></h3>
+              {s.basics.map(b => <div key={b.id} role="option" className="dk-row rules-row rules-basic" aria-selected={s.selected === b.id} data-paused={b.paused || undefined}
+                onClick={() => { c.select(b.id); listRef.current?.focus(); }} onContextMenu={(e: ReactMouseEvent) => { c.select(b.id); menu.at(e, basicItems(b)); }}>
+                <span className="dk-row-icon" title={b.locked ? 'Safety rule' : 'Comes with Girru'}><UiIcon name={b.locked ? 'shield' : 'sparkle'} size={15}/></span>
+                <span className="dk-row-text"><span className="dk-row-main" dir="auto">{b.text}</span>
+                  <span className="dk-row-sub">{b.when && <><span className="rules-when" title="Only in this case"><UiIcon name="branch" size={11}/>When {b.when}</span> · </>}Built in · all agents</span></span>
+                {b.locked ? <span className="rules-paused" title="Always on: keeps your data and computer safe"><UiIcon name="lock" size={11}/>Always on</span> : b.paused ? <span className="rules-paused"><UiIcon name="pause" size={11}/>Paused</span> : null}
+              </div>)}</div>}
+            {groups.map(g => <div key={g.id} className="dk-list-group" role="group" aria-label={g.title}><h3>{g.title}{g.id.startsWith('project:') && <span className="rules-group-side">{filesLink(g.id.slice(8))}</span>}</h3>
               {g.rules.map(r => <div key={r.id} role="option" className="dk-row rules-row" aria-selected={s.selected === r.id} data-paused={r.paused || undefined} data-suggested={r.status === 'suggested' || undefined}
                 onClick={() => { c.select(r.id); listRef.current?.focus(); }} onContextMenu={(e: ReactMouseEvent) => { c.select(r.id); menu.at(e, itemsFor(r)); }}>
                 <span className="dk-row-icon" title={WHERE_TIP(r)}><UiIcon name={WHERE_ICON(r)} size={15}/></span>
@@ -88,16 +106,20 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
                   <span className="dk-row-sub">{r.when && <><span className="rules-when" title="Only in this case"><UiIcon name="branch" size={11}/>When {r.when}</span> · </>}{r.status === 'suggested' ? `${agents.find(a => a.id === r.suggestedBy)?.name ?? 'An agent'} suggests · ${whoWords(r, agents, s.projects)}${r.projectId ? '' : ' · everywhere'}` : whoWords(r, agents, s.projects)}</span></span>
                 {r.paused && <span className="rules-paused"><UiIcon name="pause" size={11}/>Paused</span>}
               </div>)}</div>)}
-            {!groups.length && s.phase === 'ready' && <p className="dk-empty">No rule reaches {agent?.name ?? 'this choice'} here. <button type="button" className="link-button" onClick={() => setFilter({ agentId: '', projectId: '' })}>Show all</button></p>}
+            {fileOnly.length > 0 && <div className="dk-list-group" role="group" aria-label="Coding app files"><h3>Coding app files</h3>
+              {fileOnly.map(p => <div key={p.id} className="dk-row rules-row"><span className="dk-row-icon"><UiIcon name="folder" size={15}/></span>
+                <span className="dk-row-text"><span className="dk-row-main">{p.name}</span><span className="dk-row-sub">The basics and your everywhere rules, for the coding apps in this folder</span></span>{filesLink(p.id)}</div>)}</div>}
+            {!groups.length && !s.basics.length && s.phase === 'ready' && <p className="dk-empty">No rule reaches {agent?.name ?? 'this choice'} here. <button type="button" className="link-button" onClick={() => setFilter({ agentId: '', projectId: '' })}>Show all</button></p>}
           </div>}
       </div>
     </div>
     {s.selected && <aside className="dk-inspector" aria-label="Rule details">
-      <RuleInspector key={s.selected} c={c} rule={selected ?? null} agents={agents} onHistory={() => selected && setHistory(selected.id)} onMenu={e => selected && menu.at(e, itemsFor(selected))}/>
+      {selected?.source === 'basic' ? <BasicInspector key={s.selected} c={c} basic={selected as BasicRule} onMenu={e => menu.at(e, basicItems(selected as BasicRule))}/> : <RuleInspector key={s.selected} c={c} rule={selected ?? null} agents={agents} onHistory={() => selected && setHistory(selected.id)} onMenu={e => selected && menu.at(e, itemsFor(selected))}/>}
     </aside>}
     <ContextMenu menu={menu.menu} onClose={menu.close}/>
     {sees && <AgentSees c={c} agents={agents} projects={s.projects} initial={filter} onClose={() => setSees(false)}/>}
     {history && <VersionsSheet c={c} id={history} onClose={() => setHistory(null)}/>}
+    {filesFor && <FilesSheet c={c} projectId={filesFor} name={s.projects.find(p => p.id === filesFor)?.name ?? 'Project'} onClose={() => setFilesFor(null)}/>}
     <Notice toast={s.toast} onUndo={() => void c.undo()} onDone={id => c.dismiss(id)}/>
   </section>;
 }
@@ -213,5 +235,50 @@ function VersionsSheet({ c, id, onClose }: { c: RulesController; id: string; onC
     {list === null ? <p className="fine-print" role="status">Reading…</p> : !list.length ? <p className="fine-print">No earlier version.</p>
       : <ul className="rules-history">{list.map(v => <li key={v.version}><span dir="auto">{v.text}</span><small className="fine-print">{new Date(v.changedAt.replace(' ', 'T') + 'Z').toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
         <button type="button" className="link-button" onClick={() => { void c.restore(id, v.version); onClose(); }}>Put back</button></li>)}</ul>}
+  </Sheet>;
+}
+
+/** RULES-03: a built-in rule: read-only words, a switch (or a lock for safety), and my own version. */
+function BasicInspector({ c, basic, onMenu }: { c: RulesController; basic: BasicRule; onMenu: (e: ReactMouseEvent) => void }) {
+  const s = useSyncExternalStore(c.subscribe, c.getSnapshot, c.getSnapshot);
+  return <div className="rules-inspector">
+    <div className="rules-inspector-head"><b>Built-in rule</b>
+      {basic.locked ? <span className="rules-paused" title="Safety rule: always on, for everyone"><UiIcon name="lock" size={12}/>Always on</span>
+        : <label className="rules-switch" title={basic.paused ? 'Paused: agents do not get it (P)' : 'On: agents follow it (P)'}><span>{basic.paused ? 'Paused' : 'On'}</span>
+          <input type="checkbox" role="switch" aria-label="Agents follow this rule" checked={!basic.paused} disabled={s.busy} onChange={e => void c.pauseBasic(basic.id, !e.target.checked)}/></label>}
+      <IconButton icon="more" label="More" onClick={onMenu}/>
+      <IconButton icon="close" label="Close" shortcut="Esc" onClick={() => c.select(null)}/></div>
+    <p className="rules-reads" dir="auto">{basic.when && <span className="rules-when-lead">When {basic.when}: </span>}{basic.text}</p>
+    <p className="rules-from"><UiIcon name="sparkle" size={13}/>Comes with Girru. Updates with Girru.</p>
+    <div className="dk-field">Want it different?
+      <button type="button" className="rules-own" disabled={s.busy} onClick={() => void c.ownVersion(basic.id)}>Write my own version…</button>
+      <small className="fine-print">Your version comes after the built-in rules, so it wins.{basic.locked ? '' : ' Pause this one if you want only yours.'}</small></div>
+    <div className="dk-field">Who follows it<span className="rules-from">All agents, everywhere</span></div>
+    <small className="fine-print rules-order">Built-in rules come first; your rules come after them and win. Safety rules are always on.</small>
+  </div>;
+}
+
+const ACTION_WORDS: Record<FilesState['files'][number]['action'], string> = {
+  create: 'will be created', add: 'gets the Girru part (your notes stay)', update: 'will be updated', unchanged: 'up to date',
+  tracked: 'already in Git: left as it is while the files are private', link: 'is a link: never written through',
+};
+/** RULES-03: one project's coding app files: what writing does, private or with the project, then Write the files. */
+function FilesSheet({ c, projectId, name, onClose }: { c: RulesController; projectId: string; name: string; onClose: () => void }) {
+  const s = useSyncExternalStore(c.subscribe, c.getSnapshot, c.getSnapshot);
+  const [state, setState] = useState<FilesState | null>(s.files[projectId] ?? null);
+  const [mode, setMode] = useState<'private' | 'project'>(s.files[projectId]?.mode ?? 'private');
+  useEffect(() => { void c.filesState(projectId).then(f => { if (f) { setState(f); setMode(f.mode); } }); }, [projectId]);
+  const write = async () => { if (await c.writeFiles(projectId, mode)) onClose(); };
+  return <Sheet title={`Coding app files · ${name}`} wide onClose={onClose} actions={<><button type="button" onClick={onClose}>Not now</button>
+    <button type="button" className="primary" disabled={s.busy || !state?.hasFolder} onClick={() => void write()}>{state?.written ? 'Write the files again' : 'Write the files'}</button></>}>
+    <p className="fine-print rules-files-intro">The rules are written once, to .girru/rules.md. CLAUDE.md and GEMINI.md get one line that points to it. Codex and Antigravity read AGENTS.md and do not follow that line, so AGENTS.md gets the rules themselves. A rule change re-writes them by itself. Inside Girru the apps already get the rules; these files are for when an app runs on its own in this folder.</p>
+    {!state ? <p className="fine-print" role="status">Reading the folder…</p> : !state.hasFolder ? <p className="dk-inline-notice">This project has no folder yet.</p>
+      : <ul className="rules-files">{state.files.map(f => <li key={f.name} data-action={f.action}><UiIcon name="file" size={13}/><code>{f.name}</code><span className="fine-print">{ACTION_WORDS[f.action]}</span></li>)}</ul>}
+    {state?.rules && <pre className="rules-files-preview" dir="auto">{state.rules.split('\n').slice(1).join('\n').trim()}</pre>}
+    <div className="dk-field">Keep these files
+      <span className="dk-segmented" role="group" aria-label="Keep these files">
+        <button type="button" aria-pressed={mode === 'private'} onClick={() => setMode('private')}>Private on this computer</button>
+        <button type="button" aria-pressed={mode === 'project'} onClick={() => setMode('project')}>With the project (in Git)</button></span>
+      <small className="fine-print">{mode === 'private' ? 'Girru adds them to this folder’s own Git exclude, so nothing is committed or pushed.' : 'Everyone who opens the repository gets the same rules. Girru never commits; that stays your call.'}</small></div>
   </Sheet>;
 }
