@@ -49,6 +49,13 @@ export function boardPath(path) {
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'card', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/comments$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'comments', board: m[1], card: m[2] } : null;
+  // TASKPAGE-02: the full task page.
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/(page|people|release|subtasks|links|follow)$/.exec(path);
+  if (m) return id(m[1]) && id(m[2]) ? { kind: `tp-${m[3]}`, board: m[1], card: m[2] } : null;
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/activity(?:\?before=(\d{4}-\d{2}-\d{2}T[\d:.]+Z))?$/.exec(path);
+  if (m) return id(m[1]) && id(m[2]) ? { kind: 'tp-activity', board: m[1], card: m[2] } : null;
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/activity\/([^/?#]+)\/diff$/.exec(path);
+  if (m) return id(m[1]) && id(m[2]) && id(m[3]) ? { kind: 'tp-diff', board: m[1], card: m[2], message: m[3] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/task-sort$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'task-sort', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/task$/.exec(path);
@@ -115,6 +122,10 @@ export function validBoardEdit(b) {
   return b.archived === undefined || typeof b.archived === 'boolean';
 }
 
+/** TASKPAGE-02: what a person or an agent does on a task. */
+export const ROLES = ['asked', 'does', 'checks', 'tests'];
+const personId = x => typeof x === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(x);
+const ownerOk = o => record(o) && Object.keys(o).length === 2 && ['user', 'agent'].includes(o.kind) && personId(o.id);
 const modelOk = x => typeof x === 'string' && (x === '' || /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(x));
 export function allowedBoard(method, path, body) {
   if (path === TASK_CONTINUE_PATH) return method === 'POST' && record(body) && onlyKeys(body, ['boardId', 'cardId', 'agentId', 'model']) && id(body.boardId) && id(body.cardId)
@@ -134,8 +145,15 @@ export function allowedBoard(method, path, body) {
   if (p.kind === 'labels') return method === 'POST' && record(body) && onlyKeys(body, ['name', 'color']) && lineOk(body.name, 40) && boardColors.includes(body.color);
   if (p.kind === 'label') return method === 'PUT' && record(body) && Object.keys(body).length >= 1 && onlyKeys(body, ['name', 'color']) && (body.name === undefined || lineOk(body.name, 40)) && (body.color === undefined || boardColors.includes(body.color));
   if (p.kind === 'checklist') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && lineOk(body.text, 300));
-  if (p.kind === 'check') return method === 'PUT' && record(body) && Object.keys(body).length >= 1 && onlyKeys(body, ['text', 'done', 'remove'])
-    && (body.text === undefined || lineOk(body.text, 300)) && (body.done === undefined || typeof body.done === 'boolean') && (body.remove === undefined || body.remove === true);
+  if (p.kind === 'check') return method === 'PUT' && record(body) && Object.keys(body).length >= 1 && onlyKeys(body, ['text', 'done', 'remove', 'owner', 'dueDate', 'beforeItemId'])
+    && (body.text === undefined || lineOk(body.text, 300)) && (body.done === undefined || typeof body.done === 'boolean') && (body.remove === undefined || body.remove === true)
+    && (body.owner === undefined || body.owner === null || ownerOk(body.owner)) && (body.dueDate === undefined || date(body.dueDate)) && (body.beforeItemId === undefined || body.beforeItemId === null || id(body.beforeItemId));
+  if (p.kind === 'tp-page' || p.kind === 'tp-activity' || p.kind === 'tp-diff') return method === 'GET' && body === undefined;
+  if (p.kind === 'tp-people') return method === 'PUT' && record(body) && onlyKeys(body, ['kind', 'id', 'role']) && Object.keys(body).length === 3 && ['user', 'agent'].includes(body.kind) && personId(body.id) && (body.role === null || ROLES.includes(body.role));
+  if (p.kind === 'tp-release') return method === 'PUT' && record(body) && Object.keys(body).length === 1 && (body.name === null || lineOk(body.name, 60));
+  if (p.kind === 'tp-subtasks') return method === 'POST' && record(body) && Object.keys(body).length === 1 && lineOk(body.title, MAX_TITLE);
+  if (p.kind === 'tp-links') return method === 'PUT' && record(body) && Object.keys(body).length === 2 && id(body.waitsFor) && typeof body.on === 'boolean';
+  if (p.kind === 'tp-follow') return method === 'PUT' && record(body) && Object.keys(body).length === 1 && typeof body.on === 'boolean';
   if (p.kind === 'task') return method === 'GET' && body === undefined;
   if (p.kind === 'task-sort') return method === 'POST' && record(body) && Object.keys(body).length === 1 && department(body.department);
   if (p.kind === 'comments') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && textOk(body.body, MAX_COMMENT, true));
@@ -251,13 +269,62 @@ export function boardResponse(path, status, body) {
   if (p.kind === 'card' || p.kind === 'cards') return card(body);
   if (p.kind === 'task') { if (!record(body) || !('task' in body)) fail(); return { task: taskDetail(body.task) }; }
   if (p.kind === 'task-sort') { if (!record(body) || !id(body.boardId)) fail(); return { boardId: body.boardId }; }
+  if (p.kind.startsWith('tp-')) return taskPageResponse(p.kind, body);
   if (p.kind === 'checklist' || p.kind === 'check') {
     if (!record(body) || !Array.isArray(body.items) || body.items.length > 50) fail();
-    return { items: body.items.map(i => { if (!record(i) || !id(i.id) || typeof i.done !== 'boolean') fail(); return { id: i.id, text: clip(i.text, 300), done: i.done }; }) };
+    return { items: body.items.map(i => { if (!record(i) || !id(i.id) || typeof i.done !== 'boolean') fail(); return { id: i.id, text: clip(i.text, 300), done: i.done, owner: ownerOk(i.owner) ? { kind: i.owner.kind, id: i.owner.id } : null, dueDate: date(i.dueDate) && i.dueDate ? i.dueDate : null }; }) };
   }
   if (p.kind === 'comments') {
     if (!record(body) || !Array.isArray(body.comments) || body.comments.length > 500) fail();
     return { comments: body.comments.map(comment) };
   }
   return board(body);
+}
+
+// ---- TASKPAGE-02: the full task page ----
+const num = x => (Number.isSafeInteger(x) && x >= 0 ? x : 0);
+const iso = x => (typeof x === 'string' && x.length <= 40 ? x : '');
+const cardRef = r => (record(r) && id(r.id) && id(r.boardId) ? { id: r.id, boardId: r.boardId, title: clip(r.title, MAX_TITLE), done: r.done === true } : null);
+const refs = x => (Array.isArray(x) ? x.slice(0, 100).map(cardRef).filter(Boolean) : []);
+const actor = a => (record(a) && ['user', 'agent'].includes(a.kind) && typeof a.id === 'string' ? { kind: a.kind, id: clip(a.id, 128), name: clip(a.name, 120) } : { kind: 'user', id: '', name: '' });
+const chatRef = c => (record(c) && typeof c.id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(c.id) ? { id: c.id, title: typeof c.title === 'string' ? clip(c.title, 120) : null } : null);
+function people(x) { return Array.isArray(x) ? x.slice(0, 100).filter(p => record(p) && ['user', 'agent'].includes(p.kind) && personId(p.id)).map(p => ({ kind: p.kind, id: p.id, name: clip(p.name, 120), role: ROLES.includes(p.role) ? p.role : 'does' })) : []; }
+function page(p) {
+  if (!record(p)) fail();
+  const dev = record(p.development) ? { branch: typeof p.development.branch === 'string' ? clip(p.development.branch, 200) : null,
+    pr: record(p.development.pr) && Number.isSafeInteger(p.development.pr.number) ? { number: p.development.pr.number, title: clip(p.development.pr.title, 200), state: ['open', 'merged', 'closed', 'draft'].includes(p.development.pr.state) ? p.development.pr.state : 'open',
+      url: typeof p.development.pr.url === 'string' && /^https:\/\/github\.com\//.test(p.development.pr.url) ? clip(p.development.pr.url, 300) : '', checks: ['passing', 'pending', 'failing'].includes(p.development.pr.checks) ? p.development.pr.checks : null } : null } : null;
+  return {
+    openedBy: actor(p.openedBy), openedAt: iso(p.openedAt), people: people(p.people),
+    team: Array.isArray(p.team) ? p.team.slice(0, 200).filter(u => record(u) && personId(u.id)).map(u => ({ id: u.id, name: clip(u.name, 120) })) : [],
+    parent: cardRef(p.parent), subtasks: refs(p.subtasks), waitsFor: refs(p.waitsFor), blocks: refs(p.blocks),
+    release: typeof p.release === 'string' ? clip(p.release, 60) : null, following: p.following === true, followers: num(p.followers),
+    chats: Array.isArray(p.chats) ? p.chats.slice(0, 50).map(chatRef).filter(Boolean) : [],
+    spent: Array.isArray(p.spent) ? p.spent.slice(0, 20).filter(s => record(s) && typeof s.model === 'string').map(s => ({ app: clip(s.app, 60), model: clip(s.model, 120), paid: s.paid === true, tokens: num(s.tokens), replies: num(s.replies) })) : [],
+    files: record(p.files) ? { count: num(p.files.count), added: num(p.files.added), removed: num(p.files.removed), paths: Array.isArray(p.files.paths) ? p.files.paths.filter(x => typeof x === 'string').slice(0, 30).map(x => clip(x, 300)) : [] } : { count: 0, added: 0, removed: 0, paths: [] },
+    development: dev,
+  };
+}
+function item(x) {
+  if (!record(x) || typeof x.id !== 'string' || !['event', 'comment', 'reply', 'log'].includes(x.kind)) return null;
+  const base = { id: clip(x.id, 200), kind: x.kind, at: iso(x.at) };
+  if (x.kind === 'event') return { ...base, actor: actor(x.actor), event: clip(x.event, 40), detail: clip(x.detail, 200) };
+  if (x.kind === 'comment') return { ...base, actor: actor(x.actor), text: clip(x.text, MAX_COMMENT * 2) };
+  if (x.kind === 'log') return { ...base, app: clip(x.app, 40), text: clip(x.text, 300) };
+  const chat = chatRef(x.chat);
+  if (!chat) return null;
+  const ch = record(x.change) && typeof x.change.messageId === 'string' && id(x.change.messageId) ? { messageId: x.change.messageId, files: num(x.change.files), added: num(x.change.added), removed: num(x.change.removed), undone: x.change.undone === true } : null;
+  return { ...base, actor: actor(x.actor), app: clip(x.app, 60), model: clip(x.model, 120), chat, text: clip(x.text, 1400), more: x.more === true, tokens: num(x.tokens), change: ch };
+}
+function taskPageResponse(kind, body) {
+  if (!record(body)) fail();
+  if (kind === 'tp-page') return { page: page(body.page) };
+  if (kind === 'tp-activity') return { items: Array.isArray(body.items) ? body.items.slice(0, 300).map(item).filter(Boolean) : [], more: body.more === true };
+  if (kind === 'tp-diff') return { files: Array.isArray(body.files) ? body.files.slice(0, 20).filter(f => record(f) && typeof f.path === 'string').map(f => ({ path: clip(f.path, 300), status: ['A', 'D', 'M'].includes(f.status) ? f.status : 'M', added: num(f.added), removed: num(f.removed), lines: Array.isArray(f.lines) ? f.lines.filter(l => typeof l === 'string').slice(0, 200).map(l => clip(l, 300)) : [], more: f.more === true })) : [] };
+  if (kind === 'tp-people') return { people: people(body.people) };
+  if (kind === 'tp-release') return { release: typeof body.release === 'string' ? clip(body.release, 60) : null };
+  if (kind === 'tp-subtasks') return card(body);
+  if (kind === 'tp-links') return { ok: body.ok === true };
+  if (kind === 'tp-follow') return { following: body.following === true };
+  fail();
 }

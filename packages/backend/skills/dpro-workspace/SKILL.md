@@ -34,6 +34,8 @@ Use these MCP tools through the owner's authenticated local session.
 - After each step, update that task's Done, Left and Next, add a Log line (`2026-10-29 15:40 · <your app> · what you did`) and add your app to Worked on by. Change no other task; never write outside the project folder.
 - An agent of Girru that cannot edit files updates its own card's task with `board_task_update` (it signs as Girru) and moves the card with `board_move`. A card in the last column (Done) moves its task to `.girru/tasks-done.md`; nobody reads that file unless asked.
 - `list` and `get` only read. Only on the owner's instruction: `continue` starts a chat in the project where the chosen agent and app continue the task; `sort` sends a task waiting in To sort to a department's board. The owner turns the task file on or off in Agents › Rules.
+- A task opens as its own page on the Board: the description, the checklist (items given to a person or an agent, with dates), and Activity — every move, comment and reply of its chats with the files each reply changed; on the side the people and agents on it with what they do (asked for it, does it, checks it, tests it), status, release, what it waits for, its sub-tasks, its branch and pull request, the tokens its chats spent. `activity` reads all of that.
+- Only on the owner's instruction: `people` puts a person or an agent on a task or takes them off, `checklist` adds, ticks or gives an item. An agent of Girru ticks its own items with `board_check`.
 
 ## Chats (tool `chats`)
 

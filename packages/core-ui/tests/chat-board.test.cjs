@@ -90,7 +90,7 @@ test('offline: add a chat task to the board; board moves and comments come back 
   await new Promise(r => setTimeout(r, 20));
   assert.deepEqual(board.getSnapshot().chat.conversation, { id: CONV, title: 'Fictional chat' });
   const html = renderToStaticMarkup(React.createElement(TaskBoard, { controller: board, onOpenChat: () => {} }));
-  assert.match(html, /From the chat/); assert.match(html, /Open chat/); assert.match(html, /not started/);
+  assert.match(html, /Activity/); assert.match(html, /People and agents/); assert.match(html, /Back to the board/);
   await board.move(card.id, bs.columns.find(c => c.name === 'Done').id, null);
   await cards.refresh();
   s = cards.getSnapshot();

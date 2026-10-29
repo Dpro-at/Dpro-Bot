@@ -28,7 +28,30 @@ export type TaskDetail = TaskMark & Readonly<{
 }>;
 export type CardType = 'task' | 'idea' | 'bug' | 'milestone' | 'request';
 export type Label = Readonly<{ id: string; name: string; color: BoardColor }>;
-export type CheckItem = Readonly<{ id: string; text: string; done: boolean }>;
+export type CheckItem = Readonly<{ id: string; text: string; done: boolean; /** TASKPAGE-02 */ owner?: Readonly<{ kind: 'user' | 'agent'; id: string }> | null; dueDate?: string | null }>;
+/** TASKPAGE-02: the full task page. */
+export type Role = 'asked' | 'does' | 'checks' | 'tests';
+export const roleLabel: Record<Role, string> = { asked: 'asked for it', does: 'does it', checks: 'checks it', tests: 'tests it' };
+export type CardRef = Readonly<{ id: string; boardId: string; title: string; done: boolean }>;
+export type TaskPageData = Readonly<{
+  openedBy: { kind: 'user' | 'agent'; id: string; name: string }; openedAt: string;
+  people: ReadonlyArray<Readonly<{ kind: 'user' | 'agent'; id: string; name: string; role: Role }>>;
+  team: ReadonlyArray<Readonly<{ id: string; name: string }>>;
+  parent: CardRef | null; subtasks: readonly CardRef[]; waitsFor: readonly CardRef[]; blocks: readonly CardRef[];
+  release: string | null; following: boolean; followers: number;
+  chats: ReadonlyArray<Readonly<{ id: string; title: string | null }>>;
+  spent: ReadonlyArray<Readonly<{ app: string; model: string; paid: boolean; tokens: number; replies: number }>>;
+  files: Readonly<{ count: number; added: number; removed: number; paths: readonly string[] }>;
+  development: Readonly<{ branch: string | null; pr: Readonly<{ number: number; title: string; state: string; url: string; checks: string | null }> | null }> | null;
+}>;
+type Who = Readonly<{ kind: 'user' | 'agent'; id: string; name: string }>;
+export type ActivityItem =
+  | Readonly<{ id: string; kind: 'event'; at: string; actor: Who; event: string; detail: string }>
+  | Readonly<{ id: string; kind: 'comment'; at: string; actor: Who; text: string }>
+  | Readonly<{ id: string; kind: 'reply'; at: string; actor: Who; app: string; model: string; chat: { id: string; title: string | null }; text: string; more: boolean; tokens: number;
+      change: Readonly<{ messageId: string; files: number; added: number; removed: number; undone: boolean }> | null }>
+  | Readonly<{ id: string; kind: 'log'; at: string; app: string; text: string }>;
+export type FileDiff = Readonly<{ path: string; status: string; added: number; removed: number; lines: readonly string[]; more: boolean }>;
 export const cardTypeLabel: Record<CardType, string> = { task: 'Task', idea: 'Idea', bug: 'Bug', milestone: 'Milestone', request: 'Request' };
 export const allCardTypes: readonly CardType[] = ['task', 'idea', 'bug', 'milestone', 'request'];
 export type Comment = Readonly<{ id: string; authorKind: 'user' | 'agent'; authorId: string; body: string; createdAt: string }>;
@@ -52,6 +75,10 @@ export type BoardState = Readonly<{
   open?: string; draft?: CardDraft; comments: readonly Comment[]; commentsPhase: 'idle' | 'loading' | 'ready' | 'error';
   /** CHAT-PRO-02 I step 2: the open card's conversation and the progress of the agents on it. */
   chat?: Readonly<{ conversation: { id: string; title: string | null } | null; progress: ChatProgress }>;
+  /** TASKPAGE-02: the open card's page, its activity line, and the diffs opened in it. */
+  page?: Readonly<{ phase: 'loading' | 'ready' | 'error'; data: TaskPageData | null }>;
+  activity?: Readonly<{ phase: 'loading' | 'ready' | 'error'; items: readonly ActivityItem[]; more: boolean }>;
+  diffs?: Readonly<Record<string, readonly FileDiff[] | 'loading' | 'error'>>;
   /** TASKLOG-01: the open card's task as its project's task file has it. */
   task?: Readonly<{ phase: 'loading' | 'ready' | 'error'; detail: TaskDetail | null }>;
   /** Filters: text search, one agent, one department, one app that worked on a task (TASKLOG-01). */
@@ -291,6 +318,8 @@ export class BoardController {
     const ticket = this.#ticket;
     if (card.conversationId || card.agents.length) void this.#loadChat(cardId, ticket);
     if (card.taskFile) void this.#loadTask(cardId, ticket);
+    this.#publish({ page: { phase: 'loading', data: null }, activity: { phase: 'loading', items: [], more: false }, diffs: {} });
+    void this.#loadPage(cardId, ticket); void this.#loadActivity(cardId, ticket);
     try {
       const k = await this.client.request({ method: 'GET', path: `${BOARDS_PATH}/${this.#state.boardId}/cards/${cardId}/checklist` });
       const items = (k.body as { items?: CheckItem[] } | null)?.items;
@@ -303,7 +332,69 @@ export class BoardController {
       this.#publish(r.status === 200 && list ? { comments: Object.freeze(list.map(c => Object.freeze(c))), commentsPhase: 'ready' } : { commentsPhase: 'error' });
     } catch { if (this.#state.open === cardId) this.#publish({ commentsPhase: 'error' }); }
   }
-  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined, task: undefined }); }
+  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined, task: undefined, page: undefined, activity: undefined, diffs: undefined }); }
+  // ---- TASKPAGE-02: the full task page ----
+  #cardPath(cardId = this.#state.open) { return `${BOARDS_PATH}/${this.#state.boardId}/cards/${cardId}`; }
+  async #loadPage(cardId: string, ticket = this.#ticket) {
+    try {
+      const r = await this.client.request({ method: 'GET', path: `${this.#cardPath(cardId)}/page` });
+      if (ticket !== this.#ticket || this.#state.open !== cardId) return;
+      const data = r.status === 200 && record(r.body) ? (r.body.page as TaskPageData) : null;
+      this.#publish({ page: { phase: data ? 'ready' : 'error', data } });
+    } catch { if (this.#state.open === cardId) this.#publish({ page: { phase: 'error', data: null } }); }
+  }
+  async #loadActivity(cardId: string, ticket = this.#ticket, before?: string) {
+    try {
+      const r = await this.client.request({ method: 'GET', path: `${this.#cardPath(cardId)}/activity${before ? `?before=${before}` : ''}` });
+      if (ticket !== this.#ticket || this.#state.open !== cardId) return;
+      const b = r.status === 200 && record(r.body) ? r.body as { items: ActivityItem[]; more: boolean } : null;
+      if (!b) { this.#publish({ activity: { phase: 'error', items: this.#state.activity?.items ?? [], more: false } }); return; }
+      const items = before ? [...b.items, ...(this.#state.activity?.items ?? [])] : b.items;
+      this.#publish({ activity: { phase: 'ready', items: Object.freeze(items), more: b.more } });
+    } catch { if (this.#state.open === cardId) this.#publish({ activity: { phase: 'error', items: this.#state.activity?.items ?? [], more: false } }); }
+  }
+  /** Read the page and its activity again (after a change, or by hand). */
+  refreshPage() { const id = this.#state.open; if (id) { void this.#loadPage(id); void this.#loadActivity(id); } }
+  loadOlder() { const id = this.#state.open, first = this.#state.activity?.items[0]; if (id && first) void this.#loadActivity(id, this.#ticket, first.at); }
+  /** The changed lines of one reply's files. */
+  async loadDiff(messageId: string) {
+    const cardId = this.#state.open; if (!cardId) return;
+    this.#publish({ diffs: { ...this.#state.diffs, [messageId]: 'loading' } });
+    try {
+      const r = await this.client.request({ method: 'GET', path: `${this.#cardPath(cardId)}/activity/${messageId}/diff` });
+      if (this.#state.open !== cardId) return;
+      const files = r.status === 200 && record(r.body) && Array.isArray(r.body.files) ? r.body.files as FileDiff[] : null;
+      this.#publish({ diffs: { ...this.#state.diffs, [messageId]: files ?? 'error' } });
+    } catch { if (this.#state.open === cardId) this.#publish({ diffs: { ...this.#state.diffs, [messageId]: 'error' } }); }
+  }
+  /** One field changed on the page: saved at once (no Save button). */
+  async saveField(patch: Partial<CardDraft>) { this.editDraft(patch); const ok = await this.saveCard(true); if (ok) this.refreshPage(); return ok; }
+  async #pageWrite(method: 'PUT' | 'POST', part: string, body: Record<string, unknown>, what: string, after?: (b: Record<string, unknown>) => void) {
+    const cardId = this.#state.open; if (!cardId) return false;
+    const ok = await this.#write<Record<string, unknown>>(() => this.client.request({ method, path: `${this.#cardPath(cardId)}/${part}`, body } as never), b => after?.(b), what);
+    if (ok) this.refreshPage();
+    return ok;
+  }
+  /** Put a person or an agent on the task with what they do (role null takes them off). */
+  async setPerson(kind: 'user' | 'agent', id: string, role: Role | null) {
+    const ok = await this.#pageWrite('PUT', 'people', { kind, id, role }, 'The person');
+    if (ok && kind === 'agent') { const card = this.#state.cards.find(c => c.id === this.#state.open); if (card) this.#replaceCard({ ...card, agents: role === null ? card.agents.filter(a => a !== id) : card.agents.includes(id) ? card.agents : [...card.agents, id] }); this.#publish({ draft: card ? draftOf(this.#state.cards.find(c => c.id === card.id)!) : this.#state.draft }); }
+    return ok;
+  }
+  setRelease(name: string | null) { return this.#pageWrite('PUT', 'release', { name: name?.trim() ? name.trim().slice(0, 60) : null }, 'The release'); }
+  addSubtask(title: string) {
+    const t = title.normalize('NFKC').replace(/\s+/g, ' ').trim();
+    if (!t) return Promise.resolve(false);
+    return this.#pageWrite('POST', 'subtasks', { title: t }, 'The sub-task', b => this.#replaceCard(b as unknown as Card));
+  }
+  setLink(waitsFor: string, on: boolean) { return this.#pageWrite('PUT', 'links', { waitsFor, on }, 'The link'); }
+  setFollow(on: boolean) { return this.#pageWrite('PUT', 'follow', { on }, 'Follow'); }
+  /** Put the files of one reply back as they were (the chat's own Undo). */
+  async undoChange(chatId: string, messageId: string) {
+    const ok = await this.#write<unknown>(() => this.client.request({ method: 'POST', path: `/api/chat/conversations/${chatId}/messages/${messageId}/undo`, body: {} } as never), () => undefined, 'Undo');
+    if (ok) { this.refreshPage(); this.#publish({ notice: 'The files are back as they were before that reply.' }); }
+    return ok;
+  }
   /** TASKLOG-01: the open card's task from its project's task file. */
   async #loadTask(cardId: string, ticket = this.#ticket) {
     try {
@@ -386,11 +477,14 @@ export class BoardController {
     const cardId = s.open;
     return this.#write<{ items: CheckItem[] }>(() => this.client.request({ method: 'POST', path: `${BOARDS_PATH}/${s.boardId}/cards/${cardId}/checklist`, body: { text: t } }), b => this.#setChecklist(cardId, b.items), 'The checklist item');
   }
-  async updateCheckItem(itemId: string, patch: { done?: boolean; text?: string; remove?: true }) {
+  async updateCheckItem(itemId: string, patch: { done?: boolean; text?: string; remove?: true; owner?: { kind: 'user' | 'agent'; id: string } | null; dueDate?: string | null; beforeItemId?: string | null }) {
     const s = this.#state; if (!s.open) return false;
     const cardId = s.open;
     const body: Record<string, unknown> = {};
     if (patch.done !== undefined) body.done = patch.done;
+    if (patch.owner !== undefined) body.owner = patch.owner;
+    if (patch.dueDate !== undefined) body.dueDate = patch.dueDate || null;
+    if (patch.beforeItemId !== undefined) body.beforeItemId = patch.beforeItemId;
     if (patch.text !== undefined) { const t = patch.text.normalize('NFKC').replace(/\s+/g, ' ').trim(); if (!t) return false; body.text = t; }
     if (patch.remove) body.remove = true;
     return this.#write<{ items: CheckItem[] }>(() => this.client.request({ method: 'PUT', path: `${BOARDS_PATH}/${s.boardId}/cards/${cardId}/checklist/${itemId}`, body }), b => this.#setChecklist(cardId, b.items), 'The checklist item');
@@ -410,7 +504,7 @@ export class BoardController {
   removeDepartment(dep: string) { const d = this.#state.draft; if (d) this.editDraft({ departments: d.departments.filter(x => x !== dep) }); }
 
   /** Save the panel's changes (only the fields that changed). */
-  async saveCard() {
+  async saveCard(quiet = false) {
     const s = this.#state; const card = s.cards.find(c => c.id === s.open); const d = s.draft;
     if (!card || !d) return false;
     const title = d.title.normalize('NFKC').replace(/\s+/g, ' ').trim();
@@ -432,7 +526,7 @@ export class BoardController {
     if (Object.keys(body).length === 1) { this.#publish({ notice: 'Nothing changed.' }); return false; }
     if (!validCardEdit(body)) { this.#publish({ notice: 'Check the fields: the date is YYYY-MM-DD and the text may not hold hidden characters.' }); return false; }
     return this.#write<Card>(() => this.client.request({ method: 'PUT', path: `${BOARDS_PATH}/${s.boardId}/cards/${card.id}`, body: body as never }), c => {
-      this.#replaceCard(c); this.#publish({ draft: draftOf(c), notice: 'Saved.' });
+      this.#replaceCard(c); this.#publish({ draft: draftOf(c), notice: quiet ? undefined : 'Saved.' });
     }, 'The card');
   }
 
@@ -453,6 +547,7 @@ export class BoardController {
       if (this.#state.open === cardId) this.#publish({ comments: Object.freeze(b.comments.map(c => Object.freeze(c))), commentsPhase: 'ready' });
       const card = this.#state.cards.find(c => c.id === cardId);
       if (card) this.#replaceCard({ ...card, comments: b.comments.length });
+      void this.#loadActivity(cardId);
     }, 'The comment');
   }
 }

@@ -96,12 +96,12 @@ test('board: the app filter, the task panel and Continue', async () => {
 });
 
 test('wiring: the card mark, the panel part, the To sort badge, the app filter and the files switch are on the page', () => {
-  const board = src('src/TaskBoard.tsx'), part = src('src/BoardTaskFile.tsx'), rules = src('src/AgentRules.tsx');
+  const board = src('src/TaskBoard.tsx'), part = src('src/BoardTaskPage.tsx'), rules = src('src/AgentRules.tsx');
   assert.match(board, /\{card\.taskFile && <TaskFileMark mark=\{card\.taskFile\}\/>\}/);
-  assert.match(board, /\{card\.taskFile&&<TaskFileSection card=\{card\} controller=\{controller\} busy=\{busy\} onOpenChat=\{onOpenChat\}\/>\}/);
+  assert.match(board, /openCard&&s\.draft\?<TaskPage key=\{openCard\.id\}/);
   assert.match(board, /b\.toSort/);
   assert.match(board, /aria-label="Filter by app"/);
-  assert.match(part, /aria-label="Show it in the file"/);
+  assert.match(part, /label="Show it in the task file"/);
   assert.match(part, /aria-label="Send to department"/);
   assert.match(part, /aria-label="Agent who continues"/);
   assert.match(part, /\.continueTask\(agent \|\| undefined, model \|\| undefined\)\.then\(id => \{ if \(id\) onOpenChat\?\.\(id\); \}\)/);
