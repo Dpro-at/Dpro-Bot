@@ -16,8 +16,7 @@
  *   POST   /api/agent-rules/:id/accept | /dismiss   a suggestion -> { rule }
  *   GET    /api/agent-rules/effective?agentId=&projectId=  -> { rules }  what that agent gets, in order
  *   GET    /api/agent-rules/conflicts?agentId=&projectId=  -> { conflicts: [{a,b,why}], checked }  rules there that disagree (local model; b wins)
- *   PUT    /api/agent-rules/basics/:id               { paused } -> { basic }  (a safety basic stays on: 400)
- *   POST   /api/agent-rules/basics/:id/own           -> 201 { rule }  the owner's own version, after the basics
+ *   POST   /api/agent-rules/:id/put-back             -> { rule }  a rule Girru ships, back as it came
  *   GET    /api/agent-rules/files/:projectId         -> { files }  what writing the coding app files would do (reads only)
  *   POST   /api/agent-rules/files/:projectId         { mode: private|project } -> { files }  write them (the owner's button)
  *   400 { error, code: 'invalid_rule' } · 404 { error, code: 'not_found' }
@@ -28,7 +27,7 @@ import { q } from '../../repositories/sql-steps.js';
 import { RuleFilesError, filesState, syncWrittenProjects, writeFiles } from '../../services/agent-rule-files.js';
 import {
   RuleInputError, STARTER_RULES, suggestRule, UNDO_MS, addStarterRules, createRule, decideSuggestion, deleteRule, editRule,
-  effectiveRules, listRules, ownVersion, pauseBasic, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
+  effectiveRules, listRules, putBack, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
 } from '../../services/agent-rules.js';
 
 const OWNER_ONLY = ['owner'] as const;
@@ -53,15 +52,10 @@ export async function agentRulesRoutes(fastify: FastifyInstance) {
     if (err instanceof RuleFilesError) return reply.code(err.code === 'not_found' ? 404 : 400).send({ error: err.message, code: err.code });
     throw err;
   };
-  fastify.put('/api/agent-rules/basics/:id', { config }, async (request: Req, reply) => {
+  fastify.post('/api/agent-rules/:id/put-back', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;
-    const b = request.body as { paused?: unknown } | null;
-    if (!b || typeof b !== 'object' || Object.keys(b).length !== 1 || typeof b.paused !== 'boolean') return reply.code(400).send({ error: 'A basic is { paused }', code: 'invalid_rule' });
-    try { const basic = await pauseBasic(String(request.params.id), b.paused); return basic ? { basic } : missing(reply); } catch (err) { return bad(reply, err); }
-  });
-  fastify.post('/api/agent-rules/basics/:id/own', { config }, async (request: Req, reply) => {
-    const by = owner(request, reply); if (by === null) return reply;
-    try { const rule = await ownVersion(String(request.params.id), by); return rule ? reply.code(201).send({ rule }) : missing(reply); } catch (err) { return bad(reply, err); }
+    const rid = id(request); if (!rid) return missing(reply);
+    try { const rule = await putBack(rid); return rule ? { rule } : missing(reply); } catch (err) { return bad(reply, err); }
   });
   fastify.get('/api/agent-rules/files/:id', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;
@@ -117,7 +111,7 @@ export async function agentRulesRoutes(fastify: FastifyInstance) {
   fastify.post('/api/agent-rules/:id/delete', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;
     const rid = id(request); if (!rid) return missing(reply);
-    return (await deleteRule(rid)) ? { ok: true, undoMs: UNDO_MS } : missing(reply);
+    try { return (await deleteRule(rid)) ? { ok: true, undoMs: UNDO_MS } : missing(reply); } catch (err) { return bad(reply, err); }
   });
   fastify.post('/api/agent-rules/:id/undo-delete', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;

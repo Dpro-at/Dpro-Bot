@@ -26,7 +26,7 @@ test('contract: only the Rules routes and shapes pass', () => {
 
 test('contract: a rule comes back with its own fields only; a refused rule keeps its one-line reason', () => {
   const page = agentRulesResponse('/api/agent-rules', 200, { rules: [rule({ createdBy: 'owner-id', secret: 'x' })], suggestions: [], departments: ['development'], starter: ['a'] });
-  assert.deepEqual(Object.keys(page.rules[0]).sort(), ['createdAt', 'id', 'paused', 'projectId', 'reason', 'source', 'status', 'suggestedBy', 'targets', 'text', 'updatedAt', 'version', 'when', 'who']);
+  assert.deepEqual(Object.keys(page.rules[0]).sort(), ['createdAt', 'id', 'locked', 'paused', 'projectId', 'reason', 'shipped', 'source', 'status', 'suggestedBy', 'targets', 'text', 'updatedAt', 'version', 'when', 'who']);
   assert.deepEqual(agentRulesResponse('/api/agent-rules', 400, { error: 'Write the rule as a sentence', code: 'invalid_rule' }), { code: 'invalid_rule', error: 'Write the rule as a sentence' });
   assert.deepEqual(agentRulesResponse(`/api/agent-rules/${ID}/delete`, 404, { error: 'x' }), { code: 'not_found' });
   assert.deepEqual(agentRulesResponse(`/api/agent-rules/${ID}/delete`, 200, { ok: true, undoMs: 600000 }), { ok: true, undoMs: 600000 });
@@ -39,7 +39,7 @@ test('the page groups rules the way agents get them and says who follows each in
   const projects = [{ id: 'p1', name: 'Dpro' }];
   const rules = [rule({ id: 'e' }), rule({ id: 'p', projectId: 'p1', who: 'departments', targets: ['development'] }), rule({ id: 'o', who: 'agents', targets: ['a3'] })];
   const groups = ruleGroups(rules, [rule({ id: 's', status: 'suggested' })], projects);
-  assert.deepEqual(groups.map(g => [g.title, g.rules.map(r => r.id)]), [['Suggested by an agent', ['s']], ['Everywhere', ['e']], ['Project · Dpro', ['p']], ['Chosen agents', ['o']]]);
+  assert.deepEqual(groups.map(g => [g.title, g.rules.map(r => r.id)]), [['Suggested by an agent', ['s']], ['Everywhere · all agents', ['e']], ['Project · Dpro', ['p']], ['Chosen agents', ['o']]]);
   assert.equal(whoWords(rules[0], agents), 'All agents');
   assert.equal(whoWords(rules[1], agents, projects), 'Development · 1 agent');
   assert.equal(whoWords(rules[2], agents), 'QA');
@@ -90,14 +90,17 @@ test('RULES-02: a rule with a case reads "When X: rule"; the page offers Always 
   assert.equal(agentRulesResponse(`/api/agent-rules/${ID}/versions`, 200, { versions: [{ version: 1, text: 't', when: 'w', changedAt: 'x' }] }).versions[0].when, 'w');
 });
 
-test('RULES-03: basics and coding app files pass the contract; the page shows the basics first, a lock for safety, and the files sheet', () => {
-  for (const [m, p, b] of [['PUT', '/api/agent-rules/basics/basic:language', { paused: true }], ['POST', '/api/agent-rules/basics/basic:handoff/own'], ['GET', '/api/agent-rules/files/p1'], ['POST', '/api/agent-rules/files/p1', { mode: 'private' }]]) assert.ok(allowedAgentRules(m, p, b) && allowedRequest(m, p, b), `${m} ${p}`);
-  for (const [m, p, b] of [['PUT', '/api/agent-rules/basics/basic:language', { paused: 'yes' }], ['PUT', '/api/agent-rules/basics/../x', { paused: true }], ['POST', '/api/agent-rules/files/p1', { mode: 'public' }], ['POST', '/api/agent-rules/files/p1'], ['POST', '/api/agent-rules/basics/basic:x/own', { a: 1 }]]) assert.equal(allowedAgentRules(m, p, b), false, `${m} ${p}`);
-  const page = agentRulesResponse('/api/agent-rules', 200, { basics: [rule({ id: 'basic:secrets', source: 'basic', locked: true })], rules: [], suggestions: [] });
-  assert.deepEqual([page.basics[0].source, page.basics[0].locked], ['basic', true]);
+test('RULES-04: one list — put back and the files routes pass the contract; the page shows a lock for safety rules and the files line in each project', () => {
+  for (const [m, p, b] of [['POST', `/api/agent-rules/${ID}/put-back`], ['GET', '/api/agent-rules/files/p1'], ['POST', '/api/agent-rules/files/p1', { mode: 'private' }]]) assert.ok(allowedAgentRules(m, p, b) && allowedRequest(m, p, b), `${m} ${p}`);
+  for (const [m, p, b] of [['PUT', '/api/agent-rules/basics/basic:language', { paused: true }], ['POST', '/api/agent-rules/files/p1', { mode: 'public' }], ['POST', '/api/agent-rules/files/p1'], ['POST', `/api/agent-rules/${ID}/put-back`, { a: 1 }]]) assert.equal(allowedAgentRules(m, p, b), false, `${m} ${p}`);
+  const page = agentRulesResponse('/api/agent-rules', 200, { rules: [rule({ id: 'x', source: 'girru', shipped: true, locked: true })], suggestions: [] });
+  assert.deepEqual([page.rules[0].source, page.rules[0].shipped, page.rules[0].locked, 'basics' in page], ['girru', true, true, false]);
   const f = agentRulesResponse('/api/agent-rules/files/p1', 200, { files: { projectId: 'p1', folder: '/secret/path', mode: 'private', written: true, upToDate: true, files: [{ name: 'CLAUDE.md', action: 'add' }, { name: 'x', action: 'rm -rf' }], rules: 'r' } });
   assert.deepEqual([f.files.hasFolder, f.files.files.length, 'folder' in f.files], [true, 1, false], 'the folder path itself never reaches the page');
   assert.deepEqual(agentRulesResponse('/api/agent-rules/files/p1', 200, f), f, 'checked twice (bridge, then page) it stays the same');
+  const groups = ruleGroups([rule({ id: 'g', source: 'girru', shipped: true })], [], [{ id: 'p9', name: 'Website', folder: '/w' }]);
+  assert.deepEqual(groups.map(g => [g.title, g.rules.length]), [['Everywhere · all agents', 1], ['Project · Website', 0]], 'a project with a folder gets its heading even with no rules');
   const p = src('src/AgentRules.tsx');
-  for (const re of [/aria-label="Girru basics"/, /b\.locked \? 'shield' : 'sparkle'/, /Always on/, /Write my own version…/, /Coding app files · up to date/, /Private on this computer/, /With the project \(in Git\)/, /Write the files/, /selected\.source !== 'basic'\) \{ e\.preventDefault\(\); void c\.remove/]) assert.match(p, re);
+  assert.doesNotMatch(p, /Girru basics|Built in|Write my own version/);
+  for (const re of [/r\.locked \? <span className="rules-paused" title="Safety rule: always on">/, /LockedInspector/, /Put back as it came/, /Files for Claude Code, Codex, Gemini/, /No rules of its own; it gets the everywhere rules\./, /Private on this computer/, /Write the files/, /!selected\.shipped\) \{ e\.preventDefault\(\); void c\.remove/]) assert.match(p, re);
 });

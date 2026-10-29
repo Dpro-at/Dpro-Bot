@@ -4,15 +4,14 @@
 import type { SessionClient } from './session';
 
 export type RuleWho = 'all' | 'departments' | 'agents';
-export type Rule = Readonly<{ id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: readonly string[]; paused: boolean; status: 'active' | 'suggested'; source: 'owner' | 'agent' | 'basic'; suggestedBy: string | null; reason: string | null; version: number; createdAt: string; updatedAt: string }>;
+export type Rule = Readonly<{ id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: readonly string[]; paused: boolean; status: 'active' | 'suggested'; source: 'owner' | 'agent' | 'girru'; shipped: boolean; locked: boolean; suggestedBy: string | null; reason: string | null; version: number; createdAt: string; updatedAt: string }>;
 export type RuleVersion = Readonly<{ version: number; text: string; when: string | null; changedAt: string }>;
 export type RuleProject = Readonly<{ id: string; name: string; folder?: string | null }>;
-export type BasicRule = Rule & Readonly<{ locked: boolean }>;
 export type FilesState = Readonly<{ projectId: string; hasFolder: boolean; mode: 'private' | 'project'; written: boolean; upToDate: boolean; files: readonly { name: string; action: 'create' | 'add' | 'update' | 'unchanged' | 'tracked' | 'link' }[]; rules: string }>;
 export type RuleAgent = Readonly<{ id: string; name: string; department: string | null }>;
 export type RuleGroup = Readonly<{ id: string; title: string; icon: 'bulb' | 'globe' | 'folder' | 'avatar'; rules: readonly Rule[] }>;
 export type RulesState = Readonly<{
-  phase: 'idle' | 'loading' | 'ready' | 'error'; basics: readonly BasicRule[]; files: Readonly<Record<string, FilesState>>; rules: readonly Rule[]; suggestions: readonly Rule[]; departments: readonly string[]; projects: readonly RuleProject[];
+  phase: 'idle' | 'loading' | 'ready' | 'error'; files: Readonly<Record<string, FilesState>>; rules: readonly Rule[]; suggestions: readonly Rule[]; departments: readonly string[]; projects: readonly RuleProject[];
   selected: string | null; notice: string | null; toast: { id: number; text: string; undo: boolean } | null; lastDeleted: string | null; busy: boolean;
 }>;
 export type RuleChange = Partial<{ text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean }>;
@@ -24,14 +23,14 @@ const err = (body: unknown, fallback: string) => (record(body) && typeof body.er
 export function ruleGroups(rules: readonly Rule[], suggestions: readonly Rule[], projects: readonly RuleProject[]): RuleGroup[] {
   const out: RuleGroup[] = [];
   if (suggestions.length) out.push({ id: 'suggested', title: 'Suggested by an agent', icon: 'bulb', rules: suggestions });
-  const everywhere = rules.filter(r => r.who !== 'agents' && !r.projectId);
-  if (everywhere.length) out.push({ id: 'everywhere', title: 'Everywhere', icon: 'globe', rules: everywhere });
-  for (const id of [...new Set(rules.filter(r => r.who !== 'agents' && r.projectId).map(r => r.projectId!))]) {
-    out.push({ id: `project:${id}`, title: `Project · ${projects.find(p => p.id === id)?.name ?? 'A project'}`, icon: 'folder', rules: rules.filter(r => r.who !== 'agents' && r.projectId === id) });
-  }
-  const one = rules.filter(r => r.who === 'agents');
-  if (one.length) out.push({ id: 'agents', title: 'Chosen agents', icon: 'avatar', rules: one });
-  return out;
+  // RULES-04: plain group names that say what a rule reaches.
+  out.push({ id: 'everywhere', title: 'Everywhere · all agents', icon: 'globe', rules: rules.filter(r => !r.projectId && r.who === 'all') });
+  // Every project with a folder gets its heading (its files line lives there), even without rules of its own.
+  const ids = [...new Set([...rules.filter(r => r.projectId && r.who !== 'agents').map(r => r.projectId!), ...projects.filter(p => p.folder).map(p => p.id)])];
+  for (const id of ids) out.push({ id: `project:${id}`, title: `Project · ${projects.find(p => p.id === id)?.name ?? 'A project'}`, icon: 'folder', rules: rules.filter(r => r.projectId === id && r.who !== 'agents') });
+  const chosen = rules.filter(r => r.who === 'agents' || (!r.projectId && r.who === 'departments'));
+  if (chosen.length) out.push({ id: 'agents', title: 'Chosen agents', icon: 'avatar', rules: chosen });
+  return out.filter(g => g.rules.length || g.id.startsWith('project:'));
 }
 
 /** How an agent reads a rule (the server's words): "When X: rule", or the rule alone. */
@@ -60,7 +59,7 @@ export function reaches(r: Pick<Rule, 'who' | 'targets' | 'projectId'>, agent: R
 
 export class RulesController {
   #client: SessionClient;
-  #state: RulesState = Object.freeze({ phase: 'idle', basics: [], files: {}, rules: [], suggestions: [], departments: [], projects: [], selected: null, notice: null, toast: null, lastDeleted: null, busy: false });
+  #state: RulesState = Object.freeze({ phase: 'idle', files: {}, rules: [], suggestions: [], departments: [], projects: [], selected: null, notice: null, toast: null, lastDeleted: null, busy: false });
   #listeners = new Set<() => void>();
   #toastId = 0;
   constructor(client: SessionClient) { this.#client = client; }
@@ -74,7 +73,7 @@ export class RulesController {
   say(text: string, undo = false) { this.#publish({ toast: { id: ++this.#toastId, text, undo } }); }
   dismiss(id: number) { if (this.#state.toast?.id === id) this.#publish({ toast: null }); }
   select(id: string | null) { this.#publish({ selected: id, notice: null }); }
-  find(id: string | null): Rule | undefined { return id ? [...this.#state.basics, ...this.#state.suggestions, ...this.#state.rules].find(r => r.id === id) : undefined; }
+  find(id: string | null): Rule | undefined { return id ? [...this.#state.suggestions, ...this.#state.rules].find(r => r.id === id) : undefined; }
 
   async load(): Promise<void> {
     this.#publish({ phase: this.#state.phase === 'ready' ? 'ready' : 'loading' });
@@ -83,7 +82,7 @@ export class RulesController {
       if (r.status !== 200 || !record(r.body)) { this.#publish({ phase: 'error', notice: err(r.body, 'Rules could not be read.') }); return; }
       const projects = record(p.body) && Array.isArray(p.body.projects) ? (p.body.projects as Record<string, unknown>[]).map(x => ({ id: String(x.id), name: String(x.name ?? 'Project'), folder: typeof x.folder === 'string' ? x.folder : null })) : [];
       const b = r.body;
-      this.#publish({ phase: 'ready', basics: (b.basics as BasicRule[]) ?? [], rules: (b.rules as Rule[]) ?? [], suggestions: (b.suggestions as Rule[]) ?? [], departments: (b.departments as string[]) ?? [], projects });
+      this.#publish({ phase: 'ready', rules: (b.rules as Rule[]) ?? [], suggestions: (b.suggestions as Rule[]) ?? [], departments: (b.departments as string[]) ?? [], projects });
       // RULES-03: each project with a folder: are its coding app files written and up to date?
       void Promise.all(projects.filter(p => p.folder).map(async p => [p.id, await this.filesState(p.id)] as const)).then(list => this.#publish({ files: Object.fromEntries(list.filter((x): x is readonly [string, FilesState] => !!x[1])) }));
     } catch { this.#publish({ phase: 'error', notice: 'Rules could not be read.' }); }
@@ -149,14 +148,10 @@ export class RulesController {
     const r = await this.#req('GET', `/api/agent-rules/conflicts?${q}`).catch(() => null);
     return r?.status === 200 && record(r.body) && Array.isArray(r.body.conflicts) ? { conflicts: r.body.conflicts as { a: string; b: string; why: string }[], checked: r.body.checked === true } : null;
   }
-  /** RULES-03: pause a basic (a safety basic stays on), or start my own version of it. */
-  async pauseBasic(id: string, paused: boolean) {
-    this.#publish({ busy: true, notice: null });
-    try { const r = await this.#req('PUT', `/api/agent-rules/basics/${id}`, { paused }); if (r.status !== 200) this.#publish({ notice: err(r.body, 'Not saved.') }); await this.load(); } finally { this.#publish({ busy: false }); }
-  }
-  async ownVersion(id: string) {
-    const rule = await this.#write('POST', `/api/agent-rules/basics/${id}/own`);
-    if (rule) { this.#publish({ selected: rule.id }); this.say('Your version is added after the basics, so it wins. Pause the built-in one if you want only yours.'); }
+  /** RULES-04: a rule Girru ships, back as it came. */
+  async putBack(id: string) {
+    const rule = await this.#write('POST', `/api/agent-rules/${id}/put-back`);
+    if (rule) this.say('Put back as it came.');
   }
   async filesState(projectId: string): Promise<FilesState | null> {
     const r = await this.#req('GET', `/api/agent-rules/files/${projectId}`).catch(() => null);

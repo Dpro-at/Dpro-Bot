@@ -20,11 +20,13 @@ export type RuleWho = 'all' | 'departments' | 'agents';
 export type RuleStatus = 'active' | 'suggested' | 'dismissed' | 'deleted';
 export interface AgentRule {
   id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean;
-  status: RuleStatus; source: 'owner' | 'agent' | 'basic'; suggestedBy: string | null; reason: string | null;
+  status: RuleStatus; source: 'owner' | 'agent' | 'girru'; suggestedBy: string | null; reason: string | null;
+  /** RULES-04: shipped by Girru (can be put back as it came); locked = a safety rule, always on, never edited. */
+  shipped: boolean; locked: boolean;
   version: number; createdAt: string; updatedAt: string;
 }
 export interface RuleVersion { version: number; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: string[]; paused: boolean; changedAt: string }
-interface Row { id: string; text: string; condition: string | null; project_id: string | null; who: RuleWho; targets: string; paused: number; status: RuleStatus; source: 'owner' | 'agent'; suggested_by: string | null; reason: string | null; version: number; created_at: string; updated_at: string }
+interface Row { id: string; text: string; condition: string | null; project_id: string | null; who: RuleWho; targets: string; paused: number; status: RuleStatus; source: 'owner' | 'agent' | 'girru'; suggested_by: string | null; reason: string | null; version: number; created_at: string; updated_at: string; shipped_key: string | null; shipped_version: number | null }
 
 export class RuleInputError extends Error {}
 export const RULE_CHARS = 2000;
@@ -37,7 +39,7 @@ export const UNDO_MS = 10 * 60_000;
 const WHO: readonly RuleWho[] = ['all', 'departments', 'agents'];
 
 const list = (s: string): string[] => { try { const v = JSON.parse(s); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []; } catch { return []; } };
-const toRule = (r: Row): AgentRule => ({ id: r.id, text: r.text, when: r.condition ?? null, projectId: r.project_id, who: r.who, targets: list(r.targets), paused: !!r.paused, status: r.status, source: r.source, suggestedBy: r.suggested_by, reason: r.reason, version: Number(r.version), createdAt: r.created_at, updatedAt: r.updated_at });
+const toRule = (r: Row): AgentRule => ({ id: r.id, text: r.text, when: r.condition ?? null, projectId: r.project_id, who: r.who, targets: list(r.targets), paused: !!r.paused, status: r.status, source: r.source as AgentRule['source'], shipped: !!r.shipped_key, locked: !!r.shipped_key && LOCKED.has(r.shipped_key), suggestedBy: r.suggested_by, reason: r.reason, version: Number(r.version), createdAt: r.created_at, updatedAt: r.updated_at });
 // eslint-disable-next-line no-control-regex
 const clean = (s: string) => s.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '').trim();
 
@@ -97,9 +99,10 @@ let last = 0;
 const stamp = () => { const t = Math.max(Date.now(), last + 1); last = t; return new Date(t).toISOString(); };
 const ORDER = "ORDER BY CASE WHEN who = 'agents' THEN 2 WHEN project_id IS NOT NULL THEN 1 ELSE 0 END, created_at, id";
 /** Every rule the page shows (active and paused, then suggestions), in the order agents get them. */
-export async function listRules(): Promise<{ basics: (AgentRule & { locked: boolean })[]; rules: AgentRule[]; suggestions: AgentRule[] }> {
+export async function listRules(): Promise<{ rules: AgentRule[]; suggestions: AgentRule[] }> {
+  await ensureShipped();
   const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status IN ('active','suggested') ${ORDER}`);
-  return { basics: await basicRules(), rules: rows.filter((r) => r.status === 'active').map(toRule), suggestions: rows.filter((r) => r.status === 'suggested').map(toRule) };
+  return { rules: rows.filter((r) => r.status === 'active').map(toRule), suggestions: rows.filter((r) => r.status === 'suggested').map(toRule) };
 }
 export async function getRule(id: string): Promise<AgentRule | null> {
   const r = await q.one<Row>('SELECT * FROM agent_rules WHERE id = ?', id);
@@ -121,6 +124,7 @@ export async function createRule(input: unknown, by: string): Promise<AgentRule>
 export async function editRule(id: string, input: unknown): Promise<AgentRule | null> {
   const cur = await q.one<Row>("SELECT * FROM agent_rules WHERE id = ? AND status IN ('active','suggested')", id);
   if (!cur) return null;
+  if (cur.shipped_key && LOCKED.has(cur.shipped_key)) throw new RuleInputError('This safety rule is always on and cannot be changed');
   const v = checkRule(input, true);
   if (v.projectId !== undefined) await projectExists(v.projectId);
   const who = v.who ?? cur.who;
@@ -146,6 +150,8 @@ export async function restoreVersion(id: string, version: number): Promise<Agent
 
 /** Delete keeps the rule for Undo; agents stop getting it at once. */
 export async function deleteRule(id: string): Promise<boolean> {
+  const cur = await q.one<{ shipped_key: string | null }>('SELECT shipped_key FROM agent_rules WHERE id = ?', id);
+  if (cur?.shipped_key) throw new RuleInputError('A rule that comes with Girru is not deleted; pause it instead');
   return (await q.run("UPDATE agent_rules SET status='deleted',deleted_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='active'", new Date().toISOString(), id)).changes > 0;
 }
 export async function undoDelete(id: string): Promise<AgentRule | null> {
@@ -191,38 +197,44 @@ export async function addStarterRules(by: string): Promise<AgentRule[]> {
 }
 
 /**
- * RULES-03: Girru basics, the rules every agent starts with. They come first, for all agents,
- * everywhere; the owner's rules come after them and win. Safety rules are locked (always on,
- * for everyone); the others can be paused. None is edited or deleted; the owner writes their own
- * version instead. The texts live here so they update with Girru.
+ * RULES-04: the rules Girru ships are normal rules (source 'girru'), seeded once and first in
+ * the everywhere list. The owner edits, pauses or gives them a case like any rule, and can put
+ * one back as it came; they are never deleted (paused instead), so an update can still improve
+ * a rule the owner never edited. The two safety rules are locked: always on, never edited.
  */
-export interface BasicRule { id: string; text: string; when: string | null; locked: boolean; version: number }
-export const BASIC_RULES: readonly BasicRule[] = [
-  { id: 'basic:secrets', text: 'Never show, send or save a secret: keys, tokens, passwords, .env files.', when: null, locked: true, version: 1 },
-  { id: 'basic:ask-first', text: 'Ask the owner before you delete files or data, install software, pay, or contact an outside service.', when: null, locked: true, version: 1 },
-  { id: 'basic:language', text: 'Reply in the language the owner writes in; write code, comments, docs, commits and file names in English.', when: null, locked: false, version: 1 },
-  { id: 'basic:handoff', text: 'Write a handoff note: what is done, what is left, what comes next.', when: 'you stop in the middle of a task', locked: false, version: 1 },
-  { id: 'basic:checked', text: 'Say what you checked and what you did not; never say a task is done before it is.', when: null, locked: false, version: 1 },
+export interface ShippedRule { key: string; text: string; when: string | null; locked: boolean; version: number }
+export const SHIPPED_RULES: readonly ShippedRule[] = [
+  { key: 'girru:secrets', text: 'Never show, send or save a secret: keys, tokens, passwords, .env files.', when: null, locked: true, version: 1 },
+  { key: 'girru:ask-first', text: 'Ask the owner before you delete files or data, install software, pay, or contact an outside service.', when: null, locked: true, version: 1 },
+  { key: 'girru:language', text: 'Reply in the language the owner writes in; write code, comments, docs, commits and file names in English.', when: null, locked: false, version: 1 },
+  { key: 'girru:handoff', text: 'Write a handoff note: what is done, what is left, what comes next.', when: 'you stop in the middle of a task', locked: false, version: 1 },
+  { key: 'girru:checked', text: 'Say what you checked and what you did not; never say a task is done before it is.', when: null, locked: false, version: 1 },
 ];
-const asRule = (b: BasicRule, paused: boolean): AgentRule => ({ id: b.id, text: b.text, when: b.when, projectId: null, who: 'all', targets: [], paused, status: 'active', source: 'basic', suggestedBy: null, reason: null, version: b.version, createdAt: '', updatedAt: '' });
-/** The basics with the owner's pauses (a locked one is never paused). */
-export async function basicRules(): Promise<(AgentRule & { locked: boolean })[]> {
-  const paused = new Set((await q.all<{ id: string }>('SELECT id FROM agent_rule_basics WHERE paused = 1').catch(() => [])).map((r) => r.id));
-  return BASIC_RULES.map((b) => ({ ...asRule(b, !b.locked && paused.has(b.id)), locked: b.locked }));
+const LOCKED = new Set(SHIPPED_RULES.filter((r) => r.locked).map((r) => r.key));
+let seeded: Promise<void> | null = null;
+/** Seed the shipped rules once per run: missing ones are added (RULES-03 pauses carried over), an unedited one gets a newer text. */
+export function ensureShipped(): Promise<void> {
+  seeded ??= (async () => {
+    const paused = new Set((await q.all<{ id: string }>('SELECT id FROM agent_rule_basics WHERE paused = 1').catch(() => [])).map((r) => r.id.replace(/^basic:/, 'girru:')));
+    for (const [i, s] of SHIPPED_RULES.entries()) {
+      const row = await q.one<{ id: string; version: number; shipped_version: number | null }>('SELECT id, version, shipped_version FROM agent_rules WHERE shipped_key = ?', s.key);
+      if (!row) {
+        // A fixed early time keeps them first in the everywhere list, in this order.
+        await q.run("INSERT INTO agent_rules(id,text,condition,project_id,who,targets,paused,status,source,shipped_key,shipped_version,created_at) VALUES(?,?,?,NULL,'all','[]',?,'active','girru',?,?,?)",
+          randomUUID(), s.text, s.when, !s.locked && paused.has(s.key) ? 1 : 0, s.key, s.version, `0001-01-01T00:00:00.${String(i).padStart(3, '0')}Z`);
+      } else if (Number(row.version) === 1 && Number(row.shipped_version ?? 0) < s.version) {
+        await q.run('UPDATE agent_rules SET text=?,condition=?,shipped_version=?,updated_at=CURRENT_TIMESTAMP WHERE id=?', s.text, s.when, s.version, row.id);
+      }
+    }
+  })().catch((err) => { seeded = null; throw err; });
+  return seeded;
 }
-export async function pauseBasic(id: string, paused: boolean): Promise<(AgentRule & { locked: boolean }) | null> {
-  const b = BASIC_RULES.find((x) => x.id === id);
-  if (!b) return null;
-  if (b.locked) throw new RuleInputError('This safety rule is always on');
-  await q.run('INSERT INTO agent_rule_basics(id,paused,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET paused=excluded.paused, updated_at=CURRENT_TIMESTAMP', id, paused ? 1 : 0);
-  return (await basicRules()).find((x) => x.id === id) ?? null;
+/** "Put back as it came": the shipped words, case and reach (itself an edit, so the owner's words become a version). */
+export async function putBack(id: string): Promise<AgentRule | null> {
+  const row = await q.one<{ shipped_key: string | null }>("SELECT shipped_key FROM agent_rules WHERE id = ? AND status = 'active'", id);
+  const s = SHIPPED_RULES.find((x) => x.key === row?.shipped_key);
+  return s ? editRule(id, { text: s.text, when: s.when, projectId: null, who: 'all', targets: [] }) : null;
 }
-/** "Write my own version…": the owner's rule from a basic (everywhere, all agents); it comes later, so it wins. */
-export async function ownVersion(id: string, by: string): Promise<AgentRule | null> {
-  const b = BASIC_RULES.find((x) => x.id === id);
-  return b ? createRule({ text: b.text, when: b.when }, by) : null;
-}
-const unlocked = (b: AgentRule & { locked: boolean }): AgentRule => { const { locked: _locked, ...r } = b; return r; };
 
 /** Does this rule reach this agent in this project? */
 export function ruleApplies(r: Pick<AgentRule, 'projectId' | 'who' | 'targets'>, agent: { id: string; department: string | null }, projectId: string | null): boolean {
@@ -235,13 +247,15 @@ export function ruleApplies(r: Pick<AgentRule, 'projectId' | 'who' | 'targets'>,
 export async function effectiveRules(agentId: string, projectId: string | null): Promise<AgentRule[]> {
   const agent = await q.one<{ id: string; department: string | null }>('SELECT id, department FROM agents_config WHERE id = ?', agentId);
   if (!agent) return [];
+  await ensureShipped();
   const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status = 'active' AND paused = 0 ${ORDER}`);
-  return [...(await basicRules()).filter((b) => !b.paused).map(unlocked), ...rows.map(toRule).filter((r) => ruleApplies(r, agent, projectId))];
+  return rows.map(toRule).filter((r) => ruleApplies(r, agent, projectId));
 }
-/** The rules any coding app in a project folder gets: the basics, then the owner's rules for all agents there. */
+/** The rules any coding app in a project folder gets: the rules for all agents, everywhere and in this project. */
 export async function projectFileRules(projectId: string): Promise<AgentRule[]> {
+  await ensureShipped();
   const rows = await q.all<Row>(`SELECT * FROM agent_rules WHERE status = 'active' AND paused = 0 AND who = 'all' AND (project_id IS NULL OR project_id = ?) ${ORDER}`, projectId);
-  return [...(await basicRules()).filter((b) => !b.paused).map(unlocked), ...rows.map(toRule)];
+  return rows.map(toRule);
 }
 /** The project a chat belongs to (NULL = none). */
 export async function sessionProject(sessionId: string | null | undefined): Promise<string | null> {

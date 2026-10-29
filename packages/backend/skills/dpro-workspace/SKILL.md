@@ -21,7 +21,7 @@ Use these MCP tools through the owner's authenticated local session.
 ## Rules (tool `workspace_rules`, Agents › Rules)
 
 - The owner's rules for how agents work come first in your instructions under "Owner rules". Follow them in every task; when two disagree, the later one wins (everywhere, then the project, then rules for chosen agents). A rule that starts with "When …:" applies only in that case: decide whether it fits your task, and if unsure, follow it.
-- Girru basics come first for every agent; the two safety ones (secrets; asking before deleting, installing, paying or contacting outside services) are always on.
+- Some rules come with Girru and are listed first; the two safety ones (secrets; asking before deleting, installing, paying or contacting outside services) are always on.
 - `list`, `effective` (agentId, projectId: the exact list an agent gets there), `versions` and `files` (projectId) only read.
 - A project's coding app files (.girru/rules.md, the @ line in CLAUDE.md and GEMINI.md, the rules part of AGENTS.md) are written by Girru from these rules. Never edit Girru's part of those files by hand; suggest a rule change instead.
 - When you learn something every agent (or a department, or this project) should always do, suggest it: `suggest` here, or the `rule_suggest` tool in a chat. One clear sentence and a short reason; add `when` when it applies only in one case. It waits for the owner; never say it is a rule before the owner accepts it.

@@ -16,8 +16,8 @@ function fake(){const calls=[];return {calls,backend:{async request(method,path,
 test('workspace_rules: list and effective read; only rule fields come back', async () => {
  const {backend}=fake();
  const r=await callTool('workspace_rules',{operation:'list'},{backend});
- assert.match(r.content[0].text,/2 rules \(1 paused\), 1 suggestions waiting/);
- assert.deepEqual(Object.keys(r.structuredContent.rules[0]).sort(),['id','paused','projectId','reason','source','status','targets','text','version','when','who']);
+ assert.match(r.content[0].text,/2 rules \(0 come with Girru, 0 always on, 1 paused\), 1 suggestions waiting/);
+ assert.deepEqual(Object.keys(r.structuredContent.rules[0]).sort(),['id','locked','paused','projectId','reason','source','status','targets','text','version','when','who']);
  assert.doesNotMatch(JSON.stringify(r),/secret-owner-id/);
  const e=await callTool('workspace_rules',{operation:'effective',agentId:'a-dev',projectId:'p1'},{backend});
  assert.equal(e.structuredContent.rules[0].text,'Chat in Arabic');
