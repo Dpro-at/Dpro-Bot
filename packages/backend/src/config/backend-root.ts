@@ -25,5 +25,15 @@ export const installedAppsRoot = (): string => dataPath('apps');
 export const extensionRoots = (): string[] => [extensionsRoot(), installedAppsRoot()];
 /** The folder that holds an extension's own folder: the program's when it ships with it, else the Store's. */
 export function extensionBase(id: string): string {
-  return fs.existsSync(path.join(extensionsRoot(), id)) ? extensionsRoot() : installedAppsRoot();
+  // Compared with the folder names on disk: the asked-for id never becomes a path here.
+  let shipped: string[] = [];
+  try { shipped = fs.readdirSync(extensionsRoot()); } catch { /* no extensions folder */ }
+  return shipped.includes(id) ? extensionsRoot() : installedAppsRoot();
+}
+/** The folder of an app added from the Girru Store, by the name found on disk (null when there is none). */
+export function installedAppDir(id: string): string | null {
+  let names: string[] = [];
+  try { names = fs.readdirSync(installedAppsRoot()); } catch { return null; }
+  const name = names.find((n) => n === id && !n.startsWith('.'));
+  return name ? path.join(installedAppsRoot(), name) : null;
 }

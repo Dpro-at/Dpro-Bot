@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { installedAppsRoot } from '../config/backend-root.js';
+import { installedAppsRoot, installedAppDir } from '../config/backend-root.js';
 import { readStoreRepo, storeBase, type StorePackage } from './store-repo.js';
 import { workspaceBackupsDir } from './backups.js';
 
@@ -150,7 +150,8 @@ function restoreCopy(db: Awaited<ReturnType<typeof sql>>, id: string, tables: st
 
 /** What an added app keeps: its tables and how many rows each holds. */
 export async function appData(id: string): Promise<Array<{ table: string; rows: number }>> {
-  const dir = path.join(installedAppsRoot(), id);
+  const dir = installedAppDir(id);
+  if (!dir) return [];
   const tables = appTables(id, migrationFiles(dir).map((f) => fs.readFileSync(f, 'utf8')));
   const db = await sql();
   return tables.filter((t) => db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t)).map((t) => ({ table: t, rows: Number((db.prepare(`SELECT COUNT(*) AS n FROM ${quote(t)}`).get() as { n: number }).n) }));
@@ -178,6 +179,7 @@ export async function removeApp(id: string, options: { confirm?: boolean; restar
     db.prepare('DELETE FROM extension_configs WHERE extension_id = ?').run(id);
     db.prepare('DELETE FROM app_settings WHERE key = ?').run(KEY(id));
   })();
-  fs.rmSync(path.join(installedAppsRoot(), id), { recursive: true, force: true });
+  const dir = installedAppDir(id);
+  if (dir) fs.rmSync(dir, { recursive: true, force: true });
   return { ok: true, copy, restart: options.restart?.() ? 'auto' : 'manual' };
 }
