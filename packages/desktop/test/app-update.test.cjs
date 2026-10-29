@@ -51,7 +51,8 @@ test('Back up and update: checksum, backup, check the app, replace, start again'
  const s=setup();await s.u.check();
  const v=await s.u.install();
  assert.equal(v.error,null);
- assert.deepEqual(s.calls.slice(1),['sums','zip','backup','unpack'],'backup before anything changes');
+ assert.deepEqual(s.calls.slice(1),['github','sums','zip','backup','unpack'],'asks GitHub again, backs up before anything changes');
+ assert.doesNotMatch(fs.readFileSync(path.join(s.dir,'app-update.json'),'utf8'),/https?:/,'no address is saved');
  assert.ok(fs.existsSync(path.join(s.apps,'Girru.app','new.txt')),'the new app is in place');
  const old=fs.readdirSync(s.apps).find(n=>n.startsWith('.Girru.app.old-'));assert.ok(old,'the old app is kept beside it');
  assert.equal(s.relaunched(),1);

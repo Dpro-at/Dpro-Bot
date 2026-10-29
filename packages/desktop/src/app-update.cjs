@@ -134,11 +134,12 @@ async function appInfo(appPath) {
 function createUpdater({ currentVersion, settingsDir, backUp, relaunch, fetchRelease = () => get(LATEST, { json: true }), download = get, now = () => Date.now(), platform = process.platform, arch = process.arch, execPath = process.execPath, unpack = (zip, dir) => run('/usr/bin/ditto', ['-x', '-k', zip, dir]), readApp = appInfo }) {
   const stateFile = path.join(settingsDir, 'app-update.json');
   let state = { version: currentVersion, checkedAt: null, release: null, busy: null, error: null };
-  try { const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8')); state = { ...state, checkedAt: saved.checkedAt ?? null, release: saved.release ?? null }; } catch { /* first run */ }
+  // Only when it last looked is kept on disk; what GitHub offers (and where to download it) is asked again after a restart.
+  try { const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8')); state = { ...state, checkedAt: typeof saved.checkedAt === 'string' ? saved.checkedAt : null }; } catch { /* first run */ }
   const listeners = new Set();
   const set = patch => {
     state = { ...state, ...patch };
-    try { fs.writeFileSync(stateFile, JSON.stringify({ checkedAt: state.checkedAt, release: state.release }), { mode: 0o600 }); } catch { /* not important */ }
+    try { fs.writeFileSync(stateFile, JSON.stringify({ checkedAt: state.checkedAt }), { mode: 0o600 }); } catch { /* not important */ }
     for (const l of listeners) l(view());
   };
   const view = () => ({
@@ -162,8 +163,11 @@ function createUpdater({ currentVersion, settingsDir, backUp, relaunch, fetchRel
   }
 
   async function install() {
-    const r = state.release;
     if (state.busy || !view().update || !view().update.canInstall) return view();
+    // The download addresses come from GitHub's answer right now, never from anything saved.
+    let r;
+    try { r = readRelease(await fetchRelease(), state.version, platformId(platform, arch)); } catch (error) { set({ error: `Could not reach GitHub: ${error.message}` }); return view(); }
+    if (!r.available || r.version !== state.release.version || !r.zip || !r.sums) { set({ release: r, error: 'The release changed; look at it again before updating.' }); return view(); }
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'girru-update-'));
     try {
       set({ busy: 'downloading', error: null });
