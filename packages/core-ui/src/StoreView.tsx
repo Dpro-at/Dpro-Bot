@@ -28,7 +28,7 @@ export type IncludedApp='genvr'|'trading'|'terminal'|'code';
 export const sourceChip=(x:Pick<StoreItem,'id'|'source'>)=>x.source==='girru'?(x.id.startsWith('girru:')?'Made by Girru':'Girru’s registry'):x.source==='codex'?'Codex add-on':'Claude Code add-on';
 const TINT:Record<string,string>={marketing:'#E07AB0',sales:'#5FB37A',developer:'#9AA4B2',worlds:'#6FD3C7',trading:'#F0C27A',productivity:'#7AA5FF',more:'#B49AF0'};
 const ICONS=new Set<string>(['globe','chart','terminal','code','send','headset','calendar','puzzle','store']);
-const includedApp=(x:StoreItem)=>x.state==='included'?x.id.slice(6) as IncludedApp:null;
+const includedApp=(x:StoreItem)=>x.state==='included'&&x.kind==='app'?x.id.slice(6) as IncludedApp:null;
 /** Search: every kind and source; names that match first, then the rest of the words. */
 export const matchStore=(items:StoreItem[],query:string)=>{const q=query.trim().toLowerCase();if(!q)return [];const named=(x:StoreItem)=>itemName(x).toLowerCase().includes(q)||x.name.toLowerCase().includes(q);return [...items.filter(named),...items.filter(x=>!named(x)&&`${x.summary} ${x.maker} ${x.description}`.toLowerCase().includes(q))];};
 /** New first (the newest update date; items without one keep the store's order after them), or A–Z by name. */
@@ -104,7 +104,8 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
  }
  /** The one action of an item: Open what comes with Girru, Get what is free, read about the rest. */
  const act=(x:StoreItem)=>{const app=includedApp(x);if(app)onOpenApp(app);else if(x.state==='available'){setProblem('');setAdding(x);}else setPage(x.id);};
- const actionLabel=(x:StoreItem)=>x.state==='included'?'Open':x.state==='available'?'Get':null;
+ // Skills and specialties that come with Girru have no Open of their own: their page says where they are.
+ const actionLabel=(x:StoreItem)=>x.state==='included'&&includedApp(x)?'Open':x.state==='available'?'Get':null;
  const itemMenu=(x:StoreItem):MenuItem[]=>[{label:'Show details',icon:'info',run:()=>setPage(x.id)},...(actionLabel(x)?[{label:actionLabel(x)!,icon:x.state==='included'?'open':'download',run:()=>act(x)} as MenuItem]:[]),...(x.state==='installed'?['sep' as const,{label:'Remove',icon:'trash',run:()=>void remove(x)} as MenuItem]:[])];
  const onKey=(e:ReactKeyboardEvent)=>{if(e.defaultPrevented||(e.currentTarget as HTMLElement).querySelector('.dk-sheet'))return;const mod=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();if(mod&&k==='f'){e.preventDefault();search.current?.focus();}else if(mod&&e.key==='['&&page){e.preventDefault();setPage(null);}else if(mod&&k==='r'){e.preventDefault();onReload();}};
  const open=(x:StoreItem)=>setPage(x.id),ctx=(x:StoreItem)=>(e:ReactMouseEvent)=>at(e,itemMenu(x));
