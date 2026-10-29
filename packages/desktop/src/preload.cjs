@@ -32,6 +32,18 @@ contextBridge.exposeInMainWorld('dproApp', {
   openChatWindow: id => ipcRenderer.invoke('dpro:open-chat-window', String(id)),
   revealFolder: folder => ipcRenderer.invoke('dpro:reveal-folder', String(folder)),
   info: () => ipcRenderer.invoke('dpro:app-info'),
+  // MACAPP-01: updates of the installed app. The page reads and asks; installing is confirmed by the app itself.
+  appUpdate: {
+    state: () => ipcRenderer.invoke('dpro:app-update-state'),
+    check: () => ipcRenderer.invoke('dpro:app-update-check'),
+    install: () => ipcRenderer.invoke('dpro:app-update-install'),
+    openRelease: () => ipcRenderer.invoke('dpro:app-update-page'),
+    onState: callback => {
+      const listener = (_event, value) => callback(value);
+      ipcRenderer.on('dpro:app-update', listener);
+      return () => ipcRenderer.removeListener('dpro:app-update', listener);
+    },
+  },
   onNavigate: callback => {
     const listener = (_event, destination) => { if (['home', 'settings', 'account', 'about'].includes(destination)) callback(destination); };
     ipcRenderer.on('dpro:navigate', listener);

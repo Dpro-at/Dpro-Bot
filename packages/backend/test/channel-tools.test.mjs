@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 const dir = mkdtempSync(join(tmpdir(), 'ap-channel-tools-'));
 mkdirSync(join(dir, '.data'), { recursive: true });
 process.chdir(dir);
+process.env.GIRRU_EXTENSIONS_DIR = join(dir, 'extensions'); // MACAPP-01: extensions are not read from the working folder
 process.env.DATABASE_PATH = join(dir, '.data', 'agent-player.db');
 process.env.JWT_SECRET = randomBytes(64).toString('hex'); // throwaway, test only
 delete process.env.AGENT_EXEC_TOOLS;

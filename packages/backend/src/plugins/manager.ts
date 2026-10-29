@@ -1,3 +1,4 @@
+import { backendPath, extensionsRoot } from '../config/backend-root.js';
 import { safeConsole } from '../services/safe-error-log.js';
 /**
  * Plugin Manager
@@ -52,8 +53,8 @@ export class PluginManager extends EventEmitter implements IPluginManager {
     try {
       // Load plugins from directories
       const pluginDirs = [
-        './plugins', // Bundled plugins
-        './extensions', // User extensions
+        backendPath('plugins'), // Bundled plugins
+        extensionsRoot(), // Extensions that ship with the program (MACAPP-01: next to it, not the working folder)
       ];
 
       for (const dir of pluginDirs) {

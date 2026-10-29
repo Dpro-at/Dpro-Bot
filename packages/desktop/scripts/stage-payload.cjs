@@ -54,6 +54,12 @@ function refuseDevAccounts(coreUi, buildDir) {
   }
 }
 
+/** Dependencies of the backend's package.json that none of the module folders holds. */
+function missingPackages(backendDir, moduleDirs) {
+  const deps = Object.keys(JSON.parse(fs.readFileSync(path.join(backendDir, 'package.json'), 'utf8')).dependencies || {});
+  return deps.filter(name => !moduleDirs.some(dir => fs.existsSync(path.join(dir, ...name.split('/'), 'package.json'))));
+}
+
 function stage(options) {
   for (const [label, p] of [['Node runtime', options.node], ['backend node_modules', options.backendModules], ['root node_modules', options.rootModules], ['core-ui dist', options.coreUiDist]]) {
     if (!fs.existsSync(p)) throw new Error(`${label} not found: ${p}`);
@@ -71,6 +77,10 @@ function stage(options) {
   const moduleFilter = src => !SKIP_MODULES.has(path.basename(src)) && noSecrets(src);
   copy(fs.realpathSync(options.backendModules), path.join(out, 'backend', 'node_modules'), moduleFilter);
   copy(fs.realpathSync(options.rootModules), path.join(out, 'node_modules'), moduleFilter);
+  // MACAPP-01: every package the program depends on must be in the app (extensions such as
+  // Telegram and Discord load agent-connect-dpro at run time; a missing one fails quietly).
+  const missing = missingPackages(backend, [path.join(out, 'backend', 'node_modules'), path.join(out, 'node_modules')]);
+  if (missing.length) throw new Error(`packages missing from the payload: ${missing.join(', ')}`);
   // node-pty's helper must stay executable (npm may have installed it without the bit).
   for (const helper of ['build/Release/spawn-helper', `prebuilds/${process.platform}-${process.arch}/spawn-helper`]) {
     const file = path.join(out, 'backend', 'node_modules', 'node-pty', helper);
@@ -105,4 +115,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { stage, parseArgs, BACKEND_PARTS, refuseDevAccounts };
+module.exports = { stage, parseArgs, BACKEND_PARTS, refuseDevAccounts, missingPackages };

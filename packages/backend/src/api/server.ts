@@ -158,6 +158,12 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => 
 if (process.env[LAUNCH_TOKEN_ENV] && typeof process.send === 'function') {
   process.on('message', (message: unknown) => {
     if (message && typeof message === 'object' && (message as { type?: unknown }).type === 'shutdown') void shutdown();
+    // MACAPP-01: the app asks for a backup before it replaces itself with a new version.
+    if (message && typeof message === 'object' && (message as { type?: unknown }).type === 'backup') {
+      void import('../services/backups.js').then(({ backUpNow }) => backUpNow('before-update'))
+        .then((b) => process.send?.({ type: 'backup-done', ok: b.checked, id: b.id, ...(b.checked ? {} : { error: 'a part did not pass its check' }) }))
+        .catch((error: unknown) => process.send?.({ type: 'backup-done', ok: false, error: error instanceof Error ? error.message.slice(0, 200) : 'failed' }));
+    }
   });
   // The app is gone (crash, force quit): do not keep running without it.
   process.once('disconnect', () => { void shutdown(); });

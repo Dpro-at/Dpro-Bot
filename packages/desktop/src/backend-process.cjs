@@ -24,7 +24,9 @@ const newLaunchToken = () => randomBytes(32).toString('base64url');
 
 /** OS variables the backend may need (PATH for git/docker/python, home, locale, temp). Nothing else leaks in. */
 const PASS_THROUGH = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TMPDIR', 'TEMP', 'TMP',
-  'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'ComSpec', 'COMSPEC', 'PATHEXT', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'ProgramData', 'ProgramFiles'];
+  'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'ComSpec', 'COMSPEC', 'PATHEXT', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'ProgramData', 'ProgramFiles',
+  // Test runs of the app on a copy of the data: background work off, backups kept apart.
+  'AGENT_PLAYER_BACKGROUND', 'GIRRU_BACKUPS_DIR'];
 
 function backendEnv({ base = process.env, dataDir, token, allowedOrigin, extra = {} }) {
   const env = {};
@@ -120,6 +122,14 @@ function startBackend({ node, args, cwd, env, secrets = [], onLog = () => {}, on
         get running() { return !exited; },
         logTail: () => tail.slice(),
         stop: (graceMs = STOP_GRACE_MS) => { stopping = true; return stopChild(child, () => exited, exitedPromise, graceMs); },
+        // MACAPP-01: one question over the private channel (e.g. a backup before an update); resolves with the answer of replyType.
+        ask: (message, replyType, timeoutMs = 600000) => new Promise((done, fail_) => {
+          if (exited || !child.connected) return fail_(new Error('The backend is not running.'));
+          const onMessage = m => { if (m && m.type === replyType) { clearTimeout(t); child.off('message', onMessage); done(m); } };
+          const t = setTimeout(() => { child.off('message', onMessage); fail_(new Error('The backend did not answer in time.')); }, timeoutMs);
+          child.on('message', onMessage);
+          try { child.send(message); } catch (error) { clearTimeout(t); child.off('message', onMessage); fail_(error); }
+        }),
       });
     });
     exitedPromise.then(({ code, signal }) => { if (!ready && !timedOut) fail(`The backend stopped while starting (${signal || `exit code ${code}`}).`); });

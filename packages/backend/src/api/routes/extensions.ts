@@ -1,3 +1,4 @@
+import { extensionsRoot } from '../../config/backend-root.js';
 import { safeConsole } from '../../services/safe-error-log.js';
 /**
  * Extensions API Routes
@@ -21,7 +22,7 @@ const EXTENSION_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const LOCALE = /^[a-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})?$/;
 
 export async function extensionsRoutes(fastify: FastifyInstance) {
-  const extensionsDir = resolve('./extensions');
+  const extensionsDir = extensionsRoot();
   // SECURITY (S0-Q.7): authorization is decided by the route Fastify actually
   // matched (request.routeOptions.url) and its decoded params, never by a regex
   // on the raw URL. Deny by default: every route in this plugin needs an active
