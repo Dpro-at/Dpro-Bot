@@ -1,7 +1,7 @@
 // STORE-UI-01: the Store's one read, Add and Remove, and the catalogue contract.
 // Run: node --import tsx --test test/store.test.mjs  (throwaway DB, cwd and home; no network)
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {randomBytes} from 'node:crypto';
-const root=fs.mkdtempSync(path.join(os.tmpdir(),'store-'));process.chdir(root);process.env.AGENT_PLAYER_DATA_DIR=root;process.env.DATABASE_PATH=path.join(root,'test.db');process.env.JWT_SECRET=randomBytes(64).toString('hex');process.env.ENCRYPTION_KEY=randomBytes(32).toString('hex');delete process.env.AGENT_PLAYER_DB;delete process.env.GIRRU_STORE_FEATURED;
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'store-'));process.chdir(root);process.env.AGENT_PLAYER_DATA_DIR=root;process.env.DATABASE_PATH=path.join(root,'test.db');process.env.JWT_SECRET=randomBytes(64).toString('hex');process.env.ENCRYPTION_KEY=randomBytes(32).toString('hex');delete process.env.AGENT_PLAYER_DB;delete process.env.GIRRU_STORE_FEATURED;process.env.GIRRU_STORE_REPO='off'; // the local catalogue only: never the live Girru Store
 const home=path.join(root,'home'),market=path.join(home,'.claude/plugins/marketplaces/acme/.claude-plugin');fs.mkdirSync(market,{recursive:true});
 fs.writeFileSync(path.join(market,'marketplace.json'),JSON.stringify({name:'acme',plugins:[{name:'seo-audit',description:'Checks a site for search problems. More words.'}]}));
 const quiet=console.log;console.log=()=>{};
