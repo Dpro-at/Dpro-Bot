@@ -94,8 +94,9 @@ export async function setBackupsFolder(input: unknown): Promise<{ folder: string
   if (!path.isAbsolute(raw)) throw new BackupError(400, 'invalid_folder', 'The folder must be a full path');
   // Only in your home folder or on an external drive, on the canonical path (a link cannot point elsewhere).
   const folder = path.resolve(realish(path.resolve(raw)));
-  const roots = [path.resolve(realish(os.homedir())), ...(process.platform === 'darwin' ? ['/Volumes'] : process.platform === 'linux' ? ['/media', '/mnt'] : [])];
-  if (!roots.some((root) => folder.startsWith(root + path.sep))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
+  const home = path.resolve(realish(os.homedir())) + path.sep;
+  const drives = process.platform === 'darwin' ? '/Volumes/' : process.platform === 'linux' ? '/media/' : home;
+  if (!folder.startsWith(home) && !folder.startsWith(drives) && !(process.platform === 'linux' && folder.startsWith('/mnt/'))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
   for (const d of dataFolders()) if (inside(folder, realish(d)) || inside(realish(d), folder)) throw new BackupError(400, 'invalid_folder', 'Backups must be kept outside the data folder');
   fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   const { q } = await import('../repositories/sql-steps.js');
