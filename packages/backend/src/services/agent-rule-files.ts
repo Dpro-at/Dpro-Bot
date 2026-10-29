@@ -9,7 +9,7 @@
  * Girru never commits or pushes. The first write comes only from the owner's button; after
  * that a rule change re-writes the project's files by itself.
  */
-import { promises as fs } from 'node:fs';
+import { constants, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -54,12 +54,20 @@ async function folderOf(projectId: string): Promise<string> {
   if (!real || !(await fs.stat(real)).isDirectory()) throw new RuleFilesError('no_folder', 'The project folder is not there');
   return real;
 }
-/** null = missing; 'link' = a link or not a plain file (never written through). */
+/** null = missing; 'link' = a link or not a plain file (never written through). Opened once without
+ * following links, then checked and read through the same handle, so it cannot change in between. */
 async function readPlain(file: string): Promise<string | null | 'link'> {
-  const st = await fs.lstat(file).catch(() => null);
-  if (!st) return null;
-  if (st.isSymbolicLink() || !st.isFile()) return 'link';
-  return fs.readFile(file, 'utf8');
+  let fh: Awaited<ReturnType<typeof fs.open>>;
+  try { fh = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW | (constants.O_NONBLOCK ?? 0)); } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') return null;
+    if (code === 'ELOOP' || code === 'EMLINK' || code === 'ENXIO' || code === 'EISDIR') return 'link';
+    throw err;
+  }
+  try {
+    if (!(await fh.stat()).isFile()) return 'link';
+    return await fh.readFile('utf8');
+  } finally { await fh.close(); }
 }
 async function git(folder: string, ...args: string[]): Promise<string | null> {
   try { return (await run('git', ['-C', folder, ...args], { timeout: 10_000 })).stdout.trim(); } catch { return null; }
