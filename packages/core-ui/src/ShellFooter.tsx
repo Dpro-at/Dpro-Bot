@@ -32,7 +32,7 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
   // Other sections shown: measure again with the names.
   if(lastKey.current!==shownKey){lastKey.current=shownKey;if(compact){setCompact(false);return;}}
   // Names come back only once the footer really got wider: at the edge width the two layouts would swap forever (a blank window).
-  const check=()=>{if(!compact){if(el.scrollWidth>el.clientWidth+1){needed.current=el.scrollWidth;wentAt.current=el.clientWidth;setCompact(true);}}else if(el.clientWidth>=needed.current&&el.clientWidth>wentAt.current+24)setCompact(false);};check();const ro=new ResizeObserver(check);ro.observe(el);return()=>ro.disconnect();},[compact,shownKey,prefs.iconsOnly]);
+  const check=()=>{if(!compact){if(el.scrollWidth>el.clientWidth+1){needed.current=el.scrollWidth-el.clientWidth;wentAt.current=window.innerWidth;setCompact(true);}}else if(window.innerWidth>=wentAt.current+Math.max(24,needed.current))setCompact(false);};check();const ro=new ResizeObserver(check);ro.observe(el);return()=>ro.disconnect();},[compact,shownKey,prefs.iconsOnly]);
  const iconsOnly=prefs.iconsOnly||compact;
  const items=():MenuItem[]=>[
   ...prefs.order.filter(id=>entries[id].available).map((id):MenuItem=>{return {label:footerSections[id].label+(entries[id].current?' — you are here':''),icon:footerSections[id].icon,checked:!prefs.hidden.includes(id),disabled:entries[id].current,shortcut:keyOf(id),run:()=>controller.toggle(id)};}),
