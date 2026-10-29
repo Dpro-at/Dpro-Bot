@@ -1,8 +1,9 @@
 /**
  * RULES-03: the coding apps' own instruction files, from one source (Agents › Rules).
  * In a chat project's folder Girru writes the rules once, to .girru/rules.md:
- *   - CLAUDE.md and GEMINI.md get one line, `@.girru/rules.md` (both apps load @ imports);
- *   - AGENTS.md (Codex has no imports) gets the rules themselves.
+ *   - CLAUDE.md and GEMINI.md get one line, `@.girru/rules.md` (Claude Code and Gemini CLI load @ imports);
+ *   - AGENTS.md gets the rules themselves: Codex has no imports, and Antigravity (Girru's Gemini app)
+ *     reads AGENTS.md but does not expand @ lines (checked on its own in a test folder, 2026-10-29).
  * Each part sits between Girru's two markers; everything else in those files stays as it is.
  * Only these four paths, only inside the folder, never through a link. "Private" keeps them
  * out of Git with the folder's own .git/info/exclude (a file Git already tracks is left alone);
