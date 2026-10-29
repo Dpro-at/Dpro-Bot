@@ -65,7 +65,7 @@ const ROWS:Record<Place,Row>={
  * Memory has its own sub-places); without a slot (signed out, tests) the same
  * places sit on the left of the page.
  */
-export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents, client, aboutOnly = false, initialTab = 'general', initialMemoryPane = 'rules', sidebarSlot, active = true, onOpenMemory, onOpenChat, onOpenApps, onOpenTool, onOpenGenvr, onApprovals, onBoard, onAgent, mcpOpenId }: { signedIn: boolean; preference: ThemePreference; onTheme: (v: ThemePreference) => void; onAccount: () => void; onAgents?: () => void; client?: SessionClient; aboutOnly?: boolean; initialTab?: SettingsTab; initialMemoryPane?: MemorySettingsPane; sidebarSlot?: HTMLElement | null; active?: boolean; onOpenMemory?: () => void; onOpenChat?: () => void; onOpenApps?: () => void; onOpenTool?: (tool: Tool) => void; onOpenGenvr?: () => void; onApprovals?: () => void; onBoard?: () => void; onAgent?: (id: string) => void; mcpOpenId?: string }) {
+export function AppSettings({ onOpenStore, signedIn, preference, onTheme, onAccount, onAgents, client, aboutOnly = false, initialTab = 'general', initialMemoryPane = 'rules', sidebarSlot, active = true, onOpenMemory, onOpenChat, onOpenApps, onOpenTool, onOpenGenvr, onApprovals, onBoard, onAgent, mcpOpenId }: { onOpenStore?: (local: 'claude-code' | 'codex') => void; signedIn: boolean; preference: ThemePreference; onTheme: (v: ThemePreference) => void; onAccount: () => void; onAgents?: () => void; client?: SessionClient; aboutOnly?: boolean; initialTab?: SettingsTab; initialMemoryPane?: MemorySettingsPane; sidebarSlot?: HTMLElement | null; active?: boolean; onOpenMemory?: () => void; onOpenChat?: () => void; onOpenApps?: () => void; onOpenTool?: (tool: Tool) => void; onOpenGenvr?: () => void; onApprovals?: () => void; onBoard?: () => void; onAgent?: (id: string) => void; mcpOpenId?: string }) {
   const named=(t:SettingsTab):Place=>t==='models'?'replies':t==='sharing'?'move':t==='connections'?'accounts':t;
   const [query,setQuery]=useState('');const search=useRef<HTMLInputElement>(null);
   const info=useAppInfo();const [tab,setTab]=useState<Place>(named(initialTab));
@@ -110,7 +110,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='account'&&(live?<AccountSettings client={client!}/>:signIn('Account','Connect to your workspace to manage your account.'))}
       {active_==='replies'&&<>
         <PreferenceGroup title="Agent replies"><PreferenceRow title="Model for each agent" description="Select an agent to choose its model and provider." icon="cpu"><button type="button" onClick={live&&onAgents?onAgents:onAccount}>{live?'Choose agent…':'Sign in'}</button></PreferenceRow></PreferenceGroup>
-        {live&&owner&&<><PrimaryReplySettings client={client!} onAgents={onAgents}/><ReplyAppsSettings client={client!} onOpenChat={onOpenChat}/></>}
+        {live&&owner&&<><PrimaryReplySettings client={client!} onAgents={onAgents}/><ReplyAppsSettings client={client!} onOpenChat={onOpenChat} onOpenStore={onOpenStore}/></>}
       </>}
       {active_==='move'&&owner&&<WorkspacePackSettings client={client!}/>}
       {active_==='permissions'&&owner&&<>

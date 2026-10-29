@@ -21,7 +21,9 @@ export const itemName=(x:Pick<StoreItem,'name'|'source'>)=>x.source==='girru'?x.
 export type StoreKind='all'|'app'|'mcp'|'skill'|'specialty';
 export const STORE_KINDS:ReadonlyArray<[StoreKind,string,UiIconName]>=[['all','All','store'],['app','Apps','puzzle'],['mcp','MCP servers','server'],['skill','Skills','star'],['specialty','Specialties','layers']];
 /** What the page shows: a kind, a category of the row ('all' for every one), and a "See all" shelf. */
-export type StoreView={kind:StoreKind;category:string;shelf:'girru'|'new'|null};
+export type StoreView={kind:StoreKind;category:string;shelf:'girru'|'new'|null;local?:'claude-code'|'codex'|null};
+/** SA5: the coding apps whose add-ons get a place of their own ("On this computer"). */
+export const LOCAL_APPS:ReadonlyArray<['claude-code'|'codex',string]>=[['claude-code','Claude Code'],['codex','Codex']];
 export type StoreSort='new'|'az';
 export type IncludedApp='genvr'|'trading'|'terminal'|'code';
 /** Where an item comes from, in the words of its chip. */
@@ -35,6 +37,8 @@ export const matchStore=(items:StoreItem[],query:string)=>{const q=query.trim().
 export const sortStore=(items:StoreItem[],sort:StoreSort)=>sort==='az'?[...items].sort((a,b)=>itemName(a).localeCompare(itemName(b))):items.map((x,i)=>[x,i] as const).sort(([a,i],[b,j])=>(b.updated??'').localeCompare(a.updated??'')||i-j).map(([x])=>x);
 /** The items of one view, sorted. */
 export function viewItems(data:StoreData,view:StoreView,sort:StoreSort):StoreItem[]{
+ // SA5: a coding app's place lists only its add-ons turned on on this computer.
+ if(view.local)return sortStore(data.items.filter(x=>x.source===view.local&&x.present),'az');
  const shelf=view.shelf==='girru'?new Set(data.collections.find(c=>c.id==='made-by-girru')?.items??[]):null;
  return sortStore(data.items.filter(x=>(view.kind==='all'||x.kind===view.kind)&&(view.category==='all'||x.category===view.category)&&(!shelf||shelf.has(x.id))),sort);
 }
@@ -63,14 +67,14 @@ function Chips({item}:{item:StoreItem}){
  * its page (SA2); Get opens a short sheet (SA3); updates that need the owner
  * are a toolbar icon with a badge.
  */
-export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{client:SessionClient;active:boolean;sidebarSlot?:HTMLElement|null;onOpenApp:(id:IncludedApp)=>void;request?:{updates:boolean;n:number}}){
+export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{client:SessionClient;active:boolean;sidebarSlot?:HTMLElement|null;onOpenApp:(id:IncludedApp)=>void;request?:{updates:boolean;n:number;local?:'claude-code'|'codex'}}){
  const owner=client.getSnapshot().user?.role==='owner',store=useStore(client,active&&owner,0),{data,error}=store,onReload=store.reload;
  const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null}),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
  const [page,setPage]=useState<string|null>(null),[updatesOpen,setUpdatesOpen]=useState(false),[adding,setAdding]=useState<StoreItem|null>(null),[busy,setBusy]=useState(false),[problem,setProblem]=useState(''),[toast,setToast]=useState<{id:number;text:string;undo:boolean;show?:unknown}|null>(null);
  const [progress,setProgress]=useState<{item:StoreItem;step:string}|null>(null),[removing,setRemoving]=useState<{item:StoreItem;data:{table:string;rows:number}[]}|null>(null);
  const undoRef=useRef<(()=>void)|null>(null),search=useRef<HTMLInputElement>(null),scroll=useRef<HTMLDivElement>(null),{menu,at,close}=useMenu();
- useEffect(()=>{if(request?.updates)setUpdatesOpen(true);},[request?.n]);
- const show=(next:Partial<StoreView>)=>{setView(v=>({...v,shelf:null,...next}));setPage(null);setQuery('');scroll.current?.scrollTo?.(0,0);};
+ useEffect(()=>{if(request?.updates)setUpdatesOpen(true);if(request?.local){setView({kind:'all',category:'all',shelf:null,local:request.local});setPage(null);setQuery('');}},[request?.n]);
+ const show=(next:Partial<StoreView>)=>{setView(v=>({...v,shelf:null,local:null,...next}));setPage(null);setQuery('');scroll.current?.scrollTo?.(0,0);};
  const item=page?data?.items.find(x=>x.id===page)??null:null;
  const say=(text:string,undo?:()=>void)=>{undoRef.current=undo??null;setToast({id:Date.now(),text,undo:!!undo});};
  const change=async(path:string,body:object)=>{const r=await client.request({method:'POST',path,body} as never);return r.body as StoreChange;};
@@ -110,13 +114,16 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
  const onKey=(e:ReactKeyboardEvent)=>{if(e.defaultPrevented||(e.currentTarget as HTMLElement).querySelector('.dk-sheet'))return;const mod=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();if(mod&&k==='f'){e.preventDefault();search.current?.focus();}else if(mod&&e.key==='['&&page){e.preventDefault();setPage(null);}else if(mod&&k==='r'){e.preventDefault();onReload();}};
  const open=(x:StoreItem)=>setPage(x.id),ctx=(x:StoreItem)=>(e:ReactMouseEvent)=>at(e,itemMenu(x));
  const kindTitle=STORE_KINDS.find(([k])=>k===view.kind)![1],category=data?.categories.find(c=>c.id===view.category);
- const searching=!!query.trim(),home=!searching&&view.kind==='all'&&view.category==='all'&&!view.shelf;
- const title=item?itemName(item):searching?'Search':view.shelf==='girru'?'Made by Girru':view.shelf==='new'?'New in the store':category?category.title:kindTitle;
+ const searching=!!query.trim(),home=!searching&&view.kind==='all'&&view.category==='all'&&!view.shelf&&!view.local;
+ const localTitle=LOCAL_APPS.find(([k])=>k===view.local)?.[1]??null;
+ const title=item?itemName(item):searching?'Search':localTitle?localTitle:view.shelf==='girru'?'Made by Girru':view.shelf==='new'?'New in the store':category?category.title:kindTitle;
  const items=!data?[]:searching?matchStore(data.items,query):viewItems(data,view,view.shelf==='new'?'new':sort);
  const updates=data?.items.filter(x=>x.update)??[];
  const nav=<nav className="dk-sidebar store-places" aria-label="Store places">
   <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search the store" value={query} onChange={e=>{setQuery(e.target.value);setPage(null);}} placeholder="Search the store  ⌘F"/></label></div>
-  {STORE_KINDS.map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
+  {STORE_KINDS.map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
+  {data&&LOCAL_APPS.some(([src])=>data.items.some(x=>x.source===src))&&<><p className="section-label dk-label st-local-label">On this computer</p>
+   {LOCAL_APPS.filter(([src])=>data.items.some(x=>x.source===src)).map(([src,label])=><button type="button" key={src} className="nav-item dk-place" title={`Add-ons turned on in ${label} on this computer`} aria-current={view.local===src&&!searching?'page':undefined} onClick={()=>show({kind:'all',category:'all',local:src})}><UiIcon name="code" size={15}/><span className="dk-place-name">{label}</span></button>)}</>}
  </nav>;
  if(!owner)return <section className="store-workspace"><div className="apps-main"><header className="apps-toolbar"><h2>Store</h2></header><p className="st-empty">The owner of this workspace adds apps from the Store.</p></div></section>;
  return <section className="store-workspace" data-inline-sidebar={!sidebarSlot||undefined} aria-label="Store" onKeyDown={onKey}>{active&&sidebarSlot?createPortal(nav,sidebarSlot):!sidebarSlot?nav:null}
@@ -124,17 +131,19 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
   <header className="apps-toolbar">{item&&<IconButton icon="arrow-left" label="Back" shortcut="⌘[" onClick={()=>setPage(null)}/>}<h2>{title}</h2>
    <span className="st-tools"><IconButton icon="refresh" label={updates.length?`Updates that need your OK (${updates.length})`:'Updates'} badge={updates.length||undefined} onClick={()=>setUpdatesOpen(true)}/>
    <IconButton icon="more" label="More" onClick={e=>at(e,[{label:'Check for new apps',icon:'refresh',shortcut:'⌘R',run:onReload},{label:'Updates',icon:'download',run:()=>setUpdatesOpen(true)}])}/></span></header>
-  {!searching&&data&&<div className="st-cat-row" role="toolbar" aria-label="Categories">{[{id:'all',title:'All',icon:'store'},...data.categories].map(c=><button type="button" key={c.id} aria-pressed={view.category===c.id} style={{'--tint':TINT[c.id]??'var(--accent)'} as never} onClick={()=>show({category:c.id})}>{c.id!=='all'&&<UiIcon name={(ICONS.has(c.icon)?c.icon:'puzzle') as UiIconName} size={13}/>}{c.title}</button>)}</div>}
+  {!searching&&!view.local&&data&&<div className="st-cat-row" role="toolbar" aria-label="Categories">{[{id:'all',title:'All',icon:'store'},...data.categories].map(c=><button type="button" key={c.id} aria-pressed={view.category===c.id} style={{'--tint':TINT[c.id]??'var(--accent)'} as never} onClick={()=>show({category:c.id})}>{c.id!=='all'&&<UiIcon name={(ICONS.has(c.icon)?c.icon:'puzzle') as UiIconName} size={13}/>}{c.title}</button>)}</div>}
   <div className="st-scroll" ref={scroll}>
    {error&&!data?<div className="dk-empty st-empty"><p>The store could not be read.</p><button type="button" onClick={onReload}>Try again</button></div>
    :!data?<p className="st-empty" role="status">Reading the store…</p>
    :item?<AppPage item={item} data={data} onAct={act} onRemove={()=>void remove(item)} onCategory={id=>show({category:id})}/>
    :home?<Home data={data} onOpen={open} onAct={act} onMenu={ctx} onShelf={shelf=>{show({});setView(v=>({...v,shelf}));}}/>
+   :view.local&&!items.length?<p className="st-empty">No {localTitle} add-ons on this computer. When you turn some on in {localTitle}, they show here.</p>
    :!items.length?<p className="st-empty">{searching?'Nothing in the store matches.':view.kind==='all'||view.kind==='app'?'Nothing in this category yet.':`No ${kindTitle==='MCP servers'?kindTitle:kindTitle.toLowerCase()} in the store yet. They come with the store’s own catalogue.`}</p>
    :<section className="st-list" aria-label={title}>
-     {!searching&&!view.shelf&&<header className="st-list-head"><strong>{title}</strong><span className="st-seg" role="radiogroup" aria-label="Order">{(['new','az'] as const).map(s=><button type="button" key={s} role="radio" aria-checked={sort===s} onClick={()=>setSort(s)}>{s==='new'?'New':'A–Z'}</button>)}</span></header>}
+     {!searching&&!view.shelf&&!view.local&&<header className="st-list-head"><strong>{title}</strong><span className="st-seg" role="radiogroup" aria-label="Order">{(['new','az'] as const).map(s=><button type="button" key={s} role="radio" aria-checked={sort===s} onClick={()=>setSort(s)}>{s==='new'?'New':'A–Z'}</button>)}</span></header>}
      {items.map((x,i)=><Row key={x.id} item={x} rank={searching?undefined:i+1} onOpen={open} onAct={act} label={actionLabel(x)} onMenu={ctx(x)}/>)}
-     {searching&&<p className="st-help">Results from Girru, Claude Code and Codex together; the chip says where each comes from.</p>}</section>}
+     {searching&&<p className="st-help">Results from Girru, Claude Code and Codex together; the chip says where each comes from.</p>}
+     {view.local&&<p className="st-help">Turned on in {localTitle} itself. Girru shows them here and never copies their keys; turn one off in {localTitle}.</p>}</section>}
    {data&&data.limited.includes('registry')&&!item&&<p className="st-help">Girru’s registry could not be read; the rest of the store is shown.</p>}
    {data&&data.limited.includes('store')&&!item&&<p className="st-offline" role="status"><UiIcon name="refresh" size={13}/>{data.storeAsOf?`No internet — showing the store from ${new Date(data.storeAsOf).toLocaleDateString(undefined,{day:'numeric',month:'short'})}.`:'The Girru Store could not be read; the apps that come with Girru are shown.'}<button type="button" className="link" onClick={onReload}>Try again</button></p>}
   </div>

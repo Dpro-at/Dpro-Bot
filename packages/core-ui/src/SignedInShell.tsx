@@ -116,8 +116,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
   const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
-  const [storeRequest,setStoreRequest]=useState<{updates:boolean;n:number}>();
-  const openStore=(updates=false)=>{setStoreRequest(r=>({updates,n:(r?.n??0)+1}));setPage('store');};
+  const [storeRequest,setStoreRequest]=useState<{updates:boolean;n:number;local?:'claude-code'|'codex'}>();
+  const openStore=(updates=false,local?:'claude-code'|'codex')=>{setStoreRequest(r=>({updates,local,n:(r?.n??0)+1}));setPage('store');};
   // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
   // MCP connections is a place of Settings (its places nest under its row there), so every way to it opens Settings.
   useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');else if(page==='mcp')openSettings('mcp');},[page]);
@@ -227,7 +227,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       {user.role==='owner'&&<section className="page page-store" hidden={page!=='store'}><StoreWorkspace client={client} active={page==='store'} sidebarSlot={slot} request={storeRequest} onOpenApp={id=>{if(id==='code')openCode();else setPage(id);}}/></section>}
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
-      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} mcpOpenId={mcpOpen} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
+      {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} mcpOpenId={mcpOpen} onOpenStore={local=>openStore(false,local)} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
     </main>
     <ShellFooter controller={footer} settingsCurrent={page==='settings'} settingsAlert={backupFailed?'the last backup failed':undefined} onSettings={()=>backupFailed?openSettings('backups'):setPage('settings')} onCustomize={()=>openSettings('general')}
       status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>

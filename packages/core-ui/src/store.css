@@ -134,3 +134,4 @@
 .st-progress li[data-state=done]{color:var(--text)}.st-progress li[data-state=done] svg{color:#3FB97B}
 .st-progress li[data-state=now] svg{color:var(--accent)}
 .st-progress li[data-state=wait]{color:var(--muted)}
+.st-local-label{margin:14px 8px 4px}
