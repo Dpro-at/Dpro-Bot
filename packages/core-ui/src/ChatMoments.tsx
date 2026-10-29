@@ -20,7 +20,7 @@ export type Moments = {
   client?: SessionClient; conversationId?: string | null; agentName?: (id?: string) => string;
   /** CH6: an agent's short description, whose sub-agent it is, and the step each delegated agent runs now (while a reply works). */
   agentAbout?: (id?: string) => string | undefined; subAgentOf?: (id?: string) => string | undefined; steps?: readonly { agentId: string; tool: string; at: string }[];
-  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
+  onSwitchAuto?: () => void; onStartFresh?: (summary: string) => void; onReviewChanges?: () => void; onChanged?: () => void; onDecided?: () => void; onOpenApprovals?: () => void; onStop?: () => void;
   /** CH3 ⇧⌘Z: each changes card on screen, by message id — whether its changes are undone, and its own Redo. */
   changeCards?: Map<string, { undone: boolean; redo: () => void }>;
   /** CH6/CH10 team moments: put text in the box (never sent by itself), open an agent's page, open what an agent may do for one action. */
@@ -73,7 +73,7 @@ export const DENY_UNDO_MS = 6000;
  * CH6 Change the task… (a waiting hand-off only): the owner rewrites the task in the long-text editor; the server makes a
  * new paramsHash over the edited text, so Allow once covers exactly it. `onTask` hears the task the card will allow. */
 export function ApprovalCard({ call, who, what, onTask }: { call: ToolCall; who?: string; what?: string; onTask?: (text: string, changed: boolean) => void }) {
-  const { client, conversationId, onOpenApprovals, onOpenRules } = useContext(MomentsContext);
+  const { client, conversationId, onOpenApprovals, onOpenRules, onDecided } = useContext(MomentsContext);
   const [state, setState] = useState<'waiting' | 'busy' | 'review' | 'saidNo' | 'allowed' | 'denied' | 'gone'>('waiting');
   const denyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const more = useMenu();
@@ -100,7 +100,7 @@ export function ApprovalCard({ call, who, what, onTask }: { call: ToolCall; who?
     setState('busy');
     try {
       const r = await send(`/api/approvals/${id}/approve`, { paramsHash: detail.paramsHash, ...(receipt ? { verificationReceipt: receipt } : {}) });
-      if (r.status === 200) setState('allowed'); else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
+      if (r.status === 200) { setState('allowed'); onDecided?.(); } else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
     } catch { setState('review'); setNotice('No connection. Try again.'); }
   };
   useEffect(() => { const t = taskOf(detail); if (t !== null) onTask?.(t, !!detail?.editedAt); }, [detail]);
@@ -120,7 +120,7 @@ export function ApprovalCard({ call, who, what, onTask }: { call: ToolCall; who?
   };
   // The request is read at once, so its details and Allow once show without an extra step (what is shown is what is allowed).
   useEffect(() => { if (client && id && state === 'waiting' && !detail) void review(); }, [id]);
-  const sendDeny = async () => { denyTimer.current = null; setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); } catch { setState('waiting'); } };
+  const sendDeny = async () => { denyTimer.current = null; setState('busy'); try { const r = await send(`/api/approvals/${id}/deny`); setState(r.status === 200 ? 'denied' : 'waiting'); if (r.status === 200) onDecided?.(); } catch { setState('waiting'); } };
   // CH6/CH10 "You said no": a reviewed request waits a few seconds before the no is sent, so Allow now can still allow it
   // (with the owner's click and the same Allow once request; nothing is allowed by itself). Leaving the chat sends the no at once.
   const deny = () => { if (state !== 'review' || !detail) { void sendDeny(); return; } setState('saidNo'); denyTimer.current = setTimeout(() => void sendDeny(), DENY_UNDO_MS); };
