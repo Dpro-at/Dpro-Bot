@@ -60,17 +60,17 @@ test('reads at most every six hours, keeps the last good copy, and shows it with
   delete process.env.GIRRU_STORE_REPO;
 });
 
-test('the Store window: the repository words for Girru apps, its other items listed but not yet added', async () => {
+test('the Store window: the repository words for Girru apps; an item without a package is listed but cannot be added', async () => {
   const repo = async () => ({ index: fromRepo(REPO), asOf: '2026-10-29T10:00:00.000Z', fresh: true });
   const store = await readStore('owner-1', localCatalogue({ home: dir, repo }));
   const genvr = store.items.find((x) => x.id === 'girru:genvr');
   assert.equal(genvr.description, 'GenVR as the repository says it'); assert.equal(genvr.state, 'included');
   const notes = store.items.find((x) => x.id === 'store:notes');
-  assert.equal(notes.state, 'available'); assert.equal(notes.present, false);
+  assert.equal(notes.state, 'elsewhere', 'no package: nothing to add'); assert.equal(notes.present, false);
   assert.ok(store.collections.find((c) => c.id === 'new').items.includes('store:notes'));
   assert.equal(store.storeAsOf, '2026-10-29T10:00:00.000Z'); assert.ok(!store.limited.includes('store'));
   const r = await installFromStore('owner-1', 'store:notes', notes.hash);
-  assert.equal(r.ok, false); assert.match(r.message, /Girru Store comes with the next update/);
+  assert.equal(r.ok, false); assert.equal(r.code, 'not_found');
   const offline = await readStore('owner-1', localCatalogue({ home: dir, repo: async () => ({ index: null, asOf: null, fresh: false }) }));
   assert.ok(offline.limited.includes('store')); assert.ok(offline.items.some((x) => x.id === 'girru:genvr'), 'the apps that come with Girru are always there');
 });

@@ -1,4 +1,4 @@
-import { extensionsRoot } from '../config/backend-root.js';
+import { extensionBase } from '../config/backend-root.js';
 import { safeConsole } from '../services/safe-error-log.js';
 import { extensionResourcePath } from '../plugins/resource-path.js';
 /**
@@ -41,7 +41,7 @@ const PERMISSION_METADATA: Record<PermissionType, { risk: 'low' | 'medium' | 'hi
  */
 export function getExtensionPermissions(extensionId: string): PermissionType[] {
   if (typeof extensionId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(extensionId) || extensionId.includes('..')) return [];
-  const extensionsDir = extensionsRoot();
+  const extensionsDir = extensionBase(extensionId);
   let manifestPath: string;
   try {
     manifestPath = extensionResourcePath(extensionsDir, join(extensionId, 'agentplayer.plugin.json'));

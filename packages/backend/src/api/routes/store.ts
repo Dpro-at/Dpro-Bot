@@ -3,6 +3,12 @@ import {authorizeActiveRole} from '../../auth/route-guards.js';
 import {isLoopbackPeer} from './terminal.js';
 import {extensionsAvailable} from '../../plugins/extension-runner.js';
 import {readStore,localCatalogue,installFromStore,uninstallFromStore} from '../../services/store-catalogue.js';
+import {addJob} from '../../services/store-install.js';
+import {requestRestart} from '../restart-request.js';
+
+/** APPS-06: an added or removed app needs Girru to start again; the desktop app does it by itself. */
+const restart=()=>!!process.env.AGENT_PLAYER_LAUNCH_TOKEN&&requestRestart();
+const JOB=/^[0-9a-f-]{36}$/;
 
 const ID=/^[a-z0-9][a-z0-9._@:-]{0,319}$/i,HASH=/^[a-f0-9]{64}$/;
 const body=(x:unknown,keys:string[])=>!!x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).every(k=>keys.includes(k));
@@ -31,14 +37,23 @@ export async function storeRoutes(app:FastifyInstance,options:{home?:string}={})
   const b=request.body as {id?:unknown;hash?:unknown};
   if(!body(b,['id','hash'])||typeof b.id!=='string'||!ID.test(b.id)||typeof b.hash!=='string'||!HASH.test(b.hash))return reply.code(400).send({code:'invalid_input'});
   if(b.id.startsWith('registry:')&&!extensionsAvailable())return reply.code(409).send({code:'not_installable',message:'Adding apps from the registry works only with the local database.'});
-  const r=await installFromStore(request.authUser!.id,b.id,b.hash);
+  const r=await installFromStore(request.authUser!.id,b.id,b.hash,{restart});
   return r.ok?r:reply.code(r.code==='not_found'?404:409).send({code:r.code,message:r.message});
  });
  app.post('/api/store/uninstall',{config:{access:'owner'}},async(request,reply)=>{
   if(!guard(request,reply))return;
-  const b=request.body as {id?:unknown};
-  if(!body(b,['id'])||typeof b.id!=='string'||!ID.test(b.id))return reply.code(400).send({code:'invalid_input'});
-  const r=await uninstallFromStore(request.authUser!.id,b.id);
-  return r.ok?r:reply.code(409).send({code:r.code,message:r.message});
+  const b=request.body as {id?:unknown;confirm?:unknown};
+  if(!body(b,['id','confirm'])||typeof b.id!=='string'||!ID.test(b.id)||(b.confirm!==undefined&&b.confirm!==true))return reply.code(400).send({code:'invalid_input'});
+  const r=await uninstallFromStore(request.authUser!.id,b.id,{confirm:b.confirm===true,restart});
+  return r.ok?r:reply.code(409).send({code:r.code,message:r.message,...(r.data?{data:r.data}:{})});
+ });
+ // APPS-06: how adding an app from the Girru Store goes (the window asks while it waits).
+ app.get('/api/store/install/:job',{config:{access:'owner'}},async(request,reply)=>{
+  if(!guard(request,reply))return;
+  const {job}=request.params as {job:string};
+  const j=JOB.test(job)?addJob(job):null;
+  if(!j)return reply.code(404).send({code:'not_found'});
+  reply.header('Cache-Control','no-store');
+  return {step:j.step,done:j.done,...(j.done?{ok:j.ok===true,message:j.message??'',restart:j.restart??'manual'}:{})};
  });
 }

@@ -1,4 +1,4 @@
-import { extensionsRoot } from '../../config/backend-root.js';
+import { extensionBase, extensionRoots } from '../../config/backend-root.js';
 import { safeConsole } from '../../services/safe-error-log.js';
 /**
  * Extensions API Routes
@@ -22,7 +22,6 @@ const EXTENSION_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const LOCALE = /^[a-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})?$/;
 
 export async function extensionsRoutes(fastify: FastifyInstance) {
-  const extensionsDir = extensionsRoot();
   // SECURITY (S0-Q.7): authorization is decided by the route Fastify actually
   // matched (request.routeOptions.url) and its decoded params, never by a regex
   // on the raw URL. Deny by default: every route in this plugin needs an active
@@ -65,16 +64,20 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       const extensions = [];
 
       // Scan extensions directory
-      if (existsSync(extensionsDir)) {
-        const dirs = readdirSync(extensionsDir, { withFileTypes: true })
-          .filter((d) => d.isDirectory())
+      // APPS-06: the extensions that ship with the program, then those added from the Store.
+      const seen = new Set<string>();
+      for (const root of extensionRoots()) {
+        if (!existsSync(root)) continue;
+        const dirs = readdirSync(root, { withFileTypes: true })
+          .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !seen.has(d.name))
           .map((d) => d.name);
 
         for (const dirName of dirs) {
+          seen.add(dirName);
           // Try both manifest filename formats (new and old)
-          let manifestPath = join(extensionsDir, dirName, 'agentplayer.plugin.json');
+          let manifestPath = join(root, dirName, 'agentplayer.plugin.json');
           if (!existsSync(manifestPath)) {
-            manifestPath = join(extensionsDir, dirName, 'agent-player.plugin.json');
+            manifestPath = join(root, dirName, 'agent-player.plugin.json');
           }
 
           if (!existsSync(manifestPath)) continue;
@@ -312,7 +315,7 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       console.log(`[Extensions API] 🗑️  Deleted ${deletedFiles} storage file(s)`);
 
       // 6. Delete extension directory
-      const extensionPath = resolve(extensionsDir, id);
+      const extensionPath = resolve(extensionBase(id), id);
       if (existsSync(extensionPath)) {
         const { rmSync } = await import('fs');
         rmSync(extensionPath, { recursive: true, force: true });
@@ -447,7 +450,7 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       config = restoreMaskedFields(config, storedConfig);
 
       // Validate config against manifest
-      const manifestPath = join(extensionsDir, id, 'agentplayer.plugin.json');
+      const manifestPath = join(extensionBase(id), id, 'agentplayer.plugin.json');
       if (existsSync(manifestPath)) {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
         const validation = validateExtensionConfig(manifest, config);
@@ -503,9 +506,9 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       // Read manifest for each enabled extension to get frontendRoutes
       for (const { extension_id } of enabledExtensions) {
         // Try both manifest filename formats
-        let manifestPath = join(extensionsDir, extension_id, 'agentplayer.plugin.json');
+        let manifestPath = join(extensionBase(extension_id), extension_id, 'agentplayer.plugin.json');
         if (!existsSync(manifestPath)) {
-          manifestPath = join(extensionsDir, extension_id, 'agent-player.plugin.json');
+          manifestPath = join(extensionBase(extension_id), extension_id, 'agent-player.plugin.json');
         }
 
         if (!existsSync(manifestPath)) continue;
@@ -701,7 +704,7 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
     try {
       const { extensionId, locale } = request.params as { extensionId: string; locale: string };
 
-      const extensionPath = join(extensionsDir, extensionId);
+      const extensionPath = join(extensionBase(extensionId), extensionId);
       let manifestPath = join(extensionPath, 'agentplayer.plugin.json');
       if (!existsSync(manifestPath)) {
         manifestPath = join(extensionPath, 'agent-player.plugin.json');

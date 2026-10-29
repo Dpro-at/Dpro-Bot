@@ -1,4 +1,4 @@
-import { extensionsRoot } from '../config/backend-root.js';
+import { extensionsRoot, installedAppsRoot } from '../config/backend-root.js';
 import { safeConsole } from '../services/safe-error-log.js';
 /**
  * Extension Runner
@@ -105,6 +105,16 @@ export class ExtensionRunner {
       }
     }
 
+    // APPS-06: apps added from the Girru Store, in the data folder (one that ships with the program wins).
+    const added = installedAppsRoot();
+    if (existsSync(added)) {
+      for (const d of readdirSync(added, { withFileTypes: true })) {
+        if (!d.isDirectory() || d.name.startsWith('.') || extensionDirs.includes(d.name)) continue;
+        try { await this.loadExtension(d.name, fastify, cronEngine, added); }
+        catch (error: any) { console.error(`[ExtensionRunner] ❌ Failed to load app "${d.name}":`, error.message); }
+      }
+    }
+
     console.log(`[ExtensionRunner] ✅ Loaded ${this.loadedExtensions.size} extension(s)\n`);
   }
 
@@ -114,9 +124,10 @@ export class ExtensionRunner {
   private async loadExtension(
     dirName: string,
     fastify: FastifyInstance,
-    cronEngine: any
+    cronEngine: any,
+    base: string = this.extensionsDir,
   ) {
-    const extensionPath = join(this.extensionsDir, dirName);
+    const extensionPath = join(base, dirName);
 
     // Try both manifest filename formats (new and old)
     let manifestPath = join(extensionPath, 'agentplayer.plugin.json');
