@@ -80,6 +80,8 @@ const RETRY_MS = [500, 1000, 2000, 4000, 8000];
 export const PAGE_LIMIT = 100;
 /** Retries of one send after a lost answer: the same runId, so the server never makes a second turn. */
 const SEND_RETRY_MS = [600, 1500];
+/** After an approval is decided, when the open chat looks again for the run the server continues it in (it may start a moment later). */
+export const CONTINUE_RETRY_MS = [0, 300, 700, 1500, 3000, 5000];
 const NOTICES: Record<string, (e: { waitSec?: number; model?: string }) => string> = {
   rate_limited: e => `The model provider asked to slow down. Waiting ${e.waitSec ?? 30} seconds, then the reply continues.`,
   claude_key_missing: e => `No Claude key is set, so this reply uses the local model${e.model ? ` (${e.model})` : ''}.`,
@@ -121,6 +123,7 @@ export class ConversationsController {
   #epoch: number;
   #follow?: AbortController;
   #openSeq = 0;
+  #pickSeq = 0;
   #disposed = false;
   #history: string[] = [];
 
@@ -399,23 +402,38 @@ export class ConversationsController {
   }
 
   /** CHAT-BUILD-01: picks up a turn the server started by itself (the chat continuing after an approval). */
-  async refreshActive() {
+  /** True when it showed something new (a running reply it now follows, or saved messages). */
+  async refreshActive(): Promise<boolean> {
     const id = this.#state.activeId;
-    if (!this.live() || !id || this.#state.runId || this.#state.starting || this.#state.threadPhase !== 'ready') return;
+    if (!this.live() || !id || this.#state.runId || this.#state.starting || this.#state.threadPhase !== 'ready') return false;
     const seq = this.#openSeq;
     try {
       const r = await this.call('GET', `/api/chat/conversations/${id}/messages?limit=${PAGE_LIMIT}`);
-      if (!this.live() || seq !== this.#openSeq || this.#state.runId || this.#state.starting || r.status !== 200 || !record(r.body) || !Array.isArray(r.body.messages)) return;
+      if (!this.live() || seq !== this.#openSeq || this.#state.runId || this.#state.starting || r.status !== 200 || !record(r.body) || !Array.isArray(r.body.messages)) return false;
       const page = (r.body.messages as WireMessage[]).map(fromWire);
       const active = r.body.activeRunId as string | null;
       const shown = new Set(this.#state.turns.map(t => t.key));
-      if (!active && page.every(t => shown.has(t.key))) return;
+      if (!active && page.every(t => shown.has(t.key))) return false;
       const fresh = new Set(page.map(t => t.key));
       const runs = new Set(page.map(t => t.runId).filter(Boolean));
       const kept = this.#state.turns.filter(t => !fresh.has(t.key) && !t.key.startsWith('run:') && !t.key.startsWith('pending:') && !(t.runId && runs.has(t.runId)));
       this.publish({ turns: [...kept, ...page, ...(active ? [liveTurn(active, this.now())] : [])], runId: active });
       if (active) void this.follow(active, seq);
-    } catch { /* the next refresh tries again */ }
+      return true;
+    } catch { return false; /* the next refresh tries again */ }
+  }
+
+  /** An approval of the open chat was decided (in the chat or on the Approvals page): the server continues the chat in a
+   * new run, maybe a moment after it answered. Looks again a few times (bounded) and follows that run like opening the chat. */
+  async pickUpContinuation(delays: readonly number[] = CONTINUE_RETRY_MS) {
+    const id = this.#state.activeId, seq = this.#openSeq, mine = ++this.#pickSeq;
+    if (!id) return;
+    for (const ms of delays) {
+      if (ms) await new Promise(r => setTimeout(r, ms));
+      if (!this.live() || seq !== this.#openSeq || id !== this.#state.activeId || mine !== this.#pickSeq) return;
+      // A reply still shown as running ends first; the continuation starts only after it.
+      if (!this.#state.runId && await this.refreshActive()) return;
+    }
   }
 
   /** CHAT-BUILD-01: loads the page of messages before the oldest one shown. */

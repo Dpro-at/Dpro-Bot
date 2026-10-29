@@ -130,6 +130,8 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     window.addEventListener('focus', refresh);
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, [controller, mode, s.activeId]);
+  // Coming back to the chat from another page (an approval allowed in Approvals) picks up the continued reply at once.
+  useEffect(() => { if (mode === 'live' && active && s.activeId) void controller.refreshActive(); }, [controller, mode, active, s.activeId]);
 
   const submit = () => { if (s.draft.trim() || s.attachments.length) { setFollowing(true); void controller.send(); } };
   const picker = useRef<HTMLInputElement>(null);
@@ -394,7 +396,7 @@ export function ChatView({ controller, mode, productName = 'Girru', client, onAd
     // CH6/CH10 team moments: Hand it again adds to the box (never sends), Set a model opens the agent, Always allow opens What agents may do.
     onOpenAgent, onOpenRules, onDraft: (text: string) => { const d = controller.getSnapshot().draft.trim(); controller.edit(d ? `${d}\n\n${text}` : text); },
     agentAbout: (id?: string) => s.agents.find(a => a.id === id)?.about, subAgentOf: (id?: string) => s.agents.find(a => a.id === id)?.subAgentOf, onStop: () => void controller.stopAll(), agentName: (id?: string) => (id ? s.agents.find(a => a.id === id)?.name ?? id : nameOf(convAgentId)),
-    onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(),
+    onSwitchAuto: () => controller.selectModel('auto'), onReviewChanges: () => setPane('changes'), onChanged: () => void controller.refreshGit(), onDecided: () => void controller.pickUpContinuation(),
     onStartFresh: (summary: string) => { const title = activeConv?.title ?? 'the last chat'; controller.newChat(); controller.edit(`Continue from “${title}”. ${summary}`.slice(0, 4000)); } };
   return <MomentsContext.Provider value={moments}><div className="chat-layout" data-panel={pane ?? 'rail'} data-empty={empty || undefined} data-max={(maximized && termOpen) || undefined}>
   <div className="chat-screen" onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void onFiles(e.dataTransfer.files);}}}>

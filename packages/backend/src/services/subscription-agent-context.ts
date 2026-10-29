@@ -12,7 +12,7 @@ const CONTEXT_BYTES = 70000;
 const REQUEST_LIMIT = 130000;
 
 /** Instruction context only. Never loads memory, credentials or execution grants. */
-export async function subscriptionAgentContext(agentId: string): Promise<string> {
+export async function subscriptionAgentContext(agentId: string, opts: {delegatedBy?: string} = {}): Promise<string> {
   const agent = await sql().read(one<{id:string;name:string;system_prompt:string|null}>(
     'SELECT id,name,system_prompt FROM agents_config WHERE id=?',agentId));
   if (!agent) throw Error('agent_context_unavailable');
@@ -25,7 +25,8 @@ export async function subscriptionAgentContext(agentId: string): Promise<string>
     else omitted++;
   };
   append('Identity',JSON.stringify({name:agent.name}));
-  append('Team',await teamContext(agent.id).catch(()=>''));
+  // Who it is in the team (name, role, department, manager, whom it may hand work to); a hand-off says so.
+  append('Team',await teamContext(agent.id,opts).catch(()=>''));
   append('Base instructions',agent.system_prompt || '');
   const behavior = await libraryBehavior(agent.id);
   if (behavior) append('Personality',behavior.promptBlock);

@@ -58,8 +58,8 @@ test('a chat that already worked in its folder stays there: the refusal passes a
 
 test('the footer never swaps names and icons forever at the edge width (that left a blank window)', () => {
   const footer = src('ShellFooter.tsx');
-  assert.match(footer, /wentAt\.current=el\.clientWidth;setCompact\(true\)/, 'remember the width when names stopped fitting');
-  assert.match(footer, /el\.clientWidth>=needed\.current&&el\.clientWidth>wentAt\.current\+24\)setCompact\(false\)/, 'names come back only after the footer really got wider');
+  assert.match(footer, /needed\.current=el\.scrollWidth-el\.clientWidth;wentAt\.current=window\.innerWidth;setCompact\(true\)/, 'remember the window width and how much did not fit');
+  assert.match(footer, /window\.innerWidth>=wentAt\.current\+Math\.max\(24,needed\.current\)\)setCompact\(false\)/, 'names come back only once the window grew by what did not fit (the footer\'s own width changes with the layout and could swap forever)');
 });
 
 test('approval card: the request is read at once (Allow once with no extra step) and ⋯ opens Approvals', () => {
