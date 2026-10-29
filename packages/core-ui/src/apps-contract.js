@@ -64,5 +64,7 @@ export function storeResponse(path,status,body){
  return {schema:1,featured:typeof body.featured==='string'&&seen.has(body.featured)?body.featured:null,
   collections:body.collections.map(c=>({id:text(c?.id,80),title:text(c?.title,80),items:texts(c?.items,60,320).filter(id=>seen.has(id))})),
   categories:body.categories.map(c=>{if(!c||typeof c.icon!=='string'||!/^[a-z][a-z-]{0,39}$/.test(c.icon))throw Error('protocol');return {id:text(c.id,40),title:text(c.title,80),icon:c.icon};}),
-  items,limited:texts(body.limited??[],10,40)};
+  items,limited:texts(body.limited??[],10,40),
+  // APPS-06: when the Girru Store repository was last read (the copy shown without internet).
+  storeAsOf:typeof body.storeAsOf==='string'&&!Number.isNaN(Date.parse(body.storeAsOf))?body.storeAsOf.slice(0,40):null};
 }

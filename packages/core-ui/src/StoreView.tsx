@@ -113,6 +113,7 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
      {items.map((x,i)=><Row key={x.id} item={x} rank={searching?undefined:i+1} onOpen={open} onAct={act} label={actionLabel(x)} onMenu={ctx(x)}/>)}
      {searching&&<p className="st-help">Results from Girru, Claude Code and Codex together; the chip says where each comes from.</p>}</section>}
    {data&&data.limited.includes('registry')&&!item&&<p className="st-help">Girru’s registry could not be read; the rest of the store is shown.</p>}
+   {data&&data.limited.includes('store')&&!item&&<p className="st-offline" role="status"><UiIcon name="refresh" size={13}/>{data.storeAsOf?`No internet — showing the store from ${new Date(data.storeAsOf).toLocaleDateString(undefined,{day:'numeric',month:'short'})}.`:'The Girru Store could not be read; the apps that come with Girru are shown.'}<button type="button" className="link" onClick={onReload}>Try again</button></p>}
   </div>
   {updatesOpen&&<Sheet title="Updates" onClose={()=>setUpdatesOpen(false)} actions={<button type="button" className="primary" onClick={()=>setUpdatesOpen(false)}>Done</button>}>
    {updates.length?<ul className="st-updates">{updates.map(x=><li key={x.id}><StoreIcon item={x} size={28}/><span><strong>{itemName(x)}</strong><small>{x.version} → {x.update}</small></span><button type="button" onClick={()=>{setUpdatesOpen(false);setPage(x.id);}}>Details</button></li>)}</ul>
