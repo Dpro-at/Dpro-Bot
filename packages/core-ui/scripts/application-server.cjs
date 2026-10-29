@@ -41,6 +41,7 @@ const { allowedTerminal, terminalPath, terminalRoute, terminalResponse, Terminal
 const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-contract.js');
 const { allowedChartPrefs, chartPrefsRoute, chartPrefsResponse } = require('../src/chart-prefs-contract.js');
 const { allowedDepartments, departmentsRoute, departmentsResponse } = require('../src/departments-contract.js');
+const { allowedAgentRules, agentRulesRoute, agentRulesResponse } = require('../src/agent-rules-contract.js');
 const { allowedOrg, orgRoute, orgResponse, orgFields } = require('../src/org-contract.js');
 const { allowedLibrary: allowedAgentLibrary, libraryRoute: agentLibraryRoute, libraryResponse: agentLibraryResponse } = require('../src/agent-library-contract.js');
 const { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute, deviceLabel, DEVICE_LABEL_HEADER } = require('../src/account-settings-contract.js');
@@ -123,6 +124,7 @@ function allowed(method, target, body) {
   if (footerRoute(target)) return allowedFooter(method, target, body);
   if (chartPrefsRoute(target)) return allowedChartPrefs(method, target, body);
   if (departmentsRoute(target)) return allowedDepartments(method, target, body);
+  if (agentRulesRoute(target)) return allowedAgentRules(method, target, body);
   if (orgRoute(target)) return allowedOrg(method, target, body);
   if (agentLibraryRoute(target)) return allowedAgentLibrary(method, target, body);
   if (sessionsRoute(target) || updatesRoute(target)) return allowedAccountSettings(method, target, body);
@@ -207,6 +209,7 @@ function project(target, status, body) {
   if (footerRoute(target)) return footerResponse(status, body);
   if (chartPrefsRoute(target)) return chartPrefsResponse(status, body);
   if (departmentsRoute(target)) return departmentsResponse(status, body);
+  if (agentRulesRoute(target)) return agentRulesResponse(target, status, body);
   if (orgRoute(target)) return orgResponse(target, status, body);
   if (agentLibraryRoute(target)) return agentLibraryResponse(target, status, body);
   if (sessionsRoute(target) || updatesRoute(target)) return accountSettingsResponse(target, status, body);

@@ -3204,3 +3204,46 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .approval-decision>div>.approval-edit-task{margin-inline-start:auto;background:transparent;box-shadow:none;border-color:transparent;color:var(--accent);font-weight:500;padding-inline:4px}
 .approval-decision>div>.approval-edit-task:disabled{color:var(--muted)}
 .approval-decision>div:has(>.approval-edit-task){justify-content:flex-start}
+/* RULES-01: Agents › Rules — list grouped by where, the inspector, suggestions, what an agent sees. */
+.dk-place-badge { min-inline-size:16px; block-size:16px; padding:0 4px; border-radius:8px; background:var(--needs); color:#14100A; font-size:10.5px; font-weight:700; display:grid; place-items:center; }
+.rules-row { align-items:center; }
+.app-shell .rules-row[data-paused] .dk-row-main { color:var(--text-3); }
+.rules-row[data-suggested] .dk-row-icon { color:var(--needs); }
+.rules-paused { display:inline-flex; align-items:center; gap:4px; flex:none; font-size:11px; color:var(--text-3); }
+.rules-empty-actions, .rules-decide { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.rules-decide { justify-content:flex-end; }
+.rules-filter { display:grid; gap:10px; padding:10px; min-inline-size:220px; }
+.rules-inspector { display:flex; flex-direction:column; gap:16px; padding:12px 14px 18px; }
+.rules-inspector-head { display:flex; align-items:center; gap:6px; }
+.rules-inspector-head b { margin-inline-end:auto; font-size:13px; }
+.rules-switch { display:inline-flex !important; align-items:center; gap:6px; font-size:12px; color:var(--text-2); }
+.app-shell .rules-switch input { appearance:none; -webkit-appearance:none; position:relative; inline-size:30px; min-block-size:0; block-size:18px; margin:0; padding:0; border:0; border-radius:9px; background:var(--secondary); cursor:pointer; transition:background .15s; }
+.app-shell .rules-switch input::after { content:''; position:absolute; inset-block-start:2px; inset-inline-start:2px; inline-size:14px; block-size:14px; border-radius:50%; background:#fff; box-shadow:0 1px 2px #0004; transition:transform .15s; }
+.app-shell .rules-switch input:checked { background:var(--accent); }
+.app-shell .rules-switch input:checked::after { transform:translateX(12px); }
+.rules-inspector textarea { min-block-size:84px; resize:vertical; font-size:13px; line-height:1.5; }
+.rules-inspector .dk-segmented button { display:inline-flex; align-items:center; gap:5px; }
+.rules-targets { display:flex; flex-wrap:wrap; gap:6px; }
+.rules-chip { display:inline-flex; align-items:center; gap:5px; min-block-size:24px; padding:0 9px; border-radius:12px; background:transparent; box-shadow:inset 0 0 0 1px var(--border); color:var(--text-2); font-size:12px; }
+.rules-chip[aria-pressed="true"] { background:var(--row-active); color:var(--text); box-shadow:inset 0 0 0 1px var(--accent); }
+.rules-from { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 !important; font-size:12.5px !important; color:var(--text-2) !important; }
+.rules-versions { display:inline-flex; align-items:center; gap:6px; align-self:flex-start; }
+.rules-order { margin-block-start:auto; line-height:1.5; }
+.rules-sees-pick { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-block-end:12px; }
+.rules-sees { display:grid; gap:6px; margin:0 0 12px; padding-inline-start:20px; font-size:13px; }
+.rules-history { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.rules-history li { display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center; font-size:13px; }
+.rules-history li small { grid-column:1; }
+.rules-history li button { grid-row:1 / span 2; grid-column:2; }
+/* RULES-01c: two rules that disagree (the local model compared them). */
+.app-shell .rules-conflict { display:flex; gap:8px; align-items:flex-start; padding:9px 10px; margin-block-end:12px; border-radius:8px; background:var(--mem-warn-bg); color:var(--mem-warn); font-size:12.5px; line-height:1.5; }
+.app-shell .rules-conflict > svg { flex:none; margin-block-start:2px; }
+.app-shell .rules-conflict-open { display:inline-flex; gap:12px; margin-inline-start:8px; }
+/* RULES-02: a rule that applies only in a case ("When …"). */
+.app-shell .rules-when { display:inline-flex; align-items:center; gap:4px; color:var(--accent); }
+.app-shell .rules-when-lead { color:var(--accent); }
+.app-shell .rules-when-field { display:flex !important; align-items:center; gap:8px; padding:0 0 0 10px; border-radius:8px; box-shadow:inset 0 0 0 1px var(--border); }
+.app-shell .rules-when-field b { color:var(--accent); font-size:12.5px; font-weight:600; }
+.app-shell .rules-when-field input { flex:1; border:0; box-shadow:none; background:transparent; min-inline-size:0; }
+.app-shell .rules-reads { margin:0 !important; padding:9px 10px; border-radius:8px; background:color-mix(in srgb,var(--text) 5%,transparent); font-size:12px !important; color:var(--text-2) !important; line-height:1.5; }
+.app-shell .rules-reads b { color:var(--text); font-weight:600; }

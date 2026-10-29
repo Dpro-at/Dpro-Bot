@@ -27,6 +27,9 @@ export const STATUSES = ['queued', 'running', 'waiting_approval', 'completed', '
 const FINAL = new Set(['completed', 'failed', 'cancelled', 'waiting_approval']);
 const RUN_ID = /^[0-9a-f-]{36}$/i;
 
+const RULE_OPS=['list','effective','versions','suggest'];
+/** RULES-01: an MCP agent runs with the owner's session, so rule changes and decisions on suggestions stay in the app (an agent never accepts its own suggestion). */
+const RULES_REFUSED='Adding, changing, pausing, deleting rules and using or dismissing a suggestion are done by the owner in Agents \u203a Rules. This tool reads (list, effective, versions) and suggests.';
 const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties'];
 
 export const TOOL_DEFINITIONS = [
@@ -63,6 +66,11 @@ export const TOOL_DEFINITIONS = [
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['waiting','history','permissions','rules','coverage']},status:{type:'string',enum:['pending','approved','denied','executed','failed','expired']},agentId:{type:'string',maxLength:100},cursor:{type:'string',maxLength:36}},required:['operation'],additionalProperties:false},
   },
 
+  {
+    name:'workspace_rules',title:'Rules agents follow',
+    description:'Owner-session only. The owner\u2019s rules for how agents work (Agents \u203a Rules). Read: list (rules in the order agents get them, paused ones marked, and suggestions waiting), effective (agentId, projectId?: the exact list that agent gets there, the later one wins), versions (id). suggest (text, when?, reason?, projectId?, who?, targets?): propose a rule (when = the one case it applies in; leave out for always); it waits for the owner. Adding, changing, pausing, deleting rules and deciding suggestions stay with the owner in the app. who is all, departments (targets = department names) or agents (targets = agent ids); projectId null = everywhere.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:RULE_OPS},id:{type:'string',maxLength:36},text:{type:'string',maxLength:2000},when:{type:['string','null'],maxLength:300},reason:{type:'string',maxLength:500},projectId:{type:['string','null'],maxLength:64},who:{type:'string',enum:['all','departments','agents']},targets:{type:'array',maxItems:50,items:{type:'string',maxLength:120}},agentId:{type:'string',maxLength:120}},required:['operation'],additionalProperties:false},
+  },
   {
     name:'workspace_footer',title:'Footer sections',
     description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
@@ -303,6 +311,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
       case 'agents': return await agentsTool(args,deps);
       case 'workspace_approvals': return await workspaceApprovalsTool(args,deps);
+      case 'workspace_rules': return await workspaceRulesTool(args,deps);
       case 'chats': return await chatsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'account_settings': return await accountSettingsTool(args,deps);
@@ -913,6 +922,22 @@ async function chatsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Prom
 export function replyApp(model:string):string{
  for(const [id,name] of [['subscription:claude','Claude Code'],['subscription:codex','Codex'],['subscription:gemini','Gemini']] as const)if(model===id||model.startsWith(`${id}/`)||model.startsWith(`${id}:`))return name;
  return /^claude-/.test(model)?'Claude':'On this computer';
+}
+
+/** RULES-01: reads and suggestions only; a suggestion waits for the owner in Agents \u203a Rules. */
+async function workspaceRulesTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const op=args.operation as string;
+ const ruleId=()=>{if(typeof args.id!=='string'||!/^[0-9a-f-]{36}$/.test(args.id))throw new InputError('id must be a rule id from list');return args.id;};
+ const fields=(keys:string[])=>Object.fromEntries(keys.filter(k=>k in args).map(k=>[k,args[k]]));
+ const RULE=['text','when','projectId','who','targets'];
+ const rule=(r:any)=>r&&({id:r.id,text:r.text,when:r.when??null,projectId:r.projectId??null,who:r.who,targets:r.targets??[],paused:!!r.paused,status:r.status,source:r.source,reason:r.reason??null,version:r.version});
+ switch(op){
+  case 'list':{only(args,['operation']);const r=obj(await backend.request('GET','/api/agent-rules'));const rules=((r.rules as any[])??[]).map(rule),suggestions=((r.suggestions as any[])??[]).map(rule);return ok(`${rules.length} rules (${rules.filter(x=>x.paused).length} paused), ${suggestions.length} suggestions waiting. Order: everywhere, then a project, then rules for chosen agents; the later one wins.`,{rules,suggestions,departments:r.departments??[]});}
+  case 'effective':{only(args,['operation','agentId','projectId']);if(typeof args.agentId!=='string'||!args.agentId)throw new InputError('agentId is required');const qs=new URLSearchParams({agentId:args.agentId,...(typeof args.projectId==='string'&&args.projectId?{projectId:args.projectId}:{})});const rules=((obj(await backend.request('GET',`/api/agent-rules/effective?${qs}`)).rules as any[])??[]).map(rule);return ok(`${rules.length} rules reach this agent there, in this order.`,{rules});}
+  case 'versions':{only(args,['operation','id']);return ok('Earlier versions, newest first.',{versions:obj(await backend.request('GET',`/api/agent-rules/${ruleId()}/versions`)).versions??[]});}
+  case 'suggest':{only(args,['operation',...RULE,'reason']);const r=obj(await backend.request('POST','/api/agent-rules/suggestions',fields([...RULE,'reason'])));return ok('Suggested. It waits for the owner in Agents \u203a Rules.',{rule:rule(r.rule)});}
+  default:throw new InputError(RULES_REFUSED);
+ }
 }
 
 async function workspaceApprovalsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{

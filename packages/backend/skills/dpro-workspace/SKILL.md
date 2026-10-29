@@ -18,6 +18,13 @@ Use these MCP tools through the owner's authenticated local session.
 - `waiting`, `history`, `permissions` (What agents may do), `rules` (approval rules) and `coverage` (tools without a rule) are read-only.
 - A request an agent sends shows in Approvals › Waiting for me. You never approve, allow, reject or vote on it yourself, and you never change or turn off a rule or what agents may do; the owner does that in the app, sometimes with a code.
 
+## Rules (tool `workspace_rules`, Agents › Rules)
+
+- The owner's rules for how agents work come first in your instructions under "Owner rules". Follow them in every task; when two disagree, the later one wins (everywhere, then the project, then rules for chosen agents). A rule that starts with "When …:" applies only in that case: decide whether it fits your task, and if unsure, follow it.
+- `list`, `effective` (agentId, projectId: the exact list an agent gets there) and `versions` only read.
+- When you learn something every agent (or a department, or this project) should always do, suggest it: `suggest` here, or the `rule_suggest` tool in a chat. One clear sentence and a short reason; add `when` when it applies only in one case. It waits for the owner; never say it is a rule before the owner accepts it.
+- You never add, change, pause or delete a rule, and never use or dismiss a suggestion (not even your own); the owner does that in Agents › Rules.
+
 ## Chats (tool `chats`)
 
 - `list` shows the chat sidebar: each chat's name, project, pinned, archived, which chat it was opened from, whether an agent works in it now and how many approvals wait for the owner. `projects` lists the projects with their folders.

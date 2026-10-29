@@ -4,6 +4,7 @@ import {linkedSpecialtyContext} from './specialty-templates.js';
 import {centralSkills} from '../skills/central-store.js';
 import {teamContext} from './agent-org.js';
 import {knowledgeContext} from './agent-file-library.js';
+import {rulesContext} from './agent-rules.js';
 
 const CONTEXT_LIMIT = 90000;
 /** CHAT-BUILD-01: UTF-8 bytes for the agent context and for the whole reply prompt; the rest of the
@@ -12,7 +13,7 @@ const CONTEXT_BYTES = 70000;
 const REQUEST_LIMIT = 130000;
 
 /** Instruction context only. Never loads memory, credentials or execution grants. */
-export async function subscriptionAgentContext(agentId: string, opts: {delegatedBy?: string} = {}): Promise<string> {
+export async function subscriptionAgentContext(agentId: string, opts: {delegatedBy?: string; sessionId?: string|null} = {}): Promise<string> {
   const agent = await sql().read(one<{id:string;name:string;system_prompt:string|null}>(
     'SELECT id,name,system_prompt FROM agents_config WHERE id=?',agentId));
   if (!agent) throw Error('agent_context_unavailable');
@@ -27,6 +28,8 @@ export async function subscriptionAgentContext(agentId: string, opts: {delegated
   append('Identity',JSON.stringify({name:agent.name}));
   // Who it is in the team (name, role, department, manager, whom it may hand work to); a hand-off says so.
   append('Team',await teamContext(agent.id,opts).catch(()=>''));
+  // RULES-01: the owner's rules for this agent in this chat's project, in order (the later one wins).
+  append('Owner rules',await rulesContext(agent.id,{sessionId:opts.sessionId}).catch(()=>''));
   append('Base instructions',agent.system_prompt || '');
   const behavior = await libraryBehavior(agent.id);
   if (behavior) append('Personality',behavior.promptBlock);

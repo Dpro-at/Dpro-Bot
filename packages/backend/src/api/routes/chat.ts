@@ -1,5 +1,6 @@
 import {subscriptionToolLoop} from '../../services/subscription-tool-loop.js';
 import { teamContext } from '../../services/agent-org.js';
+import { rulesContext } from '../../services/agent-rules.js';
 import { knowledgeContext } from '../../services/agent-file-library.js';
 import {libraryBehavior} from '../../services/personality-library.js';
 import {frameUntrustedMemory} from '../../services/untrusted-memory-context.js';
@@ -464,7 +465,7 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
       try{
         const selectedAgent=savedReplyAgent;
         if(!selectedAgent)throw Error('agent_context_unavailable');
-        const context=await subscriptionAgentContext(selectedAgent.id);
+        const context=await subscriptionAgentContext(selectedAgent.id,{sessionId});
         const drawers=await withoutArchivedDrawers(userId,chatTurnDrawers(true,memoryScope));
         // CHAT-BUILD-01: the coding app gets the newest turns plus summaries of older ones and a bounded
         // set of top memories, instead of the whole conversation on every turn (plan usage).
@@ -592,6 +593,9 @@ export async function executeChatTurn(reply: FastifyReply, input: ChatTurnInput)
     if (agentConfig?.id && agentConfig.id !== 'small-local-agent') {
       const team = await teamContext(agentConfig.id).catch(() => '');
       if (team) resolvedSystemPrompt += `\n\n## Team\n${team}`;
+      // RULES-01: the owner's rules for this agent in this chat's project.
+      const rules = await rulesContext(agentConfig.id, { sessionId }).catch(() => '');
+      if (rules) resolvedSystemPrompt += `\n\n## Owner rules\n${rules}`;
     }
 
     if (behavior) {

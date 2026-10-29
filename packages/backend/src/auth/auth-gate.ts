@@ -165,6 +165,7 @@ export const TIER_RULES: readonly Rule[] = [
   { methods: ['POST'], exact: '/api/onboarding/team-plan', access: 'owner' },     // proposed team; reads only (ONBOARD-TEAM-01)
   { methods: ['POST'], exact: '/api/onboarding/team-distribution', access: 'owner' }, // total headcount split; reads nothing (ONBOARD-TEAM-02)
   { methods: '*', prefix: '/api/onboarding/team-batches', access: 'owner' },      // batch hire of a reviewed plan (ONBOARD-TEAM-02)
+  { methods: '*', prefix: '/api/agent-rules', access: 'owner' },     // the owner's rules for how agents work (RULES-01)
   { methods: '*', prefix: '/api/system', access: 'owner' },          // restart / shutdown
   { methods: '*', prefix: '/api/browser', access: 'owner' },         // headless browser: JS eval, file:// and SSRF
   { methods: '*', prefix: '/api/claude-local', access: 'owner' },    // reads the OS user's ~/.claude
