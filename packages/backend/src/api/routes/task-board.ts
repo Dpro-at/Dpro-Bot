@@ -30,6 +30,8 @@ import {syncDepartmentBoards,relatedBoardTasks} from '../../services/task-board.
  *   POST  /api/boards/:id/cards/:cardId/subtasks { title }        -> 201 card
  *   PUT   /api/boards/:id/cards/:cardId/links { waitsFor, on }    -> { ok }
  *   PUT   /api/boards/:id/cards/:cardId/follow { on }             -> { following }
+ *   TASKPAGE-03: GET | PUT { every, at, weekday?, agentId?, model?, paused? } | DELETE /api/boards/:id/cards/:cardId/schedule
+ *                -> { schedule } (null = it does not repeat); a board's cards carry repeat { every, at, weekday, nextRun, paused, lastResult }
  *   GET   /api/boards/tasks?projectId=  -> { tasks, problems } (TASKLOG-01: the tasks of the projects' task files, read now)
  *   POST  /api/boards/:id/cards/:cardId/task-sort { department } -> { boardId } (TASKLOG-01: a task waiting in To sort goes to that department's board)
  *   GET   /api/boards/:id/cards/:cardId/task -> { task } (TASKLOG-01: the card's task in the project's task file, or null)
@@ -51,6 +53,7 @@ import { cardConversation, chatProgress } from '../../services/chat-board.js';
 import { chatRuns } from '../../services/chat-runs.js';
 import { TO_SORT, cardChanged, projectTasks, sortTask, syncAllTasks, taskDetail, taskMarks } from '../../services/task-file.js';
 import { q } from '../../repositories/sql-steps.js';
+import { boardSchedules, deleteCardSchedule, getCardSchedule, setCardSchedule } from '../../services/card-schedules.js';
 import { addSubtask, replyDiff, setFollow, setLink, setPerson, setRelease, taskActivity, taskPage } from '../../services/task-page.js';
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -122,8 +125,9 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
     if (!ids(request.params)) return reply.code(404).send({ error: 'Board not found', code: 'not_found' });
     try {
       const board = await getBoard(owner, request.params.id, request.query?.archived === '1');
-      const marks = await taskMarks(board.id);
-      return { ...board, cards: board.cards.map((c) => ({ ...c, taskFile: marks.get(c.id) ?? null })) };
+      const marks = await taskMarks(board.id), repeats = await boardSchedules(board.id);
+      const repeat = (id: string) => { const r = repeats.get(id); return r ? { every: r.every, at: r.at, weekday: r.weekday, nextRun: r.nextRun, paused: r.paused, lastResult: r.lastResult } : null; };
+      return { ...board, cards: board.cards.map((c) => ({ ...c, taskFile: marks.get(c.id) ?? null, repeat: repeat(c.id) })) };
     } catch (err) { return fail(err, reply); }
   });
 
@@ -202,6 +206,18 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
   fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/links', { config }, async (request, reply) => {
     const k = card(request, reply); if (!k) return reply;
     try { return await setLink(k.owner, k.board, k.card, objectBody(request.body)); } catch (err) { return fail(err, reply); }
+  });
+  fastify.get<{ Params: PM }>('/api/boards/:id/cards/:cardId/schedule', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { schedule: await getCardSchedule(k.owner, k.board, k.card) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/schedule', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { schedule: await setCardSchedule(k.owner, k.board, k.card, objectBody(request.body)) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.delete<{ Params: PM }>('/api/boards/:id/cards/:cardId/schedule', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { await deleteCardSchedule(k.owner, k.board, k.card); return { schedule: null }; } catch (err) { return fail(err, reply); }
   });
   fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/follow', { config }, async (request, reply) => {
     const k = card(request, reply); if (!k) return reply;
