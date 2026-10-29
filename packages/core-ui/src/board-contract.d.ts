@@ -13,3 +13,4 @@ export const boardColors: readonly ['blue', 'green', 'orange', 'red', 'purple', 
 export function validNewBoard(x: unknown): boolean;
 export function validBoardEdit(x: unknown): boolean;
 export const cardTypes: readonly ['task', 'idea', 'bug', 'milestone', 'request'];
+export const TASK_CONTINUE_PATH: '/api/chat/task-continue';

@@ -1,6 +1,5 @@
 // CRITICAL: must stay the first import. Loads .env, then the generated
 // secrets from .data/secrets.env (INST-02), before any other module runs.
-import { syncAllTasks } from '../services/task-file.js';
 import '../config/load-env.js';
 
 // SECURITY: Default to production mode if NODE_ENV not set (L-04)
@@ -85,7 +84,7 @@ async function start() {
     if (summary.background) {
       void resumePendingImports().catch(() => console.warn('[Memory import] Saved progress unavailable; no new import started.')).finally(() => { startAutomaticProjectImports(); startDiscoveryWatch(); });
       // TASKLOG-01: read the projects' task files and watch them for changes from the coding apps.
-      void syncAllTasks(true).catch(() => undefined);
+      void import('../services/task-file.js').then((m) => m.syncAllTasks(true)).catch(() => undefined);
     }
 
     const pythonStatus = summary.background ? await probePython() : '— (background off)';

@@ -14,6 +14,8 @@ export const MAX_TITLE = 200;
 export const MAX_DESCRIPTION = 5000;
 export const MAX_COMMENT = 4000;
 const MAX_CARDS = 5000;
+/** TASKLOG-01: start a chat that continues a card's task from its project's task file. */
+export const TASK_CONTINUE_PATH = '/api/chat/task-continue';
 
 const record = x => !!x && typeof x === 'object' && !Array.isArray(x);
 const onlyKeys = (x, keys) => Object.keys(x).every(k => keys.includes(k));
@@ -47,6 +49,8 @@ export function boardPath(path) {
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'card', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/comments$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'comments', board: m[1], card: m[2] } : null;
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/task$/.exec(path);
+  if (m) return id(m[1]) && id(m[2]) ? { kind: 'task', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/labels$/.exec(path);
   if (m) return id(m[1]) ? { kind: 'labels', board: m[1] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/labels\/([^/?#]+)$/.exec(path);
@@ -109,7 +113,10 @@ export function validBoardEdit(b) {
   return b.archived === undefined || typeof b.archived === 'boolean';
 }
 
+const modelOk = x => typeof x === 'string' && (x === '' || /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(x));
 export function allowedBoard(method, path, body) {
+  if (path === TASK_CONTINUE_PATH) return method === 'POST' && record(body) && onlyKeys(body, ['boardId', 'cardId', 'agentId', 'model']) && id(body.boardId) && id(body.cardId)
+    && (body.agentId === undefined || validAgentId(body.agentId)) && (body.model === undefined || modelOk(body.model));
   if (path === BOARDS_PATH) return (method === 'GET' && body === undefined) || (method === 'POST' && validNewBoard(body));
   if (path === `${BOARDS_PATH}?archived=1`) return method === 'GET' && body === undefined;
   const p = boardPath(path);
@@ -127,17 +134,39 @@ export function allowedBoard(method, path, body) {
   if (p.kind === 'checklist') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && lineOk(body.text, 300));
   if (p.kind === 'check') return method === 'PUT' && record(body) && Object.keys(body).length >= 1 && onlyKeys(body, ['text', 'done', 'remove'])
     && (body.text === undefined || lineOk(body.text, 300)) && (body.done === undefined || typeof body.done === 'boolean') && (body.remove === undefined || body.remove === true);
+  if (p.kind === 'task') return method === 'GET' && body === undefined;
   if (p.kind === 'comments') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && textOk(body.body, MAX_COMMENT, true));
   return false;
 }
 
 export function boardRoute(path) {
-  return path === BOARDS_PATH || path === `${BOARDS_PATH}?archived=1` || boardPath(path) !== null;
+  return path === BOARDS_PATH || path === `${BOARDS_PATH}?archived=1` || path === TASK_CONTINUE_PATH || boardPath(path) !== null;
 }
 
 const fail = () => { throw Error('Invalid board response'); };
 const clip = (x, max) => (typeof x === 'string' ? (x.length > max ? x.slice(0, max) : x) : '');
 const when = x => {if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.test(x))return '';const iso=x.replace(' ','T')+(/(Z|[+-]\d{2}:\d{2})$/.test(x)?'':'Z');const value=new Date(iso);return Number.isNaN(value.getTime())?'':value.toISOString();};
+
+const taskNo = x => typeof x === 'string' && /^T-\d{1,6}$/.test(x);
+const appNames = x => (Array.isArray(x) ? [...new Set(x.filter(a => typeof a === 'string' && a.trim()).map(a => clip(a.trim(), 40)))].slice(0, 10) : []);
+/** TASKLOG-01: where a card's task lives (its number in a project's task file). */
+function taskMark(t) {
+  if (!record(t) || !taskNo(t.no) || !id(t.projectId)) return null;
+  return { no: t.no, projectId: t.projectId, projectName: clip(t.projectName, 120), problem: typeof t.problem === 'string' && t.problem ? clip(t.problem, 300) : null, apps: appNames(t.apps), finished: t.finished === true };
+}
+const lines = x => (Array.isArray(x) ? x.filter(l => typeof l === 'string').slice(0, 30).map(l => clip(l, 300)) : []);
+function taskDetail(t) {
+  if (t === null) return null;
+  const m = taskMark(t);
+  if (!m || !record(t.task)) fail();
+  const k = t.task;
+  return {
+    ...m, file: t.file === '.girru/tasks-done.md' ? '.girru/tasks-done.md' : '.girru/tasks.md', text: clip(t.text, 20000),
+    task: { no: m.no, title: clip(k.title, MAX_TITLE), state: clip(k.state, 40), department: clip(k.department, 120), agent: clip(k.agent, 120), priority: clip(k.priority, 40), done: lines(k.done), left: lines(k.left), next: lines(k.next) },
+    workedOn: Array.isArray(t.workedOn) ? t.workedOn.filter(w => record(w) && typeof w.app === 'string').slice(0, 10).map(w => ({ app: clip(w.app, 40), agent: clip(w.agent, 120), date: /^\d{4}-\d{2}-\d{2}$/.test(w.date) ? w.date : '', at: typeof w.at === 'string' ? clip(w.at, 20) : null, what: typeof w.what === 'string' ? clip(w.what, 300) : null })) : [],
+    log: Array.isArray(t.log) ? t.log.filter(l => record(l) && typeof l.app === 'string').slice(0, 5).map(l => ({ at: clip(l.at, 20), app: clip(l.app, 40), what: clip(l.what, 300) })) : [],
+  };
+}
 
 function card(c) {
   if (!record(c) || !id(c.id) || !id(c.columnId) || typeof c.title !== 'string' || !priorities.includes(c.priority) || !version(c.version)
@@ -152,6 +181,7 @@ function card(c) {
     checklist: record(c.checklist) && Number.isSafeInteger(c.checklist.done) && Number.isSafeInteger(c.checklist.total) && c.checklist.done >= 0 && c.checklist.done <= c.checklist.total ? { done: c.checklist.done, total: c.checklist.total } : { done: 0, total: 0 },
 
     conversationId: typeof c.conversationId === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/.test(c.conversationId) ? c.conversationId : null,
+    taskFile: taskMark(c.taskFile),
   };
 }
 
@@ -188,14 +218,20 @@ function error(status, body) {
   return { code };
 }
 
+const continueCodes = ['not_found', 'conversation_busy', 'rate_limited', 'no_folder', 'forbidden'];
 export function boardResponse(path, status, body) {
+  if (path === TASK_CONTINUE_PATH) {
+    const conversation = record(body) && record(body.conversation) && typeof body.conversation.id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/.test(body.conversation.id) ? { id: body.conversation.id } : null;
+    if (status === 201) { if (!conversation) fail(); return { conversation }; }
+    return { code: record(body) && continueCodes.includes(body.code) ? body.code : status === 404 ? 'not_found' : 'not_started', conversation };
+  }
   if (status !== 200 && status !== 201) return error(status, body);
   if (path === BOARDS_PATH || path === `${BOARDS_PATH}?archived=1`) {
     if (status === 201) return board(body);
     if (!record(body) || !Array.isArray(body.boards) || body.boards.length > 200) fail();
     const count = x => (Number.isSafeInteger(x) && x >= 0 ? x : 0);
     return {
-      boards: body.boards.map(b => ({ ...meta(b), cards: count(b.cards), open: count(b.open) })),
+      boards: body.boards.map(b => ({ ...meta(b), cards: count(b.cards), open: count(b.open), toSort: count(b.toSort) })),
       templates: Array.isArray(body.templates) ? body.templates.filter(t => record(t) && templateId(t.id) && Array.isArray(t.columns)).slice(0, 30)
         .map(t => ({ id: t.id, name: clip(t.name, 60), description: clip(t.description, 200), columns: t.columns.filter(c => typeof c === 'string').slice(0, 20).map(c => clip(c, 60)) })) : [],
       colors: Array.isArray(body.colors) ? body.colors.filter(c => boardColors.includes(c)) : [],
@@ -210,6 +246,7 @@ export function boardResponse(path, status, body) {
     if(new Set(tasks.map(t=>t.cardId)).size!==tasks.length)fail();return {tasks,total:body.total,limited:body.limited};
   }
   if (p.kind === 'card' || p.kind === 'cards') return card(body);
+  if (p.kind === 'task') { if (!record(body) || !('task' in body)) fail(); return { task: taskDetail(body.task) }; }
   if (p.kind === 'checklist' || p.kind === 'check') {
     if (!record(body) || !Array.isArray(body.items) || body.items.length > 50) fail();
     return { items: body.items.map(i => { if (!record(i) || !id(i.id) || typeof i.done !== 'boolean') fail(); return { id: i.id, text: clip(i.text, 300), done: i.done }; }) };

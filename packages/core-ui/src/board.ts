@@ -1,5 +1,5 @@
 import { SessionFailure } from './session-failure';
-import { BOARDS_PATH, MAX_COMMENT, MAX_DESCRIPTION, MAX_TITLE, validBoardEdit, validCardEdit, validNewBoard, validNewCard } from './board-contract.js';
+import { BOARDS_PATH, MAX_COMMENT, MAX_DESCRIPTION, MAX_TITLE, TASK_CONTINUE_PATH, validBoardEdit, validCardEdit, validNewBoard, validNewCard } from './board-contract.js';
 import type { SessionClient } from './session';
 import { cardChatPath } from './chat-board-contract.js';
 import type { ChatProgress } from './chat-board-contract.js';
@@ -15,6 +15,16 @@ export type Card = Readonly<{
   type: CardType; startDate: string | null; cover: BoardColor | null; labels: readonly string[]; checklist: Readonly<{ done: number; total: number }>;
   /** CHAT-PRO-02 I step 2: the conversation this card was made from (null = made on the board). */
   conversationId?: string | null;
+  /** TASKLOG-01: the card's task in a project's task file (null = a card of the board only). */
+  taskFile?: TaskMark | null;
+}>;
+/** TASKLOG-01: a card's task in its project's task file (.girru/tasks.md). */
+export type TaskMark = Readonly<{ no: string; projectId: string; projectName: string; problem: string | null; apps: readonly string[]; finished: boolean }>;
+export type TaskDetail = TaskMark & Readonly<{
+  file: string; text: string;
+  task: Readonly<{ no: string; title: string; state: string; department: string; agent: string; priority: string; done: readonly string[]; left: readonly string[]; next: readonly string[] }>;
+  workedOn: ReadonlyArray<Readonly<{ app: string; agent: string; date: string; at: string | null; what: string | null }>>;
+  log: ReadonlyArray<Readonly<{ at: string; app: string; what: string }>>;
 }>;
 export type CardType = 'task' | 'idea' | 'bug' | 'milestone' | 'request';
 export type Label = Readonly<{ id: string; name: string; color: BoardColor }>;
@@ -25,7 +35,7 @@ export type Comment = Readonly<{ id: string; authorKind: 'user' | 'agent'; autho
 export type AgentOption = Readonly<{ id: string; name: string }>;
 export type BoardColor = 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'pink' | 'teal' | 'gray';
 export type BoardMeta = Readonly<{ id: string; name: string; description: string; template: string; color: BoardColor; departments: readonly string[]; kind: 'company' | 'department' | 'shared'; managedDepartment?:boolean; departmentActive?:boolean; archived: boolean; version: number }>;
-export type BoardSummary = BoardMeta & Readonly<{ cards: number; open: number }>;
+export type BoardSummary = BoardMeta & Readonly<{ cards: number; open: number; /** TASKLOG-01: tasks from project files that wait in To sort. */ toSort?: number }>;
 export type Template = Readonly<{ id: string; name: string; description: string; columns: readonly string[] }>;
 export type NewBoard = { name: string; description?: string; template: string; color: BoardColor; departments: string[] };
 export type CardDraft = Readonly<{ title: string; description: string; priority: Priority; dueDate: string; agents: readonly string[]; departments: readonly string[];
@@ -42,8 +52,10 @@ export type BoardState = Readonly<{
   open?: string; draft?: CardDraft; comments: readonly Comment[]; commentsPhase: 'idle' | 'loading' | 'ready' | 'error';
   /** CHAT-PRO-02 I step 2: the open card's conversation and the progress of the agents on it. */
   chat?: Readonly<{ conversation: { id: string; title: string | null } | null; progress: ChatProgress }>;
-  /** Filters: text search, one agent, one department. */
-  filter: Readonly<{ text: string; agent: string; department: string }>;
+  /** TASKLOG-01: the open card's task as its project's task file has it. */
+  task?: Readonly<{ phase: 'loading' | 'ready' | 'error'; detail: TaskDetail | null }>;
+  /** Filters: text search, one agent, one department, one app that worked on a task (TASKLOG-01). */
+  filter: Readonly<{ text: string; agent: string; department: string; app?: string }>;
   overview?:Readonly<{tasks:RelatedTask[];total:number;limited:boolean}>; overviewError?:boolean;
   notice?: string;
 }>;
@@ -61,6 +73,7 @@ export function matches(card: Card, f: BoardState['filter']): boolean {
   const t = f.text.trim().toLowerCase();
   if (t && !card.title.toLowerCase().includes(t) && !card.description.toLowerCase().includes(t)) return false;
   if (f.agent && !card.agents.includes(f.agent)) return false;
+  if (f.app && !card.taskFile?.apps.some(a => a.toLowerCase() === f.app!.toLowerCase())) return false;
   return !f.department || card.departments.includes(f.department);
 }
 
@@ -73,7 +86,7 @@ const draftOf = (c: Card): CardDraft => Object.freeze({ title: c.title, descript
  * edits carry the card version; a conflict shows the current card.
  */
 export class BoardController {
-  #state: BoardState = Object.freeze({ owner: false, phase: 'denied', columns: [], cards: [], agents: [], boards: [], templates: [], colors: [], labels: [], checklist: [], comments: [], commentsPhase: 'idle', filter: { text: '', agent: '', department: '' } });
+  #state: BoardState = Object.freeze({ owner: false, phase: 'denied', columns: [], cards: [], agents: [], boards: [], templates: [], colors: [], labels: [], checklist: [], comments: [], commentsPhase: 'idle', filter: { text: '', agent: '', department: '', app: '' } });
   #listeners = new Set<() => void>();
   #ticket = 0; #identity = ''; #disposed = false; #unsubscribe: () => void;
   constructor(readonly client: SessionClient) { this.#unsubscribe = client.subscribe(this.#sync); this.#sync(); }
@@ -103,7 +116,10 @@ export class BoardController {
       ...(open ? {} : { open: undefined, draft: undefined, comments: [], commentsPhase: 'idle' as const }) });
   }
   #replaceCard(card: Card) {
-    const exists = this.#state.cards.some(c => c.id === card.id);
+    // A card answer without its file mark (a conflict) keeps the mark the board already shows.
+    const had = this.#state.cards.find(c => c.id === card.id);
+    if (!card.taskFile && had?.taskFile) card = { ...card, taskFile: had.taskFile };
+    const exists = !!had;
     const cards = card.archived ? this.#state.cards.filter(c => c.id !== card.id) : exists ? this.#state.cards.map(c => c.id === card.id ? Object.freeze(card) : c) : [...this.#state.cards, Object.freeze(card)];
     const last=Math.max(...this.#state.columns.map(c=>c.position));const done=this.#state.columns.find(c=>c.position===last)?.id;
     const boards=this.#state.boards.map(b=>b.id===this.#state.boardId?Object.freeze({...b,cards:cards.length,open:cards.filter(c=>c.columnId!==done).length}):b);
@@ -153,7 +169,7 @@ export class BoardController {
     if(this.hasUnsavedDraft()){this.#publish({notice:'Save or close the current task draft before switching boards.'});return;}
     if (!this.#state.boards.some(b => b.id === id) || id === this.#state.boardId) return;
     this.closeCard();
-    this.#publish({ filter: Object.freeze({ text: '', agent: '', department: '' }) });
+    this.#publish({ filter: Object.freeze({ text: '', agent: '', department: '', app: '' }) });
     await this.load(id);
   }
 
@@ -271,9 +287,10 @@ export class BoardController {
     if(this.hasUnsavedDraft()){this.#publish({notice:'Save or close the current task draft before opening another task.'});return;}
     const card = this.#state.cards.find(c => c.id === cardId);
     if (!card || !this.#state.owner) return;
-    this.#publish({ open: cardId, draft: draftOf(card), comments: [], checklist: [], commentsPhase: 'loading', notice: undefined, chat: undefined });
+    this.#publish({ open: cardId, draft: draftOf(card), comments: [], checklist: [], commentsPhase: 'loading', notice: undefined, chat: undefined, task: card.taskFile ? { phase: 'loading', detail: null } : undefined });
     const ticket = this.#ticket;
     if (card.conversationId || card.agents.length) void this.#loadChat(cardId, ticket);
+    if (card.taskFile) void this.#loadTask(cardId, ticket);
     try {
       const k = await this.client.request({ method: 'GET', path: `${BOARDS_PATH}/${this.#state.boardId}/cards/${cardId}/checklist` });
       const items = (k.body as { items?: CheckItem[] } | null)?.items;
@@ -286,7 +303,36 @@ export class BoardController {
       this.#publish(r.status === 200 && list ? { comments: Object.freeze(list.map(c => Object.freeze(c))), commentsPhase: 'ready' } : { commentsPhase: 'error' });
     } catch { if (this.#state.open === cardId) this.#publish({ commentsPhase: 'error' }); }
   }
-  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined }); }
+  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined, task: undefined }); }
+  /** TASKLOG-01: the open card's task from its project's task file. */
+  async #loadTask(cardId: string, ticket = this.#ticket) {
+    try {
+      const r = await this.client.request({ method: 'GET', path: `${BOARDS_PATH}/${this.#state.boardId}/cards/${cardId}/task` });
+      if (ticket !== this.#ticket || this.#state.open !== cardId) return;
+      const detail = r.status === 200 && record(r.body) ? (r.body.task as TaskDetail | null) : undefined;
+      this.#publish({ task: detail === undefined ? { phase: 'error', detail: null } : { phase: 'ready', detail } });
+    } catch { if (this.#state.open === cardId) this.#publish({ task: { phase: 'error', detail: null } }); }
+  }
+  refreshTask() { if (this.#state.open) void this.#loadTask(this.#state.open); }
+  /** TASKLOG-01: a new chat in the task's project where the chosen agent (and app) continues the open card's task. Gives the chat's id. */
+  async continueTask(agentId?: string, model?: string): Promise<string | null> {
+    const cardId = this.#state.open, boardId = this.#state.boardId;
+    if (!cardId || !boardId || !this.#state.owner || this.#busy()) return null;
+    const body: Record<string, unknown> = { boardId, cardId, ...(agentId ? { agentId } : {}), ...(model ? { model } : {}) };
+    this.#publish({ phase: 'saving', notice: undefined });
+    try {
+      const r = await this.client.request({ method: 'POST', path: TASK_CONTINUE_PATH, body });
+      const b = record(r.body) ? r.body : {};
+      const id = record(b.conversation) && typeof b.conversation.id === 'string' ? b.conversation.id : null;
+      const why: Record<string, string> = { conversation_busy: 'That chat is still answering.', rate_limited: 'Too many chats are working now; try again in a moment.', no_folder: 'Coding apps work only for the owner in the desktop app.', not_found: 'This task is no longer in its project’s task file.' };
+      this.#publish({ phase: 'ready', notice: r.status === 201 ? undefined : `${why[String(b.code)] ?? 'The chat did not start.'}${id ? ' The chat was made; open it to try again.' : ''}` });
+      if (r.status === 201 || id) void this.#loadChat(cardId);
+      return id;
+    } catch {
+      this.#publish({ phase: 'ready', notice: 'Continue: the result is unknown. Look in Chat.' });
+      return null;
+    }
+  }
   /** The open card's conversation and who works on it (read again on demand). */
   async #loadChat(cardId: string, ticket = this.#ticket) {
     try {
