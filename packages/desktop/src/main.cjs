@@ -297,6 +297,32 @@ ipcMain.handle('dpro:app-info', event => {
   if (!mainWindow || event.sender !== mainWindow.webContents || !appOrigin) return null;
   return { version: app.getVersion(), connection: loadSettings(settingsDir()).mode };
 });
+// MACAPP-01: updates of the installed app (Settings › About and updates). Only the main
+// window's own Girru page may ask; installing backs up first and replaces the app.
+let updater = null;
+const fromAppPage = event => !!mainWindow && !!appOrigin && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame;
+function startUpdater() {
+  if (!app.isPackaged || updater) return;
+  updater = require('./app-update.cjs').createUpdater({
+    currentVersion: app.getVersion(), settingsDir: settingsDir(),
+    backUp: () => runtime ? runtime.backUp() : Promise.resolve({ ok: false, error: 'Girru is not running here' }),
+    relaunch: () => { app.relaunch(); app.quit(); },
+  });
+  updater.cleanOld();
+  updater.onChange(view => { if (mainWindow && appOrigin) mainWindow.webContents.send('dpro:app-update', view); });
+  const daily = () => { void updater.checkIfDue(); };
+  setTimeout(daily, 60_000).unref?.();
+  setInterval(daily, 3_600_000).unref?.();
+}
+ipcMain.handle('dpro:app-update-state', event => fromAppPage(event) && updater ? updater.view() : null);
+ipcMain.handle('dpro:app-update-check', event => fromAppPage(event) && updater ? updater.check() : null);
+ipcMain.handle('dpro:app-update-install', async event => {
+  if (!fromAppPage(event) || !updater || !updater.view().update) return null;
+  const v = updater.view().update.version;
+  const answer = await dialog.showMessageBox(mainWindow, { type: 'question', message: `Back up and update to Girru ${v}?`, detail: 'Girru makes a backup of your data, puts the new version in place and starts again. You sign in again.', buttons: ['Cancel', 'Back up and update'], defaultId: 1, cancelId: 0 });
+  return answer.response === 1 ? updater.install() : updater.view();
+});
+ipcMain.handle('dpro:app-update-page', event => { if (fromAppPage(event) && updater?.view().update) void shell.openExternal(updater.view().update.page); return null; });
 async function chooseWorkspace() {
   const result = await dialog.showMessageBox(mainWindow, { type: 'question', message: 'Open another workspace?', detail: 'This closes your current session and stops this local engine. Your saved conversations and keys stay in their existing folders.', buttons: ['Cancel', 'Choose workspace'], defaultId: 0, cancelId: 0 });
   if (result.response !== 1) return;
@@ -343,6 +369,7 @@ async function boot() {
     onLog: line => { editorLog ||= openLog(path.join(settingsDir(), 'logs', 'editor.log')); editorLog.write(line); },
   });
   await applyMode();
+  startUpdater();
 }
 
 // The app lives in one window: closing it quits (and stops the backend) on every OS.

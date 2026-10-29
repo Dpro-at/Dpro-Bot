@@ -27,7 +27,7 @@ test('email failures use FastifyReply and never attempt real delivery',async()=>
 });
 test('extension permission refusal keeps its error and records valid audit severity',async()=>{
  const {createExtensionApi}=await import('../src/plugins/sdk.ts');const app=Fastify();const registrations=[];const engine={register:(...args)=>registrations.push(args)};
- process.chdir(root);
+ process.chdir(root);process.env.GIRRU_EXTENSIONS_DIR=path.join(root,'extensions');
  try{
   const api=createExtensionApi('fixture-denied',app,db,engine,root);
   assert.throws(()=>api.db,/missing permission: database/);
@@ -36,7 +36,7 @@ test('extension permission refusal keeps its error and records valid audit sever
   const rows=db.prepare("SELECT severity FROM audit_logs WHERE event_type='extension.permission.denied' ORDER BY id").all();assert.equal(rows.length,3);assert.deepEqual(rows.map(r=>r.severity).sort(),['error','warning','warning']);assert.equal(registrations.length,0);
   const dir=path.join(root,'extensions/fixture-allowed');fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'agentplayer.plugin.json'),JSON.stringify({permissions:['cron']}));
   const allowed=createExtensionApi('fixture-allowed',app,db,engine,dir);allowed.registerCronJob('0 0 * * *',async()=>{},'job');assert.equal(registrations.length,1);assert.equal(registrations[0][0],'ext:fixture-allowed:job');assert.equal(registrations[0][1],'0 0 * * *');assert.equal(typeof registrations[0][2],'function');assert.equal(db.prepare("SELECT severity FROM audit_logs WHERE event_type='extension.cron.registered'").get().severity,'info');
- }finally{process.chdir(backend);await app.close();}
+ }finally{process.chdir(backend);delete process.env.GIRRU_EXTENSIONS_DIR;await app.close();}
 });
 test('example result decoder preserves structured values and rejects malformed consumed fields',async()=>{
  const {exampleData}=await import('../src/tools/example-data.ts');

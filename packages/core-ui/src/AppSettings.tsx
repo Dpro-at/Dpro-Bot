@@ -16,6 +16,7 @@ import {UpdateSettings} from './UpdateSettings';
 import {DepartmentsSettings} from './DepartmentsSettings';
 import {SpecialtyUpdates} from './SpecialtyUpdates';
 import {SettingsBackups} from './SettingsBackups';
+import {AppUpdateSettings,appUpdateBridge} from './AppUpdateSettings';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { SessionClient } from './session';
@@ -129,7 +130,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='backups'&&owner&&<SettingsBackups client={client!} active={active}/>}
       {active_==='about'&&<>
         <div className="settings-about-head"><span className="settings-about-mark" aria-hidden="true">G</span><div><strong>Girru</strong><small>Version {info?.version??'development preview'} · {info?(info.connection==='local'?'runs on this computer':'connected installation'):'local browser preview'}</small></div></div>
-        {live&&owner?<UpdateSettings client={client!}/>:<PreferenceGroup title="Updates"><PreferenceRow title="Manual updates" description="Automatic updates are not available in this build. Install a new version by hand." icon="refresh"><span className="preference-status">Not available</span></PreferenceRow></PreferenceGroup>}
+        {owner&&appUpdateBridge()?<AppUpdateSettings bridge={appUpdateBridge()!}/>:live&&owner?<UpdateSettings client={client!}/>:<PreferenceGroup title="Updates"><PreferenceRow title="Manual updates" description="Automatic updates are not available in this build. Install a new version by hand." icon="refresh"><span className="preference-status">Not available</span></PreferenceRow></PreferenceGroup>}
         {live&&owner&&<PreferenceGroup title="Skills and specialties"><PreferenceRow title="Content updates" description="See whether the skills and specialties that came with Girru have newer content, and choose which to take." icon="refresh"><button type="button" onClick={()=>setContentUpdates(true)}>Check</button></PreferenceRow></PreferenceGroup>}
         {contentUpdates&&<SpecialtyUpdates client={client!} onClose={()=>setContentUpdates(false)} onApplied={()=>{}}/>}
         <PreferenceGroup title="This installation" note="The log folder and the workspace choice stay in the program menu (Help, File)."><PreferenceRow title="Connection" icon="link"><span className="preference-status">{info?(info.connection==='local'?'This computer':'Connected installation'):'Local browser preview'}</span></PreferenceRow></PreferenceGroup>

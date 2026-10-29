@@ -33,10 +33,12 @@ test('permission manifests cannot escape the extensions root or grant string-sha
   const oldData = process.env.AGENT_PLAYER_DATA_DIR;
   const oldDatabase = process.env.DATABASE_PATH;
   process.chdir(root);
+  process.env.GIRRU_EXTENSIONS_DIR = path.join(root, 'extensions');
   process.env.AGENT_PLAYER_DATA_DIR = path.join(root, 'data');
   process.env.DATABASE_PATH = path.join(root, 'data', 'test.db');
   t.after(() => {
     process.chdir(originalCwd);
+    delete process.env.GIRRU_EXTENSIONS_DIR;
     if (oldData === undefined) delete process.env.AGENT_PLAYER_DATA_DIR; else process.env.AGENT_PLAYER_DATA_DIR = oldData;
     if (oldDatabase === undefined) delete process.env.DATABASE_PATH; else process.env.DATABASE_PATH = oldDatabase;
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

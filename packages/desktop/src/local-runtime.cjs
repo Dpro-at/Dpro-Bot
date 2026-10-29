@@ -94,7 +94,9 @@ function createLocalRuntime(options) {
     return result;
   }
 
-  return { start, stop, get state() { return state; }, get backendPid() { return backend ? backend.pid : null; } };
+  /** MACAPP-01: a "before update" backup by the running program (Settings › Backups). */
+  const backUp = () => backend ? backend.ask({ type: 'backup', kind: 'before-update' }, 'backup-done') : Promise.resolve({ ok: false, error: 'Girru is not running' });
+  return { start, stop, backUp, get state() { return state; }, get backendPid() { return backend ? backend.pid : null; } };
 }
 
 /** Append-only redacted log file (0600); cut to empty when it grows past maxBytes at open. */

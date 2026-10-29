@@ -1,3 +1,4 @@
+import { extensionsRoot } from '../config/backend-root.js';
 import { safeConsole } from '../services/safe-error-log.js';
 /**
  * Extension Runner
@@ -58,7 +59,7 @@ export class ExtensionRunner {
   private loadedExtensions = new Map<string, Extension>();
   private extensionsDir: string;
 
-  constructor(extensionsDir: string = './extensions') {
+  constructor(extensionsDir: string = extensionsRoot()) {
     this.extensionsDir = resolve(extensionsDir);
   }
 
