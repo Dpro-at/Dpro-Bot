@@ -24,7 +24,9 @@ const newLaunchToken = () => randomBytes(32).toString('base64url');
 
 /** OS variables the backend may need (PATH for git/docker/python, home, locale, temp). Nothing else leaks in. */
 const PASS_THROUGH = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TMPDIR', 'TEMP', 'TMP',
-  'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'ComSpec', 'COMSPEC', 'PATHEXT', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'ProgramData', 'ProgramFiles'];
+  'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'ComSpec', 'COMSPEC', 'PATHEXT', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'ProgramData', 'ProgramFiles',
+  // Test runs of the app on a copy of the data: background work off, backups kept apart.
+  'AGENT_PLAYER_BACKGROUND', 'GIRRU_BACKUPS_DIR'];
 
 function backendEnv({ base = process.env, dataDir, token, allowedOrigin, extra = {} }) {
   const env = {};
