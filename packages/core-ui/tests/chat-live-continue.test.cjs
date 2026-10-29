@@ -92,7 +92,7 @@ test('switching to another chat stops the look-again for the old one', async () 
 
 test('wiring: Allow once / Deny in the chat, a decision on the Approvals page and coming back to the chat all look for the continued reply', () => {
   const m = src('ChatMoments.tsx');
-  assert.match(m, /if \(r\.status === 200\) \{ setState\('allowed'\); onDecided\?\.\(\); \}/);
+  assert.match(m, /if \(r\.status === 200\) \{ setState\('allowed'\); onDecided\?\.\(\); return; \}/);
   assert.match(m, /if \(r\.status === 200\) onDecided\?\.\(\); \}/);
   const v = src('ChatView.tsx');
   assert.match(v, /onDecided: \(\) => void controller\.pickUpContinuation\(\)/);
@@ -101,4 +101,14 @@ test('wiring: Allow once / Deny in the chat, a decision on the Approvals page an
   assert.match(shell, /const decided=useCallback\(\(\)=>\{reloadApprovals\(\);void chat\?\.pickUpContinuation\(\);\},\[reloadApprovals,chat\]\);/);
   assert.match(shell, /onDecision=\{decided\}/);
   assert.doesNotMatch(src('conversations.ts'), /localStorage|sessionStorage/);
+});
+
+test('Allow once that loses to a decision made elsewhere shows the real outcome, not "not allowed"', () => {
+  const s = src('ChatMoments.tsx');
+  const allow = s.slice(s.indexOf('const allow = async'), s.indexOf('const saveTask'));
+  assert.match(allow, /Decided in another place first/);
+  assert.match(allow, /GET', path: `\/api\/approvals\/\$\{id\}`/);
+  assert.match(allow, /v\.status !== 'pending'/);
+  assert.ok(allow.indexOf("setState('allowed'); onDecided?.(); }") > allow.indexOf('Decided in another place first'), 'an approval made elsewhere still picks up the continuation');
+  assert.ok(allow.lastIndexOf('It was not allowed') > allow.indexOf("v.status !== 'pending'"), 'the refusal notice shows only while it still waits');
 });

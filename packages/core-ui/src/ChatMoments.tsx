@@ -100,7 +100,15 @@ export function ApprovalCard({ call, who, what, onTask }: { call: ToolCall; who?
     setState('busy');
     try {
       const r = await send(`/api/approvals/${id}/approve`, { paramsHash: detail.paramsHash, ...(receipt ? { verificationReceipt: receipt } : {}) });
-      if (r.status === 200) { setState('allowed'); onDecided?.(); } else { setState('review'); setNotice('It was not allowed. Open Approvals to check it.'); }
+      if (r.status === 200) { setState('allowed'); onDecided?.(); return; }
+      // Decided in another place first (Approvals, another window): show what really happened.
+      const d = await client!.request({ method: 'GET', path: `/api/approvals/${id}` } as never);
+      const v = (d.body as any)?.approval as Detail | undefined;
+      if (d.status === 200 && v && v.status !== 'pending') {
+        if (v.status === 'denied') setState('denied'); else if (v.status === 'expired') setState('gone'); else { setState('allowed'); onDecided?.(); }
+        return;
+      }
+      setState('review'); setNotice('It was not allowed. Open Approvals to check it.');
     } catch { setState('review'); setNotice('No connection. Try again.'); }
   };
   useEffect(() => { const t = taskOf(detail); if (t !== null) onTask?.(t, !!detail?.editedAt); }, [detail]);
