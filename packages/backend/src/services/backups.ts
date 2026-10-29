@@ -98,13 +98,17 @@ export async function setBackupsFolder(input: unknown): Promise<{ folder: string
   const drives = process.platform === 'darwin' ? '/Volumes/' : process.platform === 'linux' ? '/media/' : home;
   if (!folder.startsWith(home) && !folder.startsWith(drives) && !(process.platform === 'linux' && folder.startsWith('/mnt/'))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
   for (const d of dataFolders()) if (inside(folder, realish(d)) || inside(realish(d), folder)) throw new BackupError(400, 'invalid_folder', 'Backups must be kept outside the data folder');
-  fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   const { q } = await import('../repositories/sql-steps.js');
   await q.run(APP_SETTINGS_SQL);
   await q.run('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at', FOLDER_KEY, folder, Date.now());
   // Read back from the database: every path the backups use comes from the saved setting, not the request.
   await loadBackupsFolder();
   const saved = backupsFolder();
+  try { fs.mkdirSync(saved, { recursive: true, mode: 0o700 }); } catch {
+    await q.run('DELETE FROM app_settings WHERE key = ?', FOLDER_KEY);
+    await loadBackupsFolder();
+    throw new BackupError(400, 'invalid_folder', 'That folder cannot be made');
+  }
   return { folder: saved, cloud: isCloudFolder(saved) };
 }
 
