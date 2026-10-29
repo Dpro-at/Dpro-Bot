@@ -3,15 +3,12 @@
  *
  * github.com/Dpro-at/girru-store keeps one folder per item and an index.json built
  * from them. Girru reads that index when the Store opens (at most every few hours),
- * keeps the last good copy in the data folder, and shows it when there is no
+ * keeps the last good copy (checked) in the database, and shows it when there is no
  * internet ("showing the store from <date>"). Reading never installs anything.
  * Everything goes through parseStoreIndex, so the repository cannot widen what the
  * Store shows. Items are free only; the repository's `pricing` field is ignored
  * until paid apps open (STORE-PAID-01).
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { dataPath } from '../config/data-root.js';
 import { parseStoreIndex, type StoreIndex } from './store-index.js';
 
 export const STORE_INDEX_URL = 'https://raw.githubusercontent.com/Dpro-at/girru-store/main/index.json';
@@ -39,20 +36,24 @@ export function fromRepo(raw: unknown): StoreIndex {
   });
 }
 
-const cacheFile = () => dataPath('store', 'girru-store.json');
-function readCache(): { fetchedAt: string; index: StoreIndex } | null {
+// The last good copy: the checked index (never the raw answer), kept in app_settings.
+const CACHE_KEY = 'store.girru-store';
+const APP_SETTINGS_SQL = 'CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)';
+async function readCache(): Promise<{ fetchedAt: string; index: StoreIndex } | null> {
   try {
-    const c = JSON.parse(fs.readFileSync(cacheFile(), 'utf8')) as { fetchedAt?: unknown; raw?: unknown };
+    const { q } = await import('../repositories/sql-steps.js');
+    const row = await q.one<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', CACHE_KEY);
+    if (!row) return null;
+    const c = JSON.parse(row.value) as { fetchedAt?: unknown; index?: unknown };
     if (typeof c.fetchedAt !== 'string' || Number.isNaN(Date.parse(c.fetchedAt))) return null;
-    return { fetchedAt: c.fetchedAt, index: fromRepo(c.raw) };
+    return { fetchedAt: c.fetchedAt, index: parseStoreIndex(c.index) };
   } catch { return null; }
 }
-function writeCache(fetchedAt: string, raw: unknown) {
+async function writeCache(fetchedAt: string, index: StoreIndex) {
   try {
-    fs.mkdirSync(path.dirname(cacheFile()), { recursive: true, mode: 0o700 });
-    const tmp = `${cacheFile()}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ fetchedAt, raw }), { mode: 0o600 });
-    fs.renameSync(tmp, cacheFile());
+    const { q } = await import('../repositories/sql-steps.js');
+    await q.run(APP_SETTINGS_SQL);
+    await q.run('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at', CACHE_KEY, JSON.stringify({ fetchedAt, index }), Date.now());
   } catch { /* the Store still shows what it read now */ }
 }
 
@@ -64,7 +65,7 @@ function writeCache(fetchedAt: string, raw: unknown) {
 export async function readStoreRepo(options: { now?: Date; fetch?: Fetch } = {}): Promise<RepoRead> {
   if ((process.env.GIRRU_STORE_REPO ?? '').trim().toLowerCase() === 'off') return { index: null, asOf: null, fresh: true };
   const now = options.now ?? new Date();
-  const cached = readCache();
+  const cached = await readCache();
   if (cached && now.getTime() - Date.parse(cached.fetchedAt) < MAX_AGE_MS) return { index: cached.index, asOf: cached.fetchedAt, fresh: true };
   try {
     const get = options.fetch ?? (globalThis.fetch as unknown as Fetch);
@@ -72,10 +73,9 @@ export async function readStoreRepo(options: { now?: Date; fetch?: Fetch } = {})
     if (!res.ok) throw new Error(`status ${res.status}`);
     const text = await res.text();
     if (text.length > MAX_BYTES) throw new Error('too large');
-    const raw = JSON.parse(text) as unknown;
-    const index = fromRepo(raw);
+    const index = fromRepo(JSON.parse(text) as unknown);
     const fetchedAt = now.toISOString();
-    writeCache(fetchedAt, raw);
+    await writeCache(fetchedAt, index);
     return { index, asOf: fetchedAt, fresh: true };
   } catch {
     return cached ? { index: cached.index, asOf: cached.fetchedAt, fresh: false } : { index: null, asOf: null, fresh: false };

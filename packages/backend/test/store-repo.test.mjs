@@ -3,7 +3,7 @@
 // No network: GitHub is a fake. Run: node --import tsx --test test/store-repo.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,10 +11,16 @@ const backendDir = process.cwd();
 const dir = mkdtempSync(join(tmpdir(), 'ap-store-repo-'));
 process.env.AGENT_PLAYER_DATA_DIR = join(dir, '.data');
 process.env.HOME = dir;
+process.env.DATABASE_PATH = join(dir, '.data', 'agent-player.db');
+process.env.JWT_SECRET = 'x'.repeat(64); // throwaway, test only
+process.env.NODE_ENV = 'test';
 mkdirSync(join(dir, '.data'), { recursive: true });
 globalThis.fetch = async (url) => { throw new Error(`unexpected network call in test: ${url}`); };
 const quiet = () => {}; console.log = quiet; console.warn = quiet; console.error = quiet;
 
+const { getDatabase } = await import(join(backendDir, 'src/db/database.ts'));
+await getDatabase().initialize();
+const saved = () => getDatabase().prepare("SELECT value FROM app_settings WHERE key = 'store.girru-store'").get()?.value ?? '';
 const { readStoreRepo, fromRepo, STORE_INDEX_URL } = await import(join(backendDir, 'src/services/store-repo.ts'));
 const { localCatalogue, readStore, installFromStore } = await import(join(backendDir, 'src/services/store-catalogue.ts'));
 
@@ -39,14 +45,15 @@ test('reads at most every six hours, keeps the last good copy, and shows it with
   calls = 0;
   let r = await readStoreRepo({ now: t0, fetch: github(REPO) });
   assert.equal(r.fresh, true); assert.equal(r.asOf, t0.toISOString()); assert.equal(r.index.items.length, 2); assert.equal(calls, 1);
-  assert.ok(existsSync(join(dir, '.data', 'store', 'girru-store.json')));
+  assert.match(saved(), /girru:genvr/, 'the checked copy is kept in the database');
+  assert.doesNotMatch(saved(), /pricing/, 'never the raw answer');
   r = await readStoreRepo({ now: new Date(t0.getTime() + 3_600_000), fetch: github(REPO) });
   assert.equal(calls, 1, 'young copy: GitHub is not asked again');
   r = await readStoreRepo({ now: new Date(t0.getTime() + 7 * 3_600_000), fetch: down });
   assert.equal(calls, 2); assert.equal(r.fresh, false); assert.equal(r.asOf, t0.toISOString(), 'offline: the copy from 10:00'); assert.equal(r.index.items.length, 2);
   r = await readStoreRepo({ now: new Date(t0.getTime() + 8 * 3_600_000), fetch: github({ schema: 2, items: [], collections: [] }) });
   assert.equal(r.fresh, false, 'a broken index is never shown'); assert.equal(r.index.items.length, 2);
-  assert.doesNotMatch(readFileSync(join(dir, '.data', 'store', 'girru-store.json'), 'utf8'), /schema":2/, 'nor saved');
+  assert.doesNotMatch(saved(), /schema":2/, 'nor saved');
   process.env.GIRRU_STORE_REPO = 'off';
   calls = 0; r = await readStoreRepo({ now: new Date(t0.getTime() + 20 * 3_600_000), fetch: github(REPO) });
   assert.equal(calls, 0); assert.equal(r.index, null);
