@@ -20,6 +20,16 @@ import {syncDepartmentBoards,relatedBoardTasks} from '../../services/task-board.
  *   POST  /api/boards/:id/cards/:cardId/checklist { text } -> 201 { items }
  *   PUT   /api/boards/:id/cards/:cardId/checklist/:itemId { text?, done?, remove? } -> { items }
  *   GET   /api/boards/:id/cards/:cardId/chat -> { conversation: { id, title } | null, progress } (CHAT-PRO-02 I step 2: the chat it came from, who works on it)
+ *   TASKPAGE-02 (the full task page, owner only):
+ *   GET   /api/boards/:id/cards/:cardId/page                     -> { page } who opened it, people and agents, parent, sub-tasks, waits for,
+ *                                                                  release, followers, chats, spent, files changed, development
+ *   GET   /api/boards/:id/cards/:cardId/activity?before=ISO      -> { items, more } the story, oldest first (150 per page)
+ *   GET   /api/boards/:id/cards/:cardId/activity/:messageId/diff -> { files } the changed lines of one reply
+ *   PUT   /api/boards/:id/cards/:cardId/people { kind, id, role } -> { people } (role null removes)
+ *   PUT   /api/boards/:id/cards/:cardId/release { name }          -> { release }
+ *   POST  /api/boards/:id/cards/:cardId/subtasks { title }        -> 201 card
+ *   PUT   /api/boards/:id/cards/:cardId/links { waitsFor, on }    -> { ok }
+ *   PUT   /api/boards/:id/cards/:cardId/follow { on }             -> { following }
  *   GET   /api/boards/tasks?projectId=  -> { tasks, problems } (TASKLOG-01: the tasks of the projects' task files, read now)
  *   POST  /api/boards/:id/cards/:cardId/task-sort { department } -> { boardId } (TASKLOG-01: a task waiting in To sort goes to that department's board)
  *   GET   /api/boards/:id/cards/:cardId/task -> { task } (TASKLOG-01: the card's task in the project's task file, or null)
@@ -41,6 +51,7 @@ import { cardConversation, chatProgress } from '../../services/chat-board.js';
 import { chatRuns } from '../../services/chat-runs.js';
 import { TO_SORT, cardChanged, projectTasks, sortTask, syncAllTasks, taskDetail, taskMarks } from '../../services/task-file.js';
 import { q } from '../../repositories/sql-steps.js';
+import { addSubtask, replyDiff, setFollow, setLink, setPerson, setRelease, taskActivity, taskPage } from '../../services/task-page.js';
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -153,6 +164,48 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
       if (Object.keys(b).some((k) => k !== 'department')) throw new BoardError(400, 'invalid_board', 'Only department');
       return await sortTask(owner, request.params.id, request.params.cardId!, b.department);
     } catch (err) { return fail(err, reply); }
+  });
+
+  // TASKPAGE-02: the full task page.
+  type PM = P & { messageId?: string };
+  const card = (request: FastifyRequest<{ Params: PM }>, reply: FastifyReply) => {
+    const owner = ownerOf(request, reply); if (owner === null) return null;
+    if (!ids(request.params) || (request.params.messageId !== undefined && !ID.test(request.params.messageId))) { reply.code(404).send({ error: 'Card not found', code: 'not_found' }); return null; }
+    return { owner, board: request.params.id, card: request.params.cardId! };
+  };
+  fastify.get<{ Params: PM }>('/api/boards/:id/cards/:cardId/page', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { page: await taskPage(k.owner, k.board, k.card, k.owner) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.get<{ Params: PM; Querystring: { before?: string } }>('/api/boards/:id/cards/:cardId/activity', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    const before = request.query?.before;
+    if (before !== undefined && !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(before)) return reply.code(400).send({ error: 'before is a time', code: 'invalid_board' });
+    try { return await taskActivity(k.owner, k.board, k.card, before); } catch (err) { return fail(err, reply); }
+  });
+  fastify.get<{ Params: PM }>('/api/boards/:id/cards/:cardId/activity/:messageId/diff', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { files: await replyDiff(k.owner, k.board, k.card, request.params.messageId!) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/people', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { people: await setPerson(k.owner, k.board, k.card, objectBody(request.body)) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/release', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { release: await setRelease(k.owner, k.board, k.card, objectBody(request.body)) }; } catch (err) { return fail(err, reply); }
+  });
+  fastify.post<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/subtasks', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return reply.code(201).send(await addSubtask(k.owner, k.board, k.card, objectBody(request.body))); } catch (err) { return fail(err, reply); }
+  });
+  fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/links', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return await setLink(k.owner, k.board, k.card, objectBody(request.body)); } catch (err) { return fail(err, reply); }
+  });
+  fastify.put<{ Params: PM; Body: unknown }>('/api/boards/:id/cards/:cardId/follow', { config }, async (request, reply) => {
+    const k = card(request, reply); if (!k) return reply;
+    try { return { following: await setFollow(k.owner, k.board, k.card, k.owner, objectBody(request.body)) }; } catch (err) { return fail(err, reply); }
   });
 
   fastify.get<{ Params: P }>('/api/boards/:id/cards/:cardId/task', { config }, async (request, reply) => {

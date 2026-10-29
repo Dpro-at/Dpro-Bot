@@ -56,7 +56,8 @@ export interface BoardCard {
   conversationId: string | null;
 }
 export interface BoardLabel { id: string; name: string; color: string; position: number }
-export interface ChecklistItem { id: string; text: string; done: boolean; position: number }
+/** TASKPAGE-02: an item may belong to a person (user) or an agent and have a due date. */
+export interface ChecklistItem { id: string; text: string; done: boolean; position: number; owner: { kind: 'user' | 'agent'; id: string } | null; dueDate: string | null }
 export interface BoardMeta {
   id: string; name: string; description: string; template: string; color: string; departments: string[];
   /** company: no departments; department: one; shared: several. */
@@ -341,8 +342,10 @@ function datesOk(start: string | null, due: string | null) {
 function* setLinks(cardId: string, agents: string[] | undefined, deps: string[] | undefined): Step<void> {
   if (agents) {
     yield* knownAgents(agents);
-    yield* run('DELETE FROM board_card_agents WHERE card_id = ?', cardId);
-    for (const a of agents) yield* run('INSERT INTO board_card_agents (card_id, agent_id) VALUES (?, ?)', cardId, a);
+    // Agents that stay keep what they do on the card (TASKPAGE-02 role); only the others are added or removed.
+    const had = new Set((yield* all<{ agent_id: string }>('SELECT agent_id FROM board_card_agents WHERE card_id = ?', cardId)).map((r) => r.agent_id));
+    for (const a of had) if (!agents.includes(a)) yield* run('DELETE FROM board_card_agents WHERE card_id = ? AND agent_id = ?', cardId, a);
+    for (const a of agents) if (!had.has(a)) yield* run('INSERT INTO board_card_agents (card_id, agent_id) VALUES (?, ?)', cardId, a);
   }
   if (deps) {
     yield* run('DELETE FROM board_card_departments WHERE card_id = ?', cardId);
@@ -641,8 +644,9 @@ export function updateLabel(ownerId: string, boardId: string, labelId: string, b
 }
 
 function* checklistOf(cardId: string): Step<ChecklistItem[]> {
-  return (yield* all<{ id: string; text: string; done: number; position: number }>('SELECT id, text, done, position FROM board_card_checklist WHERE card_id = ? ORDER BY position', cardId))
-    .map((i) => ({ id: i.id, text: i.text, done: Number(i.done) === 1, position: Number(i.position) }));
+  return (yield* all<{ id: string; text: string; done: number; position: number; owner_kind: string | null; owner_id: string | null; due_date: string | null }>('SELECT id, text, done, position, owner_kind, owner_id, due_date FROM board_card_checklist WHERE card_id = ? ORDER BY position', cardId))
+    .map((i) => ({ id: i.id, text: i.text, done: Number(i.done) === 1, position: Number(i.position),
+      owner: (i.owner_kind === 'user' || i.owner_kind === 'agent') && i.owner_id ? { kind: i.owner_kind, id: i.owner_id } : null, dueDate: i.due_date ?? null }));
 }
 
 function* cardOfBoard(ownerId: string, boardId: string, cardId: string): Step<void> {
@@ -668,11 +672,16 @@ export function addChecklistItem(ownerId: string, boardId: string, cardId: strin
 
 /** Tick, untick, reword or remove (remove: true) one checklist item. */
 export function updateChecklistItem(ownerId: string, boardId: string, cardId: string, itemId: string, body: Record<string, unknown>): Promise<ChecklistItem[]> {
-  onlyKeys(body, ['text', 'done', 'remove']);
+  onlyKeys(body, ['text', 'done', 'remove', 'owner', 'dueDate', 'beforeItemId']);
   if (body.remove !== undefined && body.remove !== true) throw bad('remove must be true');
   if (body.done !== undefined && typeof body.done !== 'boolean') throw bad('done must be true or false');
   const t = body.text === undefined ? undefined : line(body.text, 'text', 300);
-  if (body.remove === undefined && body.done === undefined && t === undefined) throw bad('Nothing to change');
+  // TASKPAGE-02: give the item to a person or an agent (null: nobody), a due date, a new place (before another item, null: the end).
+  const o = body.owner as { kind?: unknown; id?: unknown } | null | undefined;
+  if (o !== undefined && o !== null && (typeof o !== 'object' || (o.kind !== 'user' && o.kind !== 'agent') || typeof o.id !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(o.id) || Object.keys(o).length !== 2)) throw bad('owner is { kind: user | agent, id } or null');
+  const due = body.dueDate === undefined ? undefined : dueDate(body.dueDate);
+  if (body.beforeItemId !== undefined && body.beforeItemId !== null && typeof body.beforeItemId !== 'string') throw bad('beforeItemId must be an item id or null');
+  if (body.remove === undefined && body.done === undefined && t === undefined && o === undefined && due === undefined && body.beforeItemId === undefined) throw bad('Nothing to change');
   return sql().tx(function* () {
     yield* cardOfBoard(ownerId, boardId, cardId);
     const item = yield* one('SELECT id FROM board_card_checklist WHERE id = ? AND card_id = ?', itemId, cardId);
@@ -682,6 +691,20 @@ export function updateChecklistItem(ownerId: string, boardId: string, cardId: st
     } else {
       if (t !== undefined) yield* run('UPDATE board_card_checklist SET text = ? WHERE id = ?', t, itemId);
       if (body.done !== undefined) yield* run('UPDATE board_card_checklist SET done = ? WHERE id = ?', body.done ? 1 : 0, itemId);
+      if (o !== undefined) {
+        if (o && o.kind === 'agent' && !(yield* one('SELECT id FROM agents_config WHERE id = ?', o.id as string))) throw bad('Unknown agent');
+        if (o && o.kind === 'user' && !(yield* one("SELECT id FROM users WHERE id = ? AND status = 'active'", o.id as string))) throw bad('Unknown person');
+        yield* run('UPDATE board_card_checklist SET owner_kind = ?, owner_id = ? WHERE id = ?', o ? o.kind as string : null, o ? o.id as string : null, itemId);
+      }
+      if (due !== undefined) yield* run('UPDATE board_card_checklist SET due_date = ? WHERE id = ?', due, itemId);
+      if (body.beforeItemId !== undefined) {
+        // Renumber the list with the item in its new place.
+        const ids = (yield* all<{ id: string }>('SELECT id FROM board_card_checklist WHERE card_id = ? AND id != ? ORDER BY position', cardId, itemId)).map((x) => x.id);
+        const at = body.beforeItemId ? ids.indexOf(body.beforeItemId as string) : -1;
+        if (body.beforeItemId && at < 0) throw bad('beforeItemId must be an item of this card');
+        ids.splice(at < 0 ? ids.length : at, 0, itemId);
+        for (const [n, id] of ids.entries()) yield* run('UPDATE board_card_checklist SET position = ? WHERE id = ?', (n + 1) * 1000, id);
+      }
     }
     return yield* checklistOf(cardId);
   }, { immediate: true });

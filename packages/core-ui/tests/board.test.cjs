@@ -76,7 +76,7 @@ test('offline: open, add cards, edit in the panel, move, comment, archive', asyn
   const put = calls.filter(c => c.method === 'PUT').at(-1);
   assert.deepEqual(put.body, { expectedVersion: 1, description: 'Short and friendly.', priority: 'urgent', dueDate: '2026-11-02', agents: [s.agents[0].id], departments: ['marketing'] });
   let html = markup(b);
-  assert.match(html, /Urgent/); assert.match(html, /marketing/); assert.match(html, /Due 2026-11-02/);
+  assert.match(html, /Urgent/); assert.match(html, /marketing/); assert.match(html, /value="2026-11-02"/);
   await b.addComment('Please keep it under 200 words.');
   assert.equal(b.getSnapshot().comments.length, 1);
   assert.equal(b.getSnapshot().cards.find(c => c.id === post.id).comments, 1);
@@ -211,7 +211,7 @@ test('richer cards: type, dates, cover, labels and checklist from the panel', as
   await b.updateCheckItem(b.getSnapshot().checklist[1].id, { remove: true });
   assert.deepEqual(b.getSnapshot().checklist.map(i => [i.text, i.done]), [['Find the cause', true]]);
   const html = markup(b);
-  for (const label of ['Bug', 'Important', 'From 2026-11-03', '1/1', 'Checklist', 'Add label', 'Cover']) assert.match(html, new RegExp(label));
+  for (const label of ['Important', 'value="2026-11-03"', 'Checklist', '1 of 1', 'Change labels, type and cover']) assert.match(html, new RegExp(label));
   assert.equal(validNewCard({ columnId: 'c1', title: 'x', type: 'epic' }), false);
   assert.equal(validCardEdit({ expectedVersion: 1, cover: 'gold' }), false);
   for (const allow of [allowedRequest, allowed]) {
@@ -235,7 +235,7 @@ test('desktop task draft is not silently lost when another card or board is open
  assert.equal(await b.saveCard(),true);assert.equal(b.hasUnsavedDraft(),false);
  await b.openCard(second.id);assert.equal(b.getSnapshot().open,second.id);
  assert.equal(b.commentAuthor('user','another-user'),'Team member');
- const html=markup(b);assert.match(html,/Comments/);assert.match(html,/Write a comment/);assert.match(html,/Save changes/);assert.doesNotMatch(html,/<textarea/);
+ const html=markup(b);assert.match(html,/Activity/);assert.match(html,/Write a comment/);assert.doesNotMatch(html,/Save changes/,'TASKPAGE-02: each change saves by itself');
 });
 
 test('board timestamps preserve UTC instants across legacy and repeated bridge projections',()=>{
