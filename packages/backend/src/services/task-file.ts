@@ -290,8 +290,10 @@ async function cardTask(cardId: string, link: Link, ownerId: string): Promise<{ 
   const col = (await columns(c.board_id)).find((x) => x.id === c.column_id);
   const agent = await q.one<{ name: string }>('SELECT a.name FROM board_card_agents l JOIN agents_config a ON a.id = l.agent_id WHERE l.card_id = ? ORDER BY a.name LIMIT 1', cardId);
   const dep = await q.one<{ department: string }>('SELECT department FROM board_card_departments WHERE card_id = ? ORDER BY department LIMIT 1', cardId);
-  const display = dep ? (await departments(ownerId)).find((d) => d.name === dep.department)?.display ?? dep.department : '';
   const before = parse(link.block) ?? emptyTask(link.task_no, c.title);
+  const known = dep ? (await departments(ownerId)).find((d) => d.name === dep.department) : undefined;
+  // The file's own spelling stays when it names the same department ("Development" for development).
+  const display = !dep ? '' : known && findDept([known], before.department) ? before.department : known?.display ?? dep.department;
   const toSort = col?.name === TO_SORT;
   return {
     task: { ...before, title: c.title, state: toSort ? before.state : col?.name ?? before.state, priority: priorityName(c.priority), agent: agent?.name ?? '', department: toSort ? '' : display },
@@ -328,6 +330,24 @@ export async function cardChanged(cardId: string): Promise<void> {
     }
     await q.run('UPDATE task_file_cards SET block = ?, finished = ?, problem = NULL, updated_at = CURRENT_TIMESTAMP WHERE card_id = ?', JSON.stringify(task), now.last ? 1 : 0, cardId);
   }).catch(() => undefined);
+}
+
+/** The owner sends a task waiting in To sort to a department: its board, its lead (when the card has no agent), written back to the file. */
+export async function sortTask(ownerId: string, boardId: string, cardId: string, department: unknown): Promise<{ boardId: string }> {
+  if (typeof department !== 'string' || !department.trim() || department.length > 64) throw new BoardError(400, 'invalid_board', 'department is required');
+  const card = await q.one<{ board_id: string; column: string }>('SELECT c.board_id, col.name AS column FROM board_cards c JOIN boards b ON b.id = c.board_id JOIN board_columns col ON col.id = c.column_id JOIN task_file_cards l ON l.card_id = c.id WHERE c.id = ? AND c.board_id = ? AND b.owner_id = ? AND c.archived = 0', cardId, boardId, ownerId);
+  if (!card) throw new BoardError(404, 'not_found', 'Card not found');
+  if (card.column !== TO_SORT) throw new BoardError(400, 'invalid_board', 'Only a task in To sort is sent to a department');
+  const dept = findDept(await departments(ownerId), department);
+  if (!dept) throw new BoardError(400, 'invalid_board', 'No board for that department');
+  const link = await q.one<Link>('SELECT * FROM task_file_cards WHERE card_id = ?', cardId);
+  const state = (link && parse(link.block)?.state) || '';
+  await moveCard(cardId, dept.boardId, (await columnFor(dept.boardId, state)).id, [dept.name]);
+  const has = await q.one('SELECT agent_id FROM board_card_agents WHERE card_id = ?', cardId);
+  const lead = has ? undefined : leadOf(await agentsList(), dept.name);
+  if (lead) await q.run('INSERT INTO board_card_agents (card_id, agent_id) VALUES (?, ?)', cardId, lead.id);
+  await cardChanged(cardId);
+  return { boardId: dept.boardId };
 }
 
 /** A card made from a project chat gets a number and a block in the project's task file. */

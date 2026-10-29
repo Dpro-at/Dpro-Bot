@@ -33,7 +33,7 @@ Use these MCP tools through the owner's authenticated local session.
 - Before you start work in such a project, read the file and continue an open task instead of starting a new one. Keep the format: one `## T-<number> · <title>` block per task with the lines State, Department, Agent, Priority, Worked on by and the parts Done, Left, Next, Log.
 - After each step, update that task's Done, Left and Next, add a Log line (`2026-10-29 15:40 · <your app> · what you did`) and add your app to Worked on by. Change no other task; never write outside the project folder.
 - An agent of Girru that cannot edit files updates its own card's task with `board_task_update` (it signs as Girru) and moves the card with `board_move`. A card in the last column (Done) moves its task to `.girru/tasks-done.md`; nobody reads that file unless asked.
-- `list` and `get` only read. `continue` (only on the owner's instruction) starts a chat in the project where the chosen agent and app continue the task. The owner turns the task file on or off in Agents › Rules.
+- `list` and `get` only read. Only on the owner's instruction: `continue` starts a chat in the project where the chosen agent and app continue the task; `sort` sends a task waiting in To sort to a department's board. The owner turns the task file on or off in Agents › Rules.
 
 ## Chats (tool `chats`)
 

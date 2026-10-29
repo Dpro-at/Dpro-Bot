@@ -21,6 +21,7 @@ import {syncDepartmentBoards,relatedBoardTasks} from '../../services/task-board.
  *   PUT   /api/boards/:id/cards/:cardId/checklist/:itemId { text?, done?, remove? } -> { items }
  *   GET   /api/boards/:id/cards/:cardId/chat -> { conversation: { id, title } | null, progress } (CHAT-PRO-02 I step 2: the chat it came from, who works on it)
  *   GET   /api/boards/tasks?projectId=  -> { tasks, problems } (TASKLOG-01: the tasks of the projects' task files, read now)
+ *   POST  /api/boards/:id/cards/:cardId/task-sort { department } -> { boardId } (TASKLOG-01: a task waiting in To sort goes to that department's board)
  *   GET   /api/boards/:id/cards/:cardId/task -> { task } (TASKLOG-01: the card's task in the project's task file, or null)
  *   TASKLOG-01: a card from a task file has taskFile { no, projectId, projectName, problem, apps, finished }; a board
  *   summary has toSort (cards waiting in "To sort"). Reading the boards first reads the projects' task files.
@@ -38,7 +39,7 @@ import {
 import { BOARD_COLORS, BOARD_TEMPLATES } from '../../services/board-templates.js';
 import { cardConversation, chatProgress } from '../../services/chat-board.js';
 import { chatRuns } from '../../services/chat-runs.js';
-import { TO_SORT, cardChanged, projectTasks, syncAllTasks, taskDetail, taskMarks } from '../../services/task-file.js';
+import { TO_SORT, cardChanged, projectTasks, sortTask, syncAllTasks, taskDetail, taskMarks } from '../../services/task-file.js';
 import { q } from '../../repositories/sql-steps.js';
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -141,6 +142,16 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
       // TASKLOG-01: a card from a task file writes its block back (its place, title, agent, priority).
       await cardChanged(card.id);
       return { ...card, taskFile: (await taskMarks(request.params.id)).get(card.id) ?? null };
+    } catch (err) { return fail(err, reply); }
+  });
+
+  fastify.post<{ Params: P; Body: unknown }>('/api/boards/:id/cards/:cardId/task-sort', { config }, async (request, reply) => {
+    const owner = ownerOf(request, reply); if (owner === null) return reply;
+    if (!ids(request.params)) return reply.code(404).send({ error: 'Card not found', code: 'not_found' });
+    try {
+      const b = objectBody(request.body);
+      if (Object.keys(b).some((k) => k !== 'department')) throw new BoardError(400, 'invalid_board', 'Only department');
+      return await sortTask(owner, request.params.id, request.params.cardId!, b.department);
     } catch (err) { return fail(err, reply); }
   });
 

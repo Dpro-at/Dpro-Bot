@@ -49,6 +49,8 @@ export function boardPath(path) {
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'card', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/comments$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'comments', board: m[1], card: m[2] } : null;
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/task-sort$/.exec(path);
+  if (m) return id(m[1]) && id(m[2]) ? { kind: 'task-sort', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/task$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'task', board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/labels$/.exec(path);
@@ -135,6 +137,7 @@ export function allowedBoard(method, path, body) {
   if (p.kind === 'check') return method === 'PUT' && record(body) && Object.keys(body).length >= 1 && onlyKeys(body, ['text', 'done', 'remove'])
     && (body.text === undefined || lineOk(body.text, 300)) && (body.done === undefined || typeof body.done === 'boolean') && (body.remove === undefined || body.remove === true);
   if (p.kind === 'task') return method === 'GET' && body === undefined;
+  if (p.kind === 'task-sort') return method === 'POST' && record(body) && Object.keys(body).length === 1 && department(body.department);
   if (p.kind === 'comments') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && textOk(body.body, MAX_COMMENT, true));
   return false;
 }
@@ -247,6 +250,7 @@ export function boardResponse(path, status, body) {
   }
   if (p.kind === 'card' || p.kind === 'cards') return card(body);
   if (p.kind === 'task') { if (!record(body) || !('task' in body)) fail(); return { task: taskDetail(body.task) }; }
+  if (p.kind === 'task-sort') { if (!record(body) || !id(body.boardId)) fail(); return { boardId: body.boardId }; }
   if (p.kind === 'checklist' || p.kind === 'check') {
     if (!record(body) || !Array.isArray(body.items) || body.items.length > 50) fail();
     return { items: body.items.map(i => { if (!record(i) || !id(i.id) || typeof i.done !== 'boolean') fail(); return { id: i.id, text: clip(i.text, 300), done: i.done }; }) };

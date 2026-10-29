@@ -7,6 +7,7 @@ function fake(){const calls=[];return {calls,backend:{async request(method,path,
  if(method==='GET'&&path==='/api/boards/b1/cards/c1/task')return {task:{...T,done:['x']}};
  if(method==='GET'&&path==='/api/boards/b1/cards/c2/task')return {task:null};
  if(method==='POST'&&path==='/api/chat/task-continue')return {conversation:{id:'s9'}};
+ if(method==='POST'&&path==='/api/boards/b0/cards/c3/task-sort')return {boardId:'b2'};
  throw Error('unexpected '+method+' '+path);}}};}
 
 test('workspace_tasks: list and get read; continue starts a chat; everything else is refused', async () => {
@@ -20,12 +21,15 @@ test('workspace_tasks: list and get read; continue starts a chat; everything els
  const c=await callTool('workspace_tasks',{operation:'continue',boardId:'b1',cardId:'c1',agentId:'a-dev',model:'subscription:codex'},{backend});
  assert.equal(c.structuredContent.conversation.id,'s9');
  assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/chat/task-continue',body:{boardId:'b1',cardId:'c1',agentId:'a-dev',model:'subscription:codex'}});
+ const so=await callTool('workspace_tasks',{operation:'sort',boardId:'b0',cardId:'c3',department:'research'},{backend});
+ assert.equal(so.structuredContent.boardId,'b2');
+ assert.deepEqual(calls.at(-1).body,{department:'research'});
  const before=calls.length;
- for(const a of [{operation:'on',projectId:'p1'},{operation:'off'},{operation:'move',cardId:'c1'},{operation:'list',projectId:'../x'},{operation:'continue',boardId:'b1',cardId:'c1',extra:1},{operation:'get',boardId:'b1'}]){
+ for(const a of [{operation:'on',projectId:'p1'},{operation:'off'},{operation:'move',cardId:'c1'},{operation:'list',projectId:'../x'},{operation:'continue',boardId:'b1',cardId:'c1',extra:1},{operation:'get',boardId:'b1'},{operation:'sort',boardId:'b0',cardId:'c3'}]){
   assert.equal((await callTool('workspace_tasks',a,{backend})).isError,true,JSON.stringify(a));
  }
  assert.equal(calls.length,before,'no refused call reaches the backend');
  const def=TOOL_DEFINITIONS.find(t=>t.name==='workspace_tasks');
- assert.deepEqual(def.inputSchema.properties.operation.enum,['list','get','continue']);
+ assert.deepEqual(def.inputSchema.properties.operation.enum,['list','get','continue','sort']);
  assert.match(def.description,/on the owner’s explicit instruction/);
 });

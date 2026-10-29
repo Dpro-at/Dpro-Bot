@@ -205,6 +205,16 @@ test('file → board: department set, picked by the local model, or To sort; the
   assert.equal(column(three.board, three.card.columnId), 'To sort');
   assert.equal(block('T-3').department, '', 'not sure: nothing written back');
   assert.equal((await boards()).find((b) => b.kind === 'company').toSort, 1);
+  // The owner sends it to a department: its board, the lead, written back.
+  const sent = await call('t-owner', 'POST', `/api/boards/${three.board.id}/cards/${three.card.id}/task-sort`, { department: 'Research' });
+  assert.equal(sent.statusCode, 200, sent.body);
+  const moved = await cardOf('T-3');
+  assert.deepEqual(moved.board.departments, ['research']);
+  assert.deepEqual(moved.card.agents, ['a-res']);
+  assert.equal(block('T-3').department.toLowerCase(), 'research');
+  assert.equal(block('T-3').agent, 'Researcher');
+  assert.equal((await call('t-owner', 'POST', `/api/boards/${moved.board.id}/cards/${moved.card.id}/task-sort`, { department: 'development' })).statusCode, 400, 'only from To sort');
+  assert.equal((await call('t-user', 'POST', `/api/boards/${moved.board.id}/cards/${moved.card.id}/task-sort`, { department: 'development' })).statusCode, 403);
   assert.equal((await tf.syncTasks('p-tf')).created, 0, 'a second read changes nothing');
   tf.setRouteCall(async () => ({ ok: false, text: '' }));
 });
@@ -218,6 +228,7 @@ test('board → file and file → board: moves, edits, an app’s log, a broken 
   assert.equal(put.json().taskFile.no, 'T-1');
   assert.equal(block('T-1').state, 'Review');
   assert.equal(block('T-1').title, 'Fix the Windows build');
+  assert.equal(block('T-1').department, 'Development', 'the file’s own spelling of the department stays');
   assert.ok(tasks().startsWith(header), 'the file’s own text is kept');
   // An app writes its log line and its name; the board shows them.
   writeFileSync(join(folder, '.girru/tasks.md'), tasks().replace('- Worked on by: Claude Code 2026-10-29', '- Worked on by: Claude Code 2026-10-29, Codex 2026-10-30')

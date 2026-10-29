@@ -90,7 +90,8 @@ export function AgentRules({ client, agents, active, onCount }: { client: Sessio
                 <span className="dk-row-icon" title={WHERE_TIP(r)}><UiIcon name={WHERE_ICON(r)} size={15}/></span>
                 <span className="dk-row-text"><span className="dk-row-main" dir="auto">{r.text}</span>
                   <span className="dk-row-sub">{r.when && <><span className="rules-when" title="Only in this case"><UiIcon name="branch" size={11}/>When {r.when}</span> · </>}{r.status === 'suggested' ? `${agents.find(a => a.id === r.suggestedBy)?.name ?? 'An agent'} suggests · ${whoWords(r, agents, s.projects)}${r.projectId ? '' : ' · everywhere'}` : whoWords(r, agents, s.projects)}</span></span>
-                {r.locked ? <span className="rules-paused" title="Safety rule: always on"><UiIcon name="lock" size={11}/>Always on</span> : r.paused && <span className="rules-paused"><UiIcon name="pause" size={11}/>Paused</span>}
+                {r.locked && r.projectId ? <span className="rules-paused" title="Comes with the project’s task file: on while the task file is on"><UiIcon name="lock" size={11}/>{r.paused ? 'Task file off' : 'With the task file'}</span>
+                  : r.locked ? <span className="rules-paused" title="Safety rule: always on"><UiIcon name="lock" size={11}/>Always on</span> : r.paused && <span className="rules-paused"><UiIcon name="pause" size={11}/>Paused</span>}
               </div>)}</div>)}
             {!groups.length && s.phase === 'ready' && <p className="dk-empty">No rule reaches {agent?.name ?? 'this choice'} here. <button type="button" className="link-button" onClick={() => setFilter({ agentId: '', projectId: '' })}>Show all</button></p>}
           </div>}
@@ -223,6 +224,14 @@ function VersionsSheet({ c, id, onClose }: { c: RulesController; id: string; onC
 
 /** RULES-04: a safety rule that comes with Girru: always on, never edited. */
 function LockedInspector({ c, rule }: { c: RulesController; rule: Rule }) {
+  // TASKLOG-01: the task file rule of one project (on while that project's task file is on).
+  if (rule.projectId) return <div className="rules-inspector">
+    <div className="rules-inspector-head"><b>Rule</b><span className="rules-paused" title="On while the project’s task file is on"><UiIcon name="lock" size={12}/>{rule.paused ? 'Task file off' : 'With the task file'}</span>
+      <IconButton icon="close" label="Close" shortcut="Esc" onClick={() => c.select(null)}/></div>
+    <p className="rules-reads" dir="auto">{rule.text}</p>
+    <p className="rules-from"><UiIcon name="file" size={13}/>Comes with this project’s task file (.girru/tasks.md), so every agent and app keeps its tasks there. It is on while the task file is on; turn the task file on or off in the project’s files sheet.</p>
+    <div className="dk-field">Who follows it<span className="rules-from">All agents and apps in {c.getSnapshot().projects.find(p => p.id === rule.projectId)?.name ?? 'this project'}</span></div>
+  </div>;
   return <div className="rules-inspector">
     <div className="rules-inspector-head"><b>Rule</b><span className="rules-paused" title="Safety rule: always on, for everyone"><UiIcon name="lock" size={12}/>Always on</span>
       <IconButton icon="close" label="Close" shortcut="Esc" onClick={() => c.select(null)}/></div>
@@ -254,5 +263,12 @@ function FilesSheet({ c, projectId, name, onClose }: { c: RulesController; proje
         <button type="button" aria-pressed={mode === 'private'} onClick={() => setMode('private')}>Private on this computer</button>
         <button type="button" aria-pressed={mode === 'project'} onClick={() => setMode('project')}>With the project (in Git)</button></span>
       <small className="fine-print">{mode === 'private' ? 'Girru adds them to this folder’s own Git exclude, so nothing is committed or pushed.' : 'Everyone who opens the repository gets the same rules. Girru never commits; that stays your call.'}</small></div>
+    {state?.written && <div className="dk-field rules-task-file">
+      <span className="rules-task-file-head"><UiIcon name="file" size={14}/><b>Task file</b><code>.girru/tasks.md</code>
+        <label className="rules-switch" title={state.tasks?.on ? 'On: every agent and app keeps its tasks in it' : 'Off: the file stays; nobody is asked to keep it'}><span>{state.tasks?.on ? 'On' : 'Off'}</span>
+          <input type="checkbox" role="switch" aria-label="Task file" checked={!!state.tasks?.on} disabled={s.busy} onChange={e => void c.setTasks(projectId, e.target.checked).then(f => { if (f) setState(f); })}/></label></span>
+      <small className="fine-print">One file in the project for every task, edit and continuation, kept by Girru’s agents, Claude Code, Codex and Gemini. The board shows each task on its department’s board with its agent, and any of them can continue it. {state.tasks?.on ? `${state.tasks.open} open on the board.` : 'Off keeps the file and stops the rule that asks the apps to keep it.'}</small>
+      {state.tasks?.on && (state.tasks.problems.length ?? 0) > 0 && <ul className="rules-task-problems">{state.tasks.problems.map(p => <li key={p.line}><UiIcon name="alert" size={12}/>Line {p.line}: {p.message}</li>)}</ul>}
+    </div>}
   </Sheet>;
 }

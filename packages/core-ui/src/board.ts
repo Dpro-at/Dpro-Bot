@@ -314,6 +314,17 @@ export class BoardController {
     } catch { if (this.#state.open === cardId) this.#publish({ task: { phase: 'error', detail: null } }); }
   }
   refreshTask() { if (this.#state.open) void this.#loadTask(this.#state.open); }
+  /** TASKLOG-01: send the open card, waiting in To sort, to a department's board (written back to its file). */
+  async sortTask(department: string): Promise<boolean> {
+    const cardId = this.#state.open, boardId = this.#state.boardId;
+    if (!cardId || !boardId) return false;
+    const ok = await this.#write<{ boardId: string }>(() => this.client.request({ method: 'POST', path: `${BOARDS_PATH}/${boardId}/cards/${cardId}/task-sort`, body: { department } }), () => undefined, 'Sending the task');
+    if (!ok) return false;
+    this.closeCard();
+    await this.load(boardId);
+    this.#publish({ notice: `Sent to the ${department} board. Its file now says so.` });
+    return true;
+  }
   /** TASKLOG-01: a new chat in the task's project where the chosen agent (and app) continues the open card's task. Gives the chat's id. */
   async continueTask(agentId?: string, model?: string): Promise<string | null> {
     const cardId = this.#state.open, boardId = this.#state.boardId;
