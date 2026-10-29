@@ -282,6 +282,8 @@ test('a card from a project chat gets the next number; an agent updates its own 
   assert.deepEqual(after.next, ['Build the sheet']);
   assert.match(after.log[0], /^\d{4}-\d\d-\d\d \d\d:\d\d · Girru · Dev: read the board$/);
   assert.equal(after.workedOn.at(-1).app, 'Girru');
+  await boardTaskUpdateTool.execute({ card_id: cardId, log: '2026-10-29 · Dev · checked the sheet' }, ctx);
+  assert.match(block('T-4').log[0], / · Girru · Dev: checked the sheet$/, 'a repeated time and name is not kept twice');
   const other = await boardTaskUpdateTool.execute({ card_id: cardId, log: 'x' }, { userId: 't-owner', agentId: 'a-res' });
   assert.match(other.error, /not one of your board cards/);
   await boardMoveTool.execute({ card_id: cardId, column: 'In progress' }, ctx);

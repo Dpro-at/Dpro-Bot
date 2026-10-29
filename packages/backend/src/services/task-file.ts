@@ -439,7 +439,8 @@ export async function agentTaskUpdate(ownerId: string, agentId: string, cardId: 
     const t = found.task;
     const task: TaskBlock = {
       ...t, done: done ?? t.done, left: left ?? t.left, next: next ?? t.next,
-      log: [logLine(now, GIRRU_APP, `${agent?.name ? `${agent.name}: ` : ''}${input.log as string}`), ...t.log],
+      // An agent that writes its own "time · name ·" in front gets it once, from Girru.
+      log: [logLine(now, GIRRU_APP, `${agent?.name ? `${agent.name}: ` : ''}${(input.log as string).replace(/^\s*\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2})?\s*·\s*(?:[^·]{1,60}·\s*)?/, '')}`), ...t.log],
       workedOn: [...t.workedOn.filter((w) => w.app.toLowerCase() !== GIRRU_APP.toLowerCase()), { app: GIRRU_APP, date: today }],
     };
     await writeFile(folder, TASKS_FILE, withTask(text, task));
