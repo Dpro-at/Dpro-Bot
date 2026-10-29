@@ -59,3 +59,10 @@ Use these MCP tools through the owner's authenticated local session.
 - `status` reads the folder, the next run, the last backup and whether it passed its check, and a failure if the last try failed. Tell the owner about a failure.
 - `back_up_now` makes one now, only when the owner asks; use kind `before_update` right before you update Girru.
 - Restoring replaces the owner's data, so only the owner does it, in Settings › Backups (Girru backs up first, so a restore can be undone). Deleting a backup and changing the folder are done there too.
+
+## Store (tool `workspace_store`, the Store section)
+
+- The Store lists the apps that come with Girru, the Girru Store (github.com/Dpro-at/girru-store; without internet it shows its last copy and the date), Girru's registry and the coding apps' add-ons. Every item is free.
+- `home`, `search`, `app` and `updates` read it. Adding an app is always the owner's own click in the Store, which shows what the app asks for: tell the owner what it asks for and where to add it.
+- An app from the Girru Store is checked file by file against what the store reviewed, set up in the data folder, and finishes when Girru starts again.
+- `uninstall` only on the owner's instruction. An app that keeps data of its own is removed by the owner in the Store (Girru saves a copy of its data first; adding it again brings it back).

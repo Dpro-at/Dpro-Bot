@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {addonCatalogue} from './addon-catalogue.js';
 import {searchMarketplace,checkForUpdates,installExtension,uninstallExtension,getExtensionDetails} from './extension-marketplace.js';
 import {readStoreRepo,type RepoRead} from './store-repo.js';
+import {installedApps,startAdd,removeApp,type AddJob} from './store-install.js';
 import {parseStoreIndex,STORE_CATEGORIES,type CatalogueSource,type StoreIndex,type StoreManifest,type StoreCategoryId} from './store-index.js';
 
 /**
@@ -28,8 +29,9 @@ const category=(x:unknown):StoreCategoryId=>{const v=typeof x==='string'?x.trim(
 
 /** Today's source: the local catalogues on this computer. Reading never downloads or installs. */
 export function localCatalogue(options:{home?:string;repo?:()=>Promise<RepoRead>}={}):LocalCatalogue{
- let limited:string[]=[],have:Have={installed:new Set(),present:new Set()},asOf:string|null=null;
+ let limited:string[]=[],have:Have={installed:new Set(),present:new Set()},asOf:string|null=null,addable=new Set<string>();
  return {
+  addable:()=>addable,
   limited:()=>limited,
   have:()=>have,
   asOf:()=>asOf,
@@ -40,6 +42,9 @@ export function localCatalogue(options:{home?:string;repo?:()=>Promise<RepoRead>
    // anything else it lists is shown as "store:<id>" (adding those comes with real installs).
    const repo=await (options.repo??readStoreRepo)().catch(():RepoRead=>({index:null,asOf:null,fresh:false}));
    asOf=repo.asOf;if(!repo.fresh)limited.push('store');
+   const added=await installedApps();
+   for(const id of Object.keys(added))have.installed.add('store:'+id);
+   addable=new Set(Object.keys(repo.packages??{}).map(k=>'store:'+k.slice(6)));
    for(const r of repo.index?.items??[]){
     const at=items.findIndex(x=>x.id===r.id);
     if(at>=0)items[at]={...items[at],summary:r.summary||items[at].summary,description:r.description||items[at].description,icon:r.icon??items[at].icon,version:r.version,updated:r.updated,category:r.category,permissions:r.permissions.length?r.permissions:items[at].permissions,worksWith:r.worksWith,languages:r.languages};
@@ -65,7 +70,7 @@ export function localCatalogue(options:{home?:string;repo?:()=>Promise<RepoRead>
 
 type Have={installed:Set<string>;present:Set<string>};
 /** A source that also knows what this owner already has (installed registry apps, add-ons present on this computer). */
-export type LocalCatalogue=CatalogueSource&{limited:()=>string[];have:()=>Have;asOf?:()=>string|null};
+export type LocalCatalogue=CatalogueSource&{limited:()=>string[];have:()=>Have;asOf?:()=>string|null;addable?:()=>Set<string>};
 
 export type StoreState='included'|'installed'|'available'|'elsewhere';
 export type StoreEntry=StoreManifest&{state:StoreState;present:boolean;update:string|null;hash:string};
@@ -82,7 +87,7 @@ export async function readStore(ownerId:string,source:LocalCatalogue=localCatalo
  try{updates=await checkForUpdates(ownerId);}catch{/* No registry here: no registry updates. */}
  const {installed:registry,present}=source.have();
  const items:StoreEntry[]=index.items.map(x=>{
-  const state:StoreState=x.id.startsWith('girru:')?'included':x.id.startsWith('registry:')?(registry.has(x.id)?'installed':'available'):x.id.startsWith('store:')?'available':'elsewhere';
+  const state:StoreState=x.id.startsWith('girru:')?'included':x.id.startsWith('registry:')?(registry.has(x.id)?'installed':'available'):x.id.startsWith('store:')?(registry.has(x.id)?'installed':source.addable?.().has(x.id)?'available':'elsewhere'):'elsewhere';
   const update=updates.find(u=>'registry:'+u.extension_id===x.id)?.latest_version??null;
   return {...x,state,present:state==='included'||state==='installed'||present.has(x.id),update:state==='installed'?update:null,hash:consentHash(x)};
  });
@@ -90,19 +95,32 @@ export async function readStore(ownerId:string,source:LocalCatalogue=localCatalo
  categories:STORE_CATEGORIES.filter(c=>c.id!=='more'||items.some(x=>x.category===c.id)).map(c=>({...c})),items,limited:source.limited(),storeAsOf:source.asOf?.()??null};
 }
 
-export type StoreChange={ok:true;state:StoreState}|{ok:false;code:'not_found'|'not_installable'|'changed'|'refused';message:string};
+export type StoreChange={ok:true;state:StoreState|'adding';job?:string;copy?:string|null;restart?:'auto'|'manual'}|{ok:false;code:'not_found'|'not_installable'|'changed'|'refused'|'has_data';message:string;data?:Array<{table:string;rows:number}>};
 const registryId=(id:string)=>id.startsWith('registry:')?id.slice(9):null;
-const refuseOther=(id:string):StoreChange=>({ok:false,code:'not_installable',message:id.startsWith('girru:')?'It comes with Girru. It is already in My apps.':id.startsWith('store:')?'Adding apps from the Girru Store comes with the next update.':'Add it in that coding app itself. Girru does not copy its keys.'});
+const refuseOther=(id:string):StoreChange=>({ok:false,code:'not_installable',message:id.startsWith('girru:')?'It comes with Girru. It is already in My apps.':id.startsWith('store:')?'This app has nothing to add yet.':'Add it in that coding app itself. Girru does not copy its keys.'});
 
 /** Add one registry app, only with the hash of exactly what the owner was shown. */
-export async function installFromStore(ownerId:string,id:string,hash:string):Promise<StoreChange>{
+export async function installFromStore(ownerId:string,id:string,hash:string,options:{restart?:()=>boolean;repo?:()=>Promise<RepoRead>}={}):Promise<StoreChange>{
+ // APPS-06: an app from the Girru Store is added by a job the window follows.
+ if(id.startsWith('store:')){
+  const app=id.slice(6),repo=await (options.repo??readStoreRepo)();
+  const x=repo.index?.items.find(i=>i.id==='girru:'+app);
+  if(!x||!repo.packages?.['girru:'+app])return {ok:false,code:'not_found',message:'This app is not in the Girru Store any more.'};
+  if(consentHash({id,version:x.version,permissions:x.permissions})!==hash)return {ok:false,code:'changed',message:'This app changed since you saw it. Read what it asks for again.'};
+  const job:AddJob=startAdd(app,{restart:options.restart});
+  return {ok:true,state:'adding',job:job.id};
+ }
  const ext=registryId(id);if(!ext)return refuseOther(id);
  const x=await getExtensionDetails(ext,ownerId);if(!x||x.status!=='active')return {ok:false,code:'not_found',message:'This app is not in the store any more.'};
  if(consentHash({id,version:x.version||null,permissions:x.permissions??[]})!==hash)return {ok:false,code:'changed',message:'This app changed since you saw it. Read what it asks for again.'};
  const r=await installExtension(ext,ownerId);
  return r.success?{ok:true,state:'installed'}:{ok:false,code:'refused',message:r.error||'It could not be added.'};
 }
-export async function uninstallFromStore(ownerId:string,id:string):Promise<StoreChange>{
+export async function uninstallFromStore(ownerId:string,id:string,options:{confirm?:boolean;restart?:()=>boolean}={}):Promise<StoreChange>{
+ if(id.startsWith('store:')){
+  const r=await removeApp(id.slice(6),options);
+  return r.ok?{ok:true,state:'available',copy:r.copy,restart:r.restart}:r;
+ }
  const ext=registryId(id);if(!ext)return refuseOther(id);
  const r=await uninstallExtension(ext,ownerId);
  return r.success?{ok:true,state:'available'}:{ok:false,code:'refused',message:r.error||'It could not be removed.'};

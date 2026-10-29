@@ -3,7 +3,7 @@
 // No network: GitHub is a fake. Run: node --import tsx --test test/store-repo.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,10 +11,16 @@ const backendDir = process.cwd();
 const dir = mkdtempSync(join(tmpdir(), 'ap-store-repo-'));
 process.env.AGENT_PLAYER_DATA_DIR = join(dir, '.data');
 process.env.HOME = dir;
+process.env.DATABASE_PATH = join(dir, '.data', 'agent-player.db');
+process.env.JWT_SECRET = 'x'.repeat(64); // throwaway, test only
+process.env.NODE_ENV = 'test';
 mkdirSync(join(dir, '.data'), { recursive: true });
 globalThis.fetch = async (url) => { throw new Error(`unexpected network call in test: ${url}`); };
 const quiet = () => {}; console.log = quiet; console.warn = quiet; console.error = quiet;
 
+const { getDatabase } = await import(join(backendDir, 'src/db/database.ts'));
+await getDatabase().initialize();
+const saved = () => getDatabase().prepare("SELECT value FROM app_settings WHERE key = 'store.girru-store'").get()?.value ?? '';
 const { readStoreRepo, fromRepo, STORE_INDEX_URL } = await import(join(backendDir, 'src/services/store-repo.ts'));
 const { localCatalogue, readStore, installFromStore } = await import(join(backendDir, 'src/services/store-catalogue.ts'));
 
@@ -39,31 +45,32 @@ test('reads at most every six hours, keeps the last good copy, and shows it with
   calls = 0;
   let r = await readStoreRepo({ now: t0, fetch: github(REPO) });
   assert.equal(r.fresh, true); assert.equal(r.asOf, t0.toISOString()); assert.equal(r.index.items.length, 2); assert.equal(calls, 1);
-  assert.ok(existsSync(join(dir, '.data', 'store', 'girru-store.json')));
+  assert.match(saved(), /girru:genvr/, 'the checked copy is kept in the database');
+  assert.doesNotMatch(saved(), /pricing/, 'never the raw answer');
   r = await readStoreRepo({ now: new Date(t0.getTime() + 3_600_000), fetch: github(REPO) });
   assert.equal(calls, 1, 'young copy: GitHub is not asked again');
   r = await readStoreRepo({ now: new Date(t0.getTime() + 7 * 3_600_000), fetch: down });
   assert.equal(calls, 2); assert.equal(r.fresh, false); assert.equal(r.asOf, t0.toISOString(), 'offline: the copy from 10:00'); assert.equal(r.index.items.length, 2);
   r = await readStoreRepo({ now: new Date(t0.getTime() + 8 * 3_600_000), fetch: github({ schema: 2, items: [], collections: [] }) });
   assert.equal(r.fresh, false, 'a broken index is never shown'); assert.equal(r.index.items.length, 2);
-  assert.doesNotMatch(readFileSync(join(dir, '.data', 'store', 'girru-store.json'), 'utf8'), /schema":2/, 'nor saved');
+  assert.doesNotMatch(saved(), /schema":2/, 'nor saved');
   process.env.GIRRU_STORE_REPO = 'off';
   calls = 0; r = await readStoreRepo({ now: new Date(t0.getTime() + 20 * 3_600_000), fetch: github(REPO) });
   assert.equal(calls, 0); assert.equal(r.index, null);
   delete process.env.GIRRU_STORE_REPO;
 });
 
-test('the Store window: the repository words for Girru apps, its other items listed but not yet added', async () => {
+test('the Store window: the repository words for Girru apps; an item without a package is listed but cannot be added', async () => {
   const repo = async () => ({ index: fromRepo(REPO), asOf: '2026-10-29T10:00:00.000Z', fresh: true });
   const store = await readStore('owner-1', localCatalogue({ home: dir, repo }));
   const genvr = store.items.find((x) => x.id === 'girru:genvr');
   assert.equal(genvr.description, 'GenVR as the repository says it'); assert.equal(genvr.state, 'included');
   const notes = store.items.find((x) => x.id === 'store:notes');
-  assert.equal(notes.state, 'available'); assert.equal(notes.present, false);
+  assert.equal(notes.state, 'elsewhere', 'no package: nothing to add'); assert.equal(notes.present, false);
   assert.ok(store.collections.find((c) => c.id === 'new').items.includes('store:notes'));
   assert.equal(store.storeAsOf, '2026-10-29T10:00:00.000Z'); assert.ok(!store.limited.includes('store'));
   const r = await installFromStore('owner-1', 'store:notes', notes.hash);
-  assert.equal(r.ok, false); assert.match(r.message, /Girru Store comes with the next update/);
+  assert.equal(r.ok, false); assert.equal(r.code, 'not_found');
   const offline = await readStore('owner-1', localCatalogue({ home: dir, repo: async () => ({ index: null, asOf: null, fresh: false }) }));
   assert.ok(offline.limited.includes('store')); assert.ok(offline.items.some((x) => x.id === 'girru:genvr'), 'the apps that come with Girru are always there');
 });

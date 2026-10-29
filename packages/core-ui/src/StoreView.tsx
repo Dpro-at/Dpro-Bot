@@ -6,8 +6,12 @@ import {UiIcon} from './ui-icons';
 import type {UiIconName} from './ui-icons';
 import {ContextMenu,IconButton,Notice,Sheet,useMenu} from './desktop-ui';
 import type {MenuItem} from './desktop-ui';
-import {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH} from './apps-contract.js';
-import type {StoreData,StoreItem,StoreChange} from './apps-contract.js';
+import {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH,storeJobPath} from './apps-contract.js';
+import type {StoreData,StoreItem,StoreChange,StoreJob} from './apps-contract.js';
+
+/** APPS-06 (board Apps6): the four steps of adding an app from the Girru Store. */
+const ADD_STEPS:[string,string][]=[['getting','Getting it from the Girru Store'],['checking','Checking it is exactly what was reviewed'],['setting-up','Setting it up in your data folder'],['adding','Adding its page and tools']];
+const plainTable=(t:string,app:string)=>t.replace(new RegExp('^'+app.replace(/-/g,'_')+'_'),'').replace(/_/g,' ');
 import {initial} from './memory-desktop';
 import {skillTitle} from './skill-display';
 /** Coding-app add-ons keep their package names; show them as words ("code-review" → "Code review"). */
@@ -63,6 +67,7 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
  const owner=client.getSnapshot().user?.role==='owner',store=useStore(client,active&&owner,0),{data,error}=store,onReload=store.reload;
  const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null}),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
  const [page,setPage]=useState<string|null>(null),[updatesOpen,setUpdatesOpen]=useState(false),[adding,setAdding]=useState<StoreItem|null>(null),[busy,setBusy]=useState(false),[problem,setProblem]=useState(''),[toast,setToast]=useState<{id:number;text:string;undo:boolean;show?:unknown}|null>(null);
+ const [progress,setProgress]=useState<{item:StoreItem;step:string}|null>(null),[removing,setRemoving]=useState<{item:StoreItem;data:{table:string;rows:number}[]}|null>(null);
  const undoRef=useRef<(()=>void)|null>(null),search=useRef<HTMLInputElement>(null),scroll=useRef<HTMLDivElement>(null),{menu,at,close}=useMenu();
  useEffect(()=>{if(request?.updates)setUpdatesOpen(true);},[request?.n]);
  const show=(next:Partial<StoreView>)=>{setView(v=>({...v,shelf:null,...next}));setPage(null);setQuery('');scroll.current?.scrollTo?.(0,0);};
@@ -72,12 +77,29 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
  async function add(x:StoreItem){
   setBusy(true);setProblem('');
   try{const r=await change(STORE_INSTALL_PATH,{id:x.id,hash:x.hash});
-   if('ok' in r){setAdding(null);onReload();say(`${itemName(x)} added.`,()=>void remove(x,true));}
+   if('ok' in r&&r.job){setAdding(null);void follow(x,r.job);}
+   else if('ok' in r){setAdding(null);onReload();say(`${itemName(x)} added.`,()=>void remove(x,true));}
    else{setProblem(r.message||'It could not be added.');if(r.code==='changed')onReload();}
   }catch{setProblem('It could not be added. Try again.');}finally{setBusy(false);}
  }
- async function remove(x:StoreItem,quiet=false){
-  try{const r=await change(STORE_UNINSTALL_PATH,{id:x.id});onReload();if(!quiet)say('ok' in r?`${itemName(x)} removed.`:r.message||'It could not be removed.','ok' in r?()=>void change(STORE_INSTALL_PATH,{id:x.id,hash:x.hash}).then(onReload):undefined);}
+ /** An app from the Girru Store is added by a job: one line under it shows each step (no progress page). */
+ async function follow(x:StoreItem,job:string){
+  setProgress({item:x,step:'getting'});
+  for(let n=0;n<600;n++){
+   await new Promise(r=>setTimeout(r,600));
+   let j:StoreJob;try{j=(await client.request({method:'GET',path:storeJobPath(job)} as never)).body as StoreJob;}catch{continue;}
+   if('code' in j){setProgress(null);say('Girru lost track of adding it. Look in My apps.');return;}
+   setProgress({item:x,step:j.step});
+   if(j.done){setProgress(null);onReload();say(j.message||(j.ok?`${itemName(x)} added.`:'It could not be added.'));return;}
+  }
+  setProgress(null);
+ }
+ async function remove(x:StoreItem,quiet=false,confirm=false){
+  try{const r=await change(STORE_UNINSTALL_PATH,confirm?{id:x.id,confirm:true}:{id:x.id});
+   // APPS-06: an app that keeps data of its own asks once; Girru saves a copy first.
+   if(!('ok' in r)&&r.code==='has_data'&&r.data){setRemoving({item:x,data:r.data});return;}
+   setRemoving(null);onReload();
+   if('ok' in r&&x.id.startsWith('store:')){say(`${itemName(x)} removed${r.copied?'; a copy of its data is saved':''}.${r.restart==='auto'?' Girru starts again to finish.':' It leaves when Girru starts again.'}`);return;}if(!quiet)say('ok' in r?`${itemName(x)} removed.`:r.message||'It could not be removed.','ok' in r?()=>void change(STORE_INSTALL_PATH,{id:x.id,hash:x.hash}).then(onReload):undefined);}
   catch{say('It could not be removed. Try again.');}
  }
  /** The one action of an item: Open what comes with Girru, Get what is free, read about the rest. */
@@ -123,6 +145,13 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
    <div className="st-sheet-head"><StoreIcon item={adding} size={36}/><span>{adding.maker?`by ${adding.maker}`:sourceChip(adding)}</span></div>
    {adding.permissions.length?<><p>It will be able to:</p><ul className="st-asks">{adding.permissions.map(p=><li key={p}><UiIcon name="shield" size={13}/>{p}</li>)}</ul></>:<p>It does not ask for anything.</p>}
    {problem&&<p className="st-problem" role="alert">{problem}</p>}
+  </Sheet>}
+  {progress&&<div className="st-progress" role="status" aria-label={`Adding ${itemName(progress.item)}`}><div className="st-progress-head"><StoreIcon item={progress.item} size={28}/><strong>{itemName(progress.item)}</strong><span>Adding…</span></div>
+   <ul>{ADD_STEPS.map(([k,label],i)=>{const at=ADD_STEPS.findIndex(([s])=>s===progress.step);return <li key={k} data-state={i<at?'done':i===at?'now':'wait'}><UiIcon name={i<at?'check':i===at?'refresh':'clock'} size={13}/>{label}</li>;})}</ul></div>}
+  {removing&&<Sheet title={`Remove ${itemName(removing.item)}?`} onClose={()=>setRemoving(null)} actions={<><button type="button" onClick={()=>setRemoving(null)}>Cancel</button><button type="button" className="primary" onClick={()=>void remove(removing.item,false,true)}><UiIcon name="trash" size={14}/>Save a copy and remove</button></>}>
+   <div className="st-sheet-head"><StoreIcon item={removing.item} size={36}/></div>
+   <p>Its page, its tools and its code leave Girru. It keeps data of its own: <strong>{removing.data.filter(t=>t.rows>0).map(t=>`${t.rows} ${plainTable(t.table,removing.item.id.slice(6))}`).join(', ')}</strong>.</p>
+   <ul className="st-asks"><li><UiIcon name="shield" size={13}/>Girru saves a copy of that data first, then removes it.</li><li><UiIcon name="undo" size={13}/>Add {itemName(removing.item)} again later and the copy comes back.</li><li><UiIcon name="check" size={13}/>Your chats, agents and memory stay as they are.</li></ul>
   </Sheet>}
   <ContextMenu menu={menu} onClose={close}/>
   <Notice toast={toast} onUndo={()=>{const u=undoRef.current;setToast(null);u?.();}} onDone={id=>setToast(t=>t?.id===id?null:t)}/>
