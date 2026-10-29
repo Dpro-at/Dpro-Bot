@@ -102,7 +102,7 @@ import { askCodingAppTool } from './cli/ask-coding-app.js';
 import { boardSuggestCardTool } from './board/board-suggest.js';
 import { ruleSuggestTool } from './rules/rule-suggest.js';
 import { handoffReadTool, handoffSaveTool } from './handoff/handoff.js';
-import { boardCheckTool, boardChecklistTool, boardCommentTool, boardMoveTool, boardMyCardsTool } from './board/board-tools.js';
+import { boardCheckTool, boardChecklistTool, boardCommentTool, boardMoveTool, boardMyCardsTool, boardTaskUpdateTool } from './board/board-tools.js';
 
 import {
   skillInstallTool,
@@ -135,7 +135,7 @@ const CORE_TOOLS: Tool[] = [
   createReminderTool,
   credentialsSaveTool,
   skillInstallTool,
-  boardMyCardsTool, boardCommentTool, boardMoveTool, boardChecklistTool, boardCheckTool, // BOARD-02/03: only the agent's own board cards
+  boardMyCardsTool, boardCommentTool, boardMoveTool, boardChecklistTool, boardCheckTool, boardTaskUpdateTool, // BOARD-02/03: only the agent's own board cards; TASKLOG-01: their task in the project's task file
   planStepsTool, // CHAT-PRO-02 H: the agent's own live task plan (self-only, no grant)
   ruleSuggestTool, // RULES-01: suggests a rule; only the owner turns it into one (self-only, no grant)
   boardSuggestCardTool, // CHAT-PRO-02 I step 2: suggests a board card; only the owner creates it (self-only, no grant)

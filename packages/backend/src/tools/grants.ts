@@ -90,6 +90,7 @@ export const DEFAULT_AGENT_TOOLS: readonly string[] = [
   'board_move',
   'board_checklist',
   'board_check',
+  'board_task_update', // TASKLOG-01: the task of the agent's own card in its project's task file
 ];
 
 /** Destination parameter of known send/call tools (for destination scopes). */

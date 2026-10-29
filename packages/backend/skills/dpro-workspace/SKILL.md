@@ -27,6 +27,14 @@ Use these MCP tools through the owner's authenticated local session.
 - When you learn something every agent (or a department, or this project) should always do, suggest it: `suggest` here, or the `rule_suggest` tool in a chat. One clear sentence and a short reason; add `when` when it applies only in one case. It waits for the owner; never say it is a rule before the owner accepts it.
 - You never add, change, pause or delete a rule, and never use or dismiss a suggestion (not even your own); the owner does that in Agents › Rules.
 
+## Task file (tool `workspace_tasks`, the Board)
+
+- A project with its files written has one task file, `.girru/tasks.md`, that every agent and app (Girru's agents, Claude Code, Codex, Gemini) reads and writes. The Board shows each task as a card on its department's board with its agent; a task with no fitting department waits in "To sort" on the company board for the owner.
+- Before you start work in such a project, read the file and continue an open task instead of starting a new one. Keep the format: one `## T-<number> · <title>` block per task with the lines State, Department, Agent, Priority, Worked on by and the parts Done, Left, Next, Log.
+- After each step, update that task's Done, Left and Next, add a Log line (`2026-10-29 15:40 · <your app> · what you did`) and add your app to Worked on by. Change no other task; never write outside the project folder.
+- An agent of Girru that cannot edit files updates its own card's task with `board_task_update` (it signs as Girru) and moves the card with `board_move`. A card in the last column (Done) moves its task to `.girru/tasks-done.md`; nobody reads that file unless asked.
+- `list` and `get` only read. `continue` (only on the owner's instruction) starts a chat in the project where the chosen agent and app continue the task. The owner turns the task file on or off in Agents › Rules.
+
 ## Chats (tool `chats`)
 
 - `list` shows the chat sidebar: each chat's name, project, pinned, archived, which chat it was opened from, whether an agent works in it now and how many approvals wait for the owner. `projects` lists the projects with their folders.

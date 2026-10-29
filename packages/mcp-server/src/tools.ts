@@ -30,6 +30,9 @@ const RUN_ID = /^[0-9a-f-]{36}$/i;
 const RULE_OPS=['list','effective','versions','files','suggest'];
 /** RULES-01: an MCP agent runs with the owner's session, so rule changes and decisions on suggestions stay in the app (an agent never accepts its own suggestion). */
 const RULES_REFUSED='Adding, changing, pausing, deleting rules and using or dismissing a suggestion are done by the owner in Agents \u203a Rules. This tool reads (list, effective, versions) and suggests.';
+const TASK_OPS=['list','get','continue'];
+/** TASKLOG-01: turning a project's task file on or off, and moving or editing cards, stay with the owner in the app. */
+const TASKS_REFUSED='Turning a project\u2019s task file on or off is done by the owner in Agents \u203a Rules (the files sheet); moving and editing cards is done on the Board. This tool reads tasks (list, get) and, on the owner\u2019s instruction, continues one.';
 const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties'];
 
 export const TOOL_DEFINITIONS = [
@@ -70,6 +73,11 @@ export const TOOL_DEFINITIONS = [
     name:'workspace_rules',title:'Rules agents follow',
     description:'Owner-session only. The owner\u2019s rules for how agents work (Agents \u203a Rules). Read: list (every rule in the order agents get them — the ones that come with Girru first, safety ones always on — paused ones marked, and suggestions waiting), files (projectId: whether the project\u2019s coding app files — .girru/rules.md, the @ line in CLAUDE.md and GEMINI.md, the rules part of AGENTS.md — are up to date), effective (agentId, projectId?: the exact list that agent gets there, the later one wins), versions (id). suggest (text, when?, reason?, projectId?, who?, targets?): propose a rule (when = the one case it applies in; leave out for always); it waits for the owner. Adding, changing, pausing, deleting rules, deciding suggestions and writing the files stay with the owner in the app. who is all, departments (targets = department names) or agents (targets = agent ids); projectId null = everywhere.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:RULE_OPS},id:{type:'string',maxLength:36},text:{type:'string',maxLength:2000},when:{type:['string','null'],maxLength:300},reason:{type:'string',maxLength:500},projectId:{type:['string','null'],maxLength:64},who:{type:'string',enum:['all','departments','agents']},targets:{type:'array',maxItems:50,items:{type:'string',maxLength:120}},agentId:{type:'string',maxLength:120}},required:['operation'],additionalProperties:false},
+  },
+  {
+    name:'workspace_tasks',title:'Project task files',
+    description:'Owner-session only. The tasks of each project\u2019s task file (.girru/tasks.md): one file per project that every agent and coding app (Claude Code, Codex, Gemini) reads and writes, shown on the Board on the right department board with its agent. list (projectId?: every open and finished task with its number, title, state, department, agent, the apps that worked on it, its board and card, and a line to fix if its block breaks the format; plus lines of the file that belong to no task), get (boardId, cardId: one task\u2019s Done, Left, Next, who worked on it and its last log lines). Only on the owner\u2019s explicit instruction: continue (boardId, cardId, agentId?, model?: a new chat in the project where that agent \u2014 and app, e.g. subscription:codex \u2014 continues the task from the file). Work on a task by editing its block in the file (keep the format; add a Log line with your app name and your app to Worked on by). '+TASKS_REFUSED,
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:TASK_OPS},projectId:{type:'string',maxLength:64},boardId:{type:'string',maxLength:64},cardId:{type:'string',maxLength:64},agentId:{type:'string',maxLength:128},model:{type:'string',maxLength:100}},required:['operation'],additionalProperties:false},
   },
   {
     name:'workspace_footer',title:'Footer sections',
@@ -312,6 +320,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'agents': return await agentsTool(args,deps);
       case 'workspace_approvals': return await workspaceApprovalsTool(args,deps);
       case 'workspace_rules': return await workspaceRulesTool(args,deps);
+      case 'workspace_tasks': return await workspaceTasksTool(args,deps);
       case 'chats': return await chatsTool(args,deps);
       case 'workspace_footer': return await workspaceFooterTool(args,deps);
       case 'account_settings': return await accountSettingsTool(args,deps);
@@ -938,6 +947,17 @@ async function workspaceRulesTool(args:Record<string,unknown>,{backend}:HandlerD
   case 'versions':{only(args,['operation','id']);return ok('Earlier versions, newest first.',{versions:obj(await backend.request('GET',`/api/agent-rules/${ruleId()}/versions`)).versions??[]});}
   case 'suggest':{only(args,['operation',...RULE,'reason']);const r=obj(await backend.request('POST','/api/agent-rules/suggestions',fields([...RULE,'reason'])));return ok('Suggested. It waits for the owner in Agents \u203a Rules.',{rule:rule(r.rule)});}
   default:throw new InputError(RULES_REFUSED);
+ }
+}
+
+async function workspaceTasksTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const op=args.operation as string;
+ const id=(k:string)=>{const v=args[k];if(typeof v!=='string'||!/^[A-Za-z0-9_-]{1,64}$/.test(v))throw new InputError(`${k} must be an id from list`);return v;};
+ switch(op){
+  case 'list':{only(args,['operation','projectId']);const qs=args.projectId!==undefined?`?projectId=${id('projectId')}`:'';const r=obj(await backend.request('GET',`/api/boards/tasks${qs}`));const tasks=(r.tasks as any[])??[];return ok(`${tasks.filter(t=>!t.finished).length} open tasks, ${tasks.filter(t=>t.finished).length} finished${(r.problems as any[])?.length?`, ${(r.problems as any[]).length} lines to fix`:''}.`,{tasks,problems:r.problems??[]});}
+  case 'get':{only(args,['operation','boardId','cardId']);const t=obj(await backend.request('GET',`/api/boards/${id('boardId')}/cards/${id('cardId')}/task`)).task;if(!t)throw new InputError('That card has no task in a project task file');return ok('The task as the project\u2019s task file has it.',{task:t});}
+  case 'continue':{only(args,['operation','boardId','cardId','agentId','model']);const body:Record<string,unknown>={boardId:id('boardId'),cardId:id('cardId')};if(args.agentId!==undefined){if(typeof args.agentId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(args.agentId))throw new InputError('agentId must be an agent id');body.agentId=args.agentId;}if(args.model!==undefined){if(typeof args.model!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(args.model))throw new InputError('model must be a model id');body.model=args.model;}const r=obj(await backend.request('POST','/api/chat/task-continue',body));return ok('A chat in the project continues the task now.',{conversation:r.conversation??null});}
+  default:throw new InputError(TASKS_REFUSED);
  }
 }
 

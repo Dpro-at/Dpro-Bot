@@ -15,7 +15,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { q } from '../repositories/sql-steps.js';
-import { projectFileRules, ruleLine } from './agent-rules.js';
+import { projectFileRules, ruleLine, setTaskRule } from './agent-rules.js';
 
 const run = promisify(execFile);
 export type FileMode = 'private' | 'project';
@@ -47,7 +47,7 @@ export function withPart(current: string | null, part: string): string {
   return `${current.replace(/\s*$/, '')}\n\n${part}\n`;
 }
 
-async function folderOf(projectId: string): Promise<string> {
+export async function folderOf(projectId: string): Promise<string> {
   const p = await q.one<{ folder: string | null }>('SELECT folder FROM chat_projects WHERE id = ?', projectId);
   if (!p) throw new RuleFilesError('not_found', 'Project not found');
   if (!p.folder) throw new RuleFilesError('no_folder', 'This project has no folder');
@@ -57,7 +57,7 @@ async function folderOf(projectId: string): Promise<string> {
 }
 /** null = missing; 'link' = a link or not a plain file (never written through). Opened once without
  * following links, then checked and read through the same handle, so it cannot change in between. */
-async function readPlain(file: string): Promise<string | null | 'link'> {
+export async function readPlain(file: string): Promise<string | null | 'link'> {
   let fh: Awaited<ReturnType<typeof fs.open>>;
   try { fh = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW | (constants.O_NONBLOCK ?? 0)); } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
@@ -76,15 +76,16 @@ async function git(folder: string, ...args: string[]): Promise<string | null> {
 async function tracked(folder: string, name: string): Promise<boolean> {
   return (await git(folder, 'ls-files', '--error-unmatch', '--', name)) !== null;
 }
-async function writeAtomic(file: string, text: string): Promise<void> {
+export async function writeAtomic(file: string, text: string): Promise<void> {
   const tmp = `${file}.girru-${process.pid}-${Date.now()}`;
   await fs.writeFile(tmp, text, { encoding: 'utf8', flag: 'wx', mode: 0o644 });
   await fs.rename(tmp, file);
 }
 
-async function settings(projectId: string): Promise<{ mode: FileMode; written: boolean }> {
-  const r = await q.one<{ mode: string; written_at: string | null }>('SELECT mode, written_at FROM agent_rule_files WHERE project_id = ?', projectId);
-  return { mode: r?.mode === 'project' ? 'project' : 'private', written: !!r?.written_at };
+async function settings(projectId: string): Promise<{ mode: FileMode; written: boolean; tasks: boolean }> {
+  const r = await q.one<{ mode: string; written_at: string | null; tasks: number | null }>('SELECT mode, written_at, tasks FROM agent_rule_files WHERE project_id = ?', projectId);
+  // TASKLOG-01: the task file is on by default once the files are written.
+  return { mode: r?.mode === 'project' ? 'project' : 'private', written: !!r?.written_at, tasks: r?.tasks === undefined || r?.tasks === null || Number(r.tasks) === 1 };
 }
 
 /** What writing would do now, file by file (reads only). */
@@ -126,10 +127,22 @@ async function setExclude(folder: string, names: readonly string[], mode: FileMo
 }
 
 /** Write the project's files (the owner's button, or a rule change after the first write). */
-export async function writeFiles(projectId: string, mode?: FileMode): Promise<FilesState> {
+/** One write at a time: a later write always reads the newer rules, so an older one never lands last. */
+let writing: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
+  const next = writing.catch(() => undefined).then(fn);
+  writing = next;
+  return next;
+}
+export function writeFiles(projectId: string, mode?: FileMode): Promise<FilesState> {
+  return oneAtATime(() => writeNow(projectId, mode));
+}
+async function writeNow(projectId: string, mode?: FileMode): Promise<FilesState> {
   const s = await settings(projectId);
   const m = mode ?? s.mode;
   const folder = await folderOf(projectId);
+  // TASKLOG-01: the project's task file rule follows the task file switch (written with the other rules).
+  await setTaskRule(projectId, s.tasks);
   const plan = await filesState(projectId, m);
   const dir = path.join(folder, '.girru');
   const st = await fs.lstat(dir).catch(() => null);
@@ -152,10 +165,19 @@ export async function writeFiles(projectId: string, mode?: FileMode): Promise<Fi
   return filesState(projectId, m);
 }
 
+/** TASKLOG-01: turn the project's task file on or off (its rule follows; the files are written again). Off keeps tasks.md for the owner. */
+export async function setTasks(projectId: string, on: boolean): Promise<FilesState> {
+  const s = await settings(projectId);
+  if (!s.written) throw new RuleFilesError('no_folder', 'Write the project’s files first');
+  await q.run('UPDATE agent_rule_files SET tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?', on ? 1 : 0, projectId);
+  return writeFiles(projectId);
+}
+
 /** After a rule changes: re-write every project the owner already wrote (quietly; a failure waits for the next change). */
 export async function syncWrittenProjects(): Promise<void> {
   const rows = await q.all<{ project_id: string }>('SELECT project_id FROM agent_rule_files WHERE written_at IS NOT NULL').catch(() => []);
   for (const r of rows) {
-    try { const st = await filesState(r.project_id); if (!st.upToDate && st.folder) await writeFiles(r.project_id); } catch { /* the next change tries again */ }
+    // The check runs in the queue too, so it sees the rules as they are when its turn comes.
+    try { await oneAtATime(async () => { const st = await filesState(r.project_id); if (!st.upToDate && st.folder) await writeNow(r.project_id); }); } catch { /* the next change tries again */ }
   }
 }

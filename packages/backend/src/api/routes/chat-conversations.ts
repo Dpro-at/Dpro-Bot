@@ -15,6 +15,8 @@ import {projectFolders} from '../../services/project-folder-picker.js';
  *   POST   /api/chat/runs/:runId/stop              stop; the partial reply is kept
  *   GET    /api/chat/conversations/:id/cards       owner: board cards made from it + who works on it (CHAT-PRO-02 I step 2)
  *   POST   /api/chat/conversations/:id/cards       owner: { boardId, columnId?, title, description?, priority?, type?, agents? } → 201 { card }
+ *   POST   /api/chat/task-continue                 owner: { boardId, cardId, agentId?, model? } → 201 { conversation: { id } } (TASKLOG-01:
+ *          a new chat in the task's project that continues the card's task from the project's task file; its first turn starts at once)
  *   GET    /api/chat/conversations/:id/memories    owner: memories and agent proposals from it (CHAT-PRO-02 E)
  *   POST   /api/chat/conversations/:id/memories    owner: "Remember this" { messageId, content, drawer, type?, importance? } → 201 { memory }
  *   GET    /api/chat/secrets                       the caller's keys saved from the chat (never values) (CHAT-SECRETS-01)
@@ -29,6 +31,7 @@ import {projectFolders} from '../../services/project-folder-picker.js';
  */
 
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticateActiveUser } from '../../auth/route-guards.js';
 import {
@@ -56,6 +59,7 @@ import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVaria
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard, replyPlan } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
+import { continueMessage } from '../../services/task-file.js';
 import { ChatMemoryError, conversationMemories, rememberFromChat } from '../../services/chat-memory.js';
 import { actorOf } from '../../auth/auth-gate.js';
 import { ChatSearchError, parseSearch, searchConversations } from '../../services/chat-search.js';
@@ -670,6 +674,25 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     const b = request.body;
     if (b === null || typeof b !== 'object' || Array.isArray(b)) return bad(reply, 'Body must be a JSON object');
     try { return reply.code(201).send({ card: await createChatCard(caller(request), request.params.id!, b as Record<string, unknown>) }); } catch (err) { return boardError(reply, err); }
+  });
+
+  fastify.post('/api/chat/task-continue', { config: { access: 'owner' } }, async (request: Req, reply) => {
+    const b: any = request.body;
+    if (b === null || typeof b !== 'object' || Array.isArray(b) || Object.keys(b).some((k) => !['boardId', 'cardId', 'agentId', 'model'].includes(k))) return bad(reply, 'Body is { boardId, cardId, agentId?, model? }');
+    if (typeof b.boardId !== 'string' || !AGENT_ID.test(b.boardId) || typeof b.cardId !== 'string' || !AGENT_ID.test(b.cardId)) return bad(reply, 'boardId and cardId are required');
+    if (b.agentId !== undefined && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
+    if (b.model !== undefined && (typeof b.model !== 'string' || (b.model !== '' && !MODEL.test(b.model)))) return bad(reply, 'invalid model');
+    const userId = caller(request);
+    const m = await continueMessage(userId, b.boardId, b.cardId);
+    if (!m) return notFound(reply);
+    const agentId = b.agentId ?? (await q.one<{ agent_id: string }>('SELECT agent_id FROM board_card_agents WHERE card_id = ? ORDER BY agent_id LIMIT 1', b.cardId))?.agent_id;
+    const made = await createConversation(userId, { title: m.title, agentId: agentId ?? null, projectId: m.projectId, model: b.model || undefined });
+    await q.run('UPDATE board_cards SET conversation_id = ? WHERE id = ?', made.id, b.cardId);
+    const c = await findConversation(userId, made.id);
+    if (!c) return notFound(reply);
+    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: `task-${randomUUID()}`, message: m.message, model: b.model || undefined });
+    if (out.code >= 400) return reply.code(out.code).send({ ...out.body, conversation: { id: made.id } });
+    return reply.code(201).send({ conversation: { id: made.id } });
   });
 
   // ---- chat memory (CHAT-PRO-02 E): owner only, like the memory files and proposals ----
