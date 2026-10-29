@@ -11,6 +11,7 @@ import {tradingPaperReadRoutes} from './routes/trading-paper-read.js';
 import {skillInstallRoutes} from './routes/skill-installs.js';
 import {securityCoverageRoutes} from './routes/security-coverage.js';
 import {chatAddonsRoutes} from './routes/chat-addons.js';
+import {storeRoutes} from './routes/store.js';
 import { mcpImportRoutes } from './routes/mcp-import.js';
 /**
  * Girru Fastify app factory.
@@ -350,6 +351,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(modelsRoutes);
   await fastify.register(securityCoverageRoutes);
   await fastify.register(chatAddonsRoutes,{home:process.env.DPRO_ADDON_METADATA_HOME});
+  await fastify.register(storeRoutes,{home:process.env.DPRO_ADDON_METADATA_HOME});
   await fastify.register(chatRoutes);
   await fastify.register(chatConversationRoutes); // saved conversations + resumable runs (CHAT-REBUILD-01)
   await fastify.register(agentHandoffRoutes); // CORE-MEM-HANDOFF: the agents' handoff notes (owner only)

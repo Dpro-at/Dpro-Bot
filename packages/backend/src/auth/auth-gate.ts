@@ -163,7 +163,8 @@ export const TIER_RULES: readonly Rule[] = [
   { methods: '*', prefix: '/api/sandbox', access: 'owner' },         // command execution (native fallback)
   { methods: '*', prefix: '/api/terminal', access: 'owner' },        // interactive shell on the host (TERM-01)
   { methods: ['GET'], exact: '/api/onboarding/team-catalogue', access: 'owner' }, // company setup catalogue (ONBOARD-TEAM-01)
-  { methods: ['POST'], exact: '/api/onboarding/team-plan', access: 'owner' },     // proposed team; reads only (ONBOARD-TEAM-01)
+  { methods: ['POST'], exact: '/api/onboarding/team-plan', access: 'owner' },
+  { methods: '*', prefix: '/api/store', access: 'owner' },           // Store: read, add and remove apps (STORE-UI-01)     // proposed team; reads only (ONBOARD-TEAM-01)
   { methods: ['POST'], exact: '/api/onboarding/team-distribution', access: 'owner' }, // total headcount split; reads nothing (ONBOARD-TEAM-02)
   { methods: '*', prefix: '/api/onboarding/team-batches', access: 'owner' },      // batch hire of a reviewed plan (ONBOARD-TEAM-02)
   { methods: '*', prefix: '/api/agent-rules', access: 'owner' },     // the owner's rules for how agents work (RULES-01)
