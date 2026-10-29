@@ -16,6 +16,7 @@ import { ContextMenu, useMenu } from './desktop-ui';
 import type { MenuItem } from './desktop-ui';
 import { turnOutputs } from './turns';
 import { answersLabel } from './ChatComposerControls';
+import { ClaudeCodeIcon, CodexIcon, GeminiIcon } from './brand-icons';
 
 export type PanelPart = 'place' | 'team' | 'results' | 'memory' | 'mcp';
 export const PANEL_PARTS: readonly { id: PanelPart; name: string; icon: UiIconName }[] = [
@@ -50,6 +51,30 @@ export const scheduleWords = (s: Schedule) => s.every === 'hourly' ? `Runs every
 const kTokens = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const localModel = (m: string) => !/^(claude-|subscription:)/.test(m);
 
+/** CH12: the app that answers for a model id (its mark is drawn from brand-icons; a model on this computer gets the chip). */
+export type ModelApp = { id: 'subscription:claude' | 'subscription:codex' | 'subscription:gemini' | 'claude' | 'local'; name: string };
+export function modelApp(model: string): ModelApp | null {
+  if (!model || model === 'auto') return null;
+  for (const [id, name] of [['subscription:claude', 'Claude Code'], ['subscription:codex', 'Codex'], ['subscription:gemini', 'Gemini']] as const) if (model === id || model.startsWith(`${id}/`) || model.startsWith(`${id}:`)) return { id, name };
+  return /^claude-/.test(model) ? { id: 'claude', name: 'Claude' } : { id: 'local', name: 'On this computer' };
+}
+export function AppMark({ app, size = 12 }: { app: ModelApp; size?: number }) {
+  return app.id === 'subscription:codex' ? <CodexIcon size={size}/> : app.id === 'subscription:gemini' ? <GeminiIcon size={size}/> : app.id === 'local' ? <UiIcon name="cpu" size={size}/> : <ClaudeCodeIcon size={size}/>;
+}
+export type ModelUse = { app: ModelApp; agents: { name: string; label: string }[]; tokens: number };
+/** CH12: which apps and models worked in this chat: each app once, with the agents that used it and its tokens. */
+export function modelsUsed(people: readonly { name: string; model: string }[], usage: readonly Usage[], label: (model: string) => string): ModelUse[] {
+  const out = new Map<string, ModelUse>();
+  for (const p of people) {
+    const app = modelApp(p.model); if (!app) continue;
+    const u = out.get(app.id) ?? { app, agents: [], tokens: 0 };
+    if (!u.agents.some(a => a.name === p.name)) u.agents.push({ name: p.name, label: label(p.model) });
+    out.set(app.id, u);
+  }
+  for (const x of usage) { const u = out.get(modelApp(x.model)?.id ?? ''); if (u) u.tokens += x.tokensIn + x.tokensOut; }
+  return [...out.values()];
+}
+
 /** The chat's live data for the panel (usage, delegations, schedule, connections); quiet on failure. */
 function useLive(client: SessionClient | undefined, chatId: string | null, owner: boolean, tick: number): Live {
   const [live, setLive] = useState<Live>({ usage: [], team: [], apps: [], schedule: null, connections: null });
@@ -73,8 +98,8 @@ function useLive(client: SessionClient | undefined, chatId: string | null, owner
   return live;
 }
 
-export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue, focusPart, switcher }: {
-  switcher?: ReactNode; onContinue?: () => void; focusPart?: { id: PanelPart; n: number } | null;
+export function ChatDetails({ controller, client, recall, memoryCard, placeExtra, resultsExtra, onOpenPane, onSettings, onClose, onStop, onSchedule, onAddFolder, onContinue, onSignIn, focusPart, switcher }: {
+  switcher?: ReactNode; onSignIn?: () => void; onContinue?: () => void; focusPart?: { id: PanelPart; n: number } | null;
   controller: ConversationsController; client?: SessionClient; recall?: ChatRecallController | null; memoryCard?: ReactNode; placeExtra?: ReactNode; resultsExtra?: ReactNode;
   onOpenPane: (pane: 'changes' | 'files' | 'terminal') => void; onSettings?: () => void; onClose: () => void; onStop: () => void;
   onSchedule: () => void; onAddFolder: () => void;
@@ -84,6 +109,7 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
   const [prefs, setPrefsState] = useState<PanelPrefs>(DEFAULT_PANEL);
   const [more, setMore] = useState<Set<PanelPart>>(new Set());
   const [byModel, setByModel] = useState(false);
+  const [card, setCard] = useState<string | null>(null);
   const [drag, setDrag] = useState<PanelPart | null>(null);
   const menu = useMenu();
   // While a reply runs, look again every few seconds so coding apps an agent starts show up (and leave) in Team.
@@ -107,6 +133,14 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
   const outputs = turnOutputs(s.turns);
   const changed = s.git?.files ?? 0;
   const conns = (live.connections ?? []).filter(c => c.enabled);
+  // CH12: the lead answers with the chat's choice (or, on Auto, the one model its replies used); each helper with the model its hand-off really ran on.
+  const leadModel = s.model && s.model !== 'auto' ? s.model : live.usage.length === 1 ? live.usage[0].model : '';
+  const helpers = [...new Map(live.team.map(d => [d.agentId, d])).values()];
+  const used = modelsUsed([{ name: lead, model: leadModel }, ...helpers.map(d => ({ name: d.agentName, model: d.model }))], live.usage, m => answersLabel(m, s.models, 'normal'));
+  const people = 1 + writers.filter(w => w && w !== (conv?.agentId ?? '')).length + helpers.length;
+  const teamTitle = `${people} ${people === 1 ? 'agent' : 'agents'}${used.length ? ` · ${used.length} ${used.length === 1 ? 'model' : 'models'}` : ''}`;
+  const signedOut = (model: string) => s.modelsLoaded && model.startsWith('subscription:') && !s.models.some(m => m.provider === 'subscription' && model.split('/')[0] === m.id);
+  const answers = (model: string) => { const app = modelApp(model), words = answersLabel(model, s.models, 'normal'); return app ? <><span className="details-app" aria-hidden="true"><AppMark app={app} size={10}/></span>{app.id === 'local' ? `On this computer · ${words}` : words}</> : words; };
 
   // Each part: does it have something, its one-line summary, and its body.
   const parts: Record<PanelPart, { has: boolean; summary: string; tone?: 'work' | 'needs'; side?: ReactNode; body: ReactNode; more?: ReactNode }> = {
@@ -122,12 +156,13 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
           end={owner ? <button type="button" className="link-button" onClick={onSchedule}>Change</button> : undefined}/>
           : owner && s.activeId ? <button type="button" className="link-button panel-add" onClick={onSchedule}><UiIcon name="clock" size={12}/>Run this chat on a schedule…</button> : null}
       </>, more: placeExtra },
-    team: { has: writers.length > 0 || !!running || live.team.length > 0 || live.apps.length > 0, summary: working.length ? `${working.length} working` : waits ? `${waits} waits for you` : `${writers.length || 1} ${writers.length === 1 ? 'agent' : 'agents'}`, tone: working.length ? 'work' : waits ? 'needs' : undefined,
+    team: { has: writers.length > 0 || !!running || live.team.length > 0 || live.apps.length > 0, summary: working.length ? `${working.length} working` : waits ? `${waits} waits for you` : teamTitle, tone: working.length ? 'work' : waits ? 'needs' : undefined,
+      side: <small className="details-sum">{teamTitle}</small>,
       body: <>
-        <Row face={lead} name={lead} sub={`Leads · ${answersLabel(s.model, s.models, s.thinking)}`} end={running && !running.agentId ? <StopButton onStop={onStop}/> : <span className="panel-end">{running ? 'Working' : 'Ready'}</span>}/>
+        <Row face={lead} badge={modelApp(leadModel)} name={lead} sub={<>Leads · {answers(leadModel)}{leadModel === s.model ? answersLabel(s.model, s.models, s.thinking).slice(answersLabel(s.model, s.models, 'normal').length) : ''}</>} end={running && !running.agentId ? <StopButton onStop={onStop}/> : <span className="panel-end">{running ? 'Working' : 'Ready'}</span>}/>
         {writers.filter(w => w && w !== (conv?.agentId ?? '')).map(w => <Row key={w} face={nameOf(w)} name={nameOf(w)} sub="Wrote a reply here" end={running?.agentId === w ? <StopButton onStop={onStop}/> : undefined}/>)}
-        {live.team.slice(0, more.has('team') ? 50 : 3).map((d, i) => <Row key={`${d.agentId}-${i}`} face={d.agentName} name={d.agentName} sub={`Handed a part · ${answersLabel(d.model, s.models, 'normal')}`} indent
-          end={d.status === 'started' ? <StopButton onStop={onStop}/> : <span className="panel-end" data-tone={d.status === 'waiting_approval' ? 'needs' : d.status === 'failed' ? 'error' : undefined}>{d.status === 'answered' ? 'Done' : d.status === 'waiting_approval' ? 'Waits for you' : d.status === 'failed' ? 'Failed' : ''}</span>}/>)}
+        {live.team.slice(0, more.has('team') ? 50 : 3).map((d, i) => <Row key={`${d.agentId}-${i}`} face={d.agentName} badge={modelApp(d.model)} name={d.agentName} sub={<>Handed a part · {answers(d.model)}{signedOut(d.model) ? ' · not signed in' : ''}</>} indent
+          end={d.status === 'started' ? <StopButton onStop={onStop}/> : signedOut(d.model) && onSignIn ? <button type="button" className="link-button" title="Sign in to this app in Settings › Replies" onClick={onSignIn}>Sign in…</button> : <span className="panel-end" data-tone={d.status === 'waiting_approval' ? 'needs' : d.status === 'failed' ? 'error' : undefined}>{d.status === 'waiting_approval' && <span className="details-needs-dot" aria-hidden="true"/>}{d.status === 'answered' ? 'Done' : d.status === 'waiting_approval' ? 'Waits for you' : d.status === 'failed' ? 'Failed' : ''}</span>}/>)}
         {live.apps.map(a => <Row key={a.id} icon="terminal" name={a.app} indent sub={[a.agentName ? `Working for ${a.agentName}` : 'Working', a.about].filter(Boolean).join(' · ')}
           end={<button type="button" className="row-tool details-stop" aria-label={`Stop ${a.app}`} title={`Stop ${a.app} (only this part)`} onClick={() => stopApp(a.id)}><UiIcon name="stop" size={10}/></button>}/>)}
       </>, more: live.team.length > 3 && !more.has('team') ? <ShowMore n={live.team.length - 3} onClick={() => setMore(new Set([...more, 'team']))}/> : undefined },
@@ -175,7 +210,20 @@ export function ChatDetails({ controller, client, recall, memoryCard, placeExtra
       <span className="details-divider" aria-hidden="true"/>
       <span className="details-who">{working.length ? <><Faces names={working}/>{working.length} working</> : waits ? <span className="details-waits">{waits} {waits === 1 ? 'waits' : 'wait'} for you</span> : <>Ready</>}</span>
     </div>
-    {byModel && <div className="details-usage">{live.usage.length ? live.usage.map(u => <div key={u.model}><span>{answersLabel(u.model, s.models, 'normal')}</span><span>{kTokens(u.tokensIn + u.tokensOut)}{localModel(u.model) ? ' · free' : ''}</span></div>) : <p className="panel-quiet">Tokens show here after the first reply.</p>}</div>}
+    {used.length > 0 && <div className="details-models" aria-label="Models in this chat">
+      <span className="details-models-name">Models</span>
+      {used.map(u => <span key={u.app.id} className="details-model-anchor" onMouseEnter={() => setCard(u.app.id)} onMouseLeave={() => setCard(c => c === u.app.id ? null : c)}>
+        <button type="button" className="details-model" aria-describedby={card === u.app.id ? 'details-model-card' : undefined} aria-label={`${u.app.name}: ${u.agents.length} ${u.agents.length === 1 ? 'agent' : 'agents'}`}
+          onFocus={() => setCard(u.app.id)} onBlur={() => setCard(c => c === u.app.id ? null : c)} onKeyDown={e => { if (e.key === 'Escape' && card) { e.stopPropagation(); setCard(null); } }} onClick={() => { setCard(null); setByModel(true); }}>
+          <AppMark app={u.app} size={12}/>{u.agents.length}</button>
+        {card === u.app.id && <span className="details-model-card" id="details-model-card" role="tooltip">
+          <b><AppMark app={u.app} size={12}/>{[...new Set(u.agents.map(a => a.label))].join(', ')}</b>
+          <span>Used by {u.agents.map(a => a.name).join(', ')}</span>
+          {u.tokens > 0 && <span>{kTokens(u.tokens)} tokens{u.app.id === 'local' ? ' · free' : ''}</span>}
+          <small>Click to see it in Context.</small></span>}
+      </span>)}
+    </div>}
+    {byModel && <div className="details-usage">{live.usage.length ? live.usage.map(u => <div key={u.model}><span>{answers(u.model)}</span><span>{kTokens(u.tokensIn + u.tokensOut)}{localModel(u.model) ? ' · free' : ''}</span></div>) : <p className="panel-quiet">Tokens show here after the first reply.</p>}</div>}
     {shown.length === 1 && !s.turns.length && <p className="panel-quiet">Work, files and helpers show here while the team works.</p>}
     {shown.map(id => {
       const p = parts[id], meta = PANEL_PARTS.find(x => x.id === id)!, folded = prefs.folded.includes(id);
@@ -213,8 +261,8 @@ export function DetailsRail({ controller, onOpen }: { controller: ConversationsC
   </nav>;
 }
 
-function Row({ icon, logo, face, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; logo?: ReactNode; face?: string; name: string; sub?: string; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
-  const inner = <>{face ? <span className="composer-face" aria-hidden="true">{face.slice(0, 1).toUpperCase()}</span> : logo ? <span className="details-icon">{logo}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
+function Row({ icon, logo, face, badge, name, sub, end, onClick, indent, ltr, tone }: { icon?: UiIconName; logo?: ReactNode; face?: string; badge?: ModelApp | null; name: string; sub?: ReactNode; end?: ReactNode; onClick?: () => void; indent?: boolean; ltr?: boolean; tone?: 'needs' }) {
+  const inner = <>{face ? <span className="details-face" aria-hidden="true"><span className="composer-face">{face.slice(0, 1).toUpperCase()}</span>{badge && <span className="details-face-app" data-app={badge.id}><AppMark app={badge} size={8}/></span>}</span> : logo ? <span className="details-icon">{logo}</span> : icon ? <span className="details-icon"><UiIcon name={icon} size={13}/></span> : null}
     <span className="pop-text"><b dir={ltr ? 'ltr' : 'auto'} title={name}>{name}</b>{sub && <small data-tone={tone}>{sub}</small>}</span>{end}</>;
   return onClick ? <button type="button" className="details-row" data-indent={indent || undefined} onClick={onClick}>{inner}</button>
     : <div className="details-row" data-indent={indent || undefined}>{inner}</div>;
