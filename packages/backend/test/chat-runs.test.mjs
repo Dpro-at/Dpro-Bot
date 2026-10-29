@@ -127,7 +127,12 @@ test('a run streams reasoning, tools and text, then stores both turns with their
   await call('r-owner', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId: r2, message: 'And again' });
   await ended(r2);
   const sent = bodies[0].messages.filter((x) => x.role !== 'system').map((x) => [x.role, x.content]);
-  assert.deepEqual(sent, [['user', 'Echo hi please\nsecond line'], ['assistant', 'All done.'], ['user', 'And again']]);
+  assert.deepEqual(sent.map(([r]) => r), ['user', 'assistant', 'user']);
+  assert.equal(sent[0][1], 'Echo hi please\nsecond line');
+  assert.equal(sent[2][1], 'And again');
+  // CHAT-GAPS-01: the earlier reply's text, then its tool work as quoted data.
+  assert.ok(sent[1][1].startsWith('All done.\n\n[Tools this reply used'));
+  assert.match(sent[1][1], /<earlier_tool_work>\n- x_echo\(\{"text":"hi"\}\) → ok\n {2}result: echo: hi\n<\/earlier_tool_work>$/);
   // Repeating a finished runId does not run it again.
   const again = await call('r-owner', 'POST', `/api/chat/conversations/${c.id}/runs`, { runId: r2, message: 'And again' });
   assert.equal(again.statusCode, 202);

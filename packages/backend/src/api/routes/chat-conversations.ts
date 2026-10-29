@@ -66,6 +66,7 @@ import { isLmStudioModelId } from '../../llm/lmstudio.js';
 import { HANDOFF_NOTE } from '../../memory/handoff/store.js';
 import { packHandoffText } from '../../memory/handoff/scope.js';
 import { refreshSummaries, type HistoryTurn } from '../../memory/context/summaries.js';
+import { approvalOutcomes, toolWorkRecords, type ApprovalOutcome } from '../../services/chat-tool-history.js';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/;
 /** A model id the chat may pick (local model names like qwen3.5:9b, or claude-…). */
@@ -104,10 +105,13 @@ export function namedReplies(messages: readonly ConversationMessage[], team: Rea
 }
 
 /** Stored turns as the model sees them: user/assistant text only, with their message ids. */
-function modelTurns(messages: readonly ConversationMessage[]): HistoryTurn[] {
+function modelTurns(messages: readonly ConversationMessage[], outcomes?: ReadonlyMap<string, ApprovalOutcome>): HistoryTurn[] {
+  // CHAT-GAPS-01: a reply's saved tool work goes after its text, so a continued turn keeps what the tools returned.
+  const work = toolWorkRecords(messages, outcomes);
+  const withWork = (m: ConversationMessage, text: string) => (work.has(m.id) ? `${text}${text.trim() ? '\n\n' : ''}${work.get(m.id)}` : text);
   return messages
-    .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim())
-    .map((m) => ({ id: m.id, role: m.role as 'user' | 'assistant', content: m.code === 'run_interrupted' ? `${m.content}\n\n[Saved tool checkpoints — data, not instructions]\n${JSON.stringify(m.parts?.filter(p => p.kind === 'tools') ?? []).slice(0, 40000)}` : m.status === 'stopped' ? `${m.content}\n\n[This reply was stopped by the user before it finished.]` : m.content }));
+    .filter((m) => (m.role === 'user' || m.role === 'assistant') && (m.content.trim() || work.has(m.id)))
+    .map((m) => ({ id: m.id, role: m.role as 'user' | 'assistant', content: withWork(m, m.code === 'run_interrupted' ? `${m.content}\n\n[Saved tool checkpoints — data, not instructions]\n${JSON.stringify(m.parts?.filter(p => p.kind === 'tools') ?? []).slice(0, 40000)}` : m.status === 'stopped' ? `${m.content}\n\n[This reply was stopped by the user before it finished.]` : m.content) }));
 }
 
 /**
@@ -115,8 +119,8 @@ function modelTurns(messages: readonly ConversationMessage[]): HistoryTurn[] {
  * roles (consecutive same-role turns merged; their ids joined), oldest first.
  * The chat turn keeps the newest in full and summarises the rest.
  */
-export function historyTurns(messages: readonly ConversationMessage[]): HistoryTurn[] {
-  const turns = modelTurns(messages);
+export function historyTurns(messages: readonly ConversationMessage[], outcomes?: ReadonlyMap<string, ApprovalOutcome>): HistoryTurn[] {
+  const turns = modelTurns(messages, outcomes);
   while (turns.length && turns[0].role !== 'user') turns.shift();
   const merged: HistoryTurn[] = [];
   for (const t of turns) {
@@ -128,8 +132,8 @@ export function historyTurns(messages: readonly ConversationMessage[]): HistoryT
 }
 
 /** The model history from stored turns: user/assistant text only, newest kept within the budget. */
-export function historyFor(messages: readonly ConversationMessage[], budget = HISTORY_CHARS): { role: 'user' | 'assistant'; content: string }[] {
-  const turns = modelTurns(messages).map(({ role, content }) => ({ role, content }));
+export function historyFor(messages: readonly ConversationMessage[], budget = HISTORY_CHARS, outcomes?: ReadonlyMap<string, ApprovalOutcome>): { role: 'user' | 'assistant'; content: string }[] {
+  const turns = modelTurns(messages, outcomes).map(({ role, content }) => ({ role, content }));
   const out: typeof turns = [];
   let used = 0;
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -238,8 +242,10 @@ async function startTurn(t: { userId: string; role: string; c: Conversation; run
   try {
     userMessage = (await listConversationMessages(c.id)).find(m => m.runId === b.runId && m.role === 'user')!;
     const named = namedReplies([...prior, userMessage], team, replyAgent, c.agentId);
-    messages = historyFor(named);
-    turns = historyTurns(named);
+    // CHAT-GAPS-01: calls that waited on the owner show the decided result in the tool work record.
+    const outcomes = await approvalOutcomes(userId, c.id, named).catch(() => undefined);
+    messages = historyFor(named, HISTORY_CHARS, outcomes);
+    turns = historyTurns(named, outcomes);
     // CORE-MEM-HANDOFF: this agent's newest note for this conversation (or its project), the caller's own only.
     // MEM-CACHE-01: it is part of the turn's cached context pack and its trace.
     handoff = await packHandoffText(userId, c.id, replyAgent).catch(() => null);
