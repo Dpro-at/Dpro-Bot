@@ -30,7 +30,7 @@ export function planSteps(raw: unknown): PlanStep[] | string {
 export const planStepsTool: Tool = {
   name: 'plan_steps',
   selfOnly: true,
-  description: 'Show the owner your plan for a multi-step task as a live checklist. Call it once at the start with every step (the first one "active", the rest "pending"), then call it again with the whole list each time a step finishes ("done") and the next starts ("active"). Use "skipped" for a step you drop. Not needed for a quick question or a one-step answer.',
+  description: 'Show the owner your plan for a multi-step task as a live checklist. Call it once at the start with every step (the first one "active", the rest "pending"), then call it again with the whole list each time a step finishes ("done") and the next starts ("active"). Use "skipped" for a step you drop. Before your final answer, mark every step "done" or "skipped". Not needed for a quick question or a one-step answer.',
   input_schema: {
     type: 'object',
     properties: {

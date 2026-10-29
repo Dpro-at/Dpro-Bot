@@ -409,3 +409,14 @@ test('images: Codex gets the chat\'s own image files with -i; nothing outside th
   assert.equal(args.at(-1), '-', 'the prompt still comes on stdin');
   assert.ok(!subscriptionArgs('claude', undefined, undefined, true, false, false, [], [ok[0]]).includes(ok[0]), 'Claude Code is not given files');
 });
+
+test('a continuation after an approval is reminded of the plan steps still open, so its Tasks list can end finished', async () => {
+  const { openPlanReminder } = await import(join(backendDir, 'src/api/routes/chat-conversations.ts'));
+  const plan = (statuses) => ({ role: 'assistant', parts: [{ kind: 'tools', step: 1, calls: [{ id: 'p', name: 'plan_steps', input: JSON.stringify({ steps: statuses.map((status, i) => ({ title: `Step ${i + 1}`, status })) }), output: 'ok' }] }] });
+  const text = { role: 'assistant', parts: [{ kind: 'text', text: 'Final report' }] };
+  assert.equal(openPlanReminder([plan(['done', 'done', 'done', 'active', 'pending', 'pending']), text]),
+    ' Your plan shows 3 of 6 done (open: Step 4; Step 5; Step 6). Update it with plan_steps as each step finishes, and mark every step done or skipped before your final answer.');
+  assert.equal(openPlanReminder([plan(['done', 'skipped'])]), '', 'a finished plan needs no reminder');
+  assert.equal(openPlanReminder([plan(['active', 'pending']), plan(['done', 'done'])]), '', 'only the latest plan counts');
+  assert.equal(openPlanReminder([text, { role: 'user', parts: [] }]), '', 'no plan, no reminder');
+});

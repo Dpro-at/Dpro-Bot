@@ -54,7 +54,7 @@ import { ScheduleInputError, deleteSchedule, getSchedule, runDueSchedules, sched
 import { backgroundEnabled } from '../../config/background.js';
 import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVariables, setVariable } from '../../services/project-variables.js';
 import { q } from '../../repositories/sql-steps.js';
-import { chatProgress, conversationCards, createChatCard } from '../../services/chat-board.js';
+import { chatProgress, conversationCards, createChatCard, replyPlan } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
 import { ChatMemoryError, conversationMemories, rememberFromChat } from '../../services/chat-memory.js';
 import { actorOf } from '../../auth/auth-gate.js';
@@ -366,6 +366,20 @@ async function queuedSafe(userId: string, conversationId: string, list: { key: s
 /** The message a continuation turn adds after the owner decides the conversation's waiting approvals. */
 export const CONTINUE_MESSAGE = 'I decided the waiting approval. Continue the task with its result.';
 
+/** The chat's latest plan, when steps are still open: the continuation is reminded of it, so its Tasks list ends finished (not "3 of 6 done"). */
+export function openPlanReminder(messages: readonly ConversationMessage[]): string {
+  for (const m of [...messages].reverse()) {
+    if (m.role !== 'assistant') continue;
+    const steps = replyPlan(m);
+    if (!steps) continue;
+    const open = steps.filter((x) => x.status === 'pending' || x.status === 'active');
+    if (!open.length) return '';
+    const done = steps.filter((x) => x.status === 'done').length;
+    return ` Your plan shows ${done} of ${steps.length} done (open: ${open.map((x) => x.title).join('; ')}). Update it with plan_steps as each step finishes, and mark every step done or skipped before your final answer.`;
+  }
+  return '';
+}
+
 /**
  * CHAT-BUILD-01: when the owner decides an approval a chat turn asked for, and nothing else of that
  * conversation waits or runs, the chat continues by itself with the result (as if the owner wrote
@@ -380,7 +394,7 @@ export async function continueAfterApproval(approvalId: string): Promise<TurnSta
   if (waiting) return null;
   const user = await q.one<{ role: string; status: string }>('SELECT role, status FROM users WHERE id = ?', a.user_id);
   if (!user || user.status !== 'active' || user.role === 'guest') return null;
-  const out = await startTurn({ userId: a.user_id, role: user.role, c, runId: `approval-${approvalId}`.slice(0, 128), message: CONTINUE_MESSAGE, ...(c.model ? { model: c.model } : {}) });
+  const out = await startTurn({ userId: a.user_id, role: user.role, c, runId: `approval-${approvalId}`.slice(0, 128), message: CONTINUE_MESSAGE + openPlanReminder(await listConversationMessages(c.id)), ...(c.model ? { model: c.model } : {}) });
   console.log('[ChatRuns] Continue after approval', { approvalId, status: out.code });
   return out;
 }
