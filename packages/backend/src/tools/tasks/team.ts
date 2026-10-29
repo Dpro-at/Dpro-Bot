@@ -132,7 +132,7 @@ export const teamDelegateTool: Tool = {
         fileReadRoot: folder, memoryDrawers: context!.memoryDrawers, chatPlan: false, handoffTools: false,
       });
       const { subscriptionAgentContext } = await import('../../services/subscription-agent-context.js');
-      const instructions = await subscriptionAgentContext(target.id, { delegatedBy: context!.agentId! });
+      const instructions = await subscriptionAgentContext(target.id, { delegatedBy: context!.agentId!, sessionId: context!.sessionId });
       const signal = AbortSignal.any([limit, stopper.signal]);
       // The chat's thinking level goes with the hand-off (read once here, in the lead's run).
       const thinking = currentChatRun()?.thinking;

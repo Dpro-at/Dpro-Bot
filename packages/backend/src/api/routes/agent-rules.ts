@@ -1,0 +1,102 @@
+/**
+ * Agents › Rules (RULES-01): the owner's rules for how the agents work. Owner
+ * only (auth gate owner tier + handler check). Agents never change rules; they
+ * suggest one with the rule_suggest tool (or the MCP workspace_rules suggest),
+ * and the owner decides here.
+ *
+ *   GET    /api/agent-rules                         -> { rules, suggestions, departments, starter }
+ *   POST   /api/agent-rules                         { text, projectId?, who?, targets?, paused? } -> 201 { rule }
+ *   POST   /api/agent-rules/starter                 -> { added: rule[] }  our usual rules, added paused
+ *   PUT    /api/agent-rules/:id                     partial rule -> { rule }
+ *   POST   /api/agent-rules/:id/delete              -> { ok, undoMs }  kept for Undo
+ *   POST   /api/agent-rules/:id/undo-delete         -> { rule }
+ *   GET    /api/agent-rules/:id/versions            -> { versions }
+ *   POST   /api/agent-rules/:id/versions/:v/restore -> { rule }
+ *   POST   /api/agent-rules/suggestions             { text, reason?, projectId?, who?, targets? } -> 201 { rule }  (MCP agents)
+ *   POST   /api/agent-rules/:id/accept | /dismiss   a suggestion -> { rule }
+ *   GET    /api/agent-rules/effective?agentId=&projectId=  -> { rules }  what that agent gets, in order
+ *   400 { error, code: 'invalid_rule' } · 404 { error, code: 'not_found' }
+ */
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { authorizeActiveRole } from '../../auth/route-guards.js';
+import { q } from '../../repositories/sql-steps.js';
+import {
+  RuleInputError, STARTER_RULES, suggestRule, UNDO_MS, addStarterRules, createRule, decideSuggestion, deleteRule, editRule,
+  effectiveRules, listRules, restoreVersion, ruleVersions, undoDelete,
+} from '../../services/agent-rules.js';
+
+const OWNER_ONLY = ['owner'] as const;
+const owner = (request: FastifyRequest, reply: FastifyReply) => authorizeActiveRole(request, reply, OWNER_ONLY);
+const ID = /^[0-9a-f-]{36}$/;
+type Req = FastifyRequest<{ Params: { id?: string; v?: string }; Querystring: { agentId?: string; projectId?: string }; Body: unknown }>;
+const bad = (reply: FastifyReply, err: unknown) => {
+  if (err instanceof RuleInputError) return reply.code(400).send({ error: err.message, code: 'invalid_rule' });
+  throw err;
+};
+const missing = (reply: FastifyReply) => reply.code(404).send({ error: 'Rule not found', code: 'not_found' });
+
+export async function agentRulesRoutes(fastify: FastifyInstance) {
+  const config = { access: 'owner' as const };
+  const id = (request: Req) => (ID.test(request.params.id ?? '') ? request.params.id! : null);
+
+  fastify.get('/api/agent-rules', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const deps = await q.all<{ department: string }>("SELECT DISTINCT lower(department) AS department FROM agents_config WHERE department IS NOT NULL AND department <> '' ORDER BY 1");
+    return { ...(await listRules()), departments: deps.map((d) => d.department), starter: STARTER_RULES };
+  });
+  fastify.post('/api/agent-rules', { config, bodyLimit: 20000 }, async (request: Req, reply) => {
+    const by = owner(request, reply); if (by === null) return reply;
+    try { return reply.code(201).send({ rule: await createRule(request.body, by) }); } catch (err) { return bad(reply, err); }
+  });
+  fastify.post('/api/agent-rules/starter', { config }, async (request: Req, reply) => {
+    const by = owner(request, reply); if (by === null) return reply;
+    try { return { added: await addStarterRules(by) }; } catch (err) { return bad(reply, err); }
+  });
+  // An agent working over MCP suggests a rule; it waits for the owner like one from the rule_suggest tool.
+  fastify.post('/api/agent-rules/suggestions', { config, bodyLimit: 20000 }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const b = request.body as Record<string, unknown> | null;
+    if (!b || typeof b !== 'object' || Array.isArray(b)) return reply.code(400).send({ error: 'A suggestion is { text, reason? }', code: 'invalid_rule' });
+    const { reason, ...rule } = b;
+    try { return reply.code(201).send({ rule: await suggestRule(rule, null, reason) }); } catch (err) { return bad(reply, err); }
+  });
+  fastify.get('/api/agent-rules/effective', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const { agentId, projectId } = request.query;
+    if (typeof agentId !== 'string' || !agentId || agentId.length > 120) return reply.code(400).send({ error: 'agentId is required', code: 'invalid_rule' });
+    return { rules: await effectiveRules(agentId, typeof projectId === 'string' && projectId ? projectId : null) };
+  });
+  fastify.put('/api/agent-rules/:id', { config, bodyLimit: 20000 }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const rid = id(request); if (!rid) return missing(reply);
+    try { const rule = await editRule(rid, request.body); return rule ? { rule } : missing(reply); } catch (err) { return bad(reply, err); }
+  });
+  fastify.post('/api/agent-rules/:id/delete', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const rid = id(request); if (!rid) return missing(reply);
+    return (await deleteRule(rid)) ? { ok: true, undoMs: UNDO_MS } : missing(reply);
+  });
+  fastify.post('/api/agent-rules/:id/undo-delete', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const rid = id(request); if (!rid) return missing(reply);
+    const rule = await undoDelete(rid); return rule ? { rule } : missing(reply);
+  });
+  fastify.get('/api/agent-rules/:id/versions', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const rid = id(request); if (!rid) return missing(reply);
+    return { versions: await ruleVersions(rid) };
+  });
+  fastify.post('/api/agent-rules/:id/versions/:v/restore', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const rid = id(request), v = Number(request.params.v);
+    if (!rid || !Number.isInteger(v) || v < 1) return missing(reply);
+    try { const rule = await restoreVersion(rid, v); return rule ? { rule } : missing(reply); } catch (err) { return bad(reply, err); }
+  });
+  for (const [path, use] of [['accept', true], ['dismiss', false]] as const) {
+    fastify.post(`/api/agent-rules/:id/${path}`, { config }, async (request: Req, reply) => {
+      if (owner(request, reply) === null) return reply;
+      const rid = id(request); if (!rid) return missing(reply);
+      const rule = await decideSuggestion(rid, use); return rule ? { rule } : missing(reply);
+    });
+  }
+}

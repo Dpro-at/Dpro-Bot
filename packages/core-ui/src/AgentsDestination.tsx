@@ -11,6 +11,7 @@ import { namingLanguages, validatedDisplayName } from './naming';
 import type { NamingLanguage } from './naming';
 import type { SessionClient } from './session';
 import { createPortal } from 'react-dom';
+import { AgentRules } from './AgentRules';
 import { UiIcon } from './ui-icons';
 import { StaffDirectory } from './StaffDirectory';
 
@@ -25,6 +26,8 @@ export function AgentsDestination({ client, active = false, onOpenMemory, sideba
   const [hiring, setHiring] = useState(false);
   const [company, setCompany] = useState<CompanyController>();
   const [building, setBuilding] = useState(false);
+  // RULES-01: how many agent suggestions wait in Rules (the sidebar badge).
+  const [ruleSuggestions, setRuleSuggestions] = useState(0);
   const session = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const owner = session.phase === 'authenticated' && session.user?.role === 'owner';
   useEffect(() => {
@@ -41,13 +44,17 @@ export function AgentsDestination({ client, active = false, onOpenMemory, sideba
   useEffect(() => { if (active && session.phase === 'authenticated' && controller && controller.getSnapshot().phase === 'idle' && !controller.getSnapshot().agents.length) void controller.list(); }, [active, session.phase, controller]);
   // The Agents section owns the sidebar: the team only (search, All staff, Main agent). Departments live in
   // Settings › Departments; Personalities, Specialties and Skills in Library (each row still shows its department).
+  useEffect(() => { if (!active || !owner) return; void client.request({ method: 'GET', path: '/api/agent-rules' } as never).then(r => { const n = (r.body as { suggestions?: unknown[] } | null)?.suggestions?.length; if (r.status === 200 && typeof n === 'number') setRuleSuggestions(n); }).catch(() => undefined); }, [active, owner, client]);
   const sidebar = sidebarSlot && active && controller ? createPortal(<AgentsSidebar controller={controller} open={open} query={query} onQuery={setQuery} onTeam={() => setOpen(null)}
-    department={department} onDepartment={d=>{setDepartment(d);setOpen(null);}}/>, sidebarSlot) : null;
+    department={department} onDepartment={d=>{setDepartment(d);setOpen(null);}} rules={owner ? ruleSuggestions : undefined}/>, sidebarSlot) : null;
   if (open && controller && personality && owner) return <section aria-label="Agents">
     <AgentCard sidebarSlot={active?sidebarSlot:null} client={client} agentId={open} initialSection={initialSection} agents={controller} personality={personality} onBack={() => { setOpen(null); void controller.list(); }} onOpenMemory={onOpenMemory} onChat={onChat} onOpenMcp={onOpenMcp} onOpenApprovals={onOpenApprovals} library={{onPersonalities,onSpecialties,onSkills}} onOpenAgent={id=>{setInitialSection('profile');setOpen(id);}} onGone={text => { setOpen(null); setNotice({ id: Date.now(), text }); void controller.list(); }}/>
   </section>;
   const newHire=()=>{if(hire){hire.restart();setHiring(true);}};
   const newCompany=()=>{if(company){company.restart();setBuilding(true);}};
+  if (department === 'rules' && owner && controller) return <section aria-label="Agents" className="agents-destination">{sidebar}
+    <AgentRules client={client} active={active} onCount={setRuleSuggestions} agents={controller.getSnapshot().agents.map(a => ({ id: a.id, name: a.name ?? 'Agent', department: a.department ?? null }))}/>
+  </section>;
   return <section aria-label="Agents" className="agents-destination">{sidebar}
     {owner && company && building && <CompanyWizard controller={company} onClose={() => { setBuilding(false); void controller?.list(); }}/>}
     {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }} onOpen={id => { setHiring(false); void controller?.list(); setInitialSection('profile'); setOpen(id); }}/></HireSheet>}
@@ -94,14 +101,15 @@ export function AgentsReview({ controller }: { controller: AgentsController }) {
   </>;
 }
 
-/** The Agents section's sidebar (board AG1): the team only — search, All staff, Main agent. */
-function AgentsSidebar({controller,open,query,onQuery,onTeam,department,onDepartment}:{controller:AgentsController;open:string|null;query:string;onQuery:(q:string)=>void;onTeam:()=>void;department:string;onDepartment:(value:string)=>void}){
+/** The Agents section's sidebar (board AG1): search, All staff, Main agent; Rules for the owner (RULES-01). */
+function AgentsSidebar({controller,open,query,onQuery,onTeam,department,onDepartment,rules}:{controller:AgentsController;open:string|null;query:string;onQuery:(q:string)=>void;onTeam:()=>void;department:string;onDepartment:(value:string)=>void;rules?:number}){
  const s=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
  const here=(d:string)=>!open&&department===d?'page':undefined;
  return <nav className="dk-sidebar ag-places" aria-label="Agent places">
  <label className="dk-search ag-search"><UiIcon name="search" size={13}/><input id="ag-staff-search" type="search" aria-label="Search staff" placeholder="Search  ⌘F" value={query} onChange={e=>{onQuery(e.target.value);if(open)onTeam();}}/></label>
  <button className="nav-item dk-place" aria-current={here('all')} onClick={()=>{onDepartment('all');onTeam();}}><span className="ag-tile ag-tile-plain"><UiIcon name="users" size={13}/></span><span className="dk-place-name">All staff</span></button>
  {s.agents.some(a=>a.isPrimary)&&<button className="nav-item dk-place" aria-current={here('main')} onClick={()=>onDepartment('main')}><span className="ag-tile ag-tile-plain"><UiIcon name="sparkle" size={13}/></span><span className="dk-place-name">Main agent</span></button>}
+ {rules!==undefined&&<button className="nav-item dk-place" aria-current={here('rules')} onClick={()=>onDepartment('rules')}><span className="ag-tile ag-tile-plain"><UiIcon name="scale" size={13}/></span><span className="dk-place-name">Rules</span>{rules>0&&<span className="dk-place-badge" title={`${rules} suggested ${rules===1?'rule waits':'rules wait'} for you`} aria-label={`${rules} waiting`}>{rules}</span>}</button>}
  </nav>;
 }
 function HireSheet({children,onClose}:{children:React.ReactNode;onClose:()=>void}){

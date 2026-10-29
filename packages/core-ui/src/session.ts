@@ -43,6 +43,7 @@ import { allowedTerminal, terminalPath, terminalRoute, terminalResponse, Termina
 import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js';
 import { allowedChartPrefs, chartPrefsRoute, chartPrefsResponse } from './chart-prefs-contract.js';
 import { allowedDepartments, departmentsRoute, departmentsResponse } from './departments-contract.js';
+import { allowedAgentRules, agentRulesRoute, agentRulesResponse } from './agent-rules-contract.js';
 import { allowedOrg, orgRoute, orgResponse } from './org-contract.js';
 import { allowedLibrary as allowedAgentLibrary, libraryRoute as agentLibraryRoute, libraryResponse as agentLibraryResponse } from './agent-library-contract.js';
 import { allowedAccountSettings, accountSettingsResponse, sessionsRoute, updatesRoute } from './account-settings-contract.js';
@@ -123,6 +124,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (footerRoute(path)) return allowedFooter(method, path, body);
   if (chartPrefsRoute(path)) return allowedChartPrefs(method, path, body);
   if (departmentsRoute(path)) return allowedDepartments(method, path, body);
+  if (agentRulesRoute(path)) return allowedAgentRules(method, path, body);
   if (orgRoute(path)) return allowedOrg(method, path, body);
   if (agentLibraryRoute(path)) return allowedAgentLibrary(method, path, body);
   if (sessionsRoute(path) || updatesRoute(path)) return allowedAccountSettings(method, path, body);
@@ -210,6 +212,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (footerRoute(path)) return { status: response.status, body: footerResponse(response.status, response.body) };
   if (chartPrefsRoute(path)) return { status: response.status, body: chartPrefsResponse(response.status, response.body) };
   if (departmentsRoute(path)) return { status: response.status, body: departmentsResponse(response.status, response.body) };
+  if (agentRulesRoute(path)) return { status: response.status, body: agentRulesResponse(path, response.status, response.body) };
   if (orgRoute(path)) return { status: response.status, body: orgResponse(path, response.status, response.body) };
   if (agentLibraryRoute(path)) return { status: response.status, body: agentLibraryResponse(path, response.status, response.body) };
   if (sessionsRoute(path) || updatesRoute(path)) return { status: response.status, body: accountSettingsResponse(path, response.status, response.body) };
