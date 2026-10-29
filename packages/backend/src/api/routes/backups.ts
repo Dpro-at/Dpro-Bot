@@ -33,9 +33,10 @@ export async function backupRoutes(fastify: FastifyInstance) {
     try {
       getUserIdFromRequest(request);
       if (!sqliteOnly(reply)) return;
-      const kind = request.body?.kind ?? 'manual';
-      if (kind !== 'manual' && kind !== 'before-update') return reply.code(400).send({ error: 'kind must be manual or before-update', code: 'invalid_kind' });
-      return { backup: await backUpNow(kind as BackupKind) };
+      const asked = request.body?.kind ?? 'manual';
+      if (asked !== 'manual' && asked !== 'before-update') return reply.code(400).send({ error: 'kind must be manual or before-update', code: 'invalid_kind' });
+      const kind: BackupKind = asked === 'before-update' ? 'before-update' : 'manual';
+      return { backup: await backUpNow(kind) };
     } catch (err) { return fail(reply, err, 'Back up'); }
   });
 

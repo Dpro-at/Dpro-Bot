@@ -101,8 +101,10 @@ export async function setBackupsFolder(input: unknown): Promise<{ folder: string
   const { q } = await import('../repositories/sql-steps.js');
   await q.run(APP_SETTINGS_SQL);
   await q.run('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at', FOLDER_KEY, folder, Date.now());
-  setSavedBackupsFolder(folder);
-  return { folder, cloud: isCloudFolder(folder) };
+  // Read back from the database: every path the backups use comes from the saved setting, not the request.
+  await loadBackupsFolder();
+  const saved = backupsFolder();
+  return { folder: saved, cloud: isCloudFolder(saved) };
 }
 
 function auditPath() { return path.resolve(process.env.AUDIT_DB_PATH || dataPathOr('./.data/audit/audit.db', 'audit', 'audit.db')); }
@@ -206,7 +208,8 @@ export function getBackup(id: string): BackupInfo & { dir: string } {
   const all = manifests();
   const m = all.find((x) => x.id === id);
   if (!m) throw new BackupError(404, 'not_found', 'Backup not found');
-  return { ...info(m, all), dir: path.join(workspaceBackupsDir(), id) };
+  // The folder name comes from the backup found on disk, never from the request.
+  return { ...info(m, all), dir: path.join(workspaceBackupsDir(), m.id) };
 }
 
 // --- making one --------------------------------------------------------------------
