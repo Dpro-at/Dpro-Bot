@@ -3,7 +3,7 @@ import type { Tool, ToolExecutionContext, ToolResult } from '../types.js';
 import { runTeamAssignment } from '../../services/team-delegation.js';
 import { subscriptionModel } from '../../services/subscription-chat.js';
 import { currentChatRun } from '../../services/chat-run-context.js';
-import { mayDelegate, orgRows, type OrgRow } from '../../services/agent-org.js';
+import { mayDelegate, orgRows, placeAgents, teamRole, type OrgRow } from '../../services/agent-org.js';
 
 type Agent = { id: string; name: string; model: string; provider: string; temperature: number; max_tokens: number };
 /** CH6/CH10: why a hand-off did not finish, so the chat can offer the owner's next step (it never re-runs by itself). */
@@ -38,13 +38,16 @@ async function coordinator(context?: ToolExecutionContext): Promise<OrgRow[] | n
 
 export const teamListTool: Tool = {
   name: 'team_list',
-  description: 'List the team agents you may give work to and their configured reply sources: as the main agent, the team; as a manager, the agents under you; and your own sub-agents. Only in an owner chat. No agents or grants are created.',
+  description: 'List the team agents you may give work to with their role, department and configured reply sources: as the main agent, the team; as a manager, the agents under you; and your own sub-agents. Only in an owner chat. No agents or grants are created.',
   input_schema: { type: 'object', properties: {} },
   async execute(_params, context) {
     const rows = await coordinator(context);
     if (!rows) return fail();
     const allowed = new Set(rows.filter(r => mayDelegate(context!.agentId!, r.id, rows)).map(r => r.id));
-    const agents = (await sql().read(all<Agent>('SELECT id,name,model,provider FROM agents_config WHERE id<>? ORDER BY name,id', context!.agentId!))).filter(a => allowed.has(a.id)).slice(0, 100);
+    // Each agent's role (its place in the chart wins: main agent, sub-agent) and department ("" = none).
+    const placement = placeAgents(rows), byId = new Map(rows.map(r => [r.id, r]));
+    const agents = (await sql().read(all<Agent>('SELECT id,name,model,provider FROM agents_config WHERE id<>? ORDER BY name,id', context!.agentId!))).filter(a => allowed.has(a.id)).slice(0, 100)
+      .map(a => { const r = byId.get(a.id)!; return { ...a, role: teamRole(r, placement.get(a.id)), department: r.department || null }; });
     return { content: [{ type: 'text', text: JSON.stringify(agents) }], details: { count: agents.length, limit: 100 } };
   },
 };
@@ -129,7 +132,7 @@ export const teamDelegateTool: Tool = {
         fileReadRoot: folder, memoryDrawers: context!.memoryDrawers, chatPlan: false, handoffTools: false,
       });
       const { subscriptionAgentContext } = await import('../../services/subscription-agent-context.js');
-      const instructions = await subscriptionAgentContext(target.id);
+      const instructions = await subscriptionAgentContext(target.id, { delegatedBy: context!.agentId! });
       const signal = AbortSignal.any([limit, stopper.signal]);
       // The chat's thinking level goes with the hand-off (read once here, in the lead's run).
       const thinking = currentChatRun()?.thinking;
