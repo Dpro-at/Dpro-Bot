@@ -131,7 +131,7 @@ async function appInfo(appPath) {
  * The updater: state for the page, a daily check, and install. Everything that
  * touches the outside is passed in, so the tests run it with fakes.
  */
-function createUpdater({ currentVersion, settingsDir, backUp, relaunch, fetchRelease = () => get(LATEST, { json: true }), download = get, now = () => Date.now(), platform = process.platform, execPath = process.execPath, unpack = (zip, dir) => run('/usr/bin/ditto', ['-x', '-k', zip, dir]), readApp = appInfo }) {
+function createUpdater({ currentVersion, settingsDir, backUp, relaunch, fetchRelease = () => get(LATEST, { json: true }), download = get, now = () => Date.now(), platform = process.platform, arch = process.arch, execPath = process.execPath, unpack = (zip, dir) => run('/usr/bin/ditto', ['-x', '-k', zip, dir]), readApp = appInfo }) {
   const stateFile = path.join(settingsDir, 'app-update.json');
   let state = { version: currentVersion, checkedAt: null, release: null, busy: null, error: null };
   try { const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8')); state = { ...state, checkedAt: saved.checkedAt ?? null, release: saved.release ?? null }; } catch { /* first run */ }
@@ -151,7 +151,7 @@ function createUpdater({ currentVersion, settingsDir, backUp, relaunch, fetchRel
   async function check() {
     if (state.busy) return view();
     set({ busy: 'checking', error: null });
-    try { set({ release: readRelease(await fetchRelease(), state.version), checkedAt: new Date(now()).toISOString(), busy: null }); }
+    try { set({ release: readRelease(await fetchRelease(), state.version, platformId(platform, arch)), checkedAt: new Date(now()).toISOString(), busy: null }); }
     catch (error) { set({ busy: null, error: `Could not look for updates: ${error.message}` }); }
     return view();
   }

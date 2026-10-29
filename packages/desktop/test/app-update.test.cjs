@@ -27,7 +27,7 @@ function setup({sumOk=true,backup={ok:true,id:'x'},appId='app.dpro.desktop',appV
  const apps=path.join(dir,'Applications');fs.mkdirSync(path.join(apps,'Girru.app','Contents','MacOS'),{recursive:true});fs.writeFileSync(path.join(apps,'Girru.app','old.txt'),'1.3.2');
  const zipBytes=Buffer.from('zip of 1.4.0');const sum=createHash('sha256').update(sumOk?zipBytes:Buffer.from('other')).digest('hex');
  const calls=[];let relaunched=0;let t=Date.parse('2026-10-31T12:00:00Z');
- const u=createUpdater({currentVersion:'1.3.2',settingsDir:dir,platform:'darwin',execPath:path.join(apps,'Girru.app','Contents','MacOS','Girru'),now:()=>t,
+ const u=createUpdater({currentVersion:'1.3.2',settingsDir:dir,platform:'darwin',arch:'arm64',execPath:path.join(apps,'Girru.app','Contents','MacOS','Girru'),now:()=>t,
   fetchRelease:async()=>{calls.push('github');return release('1.4.0');},
   download:async(url,opts={})=>{calls.push(url.endsWith('.txt')?'sums':'zip');if(!opts.file)return `${sum}  Girru-1.4.0-${P}.zip\n`;fs.writeFileSync(opts.file,zipBytes);return createHash('sha256').update(zipBytes).digest('hex');},
   backUp:async()=>{calls.push('backup');return backup;},
