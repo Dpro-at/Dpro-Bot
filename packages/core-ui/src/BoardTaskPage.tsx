@@ -11,8 +11,8 @@ import type { DragEvent, ReactNode } from 'react';
 import { UiIcon } from './ui-icons';
 import type { UiIconName } from './ui-icons';
 import { DocumentEditor, MarkdownDocument } from './DocumentEditor';
-import { allCardTypes, allPriorities, cardTypeLabel, priorityLabel, roleLabel } from './board';
-import type { ActivityItem, BoardColor, BoardController, Card, CardType, FileDiff, Role, TaskPageData } from './board';
+import { WEEKDAYS, allCardTypes, allPriorities, cardTypeLabel, priorityLabel, repeatWords, roleLabel } from './board';
+import type { ActivityItem, BoardColor, BoardController, Card, CardType, Every, FileDiff, Repeat, Role, TaskPageData } from './board';
 import { AppLogo, TaskFileSheet, appOf } from './BoardTaskFile';
 import { ROLES } from './board-contract.js';
 
@@ -33,9 +33,6 @@ function Face({ name, agent, size = 20 }: { name: string; agent?: boolean; size?
 }
 function Tool({ icon, label, onClick, disabled }: { icon: UiIconName; label: string; onClick: () => void; disabled?: boolean }) {
   return <button type="button" className="tool" aria-label={label} title={label} disabled={disabled} onClick={onClick}><UiIcon name={icon} size={15}/></button>;
-}
-function SideSection({ title, children, tools }: { title: string; children: ReactNode; tools?: ReactNode }) {
-  return <section className="tp-side-sec" aria-label={title}><header><h4>{title}</h4>{tools}</header>{children}</section>;
 }
 
 export function TaskPage({ card, controller, busy, onOpenChat, onBack, draftCache }: { card: Card; controller: BoardController; busy: boolean; onOpenChat?: (id: string) => void; onBack: () => void; draftCache: Map<string, string> }) {
@@ -189,6 +186,8 @@ const eventWords = (x: Extract<ActivityItem, { kind: 'event' }>, name: (kind: st
   if (x.event === 'waits') return <>made it wait for <b>{x.detail}</b></>;
   if (x.event === 'unwaits') return <>stopped it waiting for <b>{x.detail}</b></>;
   if (x.event === 'subtask') return <>added the sub-task <b>{x.detail}</b></>;
+  if (x.event === 'repeats') { if (x.detail === 'never') return <>stopped it repeating</>; const [every, a, b, c] = x.detail.split(':'); const weekly = every === 'weekly'; const at = weekly ? `${b}:${c}` : `${a}:${b}`; return <>made it repeat <b>{repeatWords({ every: every as Every, at, weekday: weekly ? Number(a) : null })}</b>{x.detail.endsWith(':paused') ? ' (paused)' : ''}</>; }
+  if (x.event === 'ran') return x.detail === 'started' ? <>ran on schedule</> : x.detail === 'busy' ? <>was due on schedule, but its chat was busy</> : <>could not run on schedule</>;
   return <>{x.event} {x.detail}</>;
 };
 function ActivityRow({ x, controller, filter, onOpenChat }: { x: ActivityItem; controller: BoardController; filter: Filter; onOpenChat?: (id: string) => void }) {
@@ -223,6 +222,45 @@ function ChangeBlock({ x, controller }: { x: Extract<ActivityItem, { kind: 'repl
   </article>;
 }
 
+/** One row of the side: icon · name · value; clicking the value opens its editor in place (TASKPAGE-03). */
+function Prop({ icon, label, value, empty, open, onToggle, children, tip }: { icon: UiIconName; label: string; value: ReactNode; empty?: boolean; open: boolean; onToggle: () => void; children?: ReactNode; tip?: string }) {
+  return <div className="tp-prop" data-open={open || undefined}>
+    <button type="button" className="tp-prop-row" aria-expanded={open} title={tip ?? `Change ${label.toLowerCase()}`} onClick={onToggle}>
+      <UiIcon name={icon} size={14}/><span className="tp-prop-label">{label}</span><span className={`tp-prop-value${empty ? ' empty' : ''}`}>{value}</span><span className="tp-prop-chev" aria-hidden="true"><UiIcon name="chevron" size={11}/></span></button>
+    {open && children && <div className="tp-prop-edit">{children}</div>}
+  </div>;
+}
+function Group({ title, side, children }: { title: string; side?: ReactNode; children: ReactNode }) {
+  return <section className="tp-group" aria-label={title}><header><h4>{title}</h4>{side}</header>{children}</section>;
+}
+const shortDate = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '');
+const nextWords = (iso: string) => { const d = new Date(iso); if (Number.isNaN(d.getTime())) return ''; const days = Math.round((new Date(d.toDateString()).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
+  const t = d.toTimeString().slice(0, 5); return days === 0 ? `today ${t}` : days === 1 ? `tomorrow ${t}` : d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
+
+function RepeatEditor({ controller, busy, current, onDone }: { controller: BoardController; busy: boolean; current: Repeat | null; onDone: () => void }) {
+  const s = controller.getSnapshot();
+  const [every, setEvery] = useState<Every | 'never'>(current?.every ?? 'daily');
+  const [at, setAt] = useState(current?.at ?? '09:00'), [weekday, setWeekday] = useState(current?.weekday ?? 1);
+  const [agent, setAgent] = useState(current?.agentId ?? s.cards.find(c => c.id === s.open)?.agents[0] ?? ''), [model, setModel] = useState(current?.model ?? '');
+  const save = (paused = current?.paused ?? false) => void controller.setSchedule(every === 'never' ? null : { every, at: every === 'hourly' ? `00:${at.slice(3) || '00'}` : at, weekday, agentId: agent || null, model, paused }).then(ok => { if (ok) onDone(); });
+  return <div className="tp-repeat">
+    <span className="dk-segmented" role="group" aria-label="How often">{(['never', 'hourly', 'daily', 'weekly'] as const).map(k =>
+      <button key={k} type="button" aria-pressed={every === k} onClick={() => setEvery(k)}>{k === 'never' ? 'Never' : k === 'hourly' ? 'Every hour' : k === 'daily' ? 'Every day' : 'Every week'}</button>)}</span>
+    {every !== 'never' && <>
+      {every === 'weekly' && <span className="tp-days" role="group" aria-label="Weekday">{WEEKDAYS.map((d, n) => <button key={d} type="button" aria-pressed={weekday === n} onClick={() => setWeekday(n)}>{d}</button>)}</span>}
+      <label className="tp-kv">{every === 'hourly' ? 'At minute' : 'At'}{every === 'hourly'
+        ? <select aria-label="Minute of the hour" value={at.slice(3)} onChange={e => setAt(`00:${e.target.value}`)}>{['00', '05', '10', '15', '20', '30', '40', '45', '50'].map(m => <option key={m} value={m}>:{m}</option>)}</select>
+        : <input type="time" aria-label="Time" value={at} onChange={e => setAt(e.target.value || '09:00')}/>}</label>
+      <label className="tp-kv">Runs as<span className="tp-runs"><select aria-label="Agent who runs it" value={agent} onChange={e => setAgent(e.target.value)}>{!agent && <option value="">Main agent</option>}{s.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <select aria-label="App it uses" value={model} onChange={e => setModel(e.target.value)}>{APPS.map(a => <option key={a.model} value={a.model}>{a.name}</option>)}</select></span></label>
+      <small className="fine-print">Each run starts a chat that continues this task, with its rules and Mode. A run shows in Activity; a run that needs you waits in Approvals.</small>
+      {current && <small className="fine-print"><UiIcon name="clock" size={12}/> Next run: {current.paused ? 'paused' : nextWords(current.nextRun)}{current.lastRun ? ` · last: ${nextWords(current.lastRun)}${current.lastResult === 'busy' ? ', its chat was busy' : current.lastResult === 'failed' ? ', it could not run' : ''}` : ''}</small>}
+    </>}
+    <footer>{current && every !== 'never' && <button type="button" disabled={busy} onClick={() => save(!current.paused)}><UiIcon name={current.paused ? 'play' : 'pause'} size={12}/>{current.paused ? 'Resume' : 'Pause'}</button>}
+      <span className="tp-repeat-end"><button type="button" onClick={onDone}>Cancel</button><button type="button" className="primary" disabled={busy} onClick={() => save()}>Save</button></span></footer>
+  </div>;
+}
+
 function TaskSide({ card, controller, busy, page, onOpenChat }: { card: Card; controller: BoardController; busy: boolean; page: TaskPageData | null; onOpenChat?: (id: string) => void }) {
   const s = controller.getSnapshot(), d = s.draft!;
   const t = s.task?.phase === 'ready' ? s.task.detail : null;
@@ -231,76 +269,86 @@ function TaskSide({ card, controller, busy, page, onOpenChat }: { card: Card; co
   useEffect(() => { if (!picked) setModel(APPS.find(a => a.model && appOf(lastApp)?.id === a.model)?.model ?? ''); }, [lastApp, picked]);
   const [release, setRelease] = useState(page?.release ?? '');
   useEffect(() => setRelease(page?.release ?? ''), [page?.release]);
-  const [labels, setLabels] = useState(false);
+  const [open, setOpen] = useState<string | null>(null), [more, setMore] = useState(false), [menu, setMenu] = useState(false), [work, setWork] = useState(false);
+  const toggle = (k: string) => setOpen(open === k ? null : k);
   const people = page?.people ?? [];
-  const toSort = s.columns.find(c => c.id === card.columnId)?.name === 'To sort';
+  const column = s.columns.find(c => c.id === card.columnId);
+  const toSort = column?.name === 'To sort';
   const sortable = [...new Set(s.boards.filter(b => b.kind === 'department' && b.departmentActive !== false).map(b => b.departments[0]).filter(Boolean))].sort();
   const others = s.cards.filter(c => c.id !== card.id && !page?.waitsFor.some(w => w.id === c.id));
+  const me = controller.myId();
+  const agentName = agent ? controller.agentName(agent) : 'Main agent', appName = APPS.find(a => a.model === model)?.name ?? 'Its own model';
+  const sched = s.schedule ?? null;
+  const tokensAll = (page?.spent ?? []).reduce((n, x) => n + x.tokens, 0);
   return <aside className="tp-side" aria-label="About this task">
-    {card.taskFile && !card.taskFile.finished && !toSort && <div className="tp-continue">
-      <button type="button" className="primary" disabled={busy || !!card.taskFile.problem} title={card.taskFile.problem ? 'Fix the task’s line in the file first' : 'A new chat in the project: the agent reads Done, Left and Next, works, and writes them back'}
+    {!card.taskFile?.finished && !toSort && <div className="tp-continue">
+      <span className="tp-split"><button type="button" className="primary" disabled={busy || !!card.taskFile?.problem} title={card.taskFile?.problem ? 'Fix the task’s line in the file first' : 'A new chat that goes on with this task and writes back what it did'}
         onClick={() => void controller.continueTask(agent || undefined, model || undefined).then(id => { if (id) onOpenChat?.(id); })}><UiIcon name="play" size={13}/>Continue</button>
-      <span><select aria-label="Agent who continues" value={agent} disabled={busy} onChange={e => setAgent(e.target.value)}>{!agent && <option value="">Main agent</option>}{s.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <button type="button" className="tp-split-more" aria-label="Who continues and with which app" title="Who continues and with which app" aria-expanded={more} onClick={() => setMore(!more)}><UiIcon name="chevron" size={12}/></button></span>
+      {more ? <span className="tp-runs"><select aria-label="Agent who continues" value={agent} disabled={busy} onChange={e => setAgent(e.target.value)}>{!agent && <option value="">Main agent</option>}{s.agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
         <select aria-label="App it uses" value={model} disabled={busy} onChange={e => { setPicked(true); setModel(e.target.value); }}>{APPS.map(a => <option key={a.model} value={a.model}>{a.name}</option>)}</select></span>
+        : <span className="tp-who"><Face name={agentName} agent size={16}/>{agentName}<i aria-hidden="true">·</i>{appOf(appName) ? <AppLogo name={appName} size={12}/> : null}{appName}{lastApp && <small>last used</small>}</span>}
     </div>}
-    <SideSection title="People and agents">
-      <ul className="tp-people">{people.map(p => <li key={`${p.kind}:${p.id}`}><Face name={p.name} agent={p.kind === 'agent'}/><span className="tp-person"><b>{p.name}</b>
-        <select aria-label={`What ${p.name} does`} value={p.role} disabled={busy} onChange={e => void controller.setPerson(p.kind, p.id, e.target.value as Role)}>{(ROLES as readonly Role[]).map(r => <option key={r} value={r}>{p.kind === 'agent' ? 'Agent' : 'Person'} · {roleLabel[r]}</option>)}</select></span>
-        <button type="button" className="tool" aria-label={`Take ${p.name} off the task`} title="Take off the task" disabled={busy} onClick={() => void controller.setPerson(p.kind, p.id, null)}><UiIcon name="close" size={12}/></button></li>)}</ul>
-      {!people.length && <p className="fine-print">Nobody yet.</p>}
-      <select className="tp-add-person" aria-label="Add a person or an agent" value="" disabled={busy || !page} onChange={e => { const [kind, ...rest] = e.target.value.split(':'); if (kind) void controller.setPerson(kind as 'user' | 'agent', rest.join(':'), 'does'); }}>
-        <option value="">Add a person or an agent…</option>
+    <Group title="Details">
+      <Prop icon="pin" label="Status" value={<><i className="tp-dot"/>{column?.name ?? '—'}</>} open={open === 'status'} onToggle={() => toggle('status')}>
+        <select autoFocus aria-label="Column" value={card.columnId} disabled={busy} onChange={e => { setOpen(null); void controller.move(card.id, e.target.value, null); }}>{s.columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Prop>
+      <Prop icon="alert" label="Priority" value={<><span className={`tp-prio p-${d.priority}`}>{d.priority === 'urgent' ? '▲▲' : d.priority === 'high' ? '▲' : d.priority === 'low' ? '▼' : '–'}</span>{priorityLabel[d.priority]}</>} open={open === 'priority'} onToggle={() => toggle('priority')}>
+        <select autoFocus aria-label="Priority" value={d.priority} disabled={busy} onChange={e => { setOpen(null); void controller.saveField({ priority: e.target.value as never }); }}>{allPriorities.map(p => <option key={p} value={p}>{priorityLabel[p]}</option>)}</select></Prop>
+      <Prop icon="users" label="Department" value={toSort ? 'To sort' : card.departments.join(', ') || 'Add…'} empty={!toSort && !card.departments.length} open={open === 'dept'} onToggle={() => toggle('dept')}>
+        {toSort && sortable.length ? <select autoFocus aria-label="Send to department" value="" disabled={busy} onChange={e => { if (e.target.value) { setOpen(null); void controller.sortTask(e.target.value); } }}><option value="">Send to…</option>{sortable.map(x => <option key={x}>{x}</option>)}</select>
+          : <small className="fine-print">The board’s department. Move the task to another department’s board from ⋯.</small>}</Prop>
+      <Prop icon="calendar" label="Dates" value={d.startDate || d.dueDate ? `${shortDate(d.startDate) || '…'} → ${shortDate(d.dueDate) || '…'}` : 'Add…'} empty={!d.startDate && !d.dueDate} open={open === 'dates'} onToggle={() => toggle('dates')}>
+        <label className="tp-kv">Start<input type="date" value={d.startDate} disabled={busy} onChange={e => void controller.saveField({ startDate: e.target.value })}/></label>
+        <label className="tp-kv">Due<input type="date" value={d.dueDate} disabled={busy} onChange={e => void controller.saveField({ dueDate: e.target.value })}/></label></Prop>
+      <Prop icon="star" label="Release" value={page?.release || 'Add…'} empty={!page?.release} open={open === 'release'} onToggle={() => toggle('release')}>
+        <input autoFocus aria-label="Release" placeholder="e.g. Nabu" maxLength={60} value={release} disabled={busy || !page} onChange={e => setRelease(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { setOpen(null); void controller.setRelease(release); } }} onBlur={() => { if ((release.trim() || null) !== (page?.release ?? null)) void controller.setRelease(release); }}/></Prop>
+      <Prop icon="refresh" label="Repeats" tip="How often it runs by itself: never, every hour, every day, every week" value={sched ? <><span className="tp-repeat-word">{repeatWords(sched)}</span><small>{sched.paused ? 'paused' : `next ${nextWords(sched.nextRun)}`}</small></> : 'Never'} empty={!sched} open={open === 'repeat'} onToggle={() => toggle('repeat')}>
+        <RepeatEditor controller={controller} busy={busy} current={sched} onDone={() => setOpen(null)}/></Prop>
+    </Group>
+    <Group title="People" side={<small>{people.length || ''}</small>}>
+      <ul className="tp-people">{people.map(p => <li key={`${p.kind}:${p.id}`}><Face name={p.name} agent={p.kind === 'agent'} size={22}/><span className="tp-person">{p.name}</span>
+        <select className="tp-role" aria-label={`What ${p.name} does`} value={p.role} disabled={busy} onChange={e => void controller.setPerson(p.kind, p.id, e.target.value as Role)}>{(ROLES as readonly Role[]).map(r => <option key={r} value={r}>{roleLabel[r]}</option>)}</select>
+        <button type="button" className="tool tp-off" aria-label={`Take ${p.name} off the task`} title="Take off the task" disabled={busy} onClick={() => void controller.setPerson(p.kind, p.id, null)}><UiIcon name="close" size={12}/></button></li>)}</ul>
+      <span className="tp-add-row"><select aria-label="Add a person or an agent" value="" disabled={busy || !page} onChange={e => { const [kind, ...rest] = e.target.value.split(':'); if (kind) void controller.setPerson(kind as 'user' | 'agent', rest.join(':'), 'does'); }}>
+        <option value="">+ Add a person or an agent</option>
         <optgroup label="People">{(page?.team ?? []).filter(u => !people.some(p => p.kind === 'user' && p.id === u.id)).map(u => <option key={u.id} value={`user:${u.id}`}>{u.name}</option>)}</optgroup>
-        <optgroup label="Agents">{s.agents.filter(a => !people.some(p => p.kind === 'agent' && p.id === a.id)).map(a => <option key={a.id} value={`agent:${a.id}`}>{a.name}</option>)}</optgroup>
-      </select>
-    </SideSection>
-    <SideSection title="Status">
-      <label className="tp-kv">Column<select value={card.columnId} disabled={busy} onChange={e => void controller.move(card.id, e.target.value, null)}>{s.columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label className="tp-kv">Priority<select value={d.priority} disabled={busy} onChange={e => void controller.saveField({ priority: e.target.value as never })}>{allPriorities.map(p => <option key={p} value={p}>{priorityLabel[p]}</option>)}</select></label>
-      {toSort && sortable.length > 0 ? <label className="tp-kv">Department<select aria-label="Send to department" value="" disabled={busy} onChange={e => { if (e.target.value) void controller.sortTask(e.target.value); }}><option value="">Send to…</option>{sortable.map(x => <option key={x}>{x}</option>)}</select></label>
-        : <span className="tp-kv">Department<span>{card.departments.join(', ') || '—'}</span></span>}
-      <label className="tp-kv">Start<input type="date" value={d.startDate} disabled={busy} onChange={e => void controller.saveField({ startDate: e.target.value })}/></label>
-      <label className="tp-kv">Due<input type="date" value={d.dueDate} disabled={busy} onChange={e => void controller.saveField({ dueDate: e.target.value })}/></label>
-    </SideSection>
-    <SideSection title="Release"><input className="tp-release" aria-label="Release" placeholder="e.g. Nabu" maxLength={60} value={release} disabled={busy || !page} onChange={e => setRelease(e.target.value)}
-      onBlur={() => { if ((release.trim() || null) !== (page?.release ?? null)) void controller.setRelease(release); }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}/></SideSection>
-    <SideSection title="Relationships">
-      {page?.parent && <span className="tp-rel">Part of <button type="button" className="link-button" onClick={() => void controller.reveal(page.parent!.boardId, page.parent!.id)}>{page.parent.title}</button></span>}
-      {page?.waitsFor.map(w => <span key={w.id} className="tp-rel" data-done={w.done || undefined}>Waits for <button type="button" className="link-button" onClick={() => void controller.reveal(w.boardId, w.id)}>{w.title}</button>
-        <button type="button" className="tool" aria-label={`Stop waiting for ${w.title}`} title="Stop waiting for it" disabled={busy} onClick={() => void controller.setLink(w.id, false)}><UiIcon name="close" size={12}/></button></span>)}
-      {page?.blocks.map(w => <span key={w.id} className="tp-rel">Holds up <button type="button" className="link-button" onClick={() => void controller.reveal(w.boardId, w.id)}>{w.title}</button></span>)}
-      {page && page.subtasks.length > 0 && <ul className="tp-subtasks">{page.subtasks.map(t => <li key={t.id} data-done={t.done || undefined}><UiIcon name={t.done ? 'check' : 'list'} size={12}/><button type="button" className="link-button" onClick={() => void controller.reveal(t.boardId, t.id)}>{t.title}</button></li>)}
-        <li className="fine-print">Sub-tasks: {page.subtasks.filter(t => t.done).length} of {page.subtasks.length} done</li></ul>}
-      {others.length > 0 && <select aria-label="Make it wait for another task" value="" disabled={busy || !page} onChange={e => { if (e.target.value) void controller.setLink(e.target.value, true); }}><option value="">Waits for…</option>{others.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select>}
-    </SideSection>
-    {page?.development && <SideSection title="Development">
-      <span className="tp-rel"><UiIcon name="branch" size={13}/>{page.development.branch}</span>
-      {page.development.pr ? <a className="tp-rel" href={page.development.pr.url} target="_blank" rel="noreferrer"><UiIcon name="pr" size={13}/>Pull request #{page.development.pr.number} · {page.development.pr.state}{page.development.pr.checks ? ` · checks ${page.development.pr.checks}` : ''}</a>
-        : <span className="fine-print">No pull request for this branch yet.</span>}
-    </SideSection>}
-    <SideSection title="Labels" tools={<Tool icon="gear" label="Change labels, type and cover" onClick={() => setLabels(!labels)}/>}>
-      <span className="board-labels">{card.labels.map(id => { const l = s.labels.find(x => x.id === id); return l ? <span key={id} className="board-label" data-color={l.color}>{l.name}</span> : null; })}{!card.labels.length && <span className="fine-print">None</span>}</span>
-      {labels && <div className="tp-labels-edit">
+        <optgroup label="Agents">{s.agents.filter(a => !people.some(p => p.kind === 'agent' && p.id === a.id)).map(a => <option key={a.id} value={`agent:${a.id}`}>{a.name}</option>)}</optgroup></select>
+        {me && !people.some(p => p.kind === 'user' && p.id === me) && <button type="button" className="link-button" disabled={busy || !page} onClick={() => void controller.setPerson('user', me, 'does')}>Take it myself</button>}</span>
+    </Group>
+    <Group title="Labels">
+      <span className="board-labels">{card.labels.map(id => { const l = s.labels.find(x => x.id === id); return l ? <span key={id} className="board-label" data-color={l.color}>{l.name}</span> : null; })}
+        <button type="button" className="tp-chip-add" aria-expanded={open === 'labels'} onClick={() => toggle('labels')}>+ Label</button></span>
+      {open === 'labels' && <div className="tp-prop-edit">
         <span className="board-labels pick">{s.labels.map(l => <button key={l.id} type="button" className="board-label" data-color={l.color} aria-pressed={d.labels.includes(l.id)} disabled={busy}
           onClick={() => void controller.saveField({ labels: d.labels.includes(l.id) ? d.labels.filter(x => x !== l.id) : [...d.labels, l.id] })}>{l.name}</button>)}</span>
-        <label className="tp-kv">Type<select value={d.type} disabled={busy} onChange={e => void controller.saveField({ type: e.target.value as CardType })}>{allCardTypes.map(t => <option key={t} value={t}>{cardTypeLabel[t]}</option>)}</select></label>
+        <label className="tp-kv">Type<select value={d.type} disabled={busy} onChange={e => void controller.saveField({ type: e.target.value as CardType })}>{allCardTypes.map(x => <option key={x} value={x}>{cardTypeLabel[x]}</option>)}</select></label>
         <label className="tp-kv">Cover<select value={d.cover ?? ''} disabled={busy} onChange={e => void controller.saveField({ cover: (e.target.value || null) as BoardColor | null })}><option value="">None</option>{s.colors.map(c => <option key={c} value={c}>{colorLabel[c]}</option>)}</select></label>
       </div>}
-    </SideSection>
-    {page && page.files.count > 0 && <SideSection title="Files changed">
-      <span className="tp-rel">{page.files.count} {page.files.count === 1 ? 'file' : 'files'} <i className="tp-add">+{page.files.added}</i> <i className="tp-del">−{page.files.removed}</i></span>
-      <span className="fine-print tp-paths">{page.files.paths.slice(0, 4).join(' · ')}{page.files.paths.length > 4 ? ' · …' : ''}</span>
-    </SideSection>}
-    {page && page.spent.length > 0 && <SideSection title="Spent">
-      {page.spent.map(x => <span key={x.model} className="tp-kv"><span className="tp-app">{appOf(x.app) ? <AppLogo name={x.app} size={13}/> : <UiIcon name="cpu" size={13}/>}{x.app}</span><span>{tokens(x.tokens)} tokens</span></span>)}
-      <small className="fine-print">{page.spent.some(x => x.paid) ? 'Some on a paid model: see Settings › Usage for the cost.' : 'On your subscription or this computer: no extra cost.'} Estimates.</small>
-    </SideSection>}
-    {page && page.chats.length > 0 && <SideSection title="Chats">
-      {page.chats.map(c => <button key={c.id} type="button" className="tp-chat" disabled={!onOpenChat} onClick={() => onOpenChat?.(c.id)}><UiIcon name="message" size={13}/>{c.title || 'Untitled chat'}</button>)}
-    </SideSection>}
-    {card.taskFile && <SideSection title="Task file"><span className="task-file-mark" title={card.taskFile.problem ?? undefined}><UiIcon name={card.taskFile.problem ? 'alert' : 'file'} size={12}/>{card.taskFile.no} · {t?.file ?? '.girru/tasks.md'}{card.taskFile.problem ? ' · a line to fix' : ' · up to date'}</span></SideSection>}
-    <div className="tp-follow"><span className="tp-faces">{people.slice(0, 6).map(p => <Face key={`${p.kind}:${p.id}`} name={p.name} agent={p.kind === 'agent'} size={20}/>)}</span>
-      <button type="button" aria-pressed={!!page?.following} disabled={busy || !page} onClick={() => void controller.setFollow(!page?.following)}><UiIcon name="eye" size={13}/>{page?.following ? 'Following' : 'Follow'}</button></div>
-    <button type="button" className="tp-archive" disabled={busy} onClick={() => void controller.archiveCard()}><UiIcon name="archive" size={13}/>Archive this task</button>
+    </Group>
+    <Group title="Links" side={others.length > 0 && <button type="button" className="tool" aria-label="Make it wait for another task" title="Make it wait for another task" aria-expanded={open === 'link'} onClick={() => toggle('link')}><UiIcon name="plus" size={12}/></button>}>
+      {open === 'link' && <select autoFocus aria-label="Waits for" value="" disabled={busy || !page} onChange={e => { if (e.target.value) { setOpen(null); void controller.setLink(e.target.value, true); } }}><option value="">Waits for…</option>{others.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select>}
+      {page?.parent && <span className="tp-link"><UiIcon name="list" size={13}/>Part of <button type="button" className="link-button" onClick={() => void controller.reveal(page.parent!.boardId, page.parent!.id)}>{page.parent.title}</button></span>}
+      {page?.waitsFor.map(w => <span key={w.id} className="tp-link" data-done={w.done || undefined}><UiIcon name="clock" size={13}/>Waits for <button type="button" className="link-button" onClick={() => void controller.reveal(w.boardId, w.id)}>{w.title}</button>
+        <button type="button" className="tool tp-off" aria-label={`Stop waiting for ${w.title}`} title="Stop waiting for it" disabled={busy} onClick={() => void controller.setLink(w.id, false)}><UiIcon name="close" size={12}/></button></span>)}
+      {page?.blocks.map(w => <span key={w.id} className="tp-link"><UiIcon name="alert" size={13}/>Holds up <button type="button" className="link-button" onClick={() => void controller.reveal(w.boardId, w.id)}>{w.title}</button></span>)}
+      {page && page.subtasks.length > 0 && <><span className="tp-link"><UiIcon name="check" size={13}/>Sub-tasks<span className="tp-link-end"><progress max={page.subtasks.length} value={page.subtasks.filter(x => x.done).length} aria-label="Sub-tasks done"/>{page.subtasks.filter(x => x.done).length} of {page.subtasks.length}</span></span>
+        <ul className="tp-subtasks">{page.subtasks.map(x => <li key={x.id} data-done={x.done || undefined}><button type="button" className="link-button" onClick={() => void controller.reveal(x.boardId, x.id)}>{x.title}</button></li>)}</ul></>}
+      {page?.development && <span className="tp-link"><UiIcon name="branch" size={13}/>{page.development.branch}<span className="tp-link-end">{page.development.pr
+        ? <a href={page.development.pr.url} target="_blank" rel="noreferrer" data-checks={page.development.pr.checks ?? undefined}>PR #{page.development.pr.number}{page.development.pr.checks === 'passing' ? ' ✓' : page.development.pr.checks === 'failing' ? ' ✗' : ''}</a> : 'no PR yet'}</span></span>}
+      {page && !page.parent && !page.waitsFor.length && !page.blocks.length && !page.subtasks.length && !page.development && <small className="fine-print">No links yet.</small>}
+    </Group>
+    <Group title="Work" side={page && (page.files.count > 0 || page.spent.length > 0 || page.chats.length > 0) && <button type="button" className="link-button" aria-expanded={work} onClick={() => setWork(!work)}>{work ? 'Less' : 'Details'}</button>}>
+      <span className="tp-link"><UiIcon name="file" size={13}/>Files changed<span className="tp-link-end">{page?.files.count ? <>{page.files.count} · <i className="tp-add">+{page.files.added}</i> <i className="tp-del">−{page.files.removed}</i></> : 'none'}</span></span>
+      {work && page && page.files.paths.length > 0 && <small className="fine-print tp-paths">{page.files.paths.join(' · ')}</small>}
+      <span className="tp-link"><UiIcon name="coin" size={13}/>Tokens<span className="tp-link-end">{tokensAll ? `${tokens(tokensAll)} · ${page?.spent.some(x => x.paid) ? 'some paid' : 'on your subscription'}` : 'none'}</span></span>
+      {work && page?.spent.map(x => <span key={x.model} className="tp-link sub">{appOf(x.app) ? <AppLogo name={x.app} size={12}/> : <UiIcon name="cpu" size={12}/>}{x.app}<span className="tp-link-end">{tokens(x.tokens)}</span></span>)}
+      <span className="tp-link"><UiIcon name="message" size={13}/>Chats<span className="tp-link-end">{page?.chats.length ?? 0}</span></span>
+      {work && page?.chats.map(c => <button key={c.id} type="button" className="tp-chat" disabled={!onOpenChat} onClick={() => onOpenChat?.(c.id)}><UiIcon name="message" size={12}/>{c.title || 'Untitled chat'}</button>)}
+      {card.taskFile && <span className="tp-link"><UiIcon name={card.taskFile.problem ? 'alert' : 'file'} size={13}/>Task file<span className="tp-link-end">{card.taskFile.no} · {card.taskFile.problem ? 'a line to fix' : 'up to date'}</span></span>}
+    </Group>
+    <div className="tp-follow"><span className="tp-faces">{people.slice(0, 6).map(p => <Face key={`${p.kind}:${p.id}`} name={p.name} agent={p.kind === 'agent'} size={22}/>)}</span>
+      <button type="button" aria-pressed={!!page?.following} disabled={busy || !page} onClick={() => void controller.setFollow(!page?.following)}><UiIcon name="eye" size={13}/>{page?.following ? 'Following' : 'Follow'}</button>
+      <span className="tp-menu"><Tool icon="more" label="More: archive" onClick={() => setMenu(!menu)}/>{menu && <span role="menu"><button role="menuitem" type="button" disabled={busy} onClick={() => { setMenu(false); void controller.archiveCard(); }}><UiIcon name="archive" size={13}/>Archive this task</button></span>}</span></div>
   </aside>;
 }

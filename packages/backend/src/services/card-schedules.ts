@@ -36,8 +36,10 @@ export async function boardSchedules(boardId: string): Promise<Map<string, CardS
 }
 
 /** Set or change how a card repeats: { every, at, weekday?, agentId?, model?, paused? }. */
-export async function setCardSchedule(ownerId: string, boardId: string, cardId: string, input: unknown, now: Date = new Date()): Promise<CardSchedule> {
+export async function setCardSchedule(ownerId: string, boardId: string, cardId: string, input: unknown, now: Date = new Date()): Promise<CardSchedule | null> {
   const v = input as Record<string, unknown> | null;
+  // { every: 'never' } takes the schedule away (the same as DELETE).
+  if (v && typeof v === 'object' && !Array.isArray(v) && v.every === 'never' && Object.keys(v).length === 1) { await deleteCardSchedule(ownerId, boardId, cardId); return null; }
   if (!v || typeof v !== 'object' || Array.isArray(v) || Object.keys(v).some((k) => !['every', 'at', 'weekday', 'agentId', 'model', 'paused'].includes(k))) throw bad('A schedule is { every, at, weekday?, agentId?, model?, paused? }');
   if (!['hourly', 'daily', 'weekly'].includes(String(v.every))) throw bad('every must be hourly, daily or weekly');
   if (typeof v.at !== 'string' || !AT.test(v.at)) throw bad('at must be a time like 09:00');

@@ -50,7 +50,7 @@ export function boardPath(path) {
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/comments$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'comments', board: m[1], card: m[2] } : null;
   // TASKPAGE-02: the full task page.
-  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/(page|people|release|subtasks|links|follow)$/.exec(path);
+  m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/(page|people|release|subtasks|links|follow|schedule)$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: `tp-${m[3]}`, board: m[1], card: m[2] } : null;
   m = /^\/api\/boards\/([^/?#]+)\/cards\/([^/?#]+)\/activity(?:\?before=(\d{4}-\d{2}-\d{2}T[\d:.]+Z))?$/.exec(path);
   if (m) return id(m[1]) && id(m[2]) ? { kind: 'tp-activity', board: m[1], card: m[2] } : null;
@@ -126,6 +126,21 @@ export function validBoardEdit(b) {
 export const ROLES = ['asked', 'does', 'checks', 'tests'];
 const personId = x => typeof x === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(x);
 const ownerOk = o => record(o) && Object.keys(o).length === 2 && ['user', 'agent'].includes(o.kind) && personId(o.id);
+/** TASKPAGE-03: how a task repeats ({ every: 'never' } takes it away). */
+export const EVERY = ['hourly', 'daily', 'weekly'];
+function scheduleOk(b) {
+  if (!record(b)) return false;
+  if (b.every === 'never') return Object.keys(b).length === 1;
+  return onlyKeys(b, ['every', 'at', 'weekday', 'agentId', 'model', 'paused']) && EVERY.includes(b.every) && typeof b.at === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.at)
+    && (b.every !== 'weekly' ? b.weekday === undefined || b.weekday === null : Number.isInteger(b.weekday) && b.weekday >= 0 && b.weekday <= 6)
+    && (b.agentId === undefined || b.agentId === null || validAgentId(b.agentId)) && (b.model === undefined || modelOk(b.model)) && (b.paused === undefined || typeof b.paused === 'boolean');
+}
+function repeat(r) {
+  if (!record(r) || !EVERY.includes(r.every) || typeof r.at !== 'string' || !/^\d\d:\d\d$/.test(r.at)) return null;
+  return { every: r.every, at: r.at, weekday: Number.isInteger(r.weekday) && r.weekday >= 0 && r.weekday <= 6 ? r.weekday : null, nextRun: typeof r.nextRun === 'string' ? r.nextRun.slice(0, 40) : '', paused: r.paused === true,
+    ...(r.lastRun !== undefined ? { lastRun: typeof r.lastRun === 'string' ? r.lastRun.slice(0, 40) : null } : {}), ...(r.agentId !== undefined ? { agentId: validAgentId(r.agentId) ? r.agentId : null } : {}), ...(r.model !== undefined ? { model: modelOk(r.model) ? r.model : '' } : {}),
+    lastResult: ['started', 'busy', 'failed'].includes(r.lastResult) ? r.lastResult : null };
+}
 const modelOk = x => typeof x === 'string' && (x === '' || /^[A-Za-z0-9][A-Za-z0-9_.:@\/-]{0,99}$/.test(x));
 export function allowedBoard(method, path, body) {
   if (path === TASK_CONTINUE_PATH) return method === 'POST' && record(body) && onlyKeys(body, ['boardId', 'cardId', 'agentId', 'model']) && id(body.boardId) && id(body.cardId)
@@ -154,6 +169,7 @@ export function allowedBoard(method, path, body) {
   if (p.kind === 'tp-subtasks') return method === 'POST' && record(body) && Object.keys(body).length === 1 && lineOk(body.title, MAX_TITLE);
   if (p.kind === 'tp-links') return method === 'PUT' && record(body) && Object.keys(body).length === 2 && id(body.waitsFor) && typeof body.on === 'boolean';
   if (p.kind === 'tp-follow') return method === 'PUT' && record(body) && Object.keys(body).length === 1 && typeof body.on === 'boolean';
+  if (p.kind === 'tp-schedule') return (method === 'GET' && body === undefined) || (method === 'PUT' && scheduleOk(body));
   if (p.kind === 'task') return method === 'GET' && body === undefined;
   if (p.kind === 'task-sort') return method === 'POST' && record(body) && Object.keys(body).length === 1 && department(body.department);
   if (p.kind === 'comments') return (method === 'GET' && body === undefined) || (method === 'POST' && record(body) && Object.keys(body).length === 1 && textOk(body.body, MAX_COMMENT, true));
@@ -203,6 +219,7 @@ function card(c) {
 
     conversationId: typeof c.conversationId === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/.test(c.conversationId) ? c.conversationId : null,
     taskFile: taskMark(c.taskFile),
+    repeat: repeat(c.repeat),
   };
 }
 
@@ -326,5 +343,6 @@ function taskPageResponse(kind, body) {
   if (kind === 'tp-subtasks') return card(body);
   if (kind === 'tp-links') return { ok: body.ok === true };
   if (kind === 'tp-follow') return { following: body.following === true };
+  if (kind === 'tp-schedule') return { schedule: repeat(body.schedule) };
   fail();
 }

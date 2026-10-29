@@ -111,9 +111,41 @@ test('page: the middle and the side show what the board drew', async () => {
   await b.loadDiff('m1');
   const html = renderToStaticMarkup(React.createElement(TaskBoard, { controller: b, onOpenChat: () => {} }));
   for (const words of ['Back to the board', 'opened it', 'Add a sub-task', 'Checklist', 'Activity', 'Comments', 'Replies', 'Changes', 'moved it to <b>In progress</b>', 'replied in',
-    'changed 1 file', 'Undo these changes', 'Passes on macOS', 'added the edge test', 'Write a comment', 'People and agents', 'Sara', 'checks it', 'Release', 'Nabu', 'Part of', 'Desktop app 1.0',
-    'Waits for', 'Windows machine', 'Sub-tasks: 1 of 1 done', 'Development', 'fix-sign-in', 'Pull request #71', 'Files changed', 'Spent', '31k tokens', 'Chats', 'Sign-in bug', 'Following', 'Archive this task'])
+    'changed 1 file', 'Undo these changes', 'Passes on macOS', 'added the edge test', 'Write a comment', 'aria-label="People"', 'Sara', 'checks it', 'Release', 'Nabu', 'Part of', 'Desktop app 1.0',
+    'Waits for', 'Windows machine', 'Sub-tasks', '1 of 1', 'fix-sign-in', 'PR #71 ✓', 'Files changed', 'Tokens', '31k · on your subscription', 'Chats', 'Sign-in bug', 'Following', 'Repeats', 'Never', 'Details', 'Links', 'Work', 'More: archive', '+ Label'])
     assert.ok(html.includes(words), words);
   assert.doesNotMatch(html, /Save changes/);
+  b.dispose();
+});
+
+test('TASKPAGE-03: Repeats (contract, controller, card line) and the All · Tasks · Scheduled filter', async () => {
+  const { matches, repeatWords } = require('../src/board.ts');
+  for (const b of [{ every: 'daily', at: '09:00' }, { every: 'weekly', at: '08:00', weekday: 1, agentId: 'a-dev', model: 'subscription:codex', paused: true }, { every: 'hourly', at: '00:15' }, { every: 'never' }])
+    assert.ok(allowedBoard('PUT', `${B}/schedule`, b) && allowedRequest('PUT', `${B}/schedule`, b) && allowed('PUT', `${B}/schedule`, b), JSON.stringify(b));
+  for (const b of [{ every: 'weekly', at: '08:00' }, { every: 'daily', at: '9am' }, { every: 'never', at: '09:00' }, { every: 'monthly', at: '09:00' }, { every: 'daily', at: '09:00', extra: 1 }])
+    assert.equal(allowedBoard('PUT', `${B}/schedule`, b), false, JSON.stringify(b));
+  assert.ok(allowedBoard('GET', `${B}/schedule`));
+  const R = { every: 'daily', at: '09:00', weekday: null, nextRun: '2026-10-30T08:00:00.000Z', paused: false, lastResult: 'started', secret: 1 };
+  const card = boardResponse('/api/boards/b1/cards/c1', 200, { ...{ id: 'c1', columnId: 'col1', title: 'x', priority: 'normal', position: 1, version: 1, agents: [], departments: [] }, repeat: R });
+  assert.deepEqual(card.repeat, { every: 'daily', at: '09:00', weekday: null, nextRun: '2026-10-30T08:00:00.000Z', paused: false, lastResult: 'started' });
+  assert.deepEqual(boardResponse('/api/boards/b1/cards/c1', 200, card), card);
+  assert.deepEqual(boardResponse(`${B}/schedule`, 200, { schedule: null }), { schedule: null });
+  assert.deepEqual([repeatWords({ every: 'hourly', at: '00:15' }), repeatWords({ every: 'daily', at: '09:00' }), repeatWords({ every: 'weekly', at: '08:00', weekday: 1 })], ['Every hour at :15', 'Every day 09:00', 'Every week Mon 08:00']);
+  const f = { text: '', agent: '', department: '' };
+  assert.equal(matches(card, { ...f, kind: 'scheduled' }), true);
+  assert.equal(matches(card, { ...f, kind: 'tasks' }), false);
+  assert.equal(matches({ ...card, repeat: null }, { ...f, kind: 'scheduled' }), false);
+  const { b, calls, card: open } = await fixture();
+  const ok = await b.setSchedule({ every: 'weekly', at: '08:00', weekday: 1, agentId: 'a-dev', model: 'subscription:codex' });
+  assert.equal(ok, false, 'the mock has no schedule route: nothing is saved, and the request was well formed');
+  assert.deepEqual(calls.find(c => c.path.endsWith('/schedule') && c.method === 'PUT').body, { every: 'weekly', at: '08:00', weekday: 1, agentId: 'a-dev', model: 'subscription:codex', paused: false });
+  await b.setSchedule(null);
+  assert.deepEqual(calls.filter(c => c.path.endsWith('/schedule') && c.method === 'PUT').at(-1).body, { every: 'never' });
+  b.closeCard();
+  b.setFilter({ kind: 'scheduled' });
+  const html = renderToStaticMarkup(React.createElement(TaskBoard, { controller: b }));
+  assert.match(html, /aria-label="Show tasks"/);
+  assert.match(html, /aria-pressed="true">Scheduled/);
+  assert.ok(open);
   b.dispose();
 });

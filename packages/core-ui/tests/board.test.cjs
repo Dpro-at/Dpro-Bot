@@ -76,7 +76,7 @@ test('offline: open, add cards, edit in the panel, move, comment, archive', asyn
   const put = calls.filter(c => c.method === 'PUT').at(-1);
   assert.deepEqual(put.body, { expectedVersion: 1, description: 'Short and friendly.', priority: 'urgent', dueDate: '2026-11-02', agents: [s.agents[0].id], departments: ['marketing'] });
   let html = markup(b);
-  assert.match(html, /Urgent/); assert.match(html, /marketing/); assert.match(html, /value="2026-11-02"/);
+  assert.match(html, /Urgent/); assert.match(html, /marketing/); assert.match(html, /→ (Nov 2|2 Nov)/, 'the side shows the due date');
   await b.addComment('Please keep it under 200 words.');
   assert.equal(b.getSnapshot().comments.length, 1);
   assert.equal(b.getSnapshot().cards.find(c => c.id === post.id).comments, 1);
@@ -211,7 +211,7 @@ test('richer cards: type, dates, cover, labels and checklist from the panel', as
   await b.updateCheckItem(b.getSnapshot().checklist[1].id, { remove: true });
   assert.deepEqual(b.getSnapshot().checklist.map(i => [i.text, i.done]), [['Find the cause', true]]);
   const html = markup(b);
-  for (const label of ['Important', 'value="2026-11-03"', 'Checklist', '1 of 1', 'Change labels, type and cover']) assert.match(html, new RegExp(label));
+  for (const label of ['Important', '(Nov 3|3 Nov) →', 'Checklist', '1 of 1', '\\+ Label', 'Repeats']) assert.match(html, new RegExp(label));
   assert.equal(validNewCard({ columnId: 'c1', title: 'x', type: 'epic' }), false);
   assert.equal(validCardEdit({ expectedVersion: 1, cover: 'gold' }), false);
   for (const allow of [allowedRequest, allowed]) {

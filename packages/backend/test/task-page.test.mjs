@@ -184,7 +184,9 @@ test('TASKPAGE-03: a task repeats every hour / day / week; a due run starts a Co
   db.prepare(`UPDATE card_schedules SET next_run = '2000-01-01T00:00:00.000Z' WHERE card_id = ?`).run(rep.id);
   await sch.runDueCardSchedules(async () => 'busy');
   assert.equal((await ok(call('p-owner', 'GET', url))).schedule.lastResult, 'busy');
-  // Never: the schedule goes, the task stays.
+  // Never: the schedule goes, the task stays (PUT { every: 'never' } or DELETE).
+  assert.deepEqual(await ok(call('p-owner', 'PUT', url, { every: 'never' })), { schedule: null });
+  await ok(call('p-owner', 'PUT', url, { every: 'hourly', at: '00:15' }));
   assert.deepEqual(await ok(call('p-owner', 'DELETE', url)), { schedule: null });
   assert.deepEqual(await ok(call('p-owner', 'GET', url)), { schedule: null });
   // A task with no task file continues from the card itself.

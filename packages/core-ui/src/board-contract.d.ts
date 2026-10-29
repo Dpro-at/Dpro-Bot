@@ -15,3 +15,4 @@ export function validBoardEdit(x: unknown): boolean;
 export const cardTypes: readonly ['task', 'idea', 'bug', 'milestone', 'request'];
 export const TASK_CONTINUE_PATH: '/api/chat/task-continue';
 export const ROLES: readonly ['asked', 'does', 'checks', 'tests'];
+export const EVERY: readonly ['hourly', 'daily', 'weekly'];
