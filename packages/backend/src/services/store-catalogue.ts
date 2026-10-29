@@ -74,7 +74,8 @@ export async function readStore(ownerId:string,source:LocalCatalogue=localCatalo
   const update=updates.find(u=>'registry:'+u.extension_id===x.id)?.latest_version??null;
   return {...x,state,present:state==='included'||state==='installed'||present.has(x.id),update:state==='installed'?update:null,hash:consentHash(x)};
  });
- return {schema:index.schema,featured:index.featured,collections:index.collections,categories:STORE_CATEGORIES.filter(c=>items.some(x=>x.category===c.id)).map(c=>({...c})),items,limited:source.limited()};
+ return {schema:index.schema,featured:index.featured,collections:index.collections,// The category row is fixed (SA1 v2); More shows only when something is in it.
+ categories:STORE_CATEGORIES.filter(c=>c.id!=='more'||items.some(x=>x.category===c.id)).map(c=>({...c})),items,limited:source.limited()};
 }
 
 export type StoreChange={ok:true;state:StoreState}|{ok:false;code:'not_found'|'not_installable'|'changed'|'refused';message:string};

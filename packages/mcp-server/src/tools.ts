@@ -33,7 +33,7 @@ const RULES_REFUSED='Adding, changing, pausing, deleting rules and using or dism
 const TASK_OPS=['list','get','activity','continue','sort','people','checklist','schedule'];
 /** TASKLOG-01: turning a project's task file on or off, and moving or editing cards, stay with the owner in the app. */
 const TASKS_REFUSED='Turning a project\u2019s task file on or off is done by the owner in Agents \u203a Rules (the files sheet); moving, editing and archiving cards is done on the Board. This tool reads tasks (list, get, activity) and, on the owner\u2019s instruction, continues one, sends one waiting in To sort to a department, puts people or agents on it, adds, ticks or gives checklist items, and sets how it repeats.';
-const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties'];
+const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','store','genvr','terminal','code','skills','personalities','specialties'];
 
 export const TOOL_DEFINITIONS = [
   {
@@ -55,8 +55,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_store',title:'Store',
-    description:'Owner-session only. The Store in Apps, the same as the owner sees it: one list of the apps that come with Girru, Girru\u2019s registry and the Claude Code and Codex add-ons copied on this computer. home: the featured app, the collections and the categories. search (optional query, category, source girru/claude-code/codex): matching items in one line each with where they come from and their state (included = comes with Girru, installed, available, elsewhere = added in that coding app itself). app (id): one item\u2019s page: what it does, what it asks for, maker, version. updates: installed apps with a newer version. Adding an app is always done by the owner in the app (Apps \u203a Store \u203a the app \u203a Get, which shows what it asks for); install is refused here: tell the owner what the app asks for and where to add it. uninstall (id) removes an app from Girru\u2019s registry only on the owner\u2019s explicit instruction; it can be added again from the Store. Apps that come with Girru are already in My apps; coding-app add-ons are added in that app itself. There are no ratings, install counts or prices: every item is free.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['home','search','app','updates','install','uninstall']},id:{type:'string',maxLength:320},query:{type:'string',maxLength:120},category:{type:'string',maxLength:40},source:{type:'string',enum:['girru','claude-code','codex']}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. The Store in Apps, the same as the owner sees it: one list of the apps that come with Girru, Girru\u2019s registry and the Claude Code and Codex add-ons copied on this computer. home: the featured app, the collections and the categories. search (optional query, kind app/mcp/skill/specialty, category, source girru/claude-code/codex; the same kinds as the Store sidebar and the same category row): matching items in one line each with where they come from and their state (included = comes with Girru, installed, available, elsewhere = added in that coding app itself). app (id): one item\u2019s page: what it does, what it asks for, maker, version. updates: installed apps with a newer version. Adding an app is always done by the owner in the app (Apps \u203a Store \u203a the app \u203a Get, which shows what it asks for); install is refused here: tell the owner what the app asks for and where to add it. uninstall (id) removes an app from Girru\u2019s registry only on the owner\u2019s explicit instruction; it can be added again from the Store. Apps that come with Girru are already in My apps; coding-app add-ons are added in that app itself. There are no ratings, install counts or prices: every item is free.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['home','search','app','updates','install','uninstall']},id:{type:'string',maxLength:320},query:{type:'string',maxLength:120},kind:{type:'string',enum:['app','mcp','skill','specialty']},category:{type:'string',maxLength:40},source:{type:'string',enum:['girru','claude-code','codex']}},required:['operation'],additionalProperties:false},
   },
   {
     name:'agents',title:'Agents (read only)',
@@ -86,8 +86,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'workspace_footer',title:'Footer sections',
-    description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, store, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:14,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:14,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
     name:'account_settings',title:'Account security and updates',
@@ -643,22 +643,23 @@ const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
 function splitApps(r:unknown){const items=Array.isArray(obj(r).items)?obj(r).items as unknown[]:[],mcp=(x:unknown)=>record(x)&&x.kind==='mcp';return {apps:items.filter(x=>!mcp(x)),mcpConnections:items.filter(mcp)};}
 const STORE_ID=/^[a-z0-9][a-z0-9._@:-]{0,319}$/i;
 const STORE_ADD_REFUSED='Adding an app is done by the owner in the app: Apps \u203a Store \u203a the app \u203a Get. Tell the owner what it asks for (from app).';
-type StoreItem={id:string;name:string;summary:string;description:string;source:string;category:string;state:string;maker:string;verified:boolean;version:string|null;updated:string|null;permissions:string[];worksWith:string[];languages:string[];update:string|null;hash:string};
+type StoreItem={id:string;kind:string;name:string;summary:string;description:string;source:string;category:string;state:string;maker:string;verified:boolean;version:string|null;updated:string|null;permissions:string[];worksWith:string[];languages:string[];update:string|null;hash:string};
 /** The Store (STORE-UI-01): the window's one read, and Add / Remove behind the same hash the Add sheet shows. */
 async function workspaceStoreTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  const op=args.operation;
  const id=()=>{if(typeof args.id!=='string'||!STORE_ID.test(args.id))throw new InputError('A valid id (from search) is required');return args.id;};
  const read=async():Promise<Record<string,any>&{items:StoreItem[]}>=>{const r=obj(await backend.request('GET','/api/store'));return {...r,items:(Array.isArray(r.items)?r.items:[]).filter(record) as unknown as StoreItem[]};};
- const line=(x:StoreItem)=>({id:x.id,name:x.name,summary:x.summary,source:x.source,category:x.category,state:x.state});
+ const line=(x:StoreItem)=>({id:x.id,kind:x.kind,name:x.name,summary:x.summary,source:x.source,category:x.category,state:x.state});
  if(op==='home'){
   only(args,['operation']);const s=await read(),named=(ids:unknown)=>(Array.isArray(ids)?ids:[]).map(i=>s.items.find(x=>x.id===i)).filter(Boolean).map(x=>line(x!));
   return ok('The Store\u2019s home: the featured app, then collections. Every item is free; there are no ratings or install counts.',{featured:named([s.featured])[0]??null,collections:(Array.isArray(s.collections)?s.collections:[]).filter(record).map((c:Record<string,any>)=>({id:c.id,title:c.title,items:named(c.items)})),categories:s.categories??[],limited:s.limited??[]});
  }
  if(op==='search'){
-  only(args,['operation','query','category','source']);
-  for(const k of ['query','category','source'] as const)if(args[k]!==undefined&&typeof args[k]!=='string')throw new InputError(`${k} must be text`);
+  only(args,['operation','query','kind','category','source']);
+  for(const k of ['query','kind','category','source'] as const)if(args[k]!==undefined&&typeof args[k]!=='string')throw new InputError(`${k} must be text`);
+  if(args.kind!==undefined&&!['app','mcp','skill','specialty'].includes(args.kind as string))throw new InputError('kind must be app, mcp, skill or specialty');
   const q=String(args.query??'').trim().toLowerCase(),s=await read();
-  const items=s.items.filter(x=>(!args.category||x.category===args.category)&&(!args.source||x.source===args.source)&&(!q||`${x.name} ${x.summary} ${x.maker}`.toLowerCase().includes(q)));
+  const items=s.items.filter(x=>(!args.kind||x.kind===args.kind)&&(!args.category||x.category===args.category)&&(!args.source||x.source===args.source)&&(!q||`${x.name} ${x.summary} ${x.maker}`.toLowerCase().includes(q)));
   return ok(items.length?`${items.length} in the Store. Open one with app (id).`:'Nothing in the Store matches.',{items:items.slice(0,100).map(line),more:Math.max(0,items.length-100)});
  }
  if(op==='app'){

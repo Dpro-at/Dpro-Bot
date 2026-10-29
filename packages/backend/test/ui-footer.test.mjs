@@ -49,8 +49,8 @@ test('footer: usual footer first, each person saves their own, unknown values re
   assert.equal((await call('GET', 'ft-owner')).json().footer.iconsOnly, true);
   assert.notDeepEqual((await call('GET', 'ft-user')).json().footer.hidden, ['board']);
   const moved = (await call('PUT', 'ft-owner', { order: ['apps', 'chat'] })).json().footer;
-  assert.deepEqual(moved.order.slice(0, 3), ['apps', 'chat', 'agents']);
-  assert.equal(moved.order.length, 13);
+  assert.deepEqual(moved.order.slice(0, 3), ['apps', 'store', 'chat']); // Store, added later, comes in after Apps
+  assert.equal(moved.order.length, 14);
   for (const bad of [{}, { hidden: ['settings'] }, { hidden: ['mcp'] }, { hidden: ['chat', 'chat'] }, { order: ['nope'] }, { iconsOnly: 'yes' }, { other: true }, []])
     assert.equal((await call('PUT', 'ft-owner', bad)).statusCode, 400, JSON.stringify(bad));
 });

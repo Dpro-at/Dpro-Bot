@@ -28,7 +28,7 @@ test('one index joins the apps that come with Girru, the registry and the coding
  assert.deepEqual(s.items.filter(x=>x.state==='included').map(x=>x.id),['girru:genvr','girru:trading','girru:terminal','girru:code']);
  const w=s.items.find(x=>x.id==='registry:weather');assert.equal(w.state,'available');assert.equal(w.category,'productivity');assert.deepEqual(w.permissions,['Read the weather']);assert.match(w.hash,/^[a-f0-9]{64}$/);
  const a=s.items.find(x=>x.id==='claude-code:seo-audit@acme');assert.equal(a.state,'elsewhere');assert.equal(a.summary,'Checks a site for search problems.');
- assert.ok(s.categories.every(c=>s.items.some(x=>x.category===c.id)),'only categories with items');
+ assert.deepEqual(s.categories.map(c=>c.id),['marketing','sales','developer','worlds','trading','productivity'],'one fixed row; More only when used');
  assert.deepEqual(s.collections.map(c=>c.id),['made-by-girru','registry','claude-code']);
  const keys=new Set(s.items.flatMap(Object.keys));for(const banned of ['rating_avg','install_count','price','download_url','screenshot_urls','icon_url'])assert.ok(!keys.has(banned),banned);
 });

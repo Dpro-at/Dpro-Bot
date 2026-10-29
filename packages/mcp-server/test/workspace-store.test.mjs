@@ -1,15 +1,16 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {callTool,TOOL_DEFINITIONS} from '../src/tools.ts';
 const hash='b'.repeat(64);
 const store={schema:1,featured:'girru:genvr',collections:[{id:'made-by-girru',title:'Made by Girru',items:['girru:genvr']}],categories:[{id:'worlds',title:'Worlds and 3D',icon:'globe'}],limited:[],items:[
- {id:'girru:genvr',name:'GenVR',summary:'3D worlds.',description:'',source:'girru',category:'worlds',state:'included',maker:'Girru',verified:true,version:null,updated:null,permissions:['Account'],worksWith:[],languages:[],update:null,hash:'a'.repeat(64)},
- {id:'registry:weather',name:'Weather',summary:'Forecasts.',description:'',source:'girru',category:'productivity',state:'available',maker:'Acme',verified:false,version:'1.0.0',updated:null,permissions:['Read the weather'],worksWith:[],languages:[],update:null,hash},
- {id:'claude-code:seo@acme',name:'seo',summary:'SEO.',description:'',source:'claude-code',category:'developer',state:'elsewhere',maker:'acme',verified:false,version:null,updated:null,permissions:[],worksWith:[],languages:[],update:null,hash:'c'.repeat(64)}]};
+ {id:'girru:genvr',kind:'app',name:'GenVR',summary:'3D worlds.',description:'',source:'girru',category:'worlds',state:'included',maker:'Girru',verified:true,version:null,updated:null,permissions:['Account'],worksWith:[],languages:[],update:null,hash:'a'.repeat(64)},
+ {id:'registry:weather',kind:'app',name:'Weather',summary:'Forecasts.',description:'',source:'girru',category:'productivity',state:'available',maker:'Acme',verified:false,version:'1.0.0',updated:null,permissions:['Read the weather'],worksWith:[],languages:[],update:null,hash},
+ {id:'claude-code:seo@acme',kind:'skill',name:'seo',summary:'SEO.',description:'',source:'claude-code',category:'developer',state:'elsewhere',maker:'acme',verified:false,version:null,updated:null,permissions:[],worksWith:[],languages:[],update:null,hash:'c'.repeat(64)}]};
 const fake=()=>{const calls=[];return {calls,backend:{async request(method,path,body){calls.push({method,path,body});if(path==='/api/store')return store;if(path==='/api/store/install')return {ok:true,state:'installed'};if(path==='/api/store/uninstall')return {ok:true,state:'available'};throw Error('unexpected '+path);}}};};
 test('store MCP: the same browse, details and Add / Remove as the window, behind the same hash',async()=>{
  const {calls,backend}=fake();
  const home=await callTool('workspace_store',{operation:'home'},{backend});assert.equal(home.structuredContent.featured.id,'girru:genvr');assert.equal(home.structuredContent.collections[0].items[0].name,'GenVR');
  const found=await callTool('workspace_store',{operation:'search',query:'fore'},{backend});assert.deepEqual(found.structuredContent.items.map(x=>x.id),['registry:weather']);
  assert.deepEqual((await callTool('workspace_store',{operation:'search',source:'claude-code'},{backend})).structuredContent.items.map(x=>x.state),['elsewhere']);
+ assert.deepEqual((await callTool('workspace_store',{operation:'search',kind:'skill'},{backend})).structuredContent.items.map(x=>x.id),['claude-code:seo@acme']);assert.equal((await callTool('workspace_store',{operation:'search',kind:'binary'},{backend})).isError,true);
  const page=await callTool('workspace_store',{operation:'app',id:'registry:weather'},{backend});assert.equal(page.structuredContent.hash,undefined,'no Add token for agents');assert.match(page.content[0].text,/owner adds it in the app/);assert.deepEqual(page.structuredContent.permissions,['Read the weather']);
  
  assert.ok(calls.every(c=>c.method==='GET'&&c.path==='/api/store'),'reading only reads');
