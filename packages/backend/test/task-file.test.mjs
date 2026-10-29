@@ -83,7 +83,7 @@ test('format: blocks are read with their parts; writing a block back changes not
 });
 
 test('format: a broken block is reported with its line and left byte for byte', () => {
-  const broken = SAMPLE.replace('- Collect what changed.\n', '- Collect what changed.\n').replace('### Next\n- Collect', 'this is not a task line\n### Next\n- Collect')
+  const broken = SAMPLE.replace('### Next\n- Collect', 'this is not a task line\n### Next\n- Collect')
     + '## No number here\n';
   const r = fmt.readTasks(broken);
   assert.equal(r.tasks[1].problem, `Line ${broken.split('\n').indexOf('this is not a task line') + 1}: this line is not in the task format`);
