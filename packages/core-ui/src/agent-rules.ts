@@ -137,6 +137,12 @@ export class RulesController {
     const rule = await this.#write('POST', `/api/agent-rules/${id}/versions/${version}/restore`);
     if (rule) this.say('Earlier version put back.');
   }
+  /** Rules in this list that disagree (the local model compares them; b comes later, so b wins). */
+  async conflicts(agentId: string, projectId: string | null): Promise<{ conflicts: { a: string; b: string; why: string }[]; checked: boolean } | null> {
+    const q = new URLSearchParams({ agentId, ...(projectId ? { projectId } : {}) });
+    const r = await this.#req('GET', `/api/agent-rules/conflicts?${q}`).catch(() => null);
+    return r?.status === 200 && record(r.body) && Array.isArray(r.body.conflicts) ? { conflicts: r.body.conflicts as { a: string; b: string; why: string }[], checked: r.body.checked === true } : null;
+  }
   async effective(agentId: string, projectId: string | null): Promise<Rule[] | null> {
     const q = new URLSearchParams({ agentId, ...(projectId ? { projectId } : {}) });
     const r = await this.#req('GET', `/api/agent-rules/effective?${q}`).catch(() => null);

@@ -160,7 +160,21 @@ function AgentSees({ c, agents, projects, initial, onClose }: { c: RulesControll
   const [agentId, setAgentId] = useState(initial.agentId || agents[0]?.id || '');
   const [projectId, setProjectId] = useState(initial.projectId);
   const [list, setList] = useState<Rule[] | null>(null);
-  useEffect(() => { if (!agentId) return; setList(null); void c.effective(agentId, projectId || null).then(setList); }, [agentId, projectId]);
+  const [check, setCheck] = useState<{ conflicts: { a: string; b: string; why: string }[]; checked: boolean } | null | 'checking'>(null);
+  useEffect(() => {
+    if (!agentId) return;
+    let on = true;
+    setList(null); setCheck(null);
+    void c.effective(agentId, projectId || null).then(l => {
+      if (!on) return;
+      setList(l);
+      // Two or more rules: the local model looks for ones that disagree (a moment; the list shows first).
+      if (l && l.length > 1) { setCheck('checking'); void c.conflicts(agentId, projectId || null).then(r => { if (on) setCheck(r ?? { conflicts: [], checked: false }); }); }
+    });
+    return () => { on = false; };
+  }, [agentId, projectId]);
+  const textOf = (id: string) => list?.find(r => r.id === id)?.text ?? '';
+  const open = (id: string) => { c.select(id); onClose(); };
   const tier = (r: Rule) => (r.who === 'agents' ? 'this agent' : r.projectId ? projects.find(p => p.id === r.projectId)?.name ?? 'project' : 'everywhere');
   return <Sheet title="What an agent sees" onClose={onClose} wide actions={<button type="button" className="primary" onClick={onClose}>Done</button>}>
     <div className="rules-sees-pick">
@@ -169,6 +183,11 @@ function AgentSees({ c, agents, projects, initial, onClose }: { c: RulesControll
     </div>
     {list === null ? <p className="fine-print" role="status">Reading…</p> : list.length ? <ol className="rules-sees">{list.map(r => <li key={r.id} dir="auto">{r.text} <span className="fine-print">· {tier(r)}</span></li>)}</ol>
       : <p className="fine-print">No rule reaches this agent here.</p>}
+    {check === 'checking' && <p className="fine-print" role="status">Checking for rules that disagree…</p>}
+    {check && check !== 'checking' && check.conflicts.map(x => <div key={`${x.a}-${x.b}`} className="rules-conflict" role="alert"><UiIcon name="alert" size={14}/>
+      <span>Two rules disagree: “{textOf(x.a)}” and “{textOf(x.b)}”.{x.why ? ` ${x.why}` : ''} The later one, “{textOf(x.b)}”, wins.
+        <span className="rules-conflict-open"><button type="button" className="link-button" onClick={() => open(x.a)}>Open the first</button><button type="button" className="link-button" onClick={() => open(x.b)}>Open the second</button></span></span></div>)}
+    {check && check !== 'checking' && !check.checked && <p className="fine-print">The local model could not check whether rules disagree right now.</p>}
     <p className="fine-print">This is the list, in this order, that the agent gets before a task. When two disagree, the later one wins. Paused rules are left out.</p>
   </Sheet>;
 }

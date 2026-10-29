@@ -15,6 +15,7 @@
  *   POST   /api/agent-rules/suggestions             { text, reason?, projectId?, who?, targets? } -> 201 { rule }  (MCP agents)
  *   POST   /api/agent-rules/:id/accept | /dismiss   a suggestion -> { rule }
  *   GET    /api/agent-rules/effective?agentId=&projectId=  -> { rules }  what that agent gets, in order
+ *   GET    /api/agent-rules/conflicts?agentId=&projectId=  -> { conflicts: [{a,b,why}], checked }  rules there that disagree (local model; b wins)
  *   400 { error, code: 'invalid_rule' } · 404 { error, code: 'not_found' }
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -22,7 +23,7 @@ import { authorizeActiveRole } from '../../auth/route-guards.js';
 import { q } from '../../repositories/sql-steps.js';
 import {
   RuleInputError, STARTER_RULES, suggestRule, UNDO_MS, addStarterRules, createRule, decideSuggestion, deleteRule, editRule,
-  effectiveRules, listRules, restoreVersion, ruleVersions, undoDelete,
+  effectiveRules, listRules, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
 } from '../../services/agent-rules.js';
 
 const OWNER_ONLY = ['owner'] as const;
@@ -65,6 +66,12 @@ export async function agentRulesRoutes(fastify: FastifyInstance) {
     const { agentId, projectId } = request.query;
     if (typeof agentId !== 'string' || !agentId || agentId.length > 120) return reply.code(400).send({ error: 'agentId is required', code: 'invalid_rule' });
     return { rules: await effectiveRules(agentId, typeof projectId === 'string' && projectId ? projectId : null) };
+  });
+  fastify.get('/api/agent-rules/conflicts', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const { agentId, projectId } = request.query;
+    if (typeof agentId !== 'string' || !agentId || agentId.length > 120) return reply.code(400).send({ error: 'agentId is required', code: 'invalid_rule' });
+    return ruleConflicts(await effectiveRules(agentId, typeof projectId === 'string' && projectId ? projectId : null));
   });
   fastify.put('/api/agent-rules/:id', { config, bodyLimit: 20000 }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;

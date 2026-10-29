@@ -8,7 +8,7 @@ const ID = '[0-9a-f-]{36}';
 const ITEM = new RegExp(`^/api/agent-rules/(${ID})$`);
 const ACTION = new RegExp(`^/api/agent-rules/(${ID})/(delete|undo-delete|accept|dismiss|versions)$`);
 const RESTORE = new RegExp(`^/api/agent-rules/(${ID})/versions/([1-9][0-9]{0,5})/restore$`);
-const EFFECTIVE = /^\/api\/agent-rules\/effective\?agentId=[A-Za-z0-9_.%-]{1,200}(&projectId=[A-Za-z0-9_-]{1,64})?$/;
+const EFFECTIVE = /^\/api\/agent-rules\/(effective|conflicts)\?agentId=[A-Za-z0-9_.%-]{1,200}(&projectId=[A-Za-z0-9_-]{1,64})?$/;
 const FIELDS = ['text', 'projectId', 'who', 'targets', 'paused'];
 
 export function agentRulesRoute(path) {
@@ -61,6 +61,7 @@ export function agentRulesResponse(path, status, body) {
     if ('rule' in body) return { rule: rule(body.rule) };
     if ('rules' in body) return { rules: rules(body.rules) };
     if ('added' in body) return { added: rules(body.added) };
+    if ('conflicts' in body) return { checked: body.checked === true, conflicts: Array.isArray(body.conflicts) ? body.conflicts.slice(0, 10).filter(c => record(c) && typeof c.a === 'string' && typeof c.b === 'string').map(c => ({ a: c.a, b: c.b, why: str(c.why, 200) ?? '' })) : [] };
     if ('versions' in body) return { versions: Array.isArray(body.versions) ? body.versions.slice(0, 200).filter(v => record(v) && Number.isSafeInteger(v.version) && typeof v.text === 'string').map(v => ({ version: v.version, text: v.text.slice(0, 2000), changedAt: str(v.changedAt, 40) ?? '' })) : [] };
     if (body.ok === true) return { ok: true, undoMs: Number.isSafeInteger(body.undoMs) ? body.undoMs : 0 };
     throw Error('protocol');
