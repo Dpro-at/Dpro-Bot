@@ -84,7 +84,6 @@ function envDir(name: string, file: boolean): string | null {
   return file ? path.dirname(path.resolve(v)) : path.resolve(v);
 }
 
-export const BACKUPS_SETTINGS_FILE = 'backups.json';
 const insideDir = (child: string, parent: string) => { const r = path.relative(parent, child); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)); };
 /** BACKUP-01: ~/Girru Backups (GIRRU_BACKUPS_DIR), or next to the data folder when home is inside it (isolated runs). */
 export function defaultBackupsFolder(): string {
@@ -93,14 +92,11 @@ export function defaultBackupsFolder(): string {
   const home = path.join(os.homedir(), 'Girru Backups');
   return insideDir(realish(home), realish(dataRoot())) ? path.join(path.dirname(path.resolve(dataRoot())), 'Girru Backups') : home;
 }
-/** Where backups are kept: the owner's choice (`<data root>/backups.json`), else the default. */
-export function backupsFolder(): string {
-  try {
-    const saved = JSON.parse(fs.readFileSync(dataPath(BACKUPS_SETTINGS_FILE), 'utf8')) as { folder?: unknown };
-    if (typeof saved?.folder === 'string' && path.isAbsolute(saved.folder)) return saved.folder;
-  } catch { /* none saved */ }
-  return defaultBackupsFolder();
-}
+let savedBackupsFolder: string | null = null;
+/** The owner's choice, kept in the database (app_settings) and loaded here on start (services/backups.ts). */
+export function setSavedBackupsFolder(folder: string | null): void { savedBackupsFolder = folder && path.isAbsolute(folder) ? folder : null; }
+/** Where backups are kept: the owner's choice, else the default. */
+export function backupsFolder(): string { return savedBackupsFolder ?? defaultBackupsFolder(); }
 
 /**
  * Every folder that holds private server data, canonical (realpath'd) and

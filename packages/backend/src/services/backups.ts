@@ -24,7 +24,7 @@ import { createGzip, createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import Database from 'better-sqlite3';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { dataRoot, dataPathOr, mainDatabasePath, realish, defaultBackupsFolder, backupsFolder, BACKUPS_SETTINGS_FILE as SETTINGS_FILE } from '../config/data-root.js';
+import { dataRoot, dataPathOr, mainDatabasePath, realish, defaultBackupsFolder, backupsFolder, setSavedBackupsFolder } from '../config/data-root.js';
 
 export type BackupKind = 'daily' | 'manual' | 'before-update' | 'before-restore';
 export const BACKUP_KINDS: readonly BackupKind[] = ['daily', 'manual', 'before-update', 'before-restore'];
@@ -39,7 +39,7 @@ const STATE_FILE = 'backups-state.json';
 export const RESTORE_MARKER = 'restore-pending.json';
 /** Top-level names in the data root that are never part of a backup. */
 const KEY_FILE = 'backups.key';
-const SKIP_TOP = new Set(['backups', 'logs', 'tmp', 'run', 'home', 'browser', 'python', 'node_modules', SETTINGS_FILE, STATE_FILE, RESTORE_MARKER, KEY_FILE]);
+const SKIP_TOP = new Set(['backups', 'logs', 'tmp', 'run', 'home', 'browser', 'python', 'node_modules', STATE_FILE, RESTORE_MARKER, KEY_FILE]);
 /** The SQLite stores Girru itself writes (relative to the data root). Every other file, uploads included, is copied byte for byte. */
 const STORES = ['audit/audit.db', 'encryption/keys.db', 'encryption/credentials.db', 'multi-agent/orchestrator.db', 'webhooks/webhooks.db', 'memory/memory.db'];
 /** Saved, but a restore leaves the current ones (configuration and identity). */
@@ -73,19 +73,35 @@ export function workspaceBackupsDir(folder = backupsFolder()): string { return p
 export const isCloudFolder = (folder: string) => CLOUD.test(folder);
 
 /** Where the backups go: absolute, outside every data folder, created owner-only. */
-export function setBackupsFolder(input: unknown): { folder: string; cloud: boolean } {
+const FOLDER_KEY = 'backups.folder';
+const APP_SETTINGS_SQL = 'CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)';
+/** On start: the owner's folder from the database. Before the database opens (a restore), read it read-only. */
+export async function loadBackupsFolder(): Promise<void> {
+  const { q } = await import('../repositories/sql-steps.js');
+  const row = await q.one<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', FOLDER_KEY).catch(() => null);
+  setSavedBackupsFolder(row?.value ?? null);
+}
+function loadBackupsFolderOffline(): void {
+  try {
+    const db = new Database(mainDatabasePath(), { readonly: true, fileMustExist: true });
+    try { setSavedBackupsFolder((db.prepare('SELECT value FROM app_settings WHERE key = ?').get(FOLDER_KEY) as { value?: string } | undefined)?.value ?? null); } finally { db.close(); }
+  } catch { setSavedBackupsFolder(null); }
+}
+
+export async function setBackupsFolder(input: unknown): Promise<{ folder: string; cloud: boolean }> {
   if (typeof input !== 'string' || !input.trim() || input.length > 1024) throw new BackupError(400, 'invalid_folder', 'Choose a folder');
   const raw = input.trim().replace(/^~(?=$|\/)/, os.homedir());
   if (!path.isAbsolute(raw)) throw new BackupError(400, 'invalid_folder', 'The folder must be a full path');
-  const folder = path.resolve(raw);
-  if (path.dirname(folder) === folder) throw new BackupError(400, 'invalid_folder', 'Choose a folder, not the whole disk');
-  // Only in your home folder or on an external drive (canonical paths, so a link cannot point elsewhere).
-  const real = realish(folder);
-  const allowed = [realish(os.homedir()), ...(process.platform === 'darwin' ? ['/Volumes'] : process.platform === 'linux' ? ['/media', '/mnt'] : [])];
-  if (!allowed.some((root) => real !== root && inside(real, root))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
-  for (const d of dataFolders()) if (inside(realish(folder), realish(d)) || inside(realish(d), realish(folder))) throw new BackupError(400, 'invalid_folder', 'Backups must be kept outside the data folder');
+  // Only in your home folder or on an external drive, on the canonical path (a link cannot point elsewhere).
+  const folder = path.resolve(realish(path.resolve(raw)));
+  const roots = [path.resolve(realish(os.homedir())), ...(process.platform === 'darwin' ? ['/Volumes'] : process.platform === 'linux' ? ['/media', '/mnt'] : [])];
+  if (!roots.some((root) => folder.startsWith(root + path.sep))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
+  for (const d of dataFolders()) if (inside(folder, realish(d)) || inside(realish(d), folder)) throw new BackupError(400, 'invalid_folder', 'Backups must be kept outside the data folder');
   fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
-  writePrivate(path.join(dataRoot(), SETTINGS_FILE), { folder });
+  const { q } = await import('../repositories/sql-steps.js');
+  await q.run(APP_SETTINGS_SQL);
+  await q.run('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at', FOLDER_KEY, folder, Date.now());
+  setSavedBackupsFolder(folder);
   return { folder, cloud: isCloudFolder(folder) };
 }
 
@@ -231,16 +247,27 @@ async function verified(dir: string, m: Manifest): Promise<string | null> {
     if (typeof e.sha256 !== 'string') return 'A part of the backup has no checksum';
     const f = path.join(dir, e.root, e.path);
     const st = fs.lstatSync(f, { throwIfNoEntry: false });
-    if (!st || !st.isFile() || !inside(f, dir)) return 'A part of the backup is missing';
+    // No links, not even in a parent folder: the real path must stay inside the backup.
+    if (!st || !st.isFile() || !inside(f, dir) || !inside(realish(f), realish(dir))) return 'A part of the backup is missing';
     if ((await sha256(f)) !== e.sha256) return 'A part of the backup was changed';
   }
   return null;
+}
+/** Copy one stored file into the data folder and check exactly those bytes; the restore uses only that copy. */
+async function checkedCopy(stored: string, e: Entry, near: string): Promise<string> {
+  const st = fs.lstatSync(stored);
+  if (!st.isFile()) throw new Error('A part of the backup is not a file');
+  const copy = near + '.restoring-src';
+  fs.copyFileSync(stored, copy);
+  fs.chmodSync(copy, 0o600);
+  if ((await sha256(copy)) !== e.sha256) { fs.rmSync(copy, { force: true }); throw new Error('A part of the backup was changed'); }
+  return copy;
 }
 
 const isSqlite = (file: string) => {
   try { const fd = fs.openSync(file, 'r'); const b = Buffer.alloc(16); fs.readSync(fd, b, 0, 16, 0); fs.closeSync(fd); return b.toString('latin1') === 'SQLite format 3\0'; } catch { return false; }
 };
-const SIDE = /-(wal|shm|journal)$|\.tmp$|\.restoring$/;
+const SIDE = /-(wal|shm|journal)$|\.tmp$|\.restoring(-src)?$/;
 /** Every file to save in a root: regular files only, no symlinks, no SQLite side files. */
 function walk(root: string, rootKind: Root): Array<{ rel: string; st: fs.Stats }> {
   if (rootKind === 'config' || rootKind === 'database') return (rootKind === 'config' ? ['.env'] : [path.basename(mainDatabasePath())]).map((rel) => ({ rel, st: fs.lstatSync(path.join(root, rel), { throwIfNoEntry: false }) })).filter((x): x is { rel: string; st: fs.Stats } => !!x.st && x.st.isFile());
@@ -304,7 +331,8 @@ async function make(kind: BackupKind, now: Date): Promise<BackupInfo> {
     fs.chmodSync(base, 0o700);
     if (fs.existsSync(dir)) throw new BackupError(409, 'exists', 'A backup was just made');
     fs.mkdirSync(dir, { mode: 0o700 });
-    const previous = manifests()[0];
+    // Unchanged files link to the last backup only when that backup is signed by this workspace.
+    const previous = manifests().find((m) => signed(m));
     const prevDir = previous ? path.join(base, previous.id) : null;
     const prev = new Map(previous?.entries.map((e) => [`${e.root}:${e.path}`, e]) ?? []);
     const entries: Entry[] = [];
@@ -327,10 +355,15 @@ async function make(kind: BackupKind, now: Date): Promise<BackupInfo> {
         const old = prev.get(`${rootKind}:${rel}`);
         let linked = false;
         if (old && prevDir && old.type === 'file' && old.size === st.size && old.mtimeMs === st.mtimeMs) {
-          try { fs.linkSync(path.join(prevDir, rootKind, rel), dest); linked = true; } catch { /* copy instead */ }
+          try {
+            fs.linkSync(path.join(prevDir, rootKind, rel), dest);
+            // The linked bytes must still be the ones the signed backup recorded; otherwise copy from the source.
+            linked = !!old.sha256 && fs.lstatSync(dest).isFile() && (await sha256(dest)) === old.sha256;
+            if (!linked) fs.rmSync(dest, { force: true });
+          } catch { fs.rmSync(dest, { force: true }); }
         }
         if (!linked) { fs.copyFileSync(src, dest); fs.chmodSync(dest, 0o600); }
-        entries.push({ root: rootKind, path: rel, type: 'file', size: st.size, mtimeMs: st.mtimeMs, stored: linked ? 0 : st.size, sha256: linked && old?.sha256 ? old.sha256 : await sha256(dest) });
+        entries.push({ root: rootKind, path: rel, type: 'file', size: st.size, mtimeMs: st.mtimeMs, stored: linked ? 0 : st.size, sha256: await sha256(dest) });
       }
     }
     if (!entries.some((e) => isMain(e))) throw new BackupError(500, 'no_database', 'The database was not found');
@@ -418,6 +451,7 @@ export async function applyPendingRestore(): Promise<{ id: string; ok: boolean; 
   const marker = path.join(dataRoot(), RESTORE_MARKER);
   const ask = readJson<{ id?: unknown; folder?: unknown }>(marker);
   if (!ask) return null;
+  loadBackupsFolderOffline();
   fs.rmSync(marker, { force: true });
   const id = typeof ask.id === 'string' ? ask.id : '';
   const result = (ok: boolean, error?: string) => { patchState({ lastRestore: { id, at: new Date().toISOString(), ok, ...(error ? { error } : {}) } }); return { id, ok, ...(error ? { error } : {}) }; };
@@ -436,8 +470,9 @@ export async function applyPendingRestore(): Promise<{ id: string; ok: boolean; 
       if (!inside(target, root)) continue;
       fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
       const tmp = target + '.restoring';
-      if (e.type === 'sqlite') await gunzipTo(path.join(dir, e.root, e.path), tmp);
-      else fs.copyFileSync(path.join(dir, e.root, e.path), tmp);
+      const copy = await checkedCopy(path.join(dir, e.root, e.path), e, target);
+      if (e.type === 'sqlite') { await gunzipTo(copy, tmp); fs.rmSync(copy, { force: true }); }
+      else fs.renameSync(copy, tmp);
       for (const side of ['-wal', '-shm', '-journal']) fs.rmSync(target + side, { force: true });
       fs.renameSync(tmp, target);
     }

@@ -65,6 +65,8 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
   // Decorate Fastify instance with database for extensions to use. Extensions
   // are SQLite-only and off on PostgreSQL (Q-33), where no SQLite file is opened.
   if (dbDriver() !== 'postgres') fastify.decorate('db', getDatabase());
+  // BACKUP-01: the owner's backup folder, so the agent tools' protected folders include it from the start.
+  await (await import('../services/backups.js')).loadBackupsFolder();
   console.log('[Server] ✅ Database initialized\n');
 
   // Seed database in development mode

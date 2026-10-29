@@ -106,7 +106,7 @@ test('the folder must be outside every data folder; cloud folders are flagged', 
   assert.equal(cloud.cloud, true);
   const back = await ok(call('b-owner', 'PUT', '/api/backups/folder', { folder: outside }));
   assert.equal(back.cloud, false);
-  assert.equal(B.backupsFolder(), outside);
+  assert.equal(B.backupsFolder(), (await import('node:fs')).realpathSync(outside), 'saved on its real path');
 });
 
 test('agent file and command tools cannot reach the backups folder', async () => {
@@ -173,6 +173,13 @@ test('a backup changed after it was made is never restored', async () => {
   r = await call('b-owner', 'POST', `/api/backups/${b.id}/restore`);
   assert.equal(r.statusCode, 409); assert.match(r.json().error, /missing/);
   rmSync(rules); w(rules, text);
+  // A link in a parent folder of the backup.
+  const agentsDir = join(dirB, 'data', 'agents');
+  const { renameSync, cpSync } = await import('node:fs');
+  const away = join(dir, 'agents-away'); cpSync(agentsDir, away, { recursive: true }); rmSync(agentsDir, { recursive: true }); symlinkSync(away, agentsDir);
+  r = await call('b-owner', 'POST', `/api/backups/${b.id}/restore`);
+  assert.equal(r.statusCode, 409); assert.match(r.json().error, /missing/);
+  rmSync(agentsDir); renameSync(away, agentsDir);
   // A changed manifest.
   const m = manifest(b.id); m.entries = m.entries.filter((x) => !x.path.startsWith('encryption'));
   w(join(dirB, 'manifest.json'), JSON.stringify(m));
@@ -184,6 +191,19 @@ test('a backup changed after it was made is never restored', async () => {
   const done = await B.applyPendingRestore();
   assert.equal(done.ok, false); assert.match(done.error, /not signed/);
   rmSync(dirB, { recursive: true, force: true });
+});
+
+test('an unchanged file is linked only when its bytes still match the signed backup', async () => {
+  const { rmSync, writeFileSync: w } = await import('node:fs');
+  const first = (await ok(call('b-owner', 'POST', '/api/backups', {}))).backup;
+  const stored = join(B.workspaceBackupsDir(), first.id, 'data', 'agents', 'g-lead', 'rules.md');
+  // Someone swaps the stored bytes (a new inode, same size): the next backup must not carry them on.
+  rmSync(stored); w(stored, 'BE KIND\n');
+  const second = (await ok(call('b-owner', 'POST', '/api/backups', {}))).backup;
+  const copy = join(B.workspaceBackupsDir(), second.id, 'data', 'agents', 'g-lead', 'rules.md');
+  assert.equal(readFileSync(copy, 'utf8'), 'be kind\n', 'copied from the data folder, not linked');
+  assert.notEqual(statSync(copy).ino, statSync(stored).ino, 'the swapped file is never linked');
+  rmSync(join(B.workspaceBackupsDir(), first.id), { recursive: true, force: true });
 });
 
 test('restore: backs up first, then on the next start puts the backup in place', async () => {

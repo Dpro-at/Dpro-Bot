@@ -40,7 +40,7 @@ export async function backupRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put<{ Body: { folder?: unknown } | undefined }>('/api/backups/folder', async (request, reply) => {
-    try { getUserIdFromRequest(request); if (!sqliteOnly(reply)) return; return setBackupsFolder(request.body?.folder); } catch (err) { return fail(reply, err, 'Folder'); }
+    try { getUserIdFromRequest(request); if (!sqliteOnly(reply)) return; return await setBackupsFolder(request.body?.folder); } catch (err) { return fail(reply, err, 'Folder'); }
   });
 
   fastify.post<{ Params: { id: string } }>('/api/backups/:id/restore', async (request, reply) => {
