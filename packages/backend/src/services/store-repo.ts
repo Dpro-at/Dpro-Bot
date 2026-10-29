@@ -19,14 +19,14 @@ export function storeBase(): string {
 export const STORE_INDEX_URL = 'https://raw.githubusercontent.com/Dpro-at/girru-store/main/index.json';
 const MAX_AGE_MS = 6 * 3_600_000;
 const MAX_BYTES = 2 * 1024 * 1024;
-const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const ID = /^(?=[a-z0-9-]{1,64}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** An app's package (APPS-06): every file with its size and checksum, as the reviewed index lists them. */
 export interface PackageFile { path: string; sha256: string; size: number }
 export interface StorePackage { files: PackageFile[]; sha256: string }
 export interface RepoRead { index: StoreIndex | null; packages?: Record<string, StorePackage>; asOf: string | null; fresh: boolean }
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
-const PACKAGE_EXT = /\.(js|mjs|json|sql|md|css|svg|png|txt)$/i;
+const PACKAGE_EXT = /\.(js|mjs|json|sql|md|css|svg|png|txt)$/; // lower case only: the type check and the SQL check see the same files
 const HEX = /^[a-f0-9]{64}$/;
 /** A package as the repository lists it; anything outside these rules is refused. */
 export function parsePackage(raw: unknown): StorePackage {
