@@ -4,7 +4,7 @@
 // restore on the next start with an undo backup. Owner only.
 // Throwaway DB/keys/folders; no network.
 // Run: node --import tsx --test test/backups.test.mjs
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -56,6 +56,8 @@ const call = (user, method, url, payload) => app.inject({ method, url, headers: 
 const ok = async (r, code = 200) => { const x = await r; assert.equal(x.statusCode, code, x.body); return x.json(); };
 const manifest = (id) => JSON.parse(readFileSync(join(B.workspaceBackupsDir(), id, 'manifest.json'), 'utf8'));
 const at = (s) => new Date(s);
+// The test folder holds several backups of a database: remove it at the end.
+after(async () => { const { rmSync } = await import('node:fs'); rmSync(dir, { recursive: true, force: true }); });
 
 test('a backup copies the whole data folder outside it, checked, owner-only', async () => {
   const first = (await ok(call('b-owner', 'POST', '/api/backups', {}))).backup;
@@ -97,10 +99,10 @@ test('a backup copies the whole data folder outside it, checked, owner-only', as
 });
 
 test('the folder must be outside every data folder; cloud folders are flagged', async () => {
-  for (const folder of ['relative/path', '/', join(data, 'backups'), data, dir]) {
+  for (const folder of ['relative/path', '/', join(data, 'backups'), data, dir, join(tmpdir(), `ap-bk-${process.pid}`), '/etc/girru']) {
     assert.equal((await call('b-owner', 'PUT', '/api/backups/folder', { folder })).statusCode, 400, folder);
   }
-  const cloud = await ok(call('b-owner', 'PUT', '/api/backups/folder', { folder: join(tmpdir(), `ap-bk-${process.pid}`, 'Library', 'Mobile Documents', 'Girru') }));
+  const cloud = await ok(call('b-owner', 'PUT', '/api/backups/folder', { folder: join(dir, 'elsewhere', 'Library', 'Mobile Documents', 'Girru') }));
   assert.equal(cloud.cloud, true);
   const back = await ok(call('b-owner', 'PUT', '/api/backups/folder', { folder: outside }));
   assert.equal(back.cloud, false);
@@ -141,6 +143,47 @@ test('the daily job runs once after 03:00, catching up after sleep', async () =>
   const daily = (await ok(call('b-owner', 'GET', '/api/backups'))).backups.filter((b) => b.kind === 'daily');
   assert.equal(daily.length, 1);
   assert.equal(await B.runDueBackup(new Date(later.getTime() + 3_600_000)), false, 'not twice the same day');
+});
+
+test('uploads and other files are copied byte for byte, never opened as databases', async () => {
+  mkdirSync(join(data, 'uploads'), { recursive: true });
+  // Looks like SQLite, is not: a file a person could upload.
+  writeFileSync(join(data, 'uploads', 'evil.db'), Buffer.concat([Buffer.from('SQLite format 3\0'), randomBytes(4096)]));
+  const b = (await ok(call('b-owner', 'POST', '/api/backups', {}))).backup;
+  assert.equal(b.checked, true);
+  const e = manifest(b.id).entries.find((x) => x.path === join('uploads', 'evil.db'));
+  assert.equal(e.type, 'file');
+  assert.deepEqual(readFileSync(join(B.workspaceBackupsDir(), b.id, 'data', 'uploads', 'evil.db')), readFileSync(join(data, 'uploads', 'evil.db')));
+  assert.match(manifest(b.id).mac, /^[0-9a-f]{64}$/, 'signed');
+  assert.ok(!manifest(b.id).entries.some((x) => x.path === 'backups.key'), 'the signing key is not in the backup');
+});
+
+test('a backup changed after it was made is never restored', async () => {
+  const { writeFileSync: w, symlinkSync, rmSync } = await import('node:fs');
+  const b = (await ok(call('b-owner', 'POST', '/api/backups', {}))).backup;
+  const dirB = join(B.workspaceBackupsDir(), b.id);
+  const rules = join(dirB, 'data', 'agents', 'g-lead', 'rules.md');
+  // A changed file (copy first: it may be a hard link shared with older backups).
+  const text = readFileSync(rules); rmSync(rules); w(rules, 'be evil\n');
+  let r = await call('b-owner', 'POST', `/api/backups/${b.id}/restore`);
+  assert.equal(r.statusCode, 409); assert.match(r.json().error, /changed/);
+  rmSync(rules); w(rules, text);
+  // A file replaced by a link.
+  rmSync(rules); symlinkSync('/etc/hosts', rules);
+  r = await call('b-owner', 'POST', `/api/backups/${b.id}/restore`);
+  assert.equal(r.statusCode, 409); assert.match(r.json().error, /missing/);
+  rmSync(rules); w(rules, text);
+  // A changed manifest.
+  const m = manifest(b.id); m.entries = m.entries.filter((x) => !x.path.startsWith('encryption'));
+  w(join(dirB, 'manifest.json'), JSON.stringify(m));
+  r = await call('b-owner', 'POST', `/api/backups/${b.id}/restore`);
+  assert.equal(r.statusCode, 409); assert.match(r.json().error, /not signed/);
+  assert.ok(!existsSync(join(data, B.RESTORE_MARKER)), 'nothing asked');
+  // A marker made by hand for it is refused on start too.
+  w(join(data, B.RESTORE_MARKER), JSON.stringify({ id: b.id, folder: B.workspaceBackupsDir() }));
+  const done = await B.applyPendingRestore();
+  assert.equal(done.ok, false); assert.match(done.error, /not signed/);
+  rmSync(dirB, { recursive: true, force: true });
 });
 
 test('restore: backs up first, then on the next start puts the backup in place', async () => {

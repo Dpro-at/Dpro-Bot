@@ -23,6 +23,7 @@ import path from 'node:path';
 import { createGzip, createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import Database from 'better-sqlite3';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { dataRoot, dataPathOr, mainDatabasePath, realish, defaultBackupsFolder, backupsFolder, BACKUPS_SETTINGS_FILE as SETTINGS_FILE } from '../config/data-root.js';
 
 export type BackupKind = 'daily' | 'manual' | 'before-update' | 'before-restore';
@@ -37,14 +38,17 @@ const MANIFEST = 'manifest.json';
 const STATE_FILE = 'backups-state.json';
 export const RESTORE_MARKER = 'restore-pending.json';
 /** Top-level names in the data root that are never part of a backup. */
-const SKIP_TOP = new Set(['backups', 'logs', 'tmp', 'run', 'home', 'browser', 'python', 'node_modules', SETTINGS_FILE, STATE_FILE, RESTORE_MARKER]);
+const KEY_FILE = 'backups.key';
+const SKIP_TOP = new Set(['backups', 'logs', 'tmp', 'run', 'home', 'browser', 'python', 'node_modules', SETTINGS_FILE, STATE_FILE, RESTORE_MARKER, KEY_FILE]);
+/** The SQLite stores Girru itself writes (relative to the data root). Every other file, uploads included, is copied byte for byte. */
+const STORES = ['audit/audit.db', 'encryption/keys.db', 'encryption/credentials.db', 'multi-agent/orchestrator.db', 'webhooks/webhooks.db', 'memory/memory.db'];
 /** Saved, but a restore leaves the current ones (configuration and identity). */
 const KEEP_ON_RESTORE = new Set(['secrets.env', 'instance.json', '.env']);
 const CLOUD = /(Library\/Mobile Documents|iCloud|Dropbox|Google Drive|OneDrive|CloudStorage|Box Sync)/i;
 
 type Root = 'data' | 'database' | 'memory' | 'uploads' | 'config';
-interface Entry { root: Root; path: string; type: 'sqlite' | 'file'; size: number; mtimeMs: number; stored: number; check?: 'ok' | 'failed' }
-export interface Manifest { version: 1; id: string; kind: BackupKind; at: string; checked: boolean; entries: Entry[] }
+interface Entry { root: Root; path: string; type: 'sqlite' | 'file'; size: number; mtimeMs: number; stored: number; sha256?: string; check?: 'ok' | 'failed' }
+export interface Manifest { version: 1; id: string; kind: BackupKind; at: string; checked: boolean; entries: Entry[]; mac?: string }
 export interface BackupInfo { id: string; kind: BackupKind; at: string; checked: boolean; size: number; parts: { data: boolean; audit: boolean; keys: boolean }; keepUntil: string | null }
 
 export class BackupError extends Error { constructor(readonly status: number, readonly code: string, message: string) { super(message); } }
@@ -75,6 +79,10 @@ export function setBackupsFolder(input: unknown): { folder: string; cloud: boole
   if (!path.isAbsolute(raw)) throw new BackupError(400, 'invalid_folder', 'The folder must be a full path');
   const folder = path.resolve(raw);
   if (path.dirname(folder) === folder) throw new BackupError(400, 'invalid_folder', 'Choose a folder, not the whole disk');
+  // Only in your home folder or on an external drive (canonical paths, so a link cannot point elsewhere).
+  const real = realish(folder);
+  const allowed = [realish(os.homedir()), ...(process.platform === 'darwin' ? ['/Volumes'] : process.platform === 'linux' ? ['/media', '/mnt'] : [])];
+  if (!allowed.some((root) => real !== root && inside(real, root))) throw new BackupError(400, 'invalid_folder', 'Choose a folder in your home folder or on an external drive');
   for (const d of dataFolders()) if (inside(realish(folder), realish(d)) || inside(realish(d), realish(folder))) throw new BackupError(400, 'invalid_folder', 'Backups must be kept outside the data folder');
   fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   writePrivate(path.join(dataRoot(), SETTINGS_FILE), { folder });
@@ -187,6 +195,48 @@ export function getBackup(id: string): BackupInfo & { dir: string } {
 
 // --- making one --------------------------------------------------------------------
 
+/** A store of Girru's own: the main database or one on the fixed list, and a real SQLite file. */
+function isStore(rootKind: Root, rel: string, src: string): boolean {
+  if (rootKind === 'database') return isSqlite(src);
+  if (rootKind !== 'data') return false;
+  const p = rel.split(path.sep).join('/');
+  const known = path.join(path.resolve(dataRoot()), rel) === path.resolve(mainDatabasePath()) || path.join(path.resolve(dataRoot()), rel) === auditPath() || STORES.includes(p);
+  return known && isSqlite(src);
+}
+
+// --- manifest signature: an HMAC with a key that stays in the data folder, and each stored file's SHA-256 ---
+function backupKey(create: boolean): Buffer | null {
+  const file = path.join(dataRoot(), KEY_FILE);
+  try { const k = fs.readFileSync(file); if (k.length === 32) return k; } catch { /* none yet */ }
+  if (!create) return null;
+  const k = randomBytes(32);
+  fs.writeFileSync(file, k, { mode: 0o600, flag: 'wx' });
+  return k;
+}
+const macOf = (m: Manifest, key: Buffer) => { const { mac: _mac, ...rest } = m; return createHmac('sha256', key).update(JSON.stringify(rest)).digest('hex'); };
+function signed(m: Manifest): boolean {
+  const key = backupKey(false);
+  if (!key || typeof m.mac !== 'string' || !/^[0-9a-f]{64}$/.test(m.mac)) return false;
+  return timingSafeEqual(Buffer.from(m.mac, 'hex'), Buffer.from(macOf(m, key), 'hex'));
+}
+async function sha256(file: string): Promise<string> {
+  const h = createHash('sha256');
+  await pipeline(fs.createReadStream(file), h);
+  return h.digest('hex');
+}
+/** Before a restore: the signature, and every stored file a plain file with its recorded hash. */
+async function verified(dir: string, m: Manifest): Promise<string | null> {
+  if (!signed(m)) return 'The backup is not signed by this workspace';
+  for (const e of m.entries) {
+    if (typeof e.sha256 !== 'string') return 'A part of the backup has no checksum';
+    const f = path.join(dir, e.root, e.path);
+    const st = fs.lstatSync(f, { throwIfNoEntry: false });
+    if (!st || !st.isFile() || !inside(f, dir)) return 'A part of the backup is missing';
+    if ((await sha256(f)) !== e.sha256) return 'A part of the backup was changed';
+  }
+  return null;
+}
+
 const isSqlite = (file: string) => {
   try { const fd = fs.openSync(file, 'r'); const b = Buffer.alloc(16); fs.readSync(fd, b, 0, 16, 0); fs.closeSync(fd); return b.toString('latin1') === 'SQLite format 3\0'; } catch { return false; }
 };
@@ -244,7 +294,9 @@ async function make(kind: BackupKind, now: Date): Promise<BackupInfo> {
   if (dbDriver() === 'postgres') throw new BackupError(501, 'not_supported_on_postgres', 'On PostgreSQL, back up the database with pg_dump outside the app');
   patchState({ lastAttemptAt: new Date().toISOString() });
   const base = workspaceBackupsDir();
-  const id = backupId(now, kind);
+  // Two backups in the same second: the second takes the next free second.
+  let id = backupId(now, kind);
+  for (let i = 1; i < 60 && fs.existsSync(path.join(base, id)); i++) id = backupId(new Date(now.getTime() + i * 1000), kind);
   const dir = path.join(base, id);
   try {
     fs.mkdirSync(path.dirname(base), { recursive: true, mode: 0o700 });
@@ -261,9 +313,15 @@ async function make(kind: BackupKind, now: Date): Promise<BackupInfo> {
         const src = path.join(root, rel);
         const dest = path.join(dir, rootKind, rel);
         fs.mkdirSync(path.dirname(dest), { recursive: true, mode: 0o700 });
-        if (isSqlite(src)) {
-          const check = await sqliteCopy(src, dest);
-          entries.push({ root: rootKind, path: rel, type: 'sqlite', size: st.size, mtimeMs: st.mtimeMs, stored: fs.statSync(dest).size, check });
+        if (isStore(rootKind, rel, src)) {
+          let check: 'ok' | 'failed' = 'failed';
+          try { check = await sqliteCopy(src, dest); } catch (err) {
+            // The main database must be in every backup; another store that cannot be read is noted, not fatal.
+            if (isMain({ root: rootKind, path: rel } as Entry)) throw err;
+            fs.rmSync(dest, { force: true }); fs.rmSync(dest + '.tmp', { force: true });
+            fs.copyFileSync(src, dest); fs.chmodSync(dest, 0o600);
+          }
+          entries.push({ root: rootKind, path: rel, type: 'sqlite', size: st.size, mtimeMs: st.mtimeMs, stored: fs.statSync(dest).size, sha256: await sha256(dest), check });
           continue;
         }
         const old = prev.get(`${rootKind}:${rel}`);
@@ -272,11 +330,12 @@ async function make(kind: BackupKind, now: Date): Promise<BackupInfo> {
           try { fs.linkSync(path.join(prevDir, rootKind, rel), dest); linked = true; } catch { /* copy instead */ }
         }
         if (!linked) { fs.copyFileSync(src, dest); fs.chmodSync(dest, 0o600); }
-        entries.push({ root: rootKind, path: rel, type: 'file', size: st.size, mtimeMs: st.mtimeMs, stored: linked ? 0 : st.size });
+        entries.push({ root: rootKind, path: rel, type: 'file', size: st.size, mtimeMs: st.mtimeMs, stored: linked ? 0 : st.size, sha256: linked && old?.sha256 ? old.sha256 : await sha256(dest) });
       }
     }
     if (!entries.some((e) => isMain(e))) throw new BackupError(500, 'no_database', 'The database was not found');
     const manifest: Manifest = { version: 1, id, kind, at: now.toISOString(), checked: entries.every((e) => e.type === 'file' || e.check === 'ok'), entries };
+    manifest.mac = macOf(manifest, backupKey(true)!);
     writePrivate(path.join(dir, MANIFEST), manifest);
     patchState({ lastOkAt: new Date().toISOString(), ...(manifest.checked ? { lastError: null, lastErrorAt: null } : { lastError: 'A part of the backup did not pass its check', lastErrorAt: new Date().toISOString() }) });
     prune(now);
@@ -339,6 +398,9 @@ export function startDailyBackups(): void {
 export async function requestRestore(id: string): Promise<{ undoId: string }> {
   const b = getBackup(id);
   if (!b.checked) throw new BackupError(409, 'not_checked', 'This backup did not pass its check, so it cannot be restored');
+  const m = readManifest(b.dir);
+  const bad = m ? await verified(b.dir, m) : 'The backup is missing';
+  if (bad) throw new BackupError(409, 'not_verified', `${bad}, so it cannot be restored`);
   const undo = await backUpNow('before-restore');
   writePrivate(path.join(dataRoot(), RESTORE_MARKER), { id: b.id, folder: workspaceBackupsDir(), at: new Date().toISOString() });
   return { undoId: undo.id };
@@ -363,11 +425,13 @@ export async function applyPendingRestore(): Promise<{ id: string; ok: boolean; 
   const dir = path.join(workspaceBackupsDir(), id);
   const m = readManifest(dir);
   if (!m || m.id !== id || !m.checked) return result(false, 'The backup is missing or did not pass its check');
+  const bad = await verified(dir, m);
+  if (bad) return result(false, bad);
   const where = roots();
   try {
     for (const e of m.entries) {
       const root = where[e.root];
-      if (!root || e.root === 'config' || KEEP_ON_RESTORE.has(e.path) || path.isAbsolute(e.path) || e.path.split(/[\\/]/).includes('..')) continue;
+      if (!root || e.root === 'config' || KEEP_ON_RESTORE.has(e.path) || (e.root === 'data' && SKIP_TOP.has(e.path.split(/[\\/]/)[0])) || path.isAbsolute(e.path) || e.path.split(/[\\/]/).includes('..')) continue;
       const target = path.join(root, e.path);
       if (!inside(target, root)) continue;
       fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
