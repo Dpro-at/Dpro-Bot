@@ -23,18 +23,21 @@ test('workspace_rules: list and effective read; only rule fields come back', asy
  assert.equal(e.structuredContent.rules[0].text,'Chat in Arabic');
 });
 
-test('workspace_rules: suggest waits for the owner; changes go to the same owner routes as the page', async () => {
+test('workspace_rules: suggest waits for the owner; every change and every decision on a suggestion is refused over MCP', async () => {
  const {backend,calls}=fake();
  const s=await callTool('workspace_rules',{operation:'suggest',text:'Read the README first',reason:'missed steps'},{backend});
  assert.match(s.content[0].text,/waits for the owner/);
  assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/agent-rules/suggestions',body:{text:'Read the README first',reason:'missed steps'}});
- await callTool('workspace_rules',{operation:'pause',id:RID,paused:true},{backend});
- assert.deepEqual(calls.at(-1).body,{paused:true});
- await callTool('workspace_rules',{operation:'delete',id:RID},{backend});
- assert.equal(calls.at(-1).path,`/api/agent-rules/${RID}/delete`);
- await callTool('workspace_rules',{operation:'accept',id:RID},{backend});
- for(const bad of [{operation:'delete',id:'nope'},{operation:'pause',id:RID},{operation:'list',text:'x'},{operation:'rewrite'}]){
+ const before=calls.length;
+ for(const op of ['create','edit','pause','delete','undo_delete','restore_version','accept','dismiss','starter','approve','set']){
+  const r=await callTool('workspace_rules',{operation:op,id:RID},{backend});
+  assert.equal(r.isError,true,op);
+ }
+ assert.equal(calls.length,before,'no write reaches the backend');
+ for(const bad of [{operation:'list',text:'x'},{operation:'suggest',text:'x',paused:true}]){
   const r=await callTool('workspace_rules',bad,{backend});assert.equal(r.isError,true,JSON.stringify(bad));
  }
- assert.ok(TOOL_DEFINITIONS.find(t=>t.name==='workspace_rules').description.includes('Only on the owner’s explicit instruction'));
+ const def=TOOL_DEFINITIONS.find(t=>t.name==='workspace_rules');
+ assert.deepEqual(def.inputSchema.properties.operation.enum,['list','effective','versions','suggest']);
+ assert.match(def.description,/stay with the owner in the app/);
 });
