@@ -1,0 +1,93 @@
+/* Apps › Store (STORE-UI-01, boards SA1–SA3). Colours come from the theme tokens; --tint is the item's category colour. */
+.apps-places .section-label{margin:12px 8px 4px;font-size:11px;font-weight:600;color:var(--text-3)}
+.apps-places .dk-badge-pill{margin-inline-start:auto;min-inline-size:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:11px;text-align:center;line-height:18px}
+.apps-mine{flex:1;min-block-size:0;overflow:auto}
+.apps-mine-addons{padding:4px 20px 20px}
+.apps-mine-addons>h3{font-size:12px;font-weight:600;color:var(--text-3);margin:14px 0 8px}
+
+.st-store{position:relative}
+.st-store .apps-toolbar .dk-icon:last-child{margin-inline-start:auto}
+.st-store .apps-toolbar h2{margin-inline-end:0;flex:1}
+.st-scroll{flex:1;min-block-size:0;overflow:auto;padding:18px 20px 28px;display:flex;flex-direction:column;gap:22px}
+.st-empty{color:var(--muted);font-size:12.5px;padding:24px 4px;margin:0}
+.st-empty.dk-empty button{margin-block-start:8px}
+.st-calm{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;margin:28px auto;max-inline-size:360px;padding:28px;border:1px solid var(--border);border-radius:12px;color:var(--muted)}
+.st-calm strong{color:var(--text);font-size:13px}.st-calm p{margin:0;font-size:12px}
+.st-help{font-size:11.5px;color:var(--muted);margin:0;line-height:1.6}
+.st-icon{display:grid;place-items:center;flex:none;color:color-mix(in srgb,var(--tint) 75%,var(--text));background:color-mix(in srgb,var(--tint) 16%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tint) 22%,transparent);font-weight:700}
+.st-chip{display:inline-flex;align-items:center;gap:4px;inline-size:max-content;padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:500;color:var(--text-2);background:var(--secondary);white-space:nowrap}
+.st-chip[data-tone=ok]{color:#2F9E5F;background:color-mix(in srgb,#3BB273 14%,transparent)}
+.st-chip[data-tone=girru]{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.st-chip[data-tone=claude-code]{color:#C9772E;background:color-mix(in srgb,#E08A3C 14%,transparent)}
+.st-chip[data-tone=codex]{color:var(--text-2);background:var(--secondary)}
+
+/* Home: one featured app, then shelves, then categories (SA1). */
+.st-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;padding:24px;border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--tint) 18%,var(--surface)),color-mix(in srgb,var(--tint) 6%,var(--surface)));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tint) 26%,var(--border))}
+.st-eyebrow{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--tint) 65%,var(--text))}
+.st-hero-name{display:flex;align-items:center;gap:14px}
+.st-hero-name h3{margin:0;font-size:24px;font-weight:700;color:var(--text)}
+.st-hero-text>p:not(.st-eyebrow){margin:14px 0 16px;max-inline-size:440px;font-size:13px;line-height:1.6;color:var(--text-2)}
+.st-hero-actions{display:flex;align-items:center;gap:12px}
+.st-hero-actions .primary{min-inline-size:64px}
+.st-hero-art{display:flex;gap:8px;align-items:stretch;align-self:center;block-size:120px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--surface) 60%,transparent);box-shadow:inset 0 0 0 1px var(--border)}
+.st-hero-art span{flex:1;display:flex;flex-direction:column;gap:6px;padding:4px;border-radius:6px;background:color-mix(in srgb,var(--text) 5%,transparent)}
+.st-hero-art i{block-size:14px;border-radius:3px;background:color-mix(in srgb,var(--tint) 45%,transparent)}
+.st-hero-art span:nth-child(2n) i{background:color-mix(in srgb,var(--accent) 40%,transparent)}
+.st-shelf>header{display:flex;align-items:baseline;margin-block-end:10px}
+.st-shelf h3{margin:0;font-size:14px;font-weight:600;color:var(--text);flex:1}
+.st-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(200px,calc((100% - 30px)/4)),1fr));gap:10px}
+.st-card{display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:start;inline-size:100%;min-inline-size:0;font:inherit;cursor:default}
+.st-card:hover{background:var(--row-hover)}
+.st-card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.st-card-text{display:flex;flex-direction:column;gap:3px;min-inline-size:0}
+.st-card strong{font-size:13px;font-weight:600}
+.st-card small{font-size:11.5px;line-height:1.4;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.st-card .st-chip{margin-block-start:3px}
+.st-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(160px,calc((100% - 30px)/4)),1fr));gap:10px}
+.st-cat{display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:12px 14px;border-radius:10px;border:0;color:color-mix(in srgb,var(--tint) 70%,var(--text));background:color-mix(in srgb,var(--tint) 14%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tint) 24%,transparent);font:inherit;font-weight:600;font-size:12.5px;text-align:start}
+.st-cat:hover{background:color-mix(in srgb,var(--tint) 20%,var(--surface))}
+
+/* Category, From, Search, Updates: one quiet ranked list (SA3). */
+.st-list{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.st-list>.st-help{padding:10px 14px}
+.st-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-block-end:1px solid var(--border)}
+.st-row:last-of-type{border-block-end:0}
+.st-rank{inline-size:16px;flex:none;font-size:12px;color:var(--text-3);text-align:end}
+.st-row-main{flex:1;min-inline-size:0;display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:2px;border:0;background:transparent;color:var(--text);text-align:start;font:inherit}
+.st-row-main>span{min-inline-size:0;display:flex;flex-direction:column}
+.st-row-main strong{font-size:13px;font-weight:600}
+.st-row-main small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-row:hover{background:var(--row-hover)}
+.st-row-main:hover,.st-row-main:active{background:transparent}
+.st-get{flex:none;min-inline-size:52px;padding:3px 12px;border-radius:999px;border:0;background:var(--secondary);color:var(--accent);font-weight:600;font-size:12px}
+.st-get:hover{background:color-mix(in srgb,var(--accent) 14%,var(--secondary))}
+
+/* An app's page (SA2). */
+.st-app{display:flex;flex-direction:column;gap:22px}
+.st-app-head{display:flex;align-items:center;gap:18px}
+.st-app-head>div:not(.st-app-actions){flex:1;min-inline-size:0}
+.st-app-head h3{margin:0;font-size:22px;font-weight:700;color:var(--text)}
+.st-maker{display:flex;align-items:center;gap:5px;margin:4px 0 0;font-size:12.5px;color:var(--accent)}
+.st-meta{display:flex;align-items:center;gap:10px;margin:6px 0 0;font-size:12px;color:var(--muted)}
+.st-meta .link-button{font-size:12px}
+.st-app-actions{display:flex;align-items:center;gap:8px;flex:none}
+.st-app-actions .primary{min-inline-size:72px}
+.st-app-body{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr);gap:28px}
+.st-app-body section{margin-block-end:20px}
+.st-app-body h4{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--text)}
+.st-app-body p{margin:0;font-size:12.5px;line-height:1.65;color:var(--text-2)}
+.st-app-body .st-help{margin-block-start:8px}
+.st-asks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text)}
+.st-asks li{display:flex;align-items:flex-start;gap:8px}
+.st-asks svg{flex:none;margin-block-start:2px;color:var(--accent)}
+.st-facts{margin:0;display:flex;flex-direction:column}
+.st-facts>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-block-end:1px solid var(--border);font-size:12px}
+.st-facts dt{color:var(--muted)}.st-facts dd{margin:0;color:var(--text);text-align:end;overflow-wrap:anywhere}
+
+/* The Add sheet (SA3). */
+.st-sheet-head{display:flex;align-items:center;gap:10px;margin-block-end:10px;font-size:12px;color:var(--muted)}
+.st-store .dk-sheet .st-asks{margin-block:6px 4px}
+.st-problem{color:var(--danger);font-size:12px;margin:10px 0 0}
+
+@media(max-width:1000px){.st-hero{grid-template-columns:minmax(0,1fr)}.st-hero-art{display:none}.st-app-body{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.st-scroll{padding:12px}.st-row .st-chip[data-tone]{display:none}.st-app-head{flex-wrap:wrap}}

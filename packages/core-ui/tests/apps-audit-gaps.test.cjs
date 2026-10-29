@@ -5,7 +5,7 @@ const plugin=(name,extra={})=>({name,source:'codex',kind:'plugin',enabled:true,i
 test('A1: add-ons can be searched from the sidebar by name or label',()=>{
  const items=[plugin('alpha@pub',{label:'Code review'}),plugin('beta@pub'),{...plugin('hooks'),kind:'hook',label:'Session start'}];
  assert.deepEqual(matchAddons(items,'').map(x=>x.name),['alpha@pub','beta@pub','hooks']);assert.deepEqual(matchAddons(items,' REVIEW ').map(x=>x.name),['alpha@pub']);assert.deepEqual(matchAddons(items,'beta').map(x=>x.name),['beta@pub']);assert.deepEqual(matchAddons(items,'session').map(x=>x.name),['hooks']);
- const ws=src('AppsWorkspace.tsx');assert.match(ws,/searchable=place==='mine'\|\|place==='addons'\|\|place==='catalogue'/);assert.match(ws,/<AppsAddons client=\{client\} refresh=\{refresh\} query=\{query\}/);
+ const ws=src('AppsWorkspace.tsx');assert.match(ws,/The field filters My apps there and searches the store elsewhere/);assert.match(ws,/<AppsAddons client=\{client\} refresh=\{refresh\} query=\{query\}/);
  const html=renderToStaticMarkup(React.createElement(AppsAddons,{client:{request:()=>new Promise(()=>{})},refresh:0,query:'x',onConnections(){}}));assert.match(html,/Reading add-ons/);
 });
 test('A9: a plugin missing from this computer says so instead of On/Off',()=>{
@@ -38,7 +38,7 @@ test('S5: GenVR, Terminal and Code rows can be shown in or hidden from the foote
  assert.equal(footerToolItem({...prefs,hidden:[...prefs.hidden,'genvr']},'genvr',()=>{}).checked,false);assert.equal(footerToolItem({...prefs,hidden:prefs.hidden.filter(x=>x!=='genvr')},'genvr',()=>{}).checked,true);
  assert.match(src('FooterSettings.tsx'),/can be pinned from Apps/);
  const html=renderToStaticMarkup(React.createElement(AppsWorkspace,{client:{getSnapshot:()=>({user:{id:'o',username:'Owner',email:'o@example.test',role:'owner'}})},active:true,onOpen(){},onConnections(){},onPermissions(){}}));
- // Apps is apps only: My apps and Store; MCP connections, Channels, Accounts and the Tools rows are gone from its sidebar.
- assert.match(html,/>My apps</);assert.match(html,/>Store</);for(const gone of ['MCP connections','Channels','Accounts','Tools','Find more'])assert.doesNotMatch(html,new RegExp('>'+gone+'<'),gone);
+ // Apps is apps only: the Store places and My apps; MCP connections, Channels, Accounts and the Tools rows are gone from its sidebar.
+ assert.match(html,/>My apps</);assert.match(html,/>Home</);assert.match(html,/>Updates</);for(const gone of ['MCP connections','Channels','Accounts','Tools','Find more'])assert.doesNotMatch(html.split('</nav>')[0],new RegExp('>'+gone+'<'),gone);
  assert.match(src('WorkspaceApplications.tsx'),/footer:owner\?footerItem\?\.\(x\.id\):null/);
 });
