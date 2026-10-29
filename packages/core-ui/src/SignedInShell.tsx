@@ -2,6 +2,7 @@ import {PersonalityLibrary} from './PersonalityLibrary';
 import {WorkspaceModes,editorBounds,useNabuAvailability} from './WorkspaceModes';
 import {TradingWorkspace} from './TradingWorkspace';
 import {AppsWorkspace} from './AppsWorkspace';
+import {StoreWorkspace} from './StoreView';
 import type {AppsPlace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
 import {LibrarySection} from './LibrarySection';
@@ -40,12 +41,12 @@ import { chatFromLink } from './chat-actions';
 import type { Command } from './CommandPalette';
 import { accountRoleLabel, isDeveloperBuild } from './developer-build';
 
-type Page = 'code' | 'trading' | 'library' | 'apps' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
+type Page = 'code' | 'trading' | 'library' | 'apps' | 'store' | 'approvals' | 'chat' | 'genvr' | 'agents' | 'board' | 'memory' | 'skills' | 'mcp' | 'terminal' | 'account' | 'settings' | 'about' | 'specialties' | 'personalities';
 /** The section a page is a place of: its "← back" on top of the sidebar goes there. */
 const placeParent: Partial<Record<Page, 'library' | 'apps' | 'settings'>> = { personalities: 'library', specialties: 'library', skills: 'library', terminal: 'apps' };
 const PARENT_LABEL: Record<'library' | 'apps' | 'settings', string> = { library: 'Library', apps: 'Apps', settings: 'Settings' };
 /** Sections that own the sidebar with their own places (the chat list shows only in Chat). */
-const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'library', 'skills', 'mcp', 'terminal','specialties','personalities','board','approvals','apps','trading'];
+const OWN_SIDEBAR: ReadonlyArray<Page> = ['memory', 'settings', 'agents', 'library', 'skills', 'mcp', 'terminal','specialties','personalities','board','approvals','apps','store','trading'];
 const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' | 'book' }> = [
   { key: 'chat', label: 'Chat', icon: 'message-circle' },
   { key: 'agents', label: 'Agents', icon: 'user' },
@@ -115,6 +116,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const openSettings=(tab:SettingsTab)=>{setSettingsTab(tab);setSettingsVisit(n=>n+1);setPage('settings');};
   const [appsPlace,setAppsPlace]=useState<{place:AppsPlace;n:number}>();
   const openApps=(place:AppsPlace)=>{setAppsPlace(r=>({place,n:(r?.n??0)+1}));setPage('apps');};
+  const [storeRequest,setStoreRequest]=useState<{updates:boolean;n:number}>();
+  const openStore=(updates=false)=>{setStoreRequest(r=>({updates,n:(r?.n??0)+1}));setPage('store');};
   // The separate Account and About pages are gone: menus and "Account verification" buttons open the Settings places.
   // MCP connections is a place of Settings (its places nest under its row there), so every way to it opens Settings.
   useEffect(()=>{if(page==='account')openSettings('account');else if(page==='about')openSettings('about');else if(page==='mcp')openSettings('mcp');},[page]);
@@ -155,7 +158,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     ...tools.map(t=>({...t,id:'tool-'+t.id,group:'Tools',keywords:t.id==='terminal'?'console shell':t.id==='genvr'?'spaces worlds':'editor'})),
     ...libraryCommands,
     ...(user.role==='owner'?[{id:'scheduled-tasks',group:'Settings',label:'Scheduled tasks',keywords:'schedule cron automation paused active',icon:<UiIcon name="clock" size={14}/>,run:()=>openSettings('schedules')}]:[]),
-    ...(user.role!=='guest'?([['mine','My apps','installed terminal trading genvr'],...(user.role==='owner'?[['catalogue','Store','catalogue install find more'],['addons','Store › Add-ons in my coding apps','plugins hooks claude codex']] as const:[])] as const).map(([place,label,keywords])=>({id:`apps-${place}`,group:'Apps',label:`Apps › ${label}`,keywords,icon:<UiIcon name="puzzle" size={14}/>,run:()=>openApps(place)})):[]),
+    ...(user.role!=='guest'?([['mine','My apps','installed terminal trading genvr'],] as const).map(([place,label,keywords])=>({id:`apps-${place}`,group:'Apps',label:`Apps › ${label}`,keywords,icon:<UiIcon name="puzzle" size={14}/>,run:()=>openApps(place)})):[]),
+    ...(user.role==='owner'?[{id:'go-store',group:'Store',label:'Store',keywords:'catalogue install find more get apps mcp skills specialties',icon:<UiIcon name="store" size={14}/>,run:()=>openStore()},{id:'coding-app-plugins',group:'Settings',label:'Settings › Models and replies › Claude Code and Codex plugins',keywords:'plugins hooks add-ons claude codex',icon:<UiIcon name="puzzle" size={14}/>,run:()=>openSettings('replies')},{id:'store-updates',group:'Store',label:'Store › Updates',keywords:'new version update',icon:<UiIcon name="refresh" size={14}/>,run:()=>openStore(true)}]:[]),
     ...(user.role==='owner'?[{id:'go-trading',group:'Apps',label:'Apps › Trading',keywords:'paper practice stocks',icon:<UiIcon name="chart" size={14}/>,run:()=>setPage('trading')}]:[]),
     ...([['general','General'],['replies','Replies'],['account','Account'],['keys','Saved keys'],['accounts','Accounts'],['channels','Channels'],['departments','Departments'],['memory','Memory'],['schedules','Schedules'],['move','Move to another computer'],['about','About and updates']] as const).filter(([tab])=>user.role==='owner'||!['keys','accounts','channels','departments','memory','schedules','move'].includes(tab)).map(([tab,label])=>({id:`settings-${tab}`,group:'Settings',label:`Settings › ${label}`,icon:<UiIcon name="gear" size={14}/>,run:()=>openSettings(tab)})),
     { id: 'new-chat', group: 'Actions', icon:<UiIcon name="compose" size={14}/>, label: 'New chat', run: newChat },
@@ -166,11 +170,11 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const active = chatState?.conversations.find(c => c.id === chatState.activeId);
   // CHAT-BUILD-01 stage 2 (CH1): the top bar names the chat and, muted, its project (hover = full path; a click opens Details › Place).
   const activeProject = active?.projectId ? chatState?.projects.find(p => p.id === active.projectId) : undefined;
-  const pageTitle = page === 'code'?'Code':page === 'library'?'Library':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
+  const pageTitle = page === 'code'?'Code':page === 'store'?'Store':page === 'library'?'Library':page === 'personalities'?'Personalities':page === 'trading'?'Trading':page === 'specialties'?'Specialties':page === 'chat' && active ? (active.title || 'Chat') : page === 'skills' ? 'Skills' : page === 'mcp' ? 'MCP connections' : page === 'terminal' ? 'Terminal' : pages.find(p => p.key === page)?.label ?? '';
   const footer=footerFor(client);
   const owner=user.role==='owner',go=(p:Page)=>()=>setPage(p);
   const entry=(id:Page,available=true,run=go(id),badge?:string,parent?:FooterSection):FooterEntry=>({available,current:page===id,run,badge,parent});
-  const footerEntries:Record<FooterSection,FooterEntry>={chat:entry('chat'),agents:entry('agents'),library:entry('library',owner),board:entry('board'),memory:entry('memory'),approvals:entry('approvals',user.role!=='guest',go('approvals'),pendingApprovals.count?(pendingApprovals.count===100?'100+':String(pendingApprovals.count)):undefined),apps:entry('apps'),genvr:entry('genvr',true,go('genvr'),undefined,'apps'),
+  const footerEntries:Record<FooterSection,FooterEntry>={chat:entry('chat'),agents:entry('agents'),library:entry('library',owner),board:entry('board'),memory:entry('memory'),approvals:entry('approvals',user.role!=='guest',go('approvals'),pendingApprovals.count?(pendingApprovals.count===100?'100+':String(pendingApprovals.count)):undefined),apps:entry('apps'),store:entry('store',owner),genvr:entry('genvr',true,go('genvr'),undefined,'apps'),
     terminal:entry('terminal',owner,go('terminal'),undefined,'apps'),code:entry('code',owner&&nativeEditor,openCode,undefined,'apps'),skills:entry('skills',owner,go('skills'),undefined,'library'),personalities:entry('personalities',owner,go('personalities'),undefined,'library'),specialties:entry('specialties',owner,go('specialties'),undefined,'library')};
 
   const sidebarShown = rail && (page === 'chat' || ownSidebar);
@@ -219,7 +223,8 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
         <section className="page page-ui mem-desk" hidden={page !== 'terminal'}><TerminalSection client={client} active={page === 'terminal'} slot={slot} onOpenTerminal={openTerminal}/></section>
       </>}
       <section className="page page-ui" hidden={page!=='code'}><p role="status" className="fine-print">Select Code in the bottom bar to open or reconnect the project editor.</p></section>
-      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onOpen={id=>setPage(id)} onSettings={tab=>openSettings(tab)} onConnections={id=>{if(id)setMcpOpen(id);setPage('mcp');}} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>{if(user.role!=='owner'){setPage('agents');return;}setApprovalsPlace(r=>({place:'perms',n:(r?.n??0)+1}));setPage('approvals');}}/></section>
+      <section className="page page-apps" hidden={page!=='apps'}><AppsWorkspace client={client} active={page==='apps'} sidebarSlot={slot} placeRequest={appsPlace} onStore={()=>openStore()} onOpen={id=>setPage(id)} onSettings={tab=>openSettings(tab)} onConnections={id=>{if(id)setMcpOpen(id);setPage('mcp');}} onSkills={()=>setPage('skills')} onCode={nativeEditor&&user.role==='owner'?openCode:undefined} onPermissions={()=>{if(user.role!=='owner'){setPage('agents');return;}setApprovalsPlace(r=>({place:'perms',n:(r?.n??0)+1}));setPage('approvals');}}/></section>
+      {user.role==='owner'&&<section className="page page-store" hidden={page!=='store'}><StoreWorkspace client={client} active={page==='store'} sidebarSlot={slot} request={storeRequest} onOpenApp={id=>{if(id==='code')openCode();else setPage(id);}}/></section>}
       {user.role==='owner'&&<section className="page page-trading" hidden={page!=='trading'}><TradingWorkspace client={client} active={page==='trading'} sidebarSlot={slot} onBack={()=>setPage('apps')}/></section>}
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
       {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} mcpOpenId={mcpOpen} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}

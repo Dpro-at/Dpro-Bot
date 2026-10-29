@@ -33,7 +33,7 @@ const RULES_REFUSED='Adding, changing, pausing, deleting rules and using or dism
 const TASK_OPS=['list','get','activity','continue','sort','people','checklist','schedule'];
 /** TASKLOG-01: turning a project's task file on or off, and moving or editing cards, stay with the owner in the app. */
 const TASKS_REFUSED='Turning a project\u2019s task file on or off is done by the owner in Agents \u203a Rules (the files sheet); moving, editing and archiving cards is done on the Board. This tool reads tasks (list, get, activity) and, on the owner\u2019s instruction, continues one, sends one waiting in To sort to a department, puts people or agents on it, adds, ticks or gives checklist items, and sets how it repeats.';
-const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','genvr','terminal','code','skills','personalities','specialties'];
+const FOOTER_IDS=['chat','agents','library','board','memory','approvals','apps','store','genvr','terminal','code','skills','personalities','specialties'];
 
 export const TOOL_DEFINITIONS = [
   {
@@ -49,10 +49,15 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_apps',title:'Workspace applications',
-    description:'Owner-session only. Apps in the Girru window has two places: My apps (installed apps only: Terminal, Trading, Code, GenVR and any app installed) and Store (Girru\u2019s catalogue \u2014 the apps that come with Girru, then its registry \u2014 and the add-ons in coding apps). MCP connections, Channels and Accounts are places in Settings, not in Apps. list: My apps, with the MCP connections listed apart (Settings \u203a MCP connections). store: what the Store shows (catalogue and add-ons, read only); catalogue and addons read each part. MCP connections (Settings \u203a MCP connections): read one (its tools and which agents may use them), add one disabled, or turn one off; found lists MCP servers the folder scan found on this computer (names, place and state only; read only); look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner\u2019s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in Settings \u203a MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (Settings \u203a Channels: chat channels and who may write), accounts (Settings \u203a Accounts: linked accounts such as GenVR); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
+    description:'Owner-session only. Apps in the Girru window has two places: My apps (installed apps only: Terminal, Trading, Code, GenVR and any app installed) and Store (Girru\u2019s catalogue \u2014 the apps that come with Girru, then its registry \u2014 and the add-ons in coding apps). To browse the Store, open an app\u2019s page, add or remove one, use workspace_store. MCP connections, Channels and Accounts are places in Settings, not in Apps. list: My apps, with the MCP connections listed apart (Settings \u203a MCP connections). store: the older catalogue view (catalogue and add-ons, read only); catalogue reads the catalogue; addons reads the Claude Code and Codex plugins (in the window: Settings \u203a Models and replies \u203a N plugins; read only). MCP connections (Settings \u203a MCP connections): read one (its tools and which agents may use them), add one disabled, or turn one off; found lists MCP servers the folder scan found on this computer (names, place and state only; read only); look finds connections set up in coding apps on this computer (Claude, Codex; nothing there changes), preview reads one found there (scanId, sourceId) and gives its hash, import adds it with that hash. Writes (add, import, disable) require the owner\u2019s explicit instruction. A new or imported connection is always off: adding does not execute a program or grant tools. A coding-app connection with secrets (env or headers) is not imported here; the owner adds it in the app. Adding what the folder scan found is done by the owner in the app (it asks where its key goes). Tell the owner to turn it on and choose agents in Settings \u203a MCP connections; turning on (program startup approval), choosing agents, secrets and permanent removal are done by the owner in the app. Also read only: channels (Settings \u203a Channels: chat channels and who may write), accounts (Settings \u203a Accounts: linked accounts such as GenVR); keys, tokens and codes are never returned. Turning a channel on or off, its keys, who may write, GenVR connect, disconnect and publish stay with the owner in the app; this tool refuses them.',
     inputSchema:{type:'object',properties:{operation:{type:'string',enum:['list','store','read','add','disable','found','look','preview','import','channels','accounts','addons','catalogue']},id:{type:'string',maxLength:36},scanId:{type:'string',maxLength:36},sourceId:{type:'string',maxLength:36},hash:{type:'string',maxLength:64},connection:{type:'object',properties:{name:{type:'string',maxLength:24},description:{type:'string',maxLength:500},transport:{type:'string',enum:['http','sse','stdio']},url:{type:'string',maxLength:2000},command:{type:'string',maxLength:500},args:{type:'array',maxItems:50,items:{type:'string',maxLength:1000}},allowRemote:{type:'boolean'}},additionalProperties:false}},required:['operation'],additionalProperties:false},
   },
 
+  {
+    name:'workspace_store',title:'Store',
+    description:'Owner-session only. The Store in Apps, the same as the owner sees it: one list of the apps that come with Girru, Girru\u2019s registry and the Claude Code and Codex add-ons copied on this computer. home: the featured app, the collections and the categories. search (optional query, kind app/mcp/skill/specialty, category, source girru/claude-code/codex; the same kinds as the Store sidebar and the same category row): matching items in one line each with where they come from and their state (included = comes with Girru, installed, available, elsewhere = added in that coding app itself). app (id): one item\u2019s page: what it does, what it asks for, maker, version. updates: installed apps with a newer version. Adding an app is always done by the owner in the app (Apps \u203a Store \u203a the app \u203a Get, which shows what it asks for); install is refused here: tell the owner what the app asks for and where to add it. uninstall (id) removes an app from Girru\u2019s registry only on the owner\u2019s explicit instruction; it can be added again from the Store. Apps that come with Girru are already in My apps; coding-app add-ons are added in that app itself. There are no ratings, install counts or prices: every item is free.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['home','search','app','updates','install','uninstall']},id:{type:'string',maxLength:320},query:{type:'string',maxLength:120},kind:{type:'string',enum:['app','mcp','skill','specialty']},category:{type:'string',maxLength:40},source:{type:'string',enum:['girru','claude-code','codex']}},required:['operation'],additionalProperties:false},
+  },
   {
     name:'agents',title:'Agents (read only)',
     description:'Owner-session only. Read: list (every agent: name, role, department, specialty, model and provider name, main agent, description), read (one agent, id), permissions (what one agent may do: memory and action modes), departments (each department with its agents; the same as Settings › Departments). Departments, only on the owner\u2019s explicit instruction: rename_department (from, to: every agent in it moves) and set_department (id, department; null for none: moves one agent). A department is lowercase letters, digits, spaces, - or _, at most 64. Org chart: org (who reports to whom: each agent with its manager, how it got there — main, set by the owner, placed by Girru, or a sub-agent — and its sub-agents), sub_agents (id: the sub-agents of one agent), sub_agent_work (id: work it gave its sub-agents and quick helpers). Only on the owner\u2019s explicit instruction: set_reports_to (id, reportsTo: an agent id, or null to let Girru place it; the main agent stays on top, a sub-agent stays with its agent, no circles) and add_sub_agent (id of its agent, name, startsAs copy | empty, description, tools: only tools its agent has and none that needs approval; others are added by the owner in the app). Files (agent page \u203a Files): files (id: its files — Who it is, What it keeps in mind, Knowledge — with which ones it reads) and file (id, name: What it keeps in mind or a Knowledge file; secrets hidden; Who it is stays in the app). Only on the owner\u2019s explicit instruction: write_file (id, name, content) creates or replaces a Knowledge file (.md .txt .csv .json, up to 1 MB); it is not read into answers until the owner turns it on in the app. Who it is and What it keeps in mind are changed by the owner in the app. How the owner sees the team: chart (read: List or Chart, arranged by who reports to whom or by department, line style, zoom) and set_chart (view, mode, lines, zoom) on the owner\u2019s instruction. Keys, credential ids and system prompts are never returned. Renaming an agent, role, main agent, duplicate, hire and remove are done by the owner in the app (so are removing a sub-agent or a file, stopping work and the quick helper switch); this tool refuses them.',
@@ -81,8 +86,8 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name:'workspace_footer',title:'Footer sections',
-    description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:13,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. Read or change which sections the Girru window footer shows, their order, icons only, and whether Approvals comes back when something waits. Sections: chat, agents, library (Personalities, Specialties and Skills), board, memory, approvals, apps, store, genvr, terminal, code, skills, personalities, specialties. MCP connections, channels, accounts and departments are places in Settings, not footer sections. Settings always stays and cannot be hidden; hidden sections stay in the command box (⌘K). Change only when the owner asks. The open window picks the change up when it is next focused.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['read','set']},order:{type:'array',maxItems:14,items:{type:'string',enum:FOOTER_IDS}},hidden:{type:'array',maxItems:14,items:{type:'string',enum:FOOTER_IDS}},iconsOnly:{type:'boolean'},approvalsWhenWaiting:{type:'boolean'}},required:['operation'],additionalProperties:false},
   },
   {
     name:'account_settings',title:'Account security and updates',
@@ -322,6 +327,7 @@ export async function callTool(name: string, rawArgs: unknown, deps: HandlerDeps
       case 'workspace_settings': return await workspaceSettingsTool(args,deps);
       case 'trading_practice': return await tradingPracticeTool(args,deps);
       case 'workspace_apps': return await workspaceAppsTool(args,deps);
+      case 'workspace_store': return await workspaceStoreTool(args,deps);
       case 'agents': return await agentsTool(args,deps);
       case 'workspace_approvals': return await workspaceApprovalsTool(args,deps);
       case 'workspace_rules': return await workspaceRulesTool(args,deps);
@@ -635,6 +641,49 @@ const record=(x:unknown):x is Record<string,any>=>!!x&&typeof x==='object'&&!Arr
 const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
 /** My apps and the MCP connections apart, as the window shows them (Apps › My apps, Settings › MCP connections). */
 function splitApps(r:unknown){const items=Array.isArray(obj(r).items)?obj(r).items as unknown[]:[],mcp=(x:unknown)=>record(x)&&x.kind==='mcp';return {apps:items.filter(x=>!mcp(x)),mcpConnections:items.filter(mcp)};}
+const STORE_ID=/^[a-z0-9][a-z0-9._@:-]{0,319}$/i;
+const STORE_ADD_REFUSED='Adding an app is done by the owner in the app: Apps \u203a Store \u203a the app \u203a Get. Tell the owner what it asks for (from app).';
+type StoreItem={id:string;kind:string;name:string;summary:string;description:string;source:string;category:string;state:string;maker:string;verified:boolean;version:string|null;updated:string|null;permissions:string[];worksWith:string[];languages:string[];update:string|null;hash:string};
+/** The Store (STORE-UI-01): the window's one read, and Add / Remove behind the same hash the Add sheet shows. */
+async function workspaceStoreTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
+ const op=args.operation;
+ const id=()=>{if(typeof args.id!=='string'||!STORE_ID.test(args.id))throw new InputError('A valid id (from search) is required');return args.id;};
+ const read=async():Promise<Record<string,any>&{items:StoreItem[]}>=>{const r=obj(await backend.request('GET','/api/store'));return {...r,items:(Array.isArray(r.items)?r.items:[]).filter(record) as unknown as StoreItem[]};};
+ const line=(x:StoreItem)=>({id:x.id,kind:x.kind,name:x.name,summary:x.summary,source:x.source,category:x.category,state:x.state});
+ if(op==='home'){
+  only(args,['operation']);const s=await read(),named=(ids:unknown)=>(Array.isArray(ids)?ids:[]).map(i=>s.items.find(x=>x.id===i)).filter(Boolean).map(x=>line(x!));
+  return ok('The Store\u2019s home: the featured app, then collections. Every item is free; there are no ratings or install counts.',{featured:named([s.featured])[0]??null,collections:(Array.isArray(s.collections)?s.collections:[]).filter(record).map((c:Record<string,any>)=>({id:c.id,title:c.title,items:named(c.items)})),categories:s.categories??[],limited:s.limited??[]});
+ }
+ if(op==='search'){
+  only(args,['operation','query','kind','category','source']);
+  for(const k of ['query','kind','category','source'] as const)if(args[k]!==undefined&&typeof args[k]!=='string')throw new InputError(`${k} must be text`);
+  if(args.kind!==undefined&&!['app','mcp','skill','specialty'].includes(args.kind as string))throw new InputError('kind must be app, mcp, skill or specialty');
+  const q=String(args.query??'').trim().toLowerCase(),s=await read();
+  const items=s.items.filter(x=>(!args.kind||x.kind===args.kind)&&(!args.category||x.category===args.category)&&(!args.source||x.source===args.source)&&(!q||`${x.name} ${x.summary} ${x.maker}`.toLowerCase().includes(q)));
+  return ok(items.length?`${items.length} in the Store. Open one with app (id).`:'Nothing in the Store matches.',{items:items.slice(0,100).map(line),more:Math.max(0,items.length-100)});
+ }
+ if(op==='app'){
+  only(args,['operation','id']);const want=id(),x=(await read()).items.find(i=>i.id===want);
+  if(!x)throw new InputError('Not in the Store');
+  const how=x.state==='included'?'It comes with Girru and is already in My apps.':x.state==='elsewhere'?'Add it in that coding app itself; Girru does not copy its keys.':x.state==='installed'?'Installed. Remove it only on the owner\u2019s explicit instruction.':'The owner adds it in the app: Apps \u203a Store \u203a this app \u203a Get. Tell them what it asks for.';
+  const {hash:_,...page}=x;return ok(how,page);
+ }
+ if(op==='updates'){
+  only(args,['operation']);const items=(await read()).items.filter(x=>x.update);
+  return ok(items.length?'Installed apps with a newer version.':'Everything is up to date.',{items:items.map(x=>({...line(x),version:x.version,update:x.update}))});
+ }
+ if(op==='install'){
+  // Same gate as the window: only the owner's own click on Add (in the sheet that shows what it asks for) adds an app.
+  throw new InputError(STORE_ADD_REFUSED);
+ }
+ if(op==='uninstall'){
+  only(args,['operation','id']);const want=id();
+  const r=obj(await backend.request('POST','/api/store/uninstall',{id:want}));
+  return ok('Removed. Add it again from the Store at any time.',{id:want,state:r.state??'available'});
+ }
+ throw new InputError('operation must be home, search, app, updates, install or uninstall');
+}
+
 async function workspaceAppsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
  only(args,['operation','id','connection','scanId','sourceId','hash']);
  const need=(key:string,pattern:RegExp,what:string)=>{const v=args[key];if(typeof v!=='string'||!pattern.test(v))throw new InputError(`A valid ${what} is required`);return v;};

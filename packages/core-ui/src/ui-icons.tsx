@@ -91,6 +91,7 @@ const shapes = {
   wifi: <path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/>,
   phone: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>,
   puzzle: <path d="M10 4h4v3a2 2 0 1 0 4 0V4h2v6h-3a2 2 0 1 0 0 4h3v6h-6v-3a2 2 0 1 0-4 0v3H4V4z"/>,
+  home: <path d="M4 11l8-7 8 7v9H4zM10 20v-6h4v6"/>,
   store: <><path d="M4 9l1-5h14l1 5"/><path d="M4 9h16v11H4zM9 20v-6h6v6"/></>,
   screen: <><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M9 20h6M12 16v4M8 9l-2 2 2 2M16 9l2 2-2 2"/></>,
   bug: <><path d="M8 9h8v8a4 4 0 0 1-8 0z"/><path d="M12 9V5M9 5l1.5 2M15 5l-1.5 2M4 13h4M16 13h4M5 19l3-2M19 19l-3-2"/></>,

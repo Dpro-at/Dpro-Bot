@@ -10,11 +10,11 @@ import { actorOrReply, requireAccount } from '../../repositories/scope.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 
 // Library (Personalities, Specialties, Skills) shows by default; MCP connections live in Settings, not in the footer.
-export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'] as const;
+export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps', 'store', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'] as const;
 type Section = typeof FOOTER_SECTIONS[number];
 export interface FooterPrefs { order: Section[]; hidden: Section[]; iconsOnly: boolean; approvalsWhenWaiting: boolean }
 const DEFAULT_HIDDEN: Section[] = ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'];
-const ADDED_AFTER: Partial<Record<Section, Section>> = { library: 'agents' };
+const ADDED_AFTER: Partial<Record<Section, Section>> = { library: 'agents', store: 'apps' };
 const KEYS = ['order', 'hidden', 'iconsOnly', 'approvalsWhenWaiting'];
 const known = (v: unknown): v is Section => typeof v === 'string' && (FOOTER_SECTIONS as readonly string[]).includes(v);
 const record = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
