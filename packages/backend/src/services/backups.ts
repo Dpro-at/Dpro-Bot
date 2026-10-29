@@ -67,7 +67,9 @@ export { defaultBackupsFolder, backupsFolder };
 /** One sub-folder per workspace, so a test copy and the real data never mix. */
 function workspaceName(): string {
   const id = readJson<{ id?: unknown }>(path.join(dataRoot(), 'instance.json'))?.id;
-  return `workspace-${typeof id === 'string' && /^[0-9a-f-]{8,}$/i.test(id) ? id.slice(0, 8) : 'local'}`;
+  // The data folder's own path is part of the name: a copy of the same workspace (a test copy) never shares its backups.
+  const where = createHash('sha256').update(realish(dataRoot())).digest('hex').slice(0, 6);
+  return `workspace-${typeof id === 'string' && /^[0-9a-f-]{8,}$/i.test(id) ? id.slice(0, 8) : 'local'}-${where}`;
 }
 export function workspaceBackupsDir(folder = backupsFolder()): string { return path.join(folder, workspaceName()); }
 export const isCloudFolder = (folder: string) => CLOUD.test(folder);
