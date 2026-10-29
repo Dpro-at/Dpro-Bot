@@ -55,8 +55,8 @@ export const TOOL_DEFINITIONS = [
 
   {
     name:'workspace_store',title:'Store',
-    description:'Owner-session only. The Store in Apps, the same as the owner sees it: one list of the apps that come with Girru, Girru\u2019s registry and the Claude Code and Codex add-ons copied on this computer. home: the featured app, the collections and the categories. search (optional query, category, source girru/claude-code/codex): matching items in one line each with where they come from and their state (included = comes with Girru, installed, available, elsewhere = added in that coding app itself). app (id): one item\u2019s page: what it does, what it asks for, maker, version, and the hash an Add needs. updates: installed apps with a newer version. install (id, hash from app) and uninstall (id) change only apps from Girru\u2019s registry and require the owner\u2019s explicit instruction for that app every time; tell the owner what it asks for (from app) before adding. The hash binds the Add to what was shown: if the app changed, read it again. Apps that come with Girru are already in My apps; coding-app add-ons are added in that app itself. There are no ratings, install counts or prices: every item is free.',
-    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['home','search','app','updates','install','uninstall']},id:{type:'string',maxLength:320},hash:{type:'string',maxLength:64},query:{type:'string',maxLength:120},category:{type:'string',maxLength:40},source:{type:'string',enum:['girru','claude-code','codex']}},required:['operation'],additionalProperties:false},
+    description:'Owner-session only. The Store in Apps, the same as the owner sees it: one list of the apps that come with Girru, Girru\u2019s registry and the Claude Code and Codex add-ons copied on this computer. home: the featured app, the collections and the categories. search (optional query, category, source girru/claude-code/codex): matching items in one line each with where they come from and their state (included = comes with Girru, installed, available, elsewhere = added in that coding app itself). app (id): one item\u2019s page: what it does, what it asks for, maker, version. updates: installed apps with a newer version. Adding an app is always done by the owner in the app (Apps \u203a Store \u203a the app \u203a Get, which shows what it asks for); install is refused here: tell the owner what the app asks for and where to add it. uninstall (id) removes an app from Girru\u2019s registry only on the owner\u2019s explicit instruction; it can be added again from the Store. Apps that come with Girru are already in My apps; coding-app add-ons are added in that app itself. There are no ratings, install counts or prices: every item is free.',
+    inputSchema:{type:'object',properties:{operation:{type:'string',enum:['home','search','app','updates','install','uninstall']},id:{type:'string',maxLength:320},query:{type:'string',maxLength:120},category:{type:'string',maxLength:40},source:{type:'string',enum:['girru','claude-code','codex']}},required:['operation'],additionalProperties:false},
   },
   {
     name:'agents',title:'Agents (read only)',
@@ -642,6 +642,7 @@ const MCP_SCAN=/^[a-f0-9-]{36}$/,MCP_HASH=/^[a-f0-9]{64}$/;
 /** My apps and the MCP connections apart, as the window shows them (Apps › My apps, Settings › MCP connections). */
 function splitApps(r:unknown){const items=Array.isArray(obj(r).items)?obj(r).items as unknown[]:[],mcp=(x:unknown)=>record(x)&&x.kind==='mcp';return {apps:items.filter(x=>!mcp(x)),mcpConnections:items.filter(mcp)};}
 const STORE_ID=/^[a-z0-9][a-z0-9._@:-]{0,319}$/i;
+const STORE_ADD_REFUSED='Adding an app is done by the owner in the app: Apps \u203a Store \u203a the app \u203a Get. Tell the owner what it asks for (from app).';
 type StoreItem={id:string;name:string;summary:string;description:string;source:string;category:string;state:string;maker:string;verified:boolean;version:string|null;updated:string|null;permissions:string[];worksWith:string[];languages:string[];update:string|null;hash:string};
 /** The Store (STORE-UI-01): the window's one read, and Add / Remove behind the same hash the Add sheet shows. */
 async function workspaceStoreTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
@@ -663,18 +664,16 @@ async function workspaceStoreTool(args:Record<string,unknown>,{backend}:HandlerD
  if(op==='app'){
   only(args,['operation','id']);const want=id(),x=(await read()).items.find(i=>i.id===want);
   if(!x)throw new InputError('Not in the Store');
-  const how=x.state==='included'?'It comes with Girru and is already in My apps.':x.state==='elsewhere'?'Add it in that coding app itself; Girru does not copy its keys.':x.state==='installed'?'Installed. Remove it only on the owner\u2019s explicit instruction.':'Add it only on the owner\u2019s explicit instruction, after telling them what it asks for. Use this hash.';
-  return ok(how,{...x,hash:x.state==='available'?x.hash:null});
+  const how=x.state==='included'?'It comes with Girru and is already in My apps.':x.state==='elsewhere'?'Add it in that coding app itself; Girru does not copy its keys.':x.state==='installed'?'Installed. Remove it only on the owner\u2019s explicit instruction.':'The owner adds it in the app: Apps \u203a Store \u203a this app \u203a Get. Tell them what it asks for.';
+  const {hash:_,...page}=x;return ok(how,page);
  }
  if(op==='updates'){
   only(args,['operation']);const items=(await read()).items.filter(x=>x.update);
   return ok(items.length?'Installed apps with a newer version.':'Everything is up to date.',{items:items.map(x=>({...line(x),version:x.version,update:x.update}))});
  }
  if(op==='install'){
-  only(args,['operation','id','hash']);const want=id();
-  if(typeof args.hash!=='string'||!MCP_HASH.test(args.hash))throw new InputError('The hash from app is required');
-  const r=obj(await backend.request('POST','/api/store/install',{id:want,hash:args.hash}));
-  return ok('Added. It shows as installed in the Store.',{id:want,state:r.state??'installed'});
+  // Same gate as the window: only the owner's own click on Add (in the sheet that shows what it asks for) adds an app.
+  throw new InputError(STORE_ADD_REFUSED);
  }
  if(op==='uninstall'){
   only(args,['operation','id']);const want=id();
