@@ -27,7 +27,7 @@ const WAITING = /^Waiting for owner approval: /;
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s);
 const flat = (s: string) => s.replace(/\s+/g, ' ').trim();
 /** Neutralises anything in tool data that would open or close the record's marker. */
-const inert = (s: string) => s.replace(/<\s*\/?\s*earlier_tool_work\s*>/gi, (m) => m.replace('<', '&lt;'));
+const inert = (s: string) => s.replace(/<\s*\/?\s*earlier_tool_work\s*>/gi, (m) => m.replace(/</g, '&lt;'));
 
 function shortArgs(input: string): string {
   let v: unknown;
