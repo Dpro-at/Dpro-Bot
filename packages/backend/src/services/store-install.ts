@@ -20,10 +20,9 @@ import { workspaceBackupsDir } from './backups.js';
 export type AddStep = 'getting' | 'checking' | 'setting-up' | 'adding';
 export interface AddJob { id: string; app: string; step: AddStep; done: boolean; ok?: boolean; message?: string; restart?: 'auto' | 'manual' }
 const jobs = new Map<string, AddJob>();
-const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const TABLE = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`]?([A-Za-z_][A-Za-z0-9_]*)["`]?/gi;
+const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // no "--", no trailing "-": table prefixes can never overlap
 const KEY = (id: string) => `store.installed.${id}`;
-const prefixOf = (id: string) => `${id.replace(/-/g, '_')}_`;
+const prefixOf = (id: string) => `app_${id.replace(/-/g, '_')}__`;
 const sha = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
 type Fetch = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<{ ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> }>;
 
@@ -45,12 +44,45 @@ export async function installedApps(): Promise<Record<string, { version: string;
   } catch { return {}; }
 }
 
-/** The tables an app's migrations make; refuses any not named after the app. */
+/** SQL statements, split on ";" outside quotes, with comments removed. */
+function statements(sql: string): string[] {
+  const out: string[] = [];
+  let cur = '', quote: string | null = null;
+  for (let i = 0; i < sql.length; i++) {
+    const c = sql[i];
+    if (quote) { cur += c; if (c === quote) quote = null; continue; }
+    if (c === '-' && sql[i + 1] === '-') { while (i < sql.length && sql[i] !== '\n') i++; cur += ' '; continue; }
+    if (c === '/' && sql[i + 1] === '*') { const end = sql.indexOf('*/', i + 2); i = end < 0 ? sql.length : end + 1; cur += ' '; continue; }
+    if (c === "'" || c === '"' || c === '`' || c === '[') { quote = c === '[' ? ']' : c; cur += c; continue; }
+    if (c === ';') { if (cur.trim()) out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  if (quote) throw new Error('a migration has an unclosed quote');
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+const NAME = String.raw`(?:"([A-Za-z_][A-Za-z0-9_]*)"|\x60([A-Za-z_][A-Za-z0-9_]*)\x60|\[([A-Za-z_][A-Za-z0-9_]*)\]|([A-Za-z_][A-Za-z0-9_]*))`;
+const CREATE_TABLE = new RegExp(String.raw`^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+${NAME}\s*\(`, 'i');
+const CREATE_INDEX = new RegExp(String.raw`^CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+${NAME}\s+ON\s+${NAME}\s*\(`, 'i');
+const nameOf = (m: RegExpExecArray, at: number) => (m[at] ?? m[at + 1] ?? m[at + 2] ?? m[at + 3]).toLowerCase();
+/**
+ * The tables an app's migrations make. Deny by default: every statement must be
+ * CREATE TABLE IF NOT EXISTS or CREATE [UNIQUE] INDEX IF NOT EXISTS, and every name
+ * (table, index, indexed table) must start with app_<id>__ — so an app can never
+ * drop, change, read into or write to Girru's own tables.
+ */
 export function appTables(id: string, sqlFiles: string[]): string[] {
-  const names = new Set<string>();
-  for (const text of sqlFiles) for (const m of text.matchAll(TABLE)) names.add(m[1].toLowerCase());
-  for (const n of names) if (!n.startsWith(prefixOf(id))) throw new Error(`it makes a table (${n}) that is not named after it`);
-  return [...names];
+  const prefix = prefixOf(id), tables = new Set<string>();
+  for (const text of sqlFiles) {
+    for (const st of statements(text)) {
+      const t = CREATE_TABLE.exec(st), x = t ? null : CREATE_INDEX.exec(st);
+      if (!t && !x) throw new Error(`a migration does more than make its own tables (${st.slice(0, 40)}…)`);
+      const names = t ? [nameOf(t, 1)] : [nameOf(x!, 1), nameOf(x!, 5)];
+      for (const n of names) if (!n.startsWith(prefix)) throw new Error(`it makes a table (${n}) that is not named after it`);
+      if (t) tables.add(names[0]);
+    }
+  }
+  return [...tables];
 }
 const migrationFiles = (dir: string) => { const m = path.join(dir, 'migrations'); return fs.existsSync(m) ? fs.readdirSync(m).filter((f) => f.endsWith('.sql')).sort().map((f) => path.join(m, f)) : []; };
 

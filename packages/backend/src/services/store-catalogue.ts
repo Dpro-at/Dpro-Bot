@@ -2,6 +2,9 @@ import {createHash} from 'node:crypto';
 import {addonCatalogue} from './addon-catalogue.js';
 import {searchMarketplace,checkForUpdates,installExtension,uninstallExtension,getExtensionDetails} from './extension-marketplace.js';
 import {readStoreRepo,type RepoRead} from './store-repo.js';
+import {existsSync} from 'node:fs';
+import {backendPath} from '../config/backend-root.js';
+import {COMPANY_SPECIALTIES} from './company-specialties.js';
 import {installedApps,startAdd,removeApp,type AddJob} from './store-install.js';
 import {parseStoreIndex,STORE_CATEGORIES,type CatalogueSource,type StoreIndex,type StoreManifest,type StoreCategoryId} from './store-index.js';
 
@@ -25,6 +28,13 @@ const INCLUDED_APP:Record<string,string>={'girru:genvr':'genvr','girru:trading':
 /** The id of the app a Girru item opens (for the window's Open button). */
 export const includedApp=(id:string)=>INCLUDED_APP[id]??null;
 
+const slugOf=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64);
+const SPECIALTY_SLUGS=new Set((COMPANY_SPECIALTIES as ReadonlyArray<{name:string;department:string}>).flatMap(s=>[slugOf(s.name),slugOf(`${s.name}-${s.department}`)]));
+/** A store skill or specialty that ships inside this Girru (its folder, or its name in the company list). */
+function comesWithGirru(x:StoreManifest):boolean{
+ const id=x.id.slice(6);
+ return x.kind==='skill'?/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)&&existsSync(backendPath('skills',id,'SKILL.md')):x.kind==='specialty'?SPECIALTY_SLUGS.has(id):false;
+}
 const category=(x:unknown):StoreCategoryId=>{const v=typeof x==='string'?x.trim().toLowerCase():'';return STORE_CATEGORIES.find(c=>c.id===v||c.title.toLowerCase()===v)?.id??'more';};
 
 /** Today's source: the local catalogues on this computer. Reading never downloads or installs. */
@@ -48,7 +58,8 @@ export function localCatalogue(options:{home?:string;repo?:()=>Promise<RepoRead>
    for(const r of repo.index?.items??[]){
     const at=items.findIndex(x=>x.id===r.id);
     if(at>=0)items[at]={...items[at],summary:r.summary||items[at].summary,description:r.description||items[at].description,icon:r.icon??items[at].icon,version:r.version,updated:r.updated,category:r.category,permissions:r.permissions.length?r.permissions:items[at].permissions,worksWith:r.worksWith,languages:r.languages};
-    else items.push({...r,id:'store:'+r.id.slice(6)});
+    // Skills and specialties that come with Girru are already here; anything else waits for its package.
+    else items.push(comesWithGirru(r)?r:{...r,id:'store:'+r.id.slice(6)});
    }
    try{
     const {extensions}=await searchMarketplace({userId:ownerId,limit:200,offset:0});

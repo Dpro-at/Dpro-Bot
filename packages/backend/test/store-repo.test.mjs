@@ -74,3 +74,13 @@ test('the Store window: the repository words for Girru apps; an item without a p
   const offline = await readStore('owner-1', localCatalogue({ home: dir, repo: async () => ({ index: null, asOf: null, fresh: false }) }));
   assert.ok(offline.limited.includes('store')); assert.ok(offline.items.some((x) => x.id === 'girru:genvr'), 'the apps that come with Girru are always there');
 });
+
+test('skills and specialties that come with Girru show as installed; others wait for a package', async () => {
+  const kind = (id, k) => ({ ...item(id), kind: k, name: id });
+  const raw = { schema: 1, featured: null, collections: [], items: [kind('data-analysis', 'skill'), kind('frontend-developer', 'specialty'), kind('not-in-girru', 'skill')] };
+  const store = await readStore('owner-1', localCatalogue({ home: dir, repo: async () => ({ index: fromRepo(raw), asOf: null, fresh: true }) }));
+  const by = (id) => store.items.find((x) => x.id === id);
+  assert.equal(by('girru:data-analysis')?.state, 'included');
+  assert.equal(by('girru:frontend-developer')?.state, 'included');
+  assert.equal(by('store:not-in-girru')?.state, 'elsewhere');
+});

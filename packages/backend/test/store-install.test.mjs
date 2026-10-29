@@ -28,7 +28,7 @@ const sha = (b) => createHash('sha256').update(b).digest('hex');
 const pkgFiles = (opts = {}) => ({
   'agentplayer.plugin.json': JSON.stringify({ id: 'notes', name: 'Notes', version: '1.0.0', main: 'index.js', permissions: ['database'] }),
   'index.js': 'export default { async register(api) {} };\n',
-  'migrations/001_notes.sql': opts.sql ?? 'CREATE TABLE IF NOT EXISTS notes_items (id INTEGER PRIMARY KEY, text TEXT NOT NULL);\n',
+  'migrations/001_notes.sql': opts.sql ?? 'CREATE TABLE IF NOT EXISTS app_notes__items (id INTEGER PRIMARY KEY, text TEXT NOT NULL);\n',
 });
 let served = pkgFiles();
 let tamper = false;
@@ -73,7 +73,7 @@ test('add: every file checked, set up in the data folder, its own migrations, tu
   assert.ok(existsSync(join(data, 'apps', 'notes', 'index.js')), 'in the data folder');
   assert.ok(!existsSync(join(backendDir, 'extensions', 'notes')), 'never in the program folder');
   assert.ok(!readdirSync(join(data, 'apps')).some((n) => n.startsWith('.')), 'no half-made folders left');
-  assert.ok(table('notes_items'));
+  assert.ok(table('app_notes__items'));
   assert.equal(db.prepare("SELECT enabled FROM extension_configs WHERE extension_id = 'notes'").get().enabled, 1);
   assert.equal((await store()).items.find((i) => i.id === 'store:notes').state, 'installed');
   // Asking for a changed listing is refused.
@@ -82,21 +82,21 @@ test('add: every file checked, set up in the data folder, its own migrations, tu
 });
 
 test('remove: with rows it asks once, saves a copy, removes everything; adding again brings the rows back', async () => {
-  db.prepare("INSERT INTO notes_items (text) VALUES ('first'), ('second')").run();
+  db.prepare("INSERT INTO app_notes__items (text) VALUES ('first'), ('second')").run();
   const asked = await uninstallFromStore('owner-1', 'store:notes', { restart: () => false });
-  assert.equal(asked.ok, false); assert.equal(asked.code, 'has_data'); assert.deepEqual(asked.data, [{ table: 'notes_items', rows: 2 }]);
-  assert.ok(table('notes_items'), 'nothing removed before the owner confirms');
+  assert.equal(asked.ok, false); assert.equal(asked.code, 'has_data'); assert.deepEqual(asked.data, [{ table: 'app_notes__items', rows: 2 }]);
+  assert.ok(table('app_notes__items'), 'nothing removed before the owner confirms');
   const r = await uninstallFromStore('owner-1', 'store:notes', { confirm: true, restart: () => false });
   assert.equal(r.ok, true); assert.ok(r.copy && existsSync(r.copy));
   assert.match(readFileSync(r.copy, 'utf8'), /second/);
-  assert.ok(!table('notes_items')); assert.ok(!existsSync(join(data, 'apps', 'notes')));
+  assert.ok(!table('app_notes__items')); assert.ok(!existsSync(join(data, 'apps', 'notes')));
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM extension_configs WHERE extension_id = 'notes'").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM extension_migrations WHERE extension_id = 'notes'").get().n, 0);
   assert.equal((await store()).items.find((i) => i.id === 'store:notes').state, 'available');
   const again = await add();
   assert.equal(again.ok, true);
-  assert.deepEqual(db.prepare('SELECT text FROM notes_items ORDER BY id').all().map((x) => x.text), ['first', 'second'], 'the saved copy came back');
-  db.prepare('DELETE FROM notes_items').run();
+  assert.deepEqual(db.prepare('SELECT text FROM app_notes__items ORDER BY id').all().map((x) => x.text), ['first', 'second'], 'the saved copy came back');
+  db.prepare('DELETE FROM app_notes__items').run();
   const quick = await uninstallFromStore('owner-1', 'store:notes', { restart: () => false });
   assert.equal(quick.ok, true, 'no rows: removed at once'); assert.equal(quick.copy, null);
 });
@@ -107,16 +107,31 @@ test('a file that is not what the store reviewed is never set up', async () => {
   tamper = false;
   assert.equal(j.ok, false); assert.match(j.message, /not what the Girru Store reviewed/);
   assert.ok(!existsSync(join(data, 'apps', 'notes')));
-  assert.ok(!table('notes_items'));
+  assert.ok(!table('app_notes__items'));
 });
 
 test('an app may only make tables named after itself; package paths stay inside it', async () => {
-  assert.throws(() => appTables('notes', ['CREATE TABLE users (id INTEGER)']), /not named after it/);
-  assert.deepEqual(appTables('my-app', ['CREATE TABLE IF NOT EXISTS my_app_rows (id INTEGER)']), ['my_app_rows']);
-  served = pkgFiles({ sql: 'CREATE TABLE IF NOT EXISTS users (id INTEGER);\n' });
+  assert.deepEqual(appTables('my-app', ['-- its tables\nCREATE TABLE IF NOT EXISTS app_my_app__rows (id INTEGER, note TEXT DEFAULT \'a;b\');\nCREATE INDEX IF NOT EXISTS app_my_app__rows_note ON app_my_app__rows (note);']), ['app_my_app__rows']);
+  for (const bad of [
+    'CREATE TABLE IF NOT EXISTS users (id INTEGER)',
+    'CREATE TABLE IF NOT EXISTS app_notes__x (id INTEGER); DROP TABLE users',
+    'CREATE TABLE IF NOT EXISTS app_notes__x (id INTEGER); INSERT INTO users (id) VALUES (1)',
+    "UPDATE users SET role = 'owner'",
+    'ALTER TABLE users ADD COLUMN x TEXT',
+    'CREATE INDEX IF NOT EXISTS app_notes__i ON users (id)',
+    'CREATE TRIGGER app_notes__t AFTER INSERT ON users BEGIN DELETE FROM users; END',
+    "ATTACH DATABASE '/tmp/x.db' AS x",
+    'PRAGMA writable_schema = 1',
+    'CREATE TABLE IF NOT EXISTS "users" (id INTEGER)',
+    'CREATE TABLE IF NOT EXISTS app_notes_x (id INTEGER)',
+    'CREATE TABLE app_notes__x (id INTEGER)',
+  ]) assert.throws(() => appTables('notes', [bad]), undefined, bad);
+  // "notes" and "notes-x" can never share tables: app_notes__ is not a prefix of app_notes_x__.
+  assert.throws(() => appTables('notes', ['CREATE TABLE IF NOT EXISTS app_notes_x__rows (id INTEGER)']));
+  served = pkgFiles({ sql: 'CREATE TABLE IF NOT EXISTS app_notes__ok (id INTEGER);\nDROP TABLE users;\n' });
   index = indexFor(served); forget();
   const j = await add();
-  assert.equal(j.ok, false); assert.match(j.message, /table \(users\) that is not named after it/);
+  assert.equal(j.ok, false); assert.match(j.message, /does more than make its own tables/);
   assert.ok(!existsSync(join(data, 'apps', 'notes')));
   served = pkgFiles(); index = indexFor(served); forget();
   for (const bad of ['../escape.js', '/etc/passwd.js', 'a/../../b.js', 'run.sh', '.hidden.js']) {
