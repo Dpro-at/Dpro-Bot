@@ -150,17 +150,6 @@
 .apps-facts dd{margin:0;overflow-wrap:anywhere}
 .apps-confirm{padding:12px;border-radius:9px;background:var(--secondary);margin-block:10px}
 .apps-confirm p{margin:0 0 8px}
-.apps-addons{overflow:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
-.apps-addon-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.apps-addon-card{border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--surface) 88%,var(--canvas))}
-.apps-addon-card>header{display:flex;align-items:center;gap:10px}
-.apps-addon-card>header small{margin-inline-start:auto;font-size:11px;color:var(--muted)}
-.apps-addon-card ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.apps-addon-card li{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-block-start:1px solid var(--border)}
-.apps-addon-card li>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.apps-addon-card li>small{font-size:11px;color:var(--muted)}
-.apps-addons .apps-help{padding:0}
-.apps-addons .link-button{padding:0;background:transparent;border:0;box-shadow:none;color:var(--accent);font-size:inherit}
 .apps-accounts{display:flex;flex:1;min-height:0}
 .apps-accounts>.apps-panes{flex:1}
 .apps-accounts .connection-card{border:0;padding:0;background:transparent}
@@ -189,6 +178,5 @@
 .apps-row .dk-tile{border-radius:9px;flex:none;font-weight:700}
 .apps-inspector-head .dk-tile{border-radius:12px;flex:none;font-weight:700}
 /* A plugin listed in its app's settings but not found on disk (A9). */
-.apps-addon-card li>small[data-state=missing]{color:var(--mem-warn,var(--muted))}
 /* Store › Catalogue (Girru): "Comes with Girru" and "Girru's registry" labels above their rows. */
 .apps-list [role=group]>.apps-group-name{margin:0;padding:14px 20px 4px}

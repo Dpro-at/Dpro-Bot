@@ -1,12 +1,13 @@
 require('./load.cjs');const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const React=require('../node_modules/react');const {renderToStaticMarkup}=require('../node_modules/react-dom/server');
 const src=name=>fs.readFileSync(path.join(__dirname,'../src',name),'utf8');
-const {AppsAddons,matchAddons,addonState}=require('../src/AppsAddons.tsx');const {tileActions}=require('../src/WorkspaceApplications.tsx');const {sourceFacts}=require('../src/SourceCatalogue.tsx');const {scopeWords}=require('../src/ConnectionsSettings.tsx');const {footerToolItem,AppsWorkspace}=require('../src/AppsWorkspace.tsx');const {usualFooter}=require('../src/footer-prefs.ts');
+const {PluginsSheet,pluginsLine,matchAddons,addonState}=require('../src/AppsAddons.tsx');const {tileActions}=require('../src/WorkspaceApplications.tsx');const {sourceFacts}=require('../src/SourceCatalogue.tsx');const {scopeWords}=require('../src/ConnectionsSettings.tsx');const {footerToolItem,AppsWorkspace}=require('../src/AppsWorkspace.tsx');const {usualFooter}=require('../src/footer-prefs.ts');
 const plugin=(name,extra={})=>({name,source:'codex',kind:'plugin',enabled:true,installed:true,count:0,...extra});
 test('A1: add-ons can be searched from the sidebar by name or label',()=>{
  const items=[plugin('alpha@pub',{label:'Code review'}),plugin('beta@pub'),{...plugin('hooks'),kind:'hook',label:'Session start'}];
  assert.deepEqual(matchAddons(items,'').map(x=>x.name),['alpha@pub','beta@pub','hooks']);assert.deepEqual(matchAddons(items,' REVIEW ').map(x=>x.name),['alpha@pub']);assert.deepEqual(matchAddons(items,'beta').map(x=>x.name),['beta@pub']);assert.deepEqual(matchAddons(items,'session').map(x=>x.name),['hooks']);
- const ws=src('AppsWorkspace.tsx');assert.match(ws,/placeholder="Search  ⌘F"/);assert.match(ws,/<AppsAddons client=\{client\} refresh=\{refresh\} query=\{query\}/);
- const html=renderToStaticMarkup(React.createElement(AppsAddons,{client:{request:()=>new Promise(()=>{})},refresh:0,query:'x',onConnections(){}}));assert.match(html,/Reading add-ons/);
+ const ws=src('AppsWorkspace.tsx');assert.match(ws,/placeholder="Search  ⌘F"/);assert.doesNotMatch(ws,/AppsAddons|Add-ons in my coding apps/,'board AP1: not in My apps');
+ assert.match(src('ReplyAppsSettings.tsx'),/<PluginsSheet app=\{sheet\} items=\{plugins\}/);assert.equal(pluginsLine(items,'codex'),'2 plugins');assert.equal(pluginsLine(items,'claude-code'),'');
+ const html=renderToStaticMarkup(React.createElement(PluginsSheet,{app:'codex',items,onClose(){}}));assert.match(html,/Codex plugins/);assert.match(html,/Code review/);assert.match(html,/Session start \(0 rules\)/);assert.match(html,/Read only/);
 });
 test('A9: a plugin missing from this computer says so instead of On/Off',()=>{
  assert.equal(addonState(plugin('a',{installed:false,enabled:true})),'Not on this computer');assert.equal(addonState(plugin('a',{installed:true,enabled:true})),'On');assert.equal(addonState(plugin('a',{installed:null,enabled:false})),'Off');assert.equal(addonState(plugin('a',{installed:null,enabled:null})),'Unknown');assert.equal(addonState({kind:'hook',installed:false,enabled:null}),'Not run here');

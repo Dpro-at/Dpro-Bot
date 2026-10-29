@@ -1,7 +1,5 @@
 /* Apps › Store (STORE-UI-01, boards SA1–SA3). Colours come from the theme tokens; --tint is the item's category colour. */
 .apps-mine{flex:1;min-block-size:0;overflow:auto}
-.apps-mine-addons{padding:4px 20px 20px}
-.apps-mine-addons>h3{font-size:12px;font-weight:600;color:var(--text-3);margin:14px 0 8px}
 
 .app-shell .page-store{height:100%;min-height:0;padding:0;overflow:hidden}
 .store-workspace{height:100%;display:flex;flex-direction:column;min-height:0;color:var(--text)}
@@ -112,3 +110,15 @@
 
 @media(max-width:1000px){.st-hero{grid-template-columns:minmax(0,1fr)}.st-hero-art{display:none}.st-app-body{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){.st-scroll{padding:12px}.st-row .st-chip[data-tone]{display:none}.st-app-head{flex-wrap:wrap}}
+
+/* Settings › Models and replies › Claude Code / Codex plugins (board AP1): a read-only list in a sheet. */
+.plugins-search{margin-block-end:8px}
+.plugins-list{list-style:none;margin:0;padding:0;max-block-size:min(52vh,420px);overflow:auto;border-block:1px solid var(--border)}
+.plugins-list li{display:flex;align-items:center;gap:8px;padding:6px 2px;border-block-end:1px solid var(--border);font-size:12.5px}
+.plugins-list li:last-child{border-block-end:0}
+.plugins-list li>svg{flex:none;color:var(--text-3)}
+.plugins-list li>span{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plugins-list small{color:var(--muted);font-size:11.5px}
+.plugins-list small[data-state=missing]{color:var(--needs,#E0A040)}
+.preference-label small .link-button{display:inline;padding:0;margin:0;min-block-size:0;background:transparent;border:0;box-shadow:none;color:var(--accent);font:inherit;cursor:pointer}
+.preference-label small .link-button:hover{text-decoration:underline;background:transparent}
