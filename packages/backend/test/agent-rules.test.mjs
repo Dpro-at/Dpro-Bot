@@ -46,7 +46,7 @@ const { ruleSuggestTool } = await import(join(backendDir, 'src/tools/rules/rule-
 const app = await buildServer({ logger: false });
 await app.ready();
 const call = (user, method, url, payload) => app.inject({ method, url, headers: { authorization: `Bearer ${generateToken(user, 1)}` }, ...(payload ? { payload } : {}) });
-const texts = (list) => list.filter((r) => r.source !== 'basic' && !String(r.id).startsWith('basic:')).map((r) => r.text);
+const texts = (list) => list.filter((r) => r.source !== 'girru').map((r) => r.text);
 
 test('where and who decide who gets a rule; the order is everywhere, project, chosen agents; paused rules are left out', async () => {
   const add = async (body) => { const r = await call('r-owner', 'POST', '/api/agent-rules', body); assert.equal(r.statusCode, 201, r.body); return r.json().rule; };
@@ -62,7 +62,7 @@ test('where and who decide who gets a rule; the order is everywhere, project, ch
   assert.deepEqual(await eff('a-dev', null), ['Everywhere for all'], 'a project rule stays in its project');
   assert.deepEqual(await eff('a-lead', 'p-other'), ['Everywhere for all', 'Other project only']);
   const page = (await call('r-owner', 'GET', '/api/agent-rules')).json();
-  assert.equal(page.rules.length, 5);
+  assert.equal(page.rules.filter((r) => r.source !== 'girru').length, 5);
   assert.deepEqual(page.departments, ['development', 'research']);
   assert.equal(page.rules.find((r) => r.text === 'Dpro for development').targets[0], 'development', 'departments are kept lowercase');
 });
@@ -161,20 +161,27 @@ test('RULES-02: a rule with a case is read as "When X: rule"; the case is saved,
   assert.match(prompt, /rules for cases that cannot happen at the same time do not contradict/);
 });
 
-test('RULES-03: Girru basics come first for every agent; safety ones are locked; the others pause; my own version comes after', async () => {
+test('RULES-04: Girru\'s rules are normal rules, first in the everywhere list; safety ones are locked; the others edit, pause and put back', async () => {
   const page = (await call('r-owner', 'GET', '/api/agent-rules')).json();
-  assert.deepEqual(page.basics.map((b) => [b.id, b.locked]), [['basic:secrets', true], ['basic:ask-first', true], ['basic:language', false], ['basic:handoff', false], ['basic:checked', false]]);
-  const eff = await rules.effectiveRules('a-qa', null);
-  assert.deepEqual(eff.slice(0, 5).map((r) => r.id), rules.BASIC_RULES.map((b) => b.id), 'the basics come first');
-  assert.equal((await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:secrets', { paused: true })).statusCode, 400, 'a safety rule stays on');
-  assert.equal((await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:language', { paused: true })).json().basic.paused, true);
-  assert.ok(!(await rules.effectiveRules('a-qa', null)).some((r) => r.id === 'basic:language'), 'a paused basic is not sent');
-  const own = (await call('r-owner', 'POST', '/api/agent-rules/basics/basic:handoff/own')).json().rule;
-  assert.deepEqual([own.text, own.when, own.source], ['Write a handoff note: what is done, what is left, what comes next.', 'you stop in the middle of a task', 'owner']);
-  const after = await rules.effectiveRules('a-qa', null);
-  assert.ok(after.findIndex((r) => r.id === own.id) > after.findIndex((r) => r.id === 'basic:handoff'), 'my version comes later, so it wins');
-  await call('r-owner', 'PUT', '/api/agent-rules/basics/basic:language', { paused: false });
-  assert.equal((await call('r-user', 'PUT', '/api/agent-rules/basics/basic:language', { paused: true })).statusCode, 403);
+  assert.equal(page.basics, undefined, 'no separate list');
+  const shipped = page.rules.filter((r) => r.source === 'girru');
+  assert.deepEqual(shipped.map((r) => [r.text.slice(0, 20), r.locked, r.shipped]), rules.SHIPPED_RULES.map((s) => [s.text.slice(0, 20), s.locked, true]));
+  assert.deepEqual(page.rules.slice(0, 5).map((r) => r.source), Array(5).fill('girru'), 'first in the everywhere list');
+  const [secrets, , language, handoff] = shipped;
+  assert.equal((await call('r-owner', 'PUT', `/api/agent-rules/${secrets.id}`, { paused: true })).statusCode, 400, 'a safety rule stays on');
+  assert.equal((await call('r-owner', 'PUT', `/api/agent-rules/${secrets.id}`, { text: 'x' })).statusCode, 400, 'and is never edited');
+  assert.equal((await call('r-owner', 'POST', `/api/agent-rules/${language.id}/delete`)).json().code, 'invalid_rule', 'a shipped rule is paused, not deleted');
+  const edited = (await call('r-owner', 'PUT', `/api/agent-rules/${handoff.id}`, { text: 'Always write a handoff.', when: null })).json().rule;
+  assert.deepEqual([edited.text, edited.when, edited.version], ['Always write a handoff.', null, 2]);
+  const back = (await call('r-owner', 'POST', `/api/agent-rules/${handoff.id}/put-back`)).json().rule;
+  assert.deepEqual([back.text, back.when], ['Write a handoff note: what is done, what is left, what comes next.', 'you stop in the middle of a task']);
+  await call('r-owner', 'PUT', `/api/agent-rules/${language.id}`, { paused: true });
+  assert.ok(!(await rules.effectiveRules('a-qa', null)).some((r) => r.id === language.id), 'a paused shipped rule is not sent');
+  await call('r-owner', 'PUT', `/api/agent-rules/${language.id}`, { paused: false });
+  assert.equal((await call('r-owner', 'POST', `/api/agent-rules/${page.rules.find((r) => r.source !== 'girru').id}/put-back`)).statusCode, 404, 'only a shipped rule has an original');
+  assert.equal((await call('r-user', 'POST', `/api/agent-rules/${handoff.id}/put-back`)).statusCode, 403);
+  await rules.ensureShipped();
+  assert.equal((await call('r-owner', 'GET', '/api/agent-rules')).json().rules.filter((r) => r.source === 'girru').length, 5, 'seeded once');
 });
 
 test('RULES-03: coding app files — one source, a pointer line for Claude Code and Gemini, the rules in AGENTS.md; my notes kept; private stays out of Git', async () => {
