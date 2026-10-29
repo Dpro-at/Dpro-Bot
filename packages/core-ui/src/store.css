@@ -1,12 +1,33 @@
 /* Apps › Store (STORE-UI-01, boards SA1–SA3). Colours come from the theme tokens; --tint is the item's category colour. */
-.apps-places .section-label{margin:12px 8px 4px;font-size:11px;font-weight:600;color:var(--text-3)}
-.apps-places .dk-badge-pill{margin-inline-start:auto;min-inline-size:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:11px;text-align:center;line-height:18px}
 .apps-mine{flex:1;min-block-size:0;overflow:auto}
 .apps-mine-addons{padding:4px 20px 20px}
 .apps-mine-addons>h3{font-size:12px;font-weight:600;color:var(--text-3);margin:14px 0 8px}
 
+.app-shell .page-store{height:100%;min-height:0;padding:0;overflow:hidden}
+.store-workspace{height:100%;display:flex;flex-direction:column;min-height:0;color:var(--text)}
+.store-workspace[data-inline-sidebar]{display:grid;grid-template-columns:220px minmax(0,1fr)}
+.store-workspace[data-inline-sidebar]>.store-places{padding:10px 8px;border-inline-end:1px solid var(--border)}
 .st-store{position:relative}
-.st-store .apps-toolbar .dk-icon:last-child{margin-inline-start:auto}
+.st-tools{display:flex;align-items:center;gap:2px;margin-inline-start:auto}
+.st-tools .dk-icon{position:relative}
+.st-tools .dk-badge{position:absolute;inset-block-start:-3px;inset-inline-end:-4px;min-inline-size:15px;padding:0 4px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:10px;line-height:15px;text-align:center}
+/* The fixed category row (SA1 v2): All + categories, on every page of the store but search. */
+.st-cat-row{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;border-block-end:1px solid var(--border);flex:none}
+.st-cat-row button{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-2);font:inherit;font-size:12px;min-block-size:26px}
+.st-cat-row button:hover{background:var(--row-hover);color:var(--text)}
+.st-cat-row button svg{color:color-mix(in srgb,var(--tint) 75%,var(--text))}
+.st-cat-row button[aria-pressed=true]{color:var(--text);border-color:color-mix(in srgb,var(--tint) 55%,var(--border));background:color-mix(in srgb,var(--tint) 14%,var(--surface))}
+.st-chips{display:flex;flex-wrap:wrap;gap:5px}
+.st-list-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-block-end:1px solid var(--border)}
+.st-list-head strong{font-size:13px}
+.st-seg{display:inline-flex;padding:2px;border-radius:7px;background:var(--secondary)}
+.st-seg button{border:0;background:transparent;color:var(--text-2);font:inherit;font-size:11.5px;padding:2px 10px;border-radius:5px;min-block-size:22px}
+.st-seg button[aria-checked=true]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px #0002}
+.st-updates{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.st-updates li{display:flex;align-items:center;gap:10px}
+.st-updates li>span{flex:1;display:flex;flex-direction:column;min-inline-size:0}
+.st-updates small{color:var(--muted);font-size:11.5px}
+.st-store .dk-sheet .st-calm{margin:4px auto;border:0}
 .st-store .apps-toolbar h2{margin-inline-end:0;flex:1}
 .st-scroll{flex:1;min-block-size:0;overflow:auto;padding:18px 20px 28px;display:flex;flex-direction:column;gap:22px}
 .st-empty{color:var(--muted);font-size:12.5px;padding:24px 4px;margin:0}
@@ -42,7 +63,7 @@
 .st-card-text{display:flex;flex-direction:column;gap:3px;min-inline-size:0}
 .st-card strong{font-size:13px;font-weight:600}
 .st-card small{font-size:11.5px;line-height:1.4;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.st-card .st-chip{margin-block-start:3px}
+.st-card .st-chips{margin-block-start:3px}
 .st-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(160px,calc((100% - 30px)/4)),1fr));gap:10px}
 .st-cat{display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:12px 14px;border-radius:10px;border:0;color:color-mix(in srgb,var(--tint) 70%,var(--text));background:color-mix(in srgb,var(--tint) 14%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tint) 24%,transparent);font:inherit;font-weight:600;font-size:12.5px;text-align:start}
 .st-cat:hover{background:color-mix(in srgb,var(--tint) 20%,var(--surface))}
@@ -68,7 +89,7 @@
 .st-app-head>div:not(.st-app-actions){flex:1;min-inline-size:0}
 .st-app-head h3{margin:0;font-size:22px;font-weight:700;color:var(--text)}
 .st-maker{display:flex;align-items:center;gap:5px;margin:4px 0 0;font-size:12.5px;color:var(--accent)}
-.st-meta{display:flex;align-items:center;gap:10px;margin:6px 0 0;font-size:12px;color:var(--muted)}
+.st-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:6px 0 0;font-size:12px;color:var(--muted)}
 .st-meta .link-button{font-size:12px}
 .st-app-actions{display:flex;align-items:center;gap:8px;flex:none}
 .st-app-actions .primary{min-inline-size:72px}

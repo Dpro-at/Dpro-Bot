@@ -1,10 +1,10 @@
 require('./load.cjs');const {test}=require('node:test');const assert=require('node:assert/strict');const React=require('../node_modules/react');const {renderToStaticMarkup}=require('../node_modules/react-dom/server');
 const {allowedRequest,SessionClient}=require('../src/session.ts');const {allowed}=require('../scripts/application-server.cjs');
-const {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH,storeResponse}=require('../src/apps-contract.js');const {Store,placeItems,matchStore,sourceChip,itemName}=require('../src/StoreView.tsx');
+const {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH,storeResponse}=require('../src/apps-contract.js');const {StoreWorkspace,viewItems,sortStore,matchStore,sourceChip,itemName,STORE_KINDS}=require('../src/StoreView.tsx');
 const hash='a'.repeat(64);
 const item=(id,more={})=>({id,kind:'app',source:id.startsWith('claude-code:')?'claude-code':'girru',name:id.split(':')[1],summary:'One line.',description:'',icon:null,maker:'Maker',verified:false,version:null,updated:null,category:'developer',permissions:[],worksWith:[],languages:[],state:id.startsWith('girru:')?'included':id.startsWith('registry:')?'available':'elsewhere',present:false,update:null,hash,...more});
 const raw={schema:1,featured:'girru:genvr',collections:[{id:'made-by-girru',title:'Made by Girru',items:['girru:genvr','gone']}],categories:[{id:'developer',title:'Developer tools',icon:'code'}],limited:[],
- items:[item('girru:genvr',{name:'GenVR',icon:'globe',category:'worlds',description:'3D worlds.'}),item('registry:weather',{name:'Weather',description:'Reads a code review list.',permissions:['Read the weather'],download_url:'https://example.invalid/x.zip',rating_avg:5}),item('claude-code:code-review@acme',{name:'code-review'})]};
+ items:[item('girru:genvr',{name:'GenVR',icon:'globe',category:'worlds',description:'3D worlds.'}),item('registry:weather',{name:'Weather',updated:'2026-10-29',description:'Reads a code review list.',permissions:['Read the weather'],download_url:'https://example.invalid/x.zip',rating_avg:5}),item('claude-code:code-review@acme',{name:'code-review',kind:'skill'})]};
 
 test('the store routes are exact and shaped in both request gates',()=>{
  for(const gate of [allowedRequest,allowed]){
@@ -26,20 +26,26 @@ test('the reply keeps only contract fields, survives a second projection and ref
 });
 test('members cannot reach the store',async()=>{let forwarded=0;const user={id:'store-member',email:'member@example.test',username:'Member',role:'user'};const c=new SessionClient({mock:async r=>{if(r.path==='/api/auth/login')return {status:200,body:{token:'fixture',user}};if(r.path==='/api/auth/me')return {status:200,body:{user}};forwarded++;return {status:200,body:{}};}});c.selectMode('mock');await c.login('member@example.test','fixture');
  await assert.rejects(c.request({method:'GET',path:STORE_PATH}));await assert.rejects(c.request({method:'POST',path:STORE_INSTALL_PATH,body:{id:'registry:weather',hash}}));assert.equal(forwarded,0);});
-test('places, search order and words',()=>{
- const data=storeResponse(STORE_PATH,200,raw);
- assert.deepEqual(placeItems(data,{kind:'category',id:'developer'}).map(x=>x.id),['registry:weather','claude-code:code-review@acme']);
- assert.deepEqual(placeItems(data,{kind:'from',source:'claude-code'}).map(x=>x.id),['claude-code:code-review@acme']);
- assert.deepEqual(matchStore(data.items,'review').map(x=>x.id),['claude-code:code-review@acme','registry:weather'],'names first');
+test('kinds, the category row, New · A–Z, search order and words',()=>{
+ const data=storeResponse(STORE_PATH,200,raw),v=(x)=>({kind:'all',category:'all',shelf:null,...x});
+ assert.deepEqual(STORE_KINDS.map(k=>k[1]),['All','Apps','MCP servers','Skills','Specialties']);
+ assert.deepEqual(viewItems(data,v({category:'developer'}),'az').map(x=>x.id),['claude-code:code-review@acme','registry:weather']);
+ assert.deepEqual(viewItems(data,v({category:'developer'}),'new').map(x=>x.id),['registry:weather','claude-code:code-review@acme'],'newest first');
+ assert.deepEqual(viewItems(data,v({kind:'skill'}),'new').map(x=>x.id),['claude-code:code-review@acme']);
+ assert.deepEqual(viewItems(data,v({kind:'mcp'}),'new'),[]);
+ assert.deepEqual(viewItems(data,v({shelf:'girru'}),'new').map(x=>x.id),['girru:genvr']);
+ assert.deepEqual(sortStore(data.items,'new').map(x=>x.id),['registry:weather','girru:genvr','claude-code:code-review@acme']);
+ assert.deepEqual(matchStore(data.items,'review').map(x=>x.id),['claude-code:code-review@acme','registry:weather'],'names first, every kind');
  assert.deepEqual(matchStore(data.items,'  '),[]);
  assert.deepEqual(data.items.map(sourceChip),['Made by Girru','Girru’s registry','Claude Code add-on']);assert.equal(itemName(data.items[2]),'Code review');
 });
-test('home shows one featured app, shelves and categories, and no ratings, counts or prices',()=>{
- const data=storeResponse(STORE_PATH,200,raw),props={client:{request:async()=>{throw Error('no request while rendering');}},data,error:false,onReload(){},query:'',onPlace(){},onOpenApp(){}};
- const home=renderToStaticMarkup(React.createElement(Store,{...props,place:{kind:'home'}}));
- assert.match(home,/aria-label="Featured app"/);assert.match(home,/>GenVR</);assert.match(home,/>Made by Girru</);assert.match(home,/>Developer tools</);assert.match(home,/>Installed</);
- assert.equal((home.match(/class="primary"/g)||[]).length,1,'one main action');assert.doesNotMatch(home,/★|ratings|installs|\$|€/);
- const list=renderToStaticMarkup(React.createElement(Store,{...props,place:{kind:'category',id:'developer'}}));assert.match(list,/>Get</);assert.match(list,/class="st-rank">1</);
- assert.match(renderToStaticMarkup(React.createElement(Store,{...props,place:{kind:'updates'}})),/Everything is up to date/);
- assert.match(renderToStaticMarkup(React.createElement(Store,{...props,data:null,error:true,place:{kind:'home'}})),/The store could not be read/);
+test('the store page: kinds in the sidebar, one featured app, two shelves, no ratings, counts or prices',()=>{
+ const data=storeResponse(STORE_PATH,200,raw);let reads=0;
+ const client={getSnapshot:()=>({user:{id:'o',username:'Owner',email:'o@example.test',role:'owner'}}),request:async()=>{reads++;return {status:200,body:data};}};
+ const html=renderToStaticMarkup(React.createElement(StoreWorkspace,{client,active:false,onOpenApp(){}}));
+ const nav=html.split('</nav>')[0];for(const k of ['All','Apps','MCP servers','Skills','Specialties'])assert.match(nav,new RegExp('>'+k+'<'));for(const gone of ['Home','Categories','From','Mine','Updates'])assert.doesNotMatch(nav,new RegExp('>'+gone+'<'),gone);
+ assert.match(html,/Reading the store/);assert.match(html,/aria-label="Updates"/);assert.equal(reads,0,'nothing is read while rendering');
+ const member=renderToStaticMarkup(React.createElement(StoreWorkspace,{client:{...client,getSnapshot:()=>({user:{id:'m',role:'user'}})},active:false,onOpenApp(){}}));assert.match(member,/The owner of this workspace adds apps/);
+ const src=require('node:fs').readFileSync(require('node:path').join(__dirname,'../src/StoreView.tsx'),'utf8');
+ assert.match(src,/title:'Made by Girru'/);assert.match(src,/title:'New in the store'/);assert.match(src,/s==='new'\?'New':'A–Z'/);assert.doesNotMatch(src,/★|rating_avg|install_count|installCount/);
 });

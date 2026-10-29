@@ -6,7 +6,8 @@ test('Personalities stays mounted so an unsaved draft survives a section switch'
 });
 test('⌘K reaches every Apps, Library and Settings place; the approvals count stays on the footer badge',()=>{
  for(const s of ['Apps › ${label}','Apps › Trading','Settings › ${label}','Settings › MCP connections','Library › Personalities','Library › Specialties','Library › Skills'])assert.ok(shell.includes(s),s);
- for(const p of ['mine','addons','catalogue','channels','accounts','departments','replies','keys','schedules','move','about'])assert.match(shell,new RegExp(`\\['${p}',`));
+ assert.match(shell,/id:'go-store',group:'Store'/);assert.match(shell,/id:'store-updates'/);
+ for(const p of ['mine','addons','channels','accounts','departments','replies','keys','schedules','move','about'])assert.match(shell,new RegExp(`\\['${p}',`));
  // Channels and Accounts are Settings places now, never Apps places.
  assert.doesNotMatch(shell,/openApps\('(channels|accounts)'\)/);assert.match(shell,/onSettings=\{tab=>openSettings\(tab\)\}/);
  assert.doesNotMatch(shell,/approvalLabel/);
