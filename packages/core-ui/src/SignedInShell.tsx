@@ -6,6 +6,7 @@ import type {AppsPlace} from './AppsWorkspace';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
 import {LibrarySection} from './LibrarySection';
 import {usePendingApprovalCount} from './ApprovalPage';
+import {useBackupAlert} from './SettingsBackups';
 import {ApprovalsWorkspace} from './HumanReviewsPage';
 import type {ApprovalsPlaceRequest} from './HumanReviewsPage';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
@@ -95,6 +96,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
     chat ? chat.getSnapshot : nullSnapshot);
   const user = state.user!;
   const pendingApprovals=usePendingApprovalCount(client,user.role==='owner');
+  const backupFailed=useBackupAlert(client,user.role==='owner');
   // An approval decided on the Approvals page: the open chat picks up the reply the server continues it with (stable for ApprovalPage's effect).
   const reloadApprovals=pendingApprovals.reload;
   const decided=useCallback(()=>{reloadApprovals();void chat?.pickUpContinuation();},[reloadApprovals,chat]);
@@ -222,7 +224,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
       <section className="page page-genvr" hidden={page !== 'genvr'}><GenVRPage key={user.id} client={client} active={page === 'genvr'}/></section>
       {page === 'settings' && <section className="page page-settings"><AppSettings key={settingsVisit} mcpOpenId={mcpOpen} initialTab={settingsTab} initialMemoryPane={memoryPane} sidebarSlot={slot} active signedIn client={client} preference={appearance.preference} onTheme={appearance.setPreference} onAccount={() => openSettings('account')} onAgents={() => setPage('agents')} onOpenMemory={() => setPage('memory')} onOpenChat={() => setPage('chat')} onOpenApps={() => setPage('apps')} onOpenTool={tool => setPage(tool)} onOpenGenvr={() => setPage('genvr')} onApprovals={() => setPage('approvals')} onBoard={() => setPage('board')} onAgent={id => { setAgentFocus(f => ({ id, n: (f?.n ?? 0) + 1 })); setPage('agents'); }}/></section>}
     </main>
-    <ShellFooter controller={footer} settingsCurrent={page==='settings'} onSettings={()=>setPage('settings')} onCustomize={()=>openSettings('general')}
+    <ShellFooter controller={footer} settingsCurrent={page==='settings'} settingsAlert={backupFailed?'the last backup failed':undefined} onSettings={()=>backupFailed?openSettings('backups'):setPage('settings')} onCustomize={()=>openSettings('general')}
       status={mode === 'mock' ? <span className="status-item"><span className={`status-dot ${mode}`} aria-hidden="true"/>Offline practice — fictional data</span>
         : <span className="status-item status-dot-only" title="Connected · this installation" aria-label="Connected · this installation" role="img"><span className={`status-dot ${mode}`} aria-hidden="true"/></span>}
       extra={isDeveloperBuild(client) && <button className="status-item statusbar-button" onClick={() => client.selectMode('fixture')} title="Clears this local session; the server sign-in stays until you sign out">Leave to fixture</button>}

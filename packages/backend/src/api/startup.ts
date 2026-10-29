@@ -33,6 +33,7 @@ export const BACKGROUND_JOBS: ReadonlyArray<{ id: string; off: string }> = [
   { id: 'evolution-scheduler', off: 'initializeEvolutionScheduler not called (and the cron engine guard)' },
   { id: 'agent-cron', off: 'startAgentCronService not called; registerAgentCron creates no task' },
   { id: 'task-run-recovery', off: 'startTaskRunRecovery not called (no timer, no recovery kick)' },
+  { id: 'daily-backup', off: 'startDailyBackups not called (Back up now and before-update backups still work)' },
   { id: 'handoff-sweep', off: 'startHandoffSweep not called (no generated handoff notes for idle chats / ended task runs)' },
   { id: 'memory-bridge-sync', off: 'startMemoryBridgeSync not called (managed project files and back-flow only on owner request)' },
   { id: 'memory-files-sync', off: 'startMemoryFilesSync not called (exported memory files follow the database only on owner request)' },
@@ -224,6 +225,10 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
     // leases), and continue runs whose approval was decided.
     const { startTaskRunRecovery } = await import('../services/task-run-executor.js');
     startTaskRunRecovery();
+
+    // BACKUP-01: the daily backup at 03:00 (or on waking after it).
+    const { startDailyBackups } = await import('../services/backups.js');
+    startDailyBackups();
 
     // CORE-MEM-HANDOFF: one generated handoff note per idle conversation /
     // ended task run that has none (local model, fallback when none answers).

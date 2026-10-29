@@ -75,6 +75,7 @@ import { reviewerPolicyRoutes } from './routes/reviewer-policies.js';
 import { reviewerRequestRoutes } from './routes/reviewer-requests.js';
 import { reviewerVoteRoutes } from './routes/reviewer-votes.js';
 import { databaseRoutes } from './routes/database.js';
+import { backupRoutes } from './routes/backups.js';
 import { workflowRoutes } from './routes/workflows.js';
 import { sandboxRoutes } from './routes/sandbox.js';
 import { auditRoutes } from './routes/audit.js';
@@ -343,6 +344,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   await fastify.register(reviewerRequestRoutes);
   await fastify.register(reviewerVoteRoutes);
   await fastify.register(databaseRoutes); // 🗄️ Database Management (Stats, Backups, Vacuum)
+  await fastify.register(backupRoutes); // Automatic backups (BACKUP-01, Settings › Backups)
   await fastify.register(workflowRoutes); // ⚡ Workflow Builder
   await fastify.register(sessionsRoutes);
   await fastify.register(modelsRoutes);

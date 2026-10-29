@@ -179,7 +179,8 @@ test('server shutdown path calls the bounded flush after fastify.close()', () =>
   const src = readFileSync(join(backendDir, 'src', 'api', 'server.ts'), 'utf8');
   const close = src.indexOf('await fastify.close();');
   const flush = src.indexOf('await flushAuditWritesWithin(SHUTDOWN_AUDIT_FLUSH_MS)');
-  const exit = src.indexOf('process.exit(0);', close);
+  // BACKUP-01: the exit code is 0, or the restart code a restore asks for.
+  const exit = src.indexOf('process.exit(code);', close);
   assert.ok(close > 0 && flush > close && exit > flush, 'close -> bounded flush -> exit');
 });
 

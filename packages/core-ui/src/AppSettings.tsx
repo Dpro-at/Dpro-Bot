@@ -15,6 +15,7 @@ import {AgentConnectSettings} from './AgentConnectSettings';
 import {UpdateSettings} from './UpdateSettings';
 import {DepartmentsSettings} from './DepartmentsSettings';
 import {SpecialtyUpdates} from './SpecialtyUpdates';
+import {SettingsBackups} from './SettingsBackups';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { SessionClient } from './session';
@@ -27,7 +28,7 @@ import { McpSection } from './ToolSections';
 import type { UiIconName } from './ui-icons';
 /** Places that are sections of their own; their Settings rows open them. MCP connections stays in Settings with its places nested, like Memory. */
 type Tool='mcp'|'library';
-type Place='general'|'account'|'replies'|'move'|'permissions'|'verification'|'approval-rules'|'keys'|'accounts'|'channels'|'memory'|'schedules'|'departments'|'apps'|Tool|'about';
+type Place='general'|'account'|'replies'|'move'|'permissions'|'verification'|'approval-rules'|'keys'|'accounts'|'channels'|'memory'|'schedules'|'departments'|'apps'|Tool|'backups'|'about';
 /** Old names ('models', 'sharing', 'connections') still open their places. */
 export type SettingsTab=Place|'models'|'sharing'|'connections';
 type Row={value:Place;label:string;icon:UiIconName;words:string;note?:string;jump?:boolean};
@@ -49,6 +50,7 @@ const ROWS:Record<Place,Row>={
  departments:{value:'departments',label:'Departments',icon:'building',words:'departments teams groups rename move agents new department',note:'The departments of your agents.'},
  apps:{value:'apps',label:'Apps',icon:'layers',words:'applications my apps store add-ons catalogue',jump:true},
  library:{value:'library',label:'Library',icon:'book',words:'personalities specialties skills library',jump:true},
+ backups:{value:'backups',label:'Backups',icon:'shield',words:'backup back up restore daily copy save data folder keep undo',note:'Your data, saved every day by itself.'},
  about:{value:'about',label:'About and updates',icon:'info',words:'version updates check connection installation log folder',note:'Version and installation details.'},
 };
 /**
@@ -78,7 +80,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
     {name:'Security',keys:[...ownerOnly(['permissions']),...(user?.role!=='guest'?['verification' as const]:[]),...ownerOnly(['approval-rules']),'keys']},
     {name:'Connections',keys:ownerOnly(['accounts','channels',...(client?['mcp' as const]:[]),'memory'])},
     {name:'Workspace',keys:[...ownerOnly(['departments','schedules']),...(onOpenApps?['apps' as const]:[]),...(onOpenTool?ownerOnly(['library']):[])]},
-    {name:'',keys:['about']},
+    {name:'',keys:[...ownerOnly(['backups']),'about']},
   ]:[{name:'Application',keys:['general','account','replies']},{name:'',keys:['about']}];
   const allowed=groups.flatMap(g=>g.keys);
   const active_:Place=aboutOnly?'about':allowed.includes(tab)?tab:'general';
@@ -93,7 +95,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
     {!signedIn&&<div className="settings-signin-note"><p>Sign in to see your account, keys and workspace settings.</p><button type="button" onClick={onAccount}>Sign in</button></div>}
   </nav>;
   const label=aboutOnly?'About Girru':active_==='memory'?`Memory · ${MEMORY_PANES.find(p=>p.key===pane)?.label??'Settings'}`:ROWS[active_].label;
-  const ownTitle=active_==='schedules'||active_==='memory'||active_==='mcp';
+  const ownTitle=active_==='schedules'||active_==='memory'||active_==='mcp'||active_==='backups';
   const signIn=(title:string,description:string)=><PreferenceGroup title={title}><PreferenceRow title="Sign in required" description={description} icon="contact"><button type="button" onClick={onAccount}>Sign in</button></PreferenceRow></PreferenceGroup>;
   const page=<div id="settings-view-panel" aria-label={label} className="settings-content settings-st" data-pane={active_}><div className="preferences-page">
       {!ownTitle&&<header className="settings-page-head"><h2 className="settings-page-title">{label}</h2>{ROWS[active_].note&&<p className="settings-page-desc">{ROWS[active_].note}</p>}</header>}
@@ -124,6 +126,7 @@ export function AppSettings({ signedIn, preference, onTheme, onAccount, onAgents
       {active_==='memory'&&owner&&<MemorySettings client={client!} pane={pane} onOpenMemory={onOpenMemory}/>}
       {active_==='mcp'&&owner&&<McpSection client={client!} active={active} nav={mcpNav} openId={mcpOpenId} onOpenAgents={onAgents}/>}
       {active_==='schedules'&&owner&&<ScheduledTasks client={client!} active={active} onOpenConnections={()=>setTab('channels')}/>}
+      {active_==='backups'&&owner&&<SettingsBackups client={client!} active={active}/>}
       {active_==='about'&&<>
         <div className="settings-about-head"><span className="settings-about-mark" aria-hidden="true">G</span><div><strong>Girru</strong><small>Version {info?.version??'development preview'} · {info?(info.connection==='local'?'runs on this computer':'connected installation'):'local browser preview'}</small></div></div>
         {live&&owner?<UpdateSettings client={client!}/>:<PreferenceGroup title="Updates"><PreferenceRow title="Manual updates" description="Automatic updates are not available in this build. Install a new version by hand." icon="refresh"><span className="preference-status">Not available</span></PreferenceRow></PreferenceGroup>}

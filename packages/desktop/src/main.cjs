@@ -132,6 +132,8 @@ async function startLocal() {
     createBridge: ({ upstreamPort, launchToken }) => createApplicationServer({ packageRoot: payload.coreUiDir, channel: 'candidate', upstreamPort, launchToken }),
     onLog: line => log.write(line),
     onBackendExit: ({ code, signal }) => {
+      // BACKUP-01: the program stops with 75 to put a backup in place; start it again.
+      if (code === 75 && !quitting) { log.write('backend restarting (restore)'); runtime = null; void startLocal(); return; }
       log.write(`backend stopped unexpectedly (${signal || code})`);
       if (!quitting && mainWindow) showPage('failed.html', { reason: 'The Girru engine stopped unexpectedly.' });
       runtime = null;

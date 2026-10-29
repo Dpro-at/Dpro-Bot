@@ -14,7 +14,7 @@ export type FooterEntry={available:boolean;current:boolean;run:()=>void;badge?:s
  * it shows (right-click or ⋯), drags them into order and can undo; hidden
  * sections stay in ⌘K. The Settings gear and the section you are in always show.
  */
-export function ShellFooter({controller,entries,status,extra,settingsCurrent,onSettings,onCustomize}:{controller:FooterController;entries:Record<FooterSection,FooterEntry>;status:ReactNode;extra?:ReactNode;settingsCurrent:boolean;onSettings:()=>void;onCustomize:()=>void}){
+export function ShellFooter({controller,entries,status,extra,settingsCurrent,settingsAlert,onSettings,onCustomize}:{controller:FooterController;entries:Record<FooterSection,FooterEntry>;status:ReactNode;extra?:ReactNode;settingsCurrent:boolean;settingsAlert?:string;onSettings:()=>void;onCustomize:()=>void}){
  const {prefs,undo,notice}=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
  const {menu,at,close}=useMenu(),[dragging,setDragging]=useState<FooterSection|null>(null);
  useEffect(()=>{void controller.load();const back=()=>void controller.load();window.addEventListener('focus',back);return()=>window.removeEventListener('focus',back);},[controller]);
@@ -54,7 +54,7 @@ export function ShellFooter({controller,entries,status,extra,settingsCurrent,onS
    {notice&&<span className="status-item footer-notice" role="status">{notice}{undo&&<button type="button" className="link-button" onClick={()=>controller.undo()}>Undo</button>}</span>}
    {extra}
    <button type="button" className="status-item footer-more" aria-label="Choose what the footer shows" title="Choose what the footer shows (right-click works too)" onClick={e=>at(e,items())}><UiIcon name="more" size={14}/></button>
-   <button type="button" className="status-item" aria-current={settingsCurrent?'page':undefined} title="Settings (⌘,)" aria-label="Settings" onClick={onSettings}><UiIcon name="gear" size={14}/>{!iconsOnly&&<span>Settings</span>}</button>
+   <button type="button" className="status-item" aria-current={settingsCurrent?'page':undefined} title={settingsAlert?`Settings (⌘,) · ${settingsAlert}`:'Settings (⌘,)'} aria-label={settingsAlert?`Settings, ${settingsAlert}`:'Settings'} onClick={onSettings}><UiIcon name="gear" size={14}/>{!iconsOnly&&<span>Settings</span>}{settingsAlert&&<span className="footer-alert-dot" aria-hidden="true"/>}</button>
   </span>
   <ContextMenu menu={menu} onClose={close}/>
  </footer>;

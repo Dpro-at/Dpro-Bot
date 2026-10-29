@@ -52,3 +52,10 @@ Use these MCP tools through the owner's authenticated local session.
 
 - The footer shows the sections the owner chose. Hidden sections stay in the command box (⌘K), and each section keeps its ⌘ number. Settings always stays.
 - Change it only when the owner asks.
+
+## Backups (tool `workspace_backups`, Settings › Backups)
+
+- Girru backs up the whole data folder by itself every day at 03:00 (or on waking after it) and before every update. Backups go to a folder outside the data folder that only the owner can open, and each is checked after it is made. It keeps 14 days and 4 Sundays; before-update backups 30 days.
+- `status` reads the folder, the next run, the last backup and whether it passed its check, and a failure if the last try failed. Tell the owner about a failure.
+- `back_up_now` makes one now, only when the owner asks; use kind `before_update` right before you update Girru.
+- Restoring replaces the owner's data, so only the owner does it, in Settings › Backups (Girru backs up first, so a restore can be undone). Deleting a backup and changing the folder are done there too.
