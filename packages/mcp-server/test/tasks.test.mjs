@@ -13,6 +13,8 @@ function fake(){const calls=[];return {calls,backend:{async request(method,path,
  if(method==='PUT'&&path==='/api/boards/b1/cards/c1/people')return {people:[{kind:'agent',id:'a-dev',role:body.role}]};
  if(method==='POST'&&path==='/api/boards/b1/cards/c1/checklist')return {items:[{id:'i1',text:body.text}]};
  if(method==='PUT'&&path==='/api/boards/b1/cards/c1/checklist/i1')return {items:[{id:'i1',...body}]};
+ if(method==='GET'&&path==='/api/boards/b1/cards/c1/schedule')return {schedule:null};
+ if(method==='PUT'&&path==='/api/boards/b1/cards/c1/schedule')return {schedule:body.every==='never'?null:{...body}};
  throw Error('unexpected '+method+' '+path);}}};}
 
 test('workspace_tasks: list and get read; continue starts a chat; everything else is refused', async () => {
@@ -36,12 +38,18 @@ test('workspace_tasks: list and get read; continue starts a chat; everything els
  await callTool('workspace_tasks',{operation:'checklist',boardId:'b1',cardId:'c1',text:'Check Windows'},{backend});
  const gi=await callTool('workspace_tasks',{operation:'checklist',boardId:'b1',cardId:'c1',itemId:'i1',ownerKind:'agent',ownerId:'a-qa'},{backend});
  assert.deepEqual(gi.structuredContent.items[0].owner,{kind:'agent',id:'a-qa'});
+ assert.equal((await callTool('workspace_tasks',{operation:'schedule',boardId:'b1',cardId:'c1'},{backend})).structuredContent.schedule,null);
+ const sc=await callTool('workspace_tasks',{operation:'schedule',boardId:'b1',cardId:'c1',every:'daily',at:'09:00',agentId:'a-dev'},{backend});
+ assert.deepEqual(sc.structuredContent.schedule,{every:'daily',at:'09:00',agentId:'a-dev'});
+ assert.deepEqual(calls.at(-1).body,{every:'daily',at:'09:00',agentId:'a-dev'});
+ await callTool('workspace_tasks',{operation:'schedule',boardId:'b1',cardId:'c1',every:'never'},{backend});
+ assert.deepEqual(calls.at(-1).body,{every:'never'});
  const before=calls.length;
- for(const a of [{operation:'on',projectId:'p1'},{operation:'off'},{operation:'move',cardId:'c1'},{operation:'list',projectId:'../x'},{operation:'continue',boardId:'b1',cardId:'c1',extra:1},{operation:'get',boardId:'b1'},{operation:'sort',boardId:'b0',cardId:'c3'},{operation:'people',boardId:'b1',cardId:'c1',kind:'agent',id:'a-dev'},{operation:'checklist',boardId:'b1',cardId:'c1',itemId:'i1'},{operation:'checklist',boardId:'b1',cardId:'c1',text:'x',done:true},{operation:'archive',boardId:'b1',cardId:'c1'}]){
+ for(const a of [{operation:'on',projectId:'p1'},{operation:'off'},{operation:'move',cardId:'c1'},{operation:'list',projectId:'../x'},{operation:'continue',boardId:'b1',cardId:'c1',extra:1},{operation:'get',boardId:'b1'},{operation:'sort',boardId:'b0',cardId:'c3'},{operation:'people',boardId:'b1',cardId:'c1',kind:'agent',id:'a-dev'},{operation:'checklist',boardId:'b1',cardId:'c1',itemId:'i1'},{operation:'checklist',boardId:'b1',cardId:'c1',text:'x',done:true},{operation:'archive',boardId:'b1',cardId:'c1'},{operation:'schedule',boardId:'b1',cardId:'c1',at:'09:00'},{operation:'schedule',boardId:'b1',cardId:'c1',every:'daily',at:'9am'}]){
   assert.equal((await callTool('workspace_tasks',a,{backend})).isError,true,JSON.stringify(a));
  }
  assert.equal(calls.length,before,'no refused call reaches the backend');
  const def=TOOL_DEFINITIONS.find(t=>t.name==='workspace_tasks');
- assert.deepEqual(def.inputSchema.properties.operation.enum,['list','get','activity','continue','sort','people','checklist']);
+ assert.deepEqual(def.inputSchema.properties.operation.enum,['list','get','activity','continue','sort','people','checklist','schedule']);
  assert.match(def.description,/on the owner’s explicit instruction/);
 });
