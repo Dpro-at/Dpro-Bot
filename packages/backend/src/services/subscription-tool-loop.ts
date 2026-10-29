@@ -17,7 +17,8 @@ export async function subscriptionToolLoop(options:{
   if(!options.tools.length)return text;
   let row:any;try{row=JSON.parse(text);}catch{return text;}
   if(row?.type==='answer'&&typeof row.text==='string')return row.text;
-  if(row?.type!=='tool')return text;
+  // A model sometimes writes the tool's own name as the type ({"type":"plan_steps","name":"plan_steps",…}): still a call, but only for an offered tool.
+  if(row?.type!=='tool'&&!(typeof row?.type==='string'&&row.type===row?.name&&offered.has(row.name)))return text;
   if(!offered.has(row.name)||!row.arguments||typeof row.arguments!=='object'||Array.isArray(row.arguments))throw Error('cli_tool_invalid');
   // Re-check membership at execution in the actual ToolsRegistry; no new grants are written.
   const result=await options.execute(row.name,row.arguments);options.onTool?.(row.name,result);
