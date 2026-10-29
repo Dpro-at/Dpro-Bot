@@ -21,6 +21,9 @@ const when = (iso: string) => { const d = new Date(iso); if (Number.isNaN(d.getT
 const tokens = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
 const colorLabel: Record<BoardColor, string> = { blue: 'Blue', green: 'Green', orange: 'Orange', red: 'Red', purple: 'Purple', pink: 'Pink', teal: 'Teal', gray: 'Gray' };
 type Filter = 'all' | 'comments' | 'replies' | 'changes';
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** "2 people and 1 agent", leaving out a zero. */
+const onIt = (people: TaskPageData['people']) => { const u = people.filter(p => p.kind === 'user').length, a = people.length - u; return [u && count(u, 'person', 'people'), a && count(a, 'agent', 'agents')].filter(Boolean).join(' and '); };
 const APPS: ReadonlyArray<{ model: string; name: string }> = [
   { model: '', name: 'Its own model' }, { model: 'subscription:claude', name: 'Claude Code' }, { model: 'subscription:codex', name: 'Codex' }, { model: 'subscription:gemini', name: 'Gemini' },
 ];
@@ -69,7 +72,7 @@ export function TaskPage({ card, controller, busy, onOpenChat, onBack, draftCach
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } if (e.key === 'Escape') { e.stopPropagation(); setTitle(card.title); } }}/>
           <span className="tp-meta"><span className="tp-pill">{column?.name ?? 'Task'}</span>
             <span>{[card.taskFile && `${card.taskFile.no} · project ${card.taskFile.projectName}`, page && `opened by ${page.openedBy.name} ${when(page.openedAt)}`,
-              page && people.length > 0 && `${people.filter(p => p.kind === 'user').length} people and ${people.filter(p => p.kind === 'agent').length} agents on it`].filter(Boolean).join(' · ')}</span></span>
+              page && people.length > 0 && `${onIt(people)} on it`].filter(Boolean).join(' · ')}</span></span>
         </div>
         <section className="tp-card" aria-label="Description">
           <header>{page && <Face name={page.openedBy.name}/>}<strong>{page?.openedBy.name ?? '…'}</strong><span>opened it{page ? ` ${when(page.openedAt)}` : ''}</span>
@@ -241,7 +244,7 @@ function TaskSide({ card, controller, busy, page, onOpenChat }: { card: Card; co
         <select aria-label="App it uses" value={model} disabled={busy} onChange={e => { setPicked(true); setModel(e.target.value); }}>{APPS.map(a => <option key={a.model} value={a.model}>{a.name}</option>)}</select></span>
     </div>}
     <SideSection title="People and agents">
-      <ul className="tp-people">{people.map(p => <li key={`${p.kind}:${p.id}`}><Face name={p.name} agent={p.kind === 'agent'}/><span><b>{p.name}</b>
+      <ul className="tp-people">{people.map(p => <li key={`${p.kind}:${p.id}`}><Face name={p.name} agent={p.kind === 'agent'}/><span className="tp-person"><b>{p.name}</b>
         <select aria-label={`What ${p.name} does`} value={p.role} disabled={busy} onChange={e => void controller.setPerson(p.kind, p.id, e.target.value as Role)}>{(ROLES as readonly Role[]).map(r => <option key={r} value={r}>{p.kind === 'agent' ? 'Agent' : 'Person'} · {roleLabel[r]}</option>)}</select></span>
         <button type="button" className="tool" aria-label={`Take ${p.name} off the task`} title="Take off the task" disabled={busy} onClick={() => void controller.setPerson(p.kind, p.id, null)}><UiIcon name="close" size={12}/></button></li>)}</ul>
       {!people.length && <p className="fine-print">Nobody yet.</p>}
