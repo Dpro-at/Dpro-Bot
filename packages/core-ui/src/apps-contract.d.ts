@@ -16,7 +16,7 @@ export function workspaceAppsResponse(status:number,body:unknown):{items:Workspa
 export type StoreState='included'|'installed'|'available'|'elsewhere';
 export type StoreSource='girru'|'claude-code'|'codex';
 export type StoreItem={id:string;kind:string;source:StoreSource;name:string;summary:string;description:string;icon:string|null;maker:string;verified:boolean;version:string|null;updated:string|null;category:string;permissions:string[];worksWith:string[];languages:string[];state:StoreState;present:boolean;update:string|null;hash:string};
-export type StoreData={schema:1;featured:string|null;collections:{id:string;title:string;items:string[]}[];categories:{id:string;title:string;icon:string}[];items:StoreItem[];limited:string[]};
+export type StoreData={schema:1;featured:string|null;collections:{id:string;title:string;items:string[]}[];categories:{id:string;title:string;icon:string}[];items:StoreItem[];limited:string[];storeAsOf:string|null};
 export type StoreChange={ok:true;state:StoreState}|{code:string;message?:string};
 export const STORE_PATH:'/api/store';
 export const STORE_INSTALL_PATH:'/api/store/install';
