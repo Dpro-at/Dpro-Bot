@@ -19,12 +19,15 @@
  *   POST   /api/agent-rules/:id/put-back             -> { rule }  a rule Girru ships, back as it came
  *   GET    /api/agent-rules/files/:projectId         -> { files }  what writing the coding app files would do (reads only)
  *   POST   /api/agent-rules/files/:projectId         { mode: private|project } -> { files }  write them (the owner's button)
+ *   PUT    /api/agent-rules/files/:projectId/tasks   { on } -> { files }  TASKLOG-01: the project's task file on or off
+ *   files.tasks = { on, file: '.girru/tasks.md', open (tasks on the board), problems: [{ line, message }] }
  *   400 { error, code: 'invalid_rule' } · 404 { error, code: 'not_found' }
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authorizeActiveRole } from '../../auth/route-guards.js';
 import { q } from '../../repositories/sql-steps.js';
-import { RuleFilesError, filesState, syncWrittenProjects, writeFiles } from '../../services/agent-rule-files.js';
+import { RuleFilesError, filesState, setTasks, syncWrittenProjects, writeFiles } from '../../services/agent-rule-files.js';
+import { TASKS_FILE, ensureTaskFile, fileProblems, openTasks, syncTasks, taskFileOn, watchTaskFiles } from '../../services/task-file.js';
 import {
   RuleInputError, STARTER_RULES, suggestRule, UNDO_MS, addStarterRules, createRule, decideSuggestion, deleteRule, editRule,
   effectiveRules, listRules, putBack, ruleConflicts, restoreVersion, ruleVersions, undoDelete,
@@ -48,6 +51,16 @@ export async function agentRulesRoutes(fastify: FastifyInstance) {
     if ((request.method === 'POST' || request.method === 'PUT') && reply.statusCode < 300 && !/\/(suggestions|files\/[^/]+)$/.test(request.url.split('?')[0])) void syncWrittenProjects();
   });
   const PROJECT = /^[A-Za-z0-9_-]{1,64}$/;
+  // TASKLOG-01: the task file part of the files sheet.
+  const withTasks = async <T extends { projectId: string }>(f: T) => {
+    const on = await taskFileOn(f.projectId);
+    return { ...f, tasks: { on, file: TASKS_FILE, open: on ? await openTasks(f.projectId) : 0, problems: on ? await fileProblems(f.projectId) : [] } };
+  };
+  const afterWrite = async (pid: string) => {
+    if (await taskFileOn(pid)) { await ensureTaskFile(pid); await syncTasks(pid).catch(() => undefined); }
+    await watchTaskFiles().catch(() => undefined);
+    return filesState(pid);
+  };
   const filesError = (reply: FastifyReply, err: unknown) => {
     if (err instanceof RuleFilesError) return reply.code(err.code === 'not_found' ? 404 : 400).send({ error: err.message, code: err.code });
     throw err;
@@ -60,14 +73,21 @@ export async function agentRulesRoutes(fastify: FastifyInstance) {
   fastify.get('/api/agent-rules/files/:id', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;
     const pid = String(request.params.id); if (!PROJECT.test(pid)) return missing(reply);
-    try { return { files: await filesState(pid) }; } catch (err) { return filesError(reply, err); }
+    try { return { files: await withTasks(await filesState(pid)) }; } catch (err) { return filesError(reply, err); }
   });
   fastify.post('/api/agent-rules/files/:id', { config }, async (request: Req, reply) => {
     if (owner(request, reply) === null) return reply;
     const pid = String(request.params.id); if (!PROJECT.test(pid)) return missing(reply);
     const b = request.body as { mode?: unknown } | null;
     if (!b || typeof b !== 'object' || Object.keys(b).length !== 1 || (b.mode !== 'private' && b.mode !== 'project')) return reply.code(400).send({ error: 'mode is private or project', code: 'invalid_rule' });
-    try { return { files: await writeFiles(pid, b.mode) }; } catch (err) { return filesError(reply, err); }
+    try { await writeFiles(pid, b.mode); return { files: await withTasks(await afterWrite(pid)) }; } catch (err) { return filesError(reply, err); }
+  });
+  fastify.put('/api/agent-rules/files/:id/tasks', { config }, async (request: Req, reply) => {
+    if (owner(request, reply) === null) return reply;
+    const pid = String(request.params.id); if (!PROJECT.test(pid)) return missing(reply);
+    const b = request.body as { on?: unknown } | null;
+    if (!b || typeof b !== 'object' || Object.keys(b).length !== 1 || typeof b.on !== 'boolean') return reply.code(400).send({ error: 'on is true or false', code: 'invalid_rule' });
+    try { await setTasks(pid, b.on); return { files: await withTasks(await afterWrite(pid)) }; } catch (err) { return filesError(reply, err); }
   });
 
   fastify.get('/api/agent-rules', { config }, async (request: Req, reply) => {

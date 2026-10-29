@@ -210,7 +210,8 @@ test('RULES-03: coding app files — one source, a pointer line for Claude Code 
   assert.equal(execFileSync('git', ['-C', folder, 'status', '--porcelain']).toString(), '', 'nothing shows to Git');
   // A rule change re-writes the files by itself; the pointer lines stay as they are.
   await call('r-owner', 'POST', '/api/agent-rules', { text: 'Use the project test command.', projectId: 'p-files' });
-  for (let i = 0; i < 50 && !readFileSync(join(folder, '.girru/rules.md'), 'utf8').includes('Use the project test command.'); i++) await new Promise((r) => setTimeout(r, 20));
+  // The files are written one after the other: wait for the last one (AGENTS.md).
+  for (let i = 0; i < 50 && !readFileSync(join(folder, 'AGENTS.md'), 'utf8').includes('Use the project test command.'); i++) await new Promise((r) => setTimeout(r, 20));
   assert.match(readFileSync(join(folder, '.girru/rules.md'), 'utf8'), /Use the project test command\./);
   assert.equal(readFileSync(join(folder, 'CLAUDE.md'), 'utf8'), claude, 'the pointer file did not change');
   assert.match(readFileSync(join(folder, 'AGENTS.md'), 'utf8'), /Use the project test command\./);

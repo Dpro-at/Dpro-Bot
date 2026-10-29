@@ -39,7 +39,7 @@ export const UNDO_MS = 10 * 60_000;
 const WHO: readonly RuleWho[] = ['all', 'departments', 'agents'];
 
 const list = (s: string): string[] => { try { const v = JSON.parse(s); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []; } catch { return []; } };
-const toRule = (r: Row): AgentRule => ({ id: r.id, text: r.text, when: r.condition ?? null, projectId: r.project_id, who: r.who, targets: list(r.targets), paused: !!r.paused, status: r.status, source: r.source as AgentRule['source'], shipped: !!r.shipped_key, locked: !!r.shipped_key && LOCKED.has(r.shipped_key), suggestedBy: r.suggested_by, reason: r.reason, version: Number(r.version), createdAt: r.created_at, updatedAt: r.updated_at });
+const toRule = (r: Row): AgentRule => ({ id: r.id, text: r.text, when: r.condition ?? null, projectId: r.project_id, who: r.who, targets: list(r.targets), paused: !!r.paused, status: r.status, source: r.source as AgentRule['source'], shipped: !!r.shipped_key, locked: isLocked(r.shipped_key), suggestedBy: r.suggested_by, reason: r.reason, version: Number(r.version), createdAt: r.created_at, updatedAt: r.updated_at });
 // eslint-disable-next-line no-control-regex
 const clean = (s: string) => s.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '').trim();
 
@@ -124,7 +124,7 @@ export async function createRule(input: unknown, by: string): Promise<AgentRule>
 export async function editRule(id: string, input: unknown): Promise<AgentRule | null> {
   const cur = await q.one<Row>("SELECT * FROM agent_rules WHERE id = ? AND status IN ('active','suggested')", id);
   if (!cur) return null;
-  if (cur.shipped_key && LOCKED.has(cur.shipped_key)) throw new RuleInputError('This safety rule is always on and cannot be changed');
+  if (isLocked(cur.shipped_key)) throw new RuleInputError(cur.shipped_key!.startsWith(TASK_RULE_KEY) ? 'This rule is on while the project’s task file is on; turn the task file off in the files sheet' : 'This safety rule is always on and cannot be changed');
   const v = checkRule(input, true);
   if (v.projectId !== undefined) await projectExists(v.projectId);
   const who = v.who ?? cur.who;
@@ -211,6 +211,19 @@ export const SHIPPED_RULES: readonly ShippedRule[] = [
   { key: 'girru:checked', text: 'Say what you checked and what you did not; never say a task is done before it is.', when: null, locked: false, version: 1 },
 ];
 const LOCKED = new Set(SHIPPED_RULES.filter((r) => r.locked).map((r) => r.key));
+/** TASKLOG-01: the project rule that makes every agent and app keep the project's task file. */
+export const TASK_RULE_KEY = 'girru:task-file:';
+export const TASK_RULE_TEXT = 'Before you start, read .girru/tasks.md. Continue an open task instead of making a new one. After each step, update its Done, Left and Next, add a Log line with the time, your app name and what you did, and add your app to Worked on by. Keep the file’s format.';
+function isLocked(key: string | null): boolean { return !!key && (LOCKED.has(key) || key.startsWith(TASK_RULE_KEY)); }
+/** The task file rule of one project: on while the task file is on (paused while off); it cannot be edited or deleted. */
+export async function setTaskRule(projectId: string, on: boolean): Promise<void> {
+  const key = TASK_RULE_KEY + projectId;
+  const row = await q.one<{ id: string }>('SELECT id FROM agent_rules WHERE shipped_key = ?', key);
+  if (row) { await q.run("UPDATE agent_rules SET paused = ?, text = ?, status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?", on ? 0 : 1, TASK_RULE_TEXT, row.id); return; }
+  if (!on) return;
+  // An early time keeps it first in its project's group.
+  await q.run("INSERT INTO agent_rules(id,text,condition,project_id,who,targets,paused,status,source,shipped_key,shipped_version,created_at) VALUES(?,?,NULL,?,'all','[]',0,'active','girru',?,1,'0001-01-01T00:00:01.000Z')", randomUUID(), TASK_RULE_TEXT, projectId, key);
+}
 let seeded: Promise<void> | null = null;
 /** Seed the shipped rules once per run: missing ones are added (RULES-03 pauses carried over), an unedited one gets a newer text. */
 export function ensureShipped(): Promise<void> {

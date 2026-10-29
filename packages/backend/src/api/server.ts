@@ -83,6 +83,8 @@ async function start() {
 
     if (summary.background) {
       void resumePendingImports().catch(() => console.warn('[Memory import] Saved progress unavailable; no new import started.')).finally(() => { startAutomaticProjectImports(); startDiscoveryWatch(); });
+      // TASKLOG-01: read the projects' task files and watch them for changes from the coding apps.
+      void import('../services/task-file.js').then((m) => m.syncAllTasks(true)).catch(() => undefined);
     }
 
     const pythonStatus = summary.background ? await probePython() : '— (background off)';

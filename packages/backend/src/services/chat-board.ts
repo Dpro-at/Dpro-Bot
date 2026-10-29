@@ -12,6 +12,7 @@
  * the conversation belong to the caller; other ids look missing.
  */
 
+import { addCardTask } from './task-file.js';
 import { all, one, sql, type Step } from '../repositories/sql-steps.js';
 import { listConversationMessages, type ConversationMessage } from '../repositories/chat-conversations.js';
 import { planSteps, type PlanStep } from '../tools/plan/plan-steps.js';
@@ -69,7 +70,10 @@ export async function createChatCard(ownerId: string, conversationId: string, bo
   const linked = await sql().read(one<{ n: number }>('SELECT COUNT(*) AS n FROM board_cards WHERE conversation_id = ?', conversationId));
   if (Number(linked?.n ?? 0) >= MAX_CHAT_CARDS) throw bad(`A conversation can have at most ${MAX_CHAT_CARDS} cards`);
   const { boardId: _b, ...card } = body;
-  return createCard(ownerId, boardId, { ...card, columnId }, { conversationId });
+  const made = await createCard(ownerId, boardId, { ...card, columnId }, { conversationId });
+  // TASKLOG-01: a card from a project chat gets a number and a block in the project's task file.
+  await addCardTask(made.id, conversationId);
+  return made;
 }
 
 /** The cards made from a conversation (archived ones too, marked), oldest first, with their recent activity. */

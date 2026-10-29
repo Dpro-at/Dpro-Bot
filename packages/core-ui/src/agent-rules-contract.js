@@ -10,6 +10,7 @@ const ACTION = new RegExp(`^/api/agent-rules/(${ID})/(delete|undo-delete|accept|
 const RESTORE = new RegExp(`^/api/agent-rules/(${ID})/versions/([1-9][0-9]{0,5})/restore$`);
 const EFFECTIVE = /^\/api\/agent-rules\/(effective|conflicts)\?agentId=[A-Za-z0-9_.%-]{1,200}(&projectId=[A-Za-z0-9_-]{1,64})?$/;
 const FILES = /^\/api\/agent-rules\/files\/[A-Za-z0-9_-]{1,64}$/;
+const TASKS = /^\/api\/agent-rules\/files\/[A-Za-z0-9_-]{1,64}\/tasks$/;
 const FIELDS = ['text', 'when', 'projectId', 'who', 'targets', 'paused'];
 
 export function agentRulesRoute(path) {
@@ -40,6 +41,7 @@ export function allowedAgentRules(method, path, body) {
     if (a && a[2] !== 'versions') return body === undefined;
     return RESTORE.test(path) && body === undefined;
   }
+  if (method === 'PUT' && TASKS.test(path)) return record(body) && Object.keys(body).length === 1 && typeof body.on === 'boolean';
   if (method === 'PUT') return ITEM.test(path) && ruleBody(body, true);
   return false;
 }
@@ -61,7 +63,13 @@ function files(f) {
   if (!record(f)) throw Error('protocol');
   return { projectId: str(f.projectId, 64) ?? '', hasFolder: typeof f.folder === 'string' || f.hasFolder === true, mode: f.mode === 'project' ? 'project' : 'private', written: f.written === true, upToDate: f.upToDate === true,
     files: Array.isArray(f.files) ? f.files.slice(0, 8).filter(x => record(x) && typeof x.name === 'string' && ACTIONS.includes(x.action)).map(x => ({ name: x.name.slice(0, 40), action: x.action })) : [],
-    rules: str(f.rules, 60000) ?? '' };
+    rules: str(f.rules, 60000) ?? '', tasks: taskFile(f.tasks) };
+}
+/** TASKLOG-01: the project's task file: on or off, open tasks on the board, lines to fix. */
+function taskFile(t) {
+  if (!record(t)) return { on: false, file: '.girru/tasks.md', open: 0, problems: [] };
+  return { on: t.on === true, file: '.girru/tasks.md', open: Number.isSafeInteger(t.open) && t.open >= 0 ? t.open : 0,
+    problems: Array.isArray(t.problems) ? t.problems.slice(0, 20).filter(p => record(p) && Number.isSafeInteger(p.line) && typeof p.message === 'string').map(p => ({ line: p.line, message: p.message.slice(0, 200) })) : [] };
 }
 /** Only rule fields (or a known code; a refused rule keeps its one-line reason) pass back to the page. */
 export function agentRulesResponse(path, status, body) {

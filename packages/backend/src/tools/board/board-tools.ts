@@ -6,6 +6,7 @@
 
 import type { Tool, ToolExecutionContext, ToolResult } from '../types.js';
 import { BoardError, agentCards, agentCheck, agentChecklist, agentComment, agentMove } from '../../services/task-board.js';
+import { agentTaskUpdate, cardChanged } from '../../services/task-file.js';
 
 const fail = (text: string): ToolResult => ({ content: [{ type: 'text', text }], error: text });
 
@@ -68,6 +69,7 @@ export const boardMoveTool: Tool = {
     const w = who(context); if (!w) return fail('No agent run: board cards are not available here.');
     try {
       const r = await agentMove(w.ownerId, w.agentId, params.card_id, params.column);
+      if (typeof params.card_id === 'string') await cardChanged(params.card_id);
       return { content: [{ type: 'text', text: `Card moved to "${r.column}".` }], details: r };
     } catch (err) { return boardError(err); }
   },
@@ -101,6 +103,29 @@ export const boardCheckTool: Tool = {
       const items = await agentCheck(w.ownerId, w.agentId, params.card_id, params.item_id, params.done);
       const done = items.filter((i) => i.done).length;
       return { content: [{ type: 'text', text: `Checklist: ${done} of ${items.length} done.` }], details: { done, total: items.length } };
+    } catch (err) { return boardError(err); }
+  },
+};
+
+export const boardTaskUpdateTool: Tool = {
+  name: 'board_task_update',
+  description: 'Update the task of one of your board cards in its project\'s task file (.girru/tasks.md), when you cannot edit the file yourself: what is done, what is left, what comes next (each a list that replaces the old one; leave one out to keep it), and one log line saying what you just did. Move the card with board_move.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      card_id: { type: 'string', description: 'Card id from board_my_cards' },
+      done: { type: 'array', items: { type: 'string' }, description: 'What is done (replaces the list)' },
+      left: { type: 'array', items: { type: 'string' }, description: 'What is left (replaces the list)' },
+      next: { type: 'array', items: { type: 'string' }, description: 'What comes next (replaces the list)' },
+      log: { type: 'string', description: 'One line: what you just did' },
+    },
+    required: ['card_id', 'log'],
+  },
+  async execute(params, context): Promise<ToolResult> {
+    const w = who(context); if (!w) return fail('No agent run: board cards are not available here.');
+    try {
+      const t = await agentTaskUpdate(w.ownerId, w.agentId, params.card_id, { done: params.done, left: params.left, next: params.next, log: params.log });
+      return { content: [{ type: 'text', text: `${t.no} updated in the task file: ${t.done.length} done, ${t.left.length} left, ${t.next.length} next.` }], details: { no: t.no } };
     } catch (err) { return boardError(err); }
   },
 };

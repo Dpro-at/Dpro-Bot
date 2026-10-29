@@ -20,6 +20,11 @@ import {syncDepartmentBoards,relatedBoardTasks} from '../../services/task-board.
  *   POST  /api/boards/:id/cards/:cardId/checklist { text } -> 201 { items }
  *   PUT   /api/boards/:id/cards/:cardId/checklist/:itemId { text?, done?, remove? } -> { items }
  *   GET   /api/boards/:id/cards/:cardId/chat -> { conversation: { id, title } | null, progress } (CHAT-PRO-02 I step 2: the chat it came from, who works on it)
+ *   GET   /api/boards/tasks?projectId=  -> { tasks, problems } (TASKLOG-01: the tasks of the projects' task files, read now)
+ *   POST  /api/boards/:id/cards/:cardId/task-sort { department } -> { boardId } (TASKLOG-01: a task waiting in To sort goes to that department's board)
+ *   GET   /api/boards/:id/cards/:cardId/task -> { task } (TASKLOG-01: the card's task in the project's task file, or null)
+ *   TASKLOG-01: a card from a task file has taskFile { no, projectId, projectName, problem, apps, finished }; a board
+ *   summary has toSort (cards waiting in "To sort"). Reading the boards first reads the projects' task files.
  *   Cards also take type (task|idea|bug|milestone|request), startDate, cover (colour or null) and labels (label ids).
  * Errors: 400 { code: 'invalid_board' | 'invalid_version' }, 404 { code: 'not_found' }.
  */
@@ -34,6 +39,8 @@ import {
 import { BOARD_COLORS, BOARD_TEMPLATES } from '../../services/board-templates.js';
 import { cardConversation, chatProgress } from '../../services/chat-board.js';
 import { chatRuns } from '../../services/chat-runs.js';
+import { TO_SORT, cardChanged, projectTasks, sortTask, syncAllTasks, taskDetail, taskMarks } from '../../services/task-file.js';
+import { q } from '../../repositories/sql-steps.js';
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -70,10 +77,19 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
     const owner=ownerOf(request,reply);if(owner===null)return reply;if(!ids(request.params))return reply.code(404).send({code:'not_found'});
     try{return await relatedBoardTasks(owner,request.params.id);}catch(err){return fail(err,reply);}
   });
+  fastify.get<{ Querystring: { projectId?: string } }>('/api/boards/tasks', { config }, async (request, reply) => {
+    const owner = ownerOf(request, reply); if (owner === null) return reply;
+    const pid = request.query?.projectId;
+    if (pid !== undefined && !ID.test(pid)) return reply.code(400).send({ error: 'projectId must be a project id', code: 'invalid_board' });
+    return projectTasks(owner, pid);
+  });
+
   fastify.get<{ Querystring: { archived?: string } }>('/api/boards', { config }, async (request, reply) => {
     const owner = ownerOf(request, reply); if (owner === null) return reply;
+    await syncAllTasks().catch(() => undefined);
+    const sorting = new Map((await q.all<{ board_id: string; n: number }>('SELECT c.board_id, COUNT(*) AS n FROM board_cards c JOIN board_columns col ON col.id = c.column_id WHERE col.name = ? AND c.archived = 0 GROUP BY c.board_id', TO_SORT).catch(() => [])).map((r) => [r.board_id, Number(r.n)]));
     return {
-      boards: await listBoards(owner, request.query?.archived === '1'),
+      boards: (await listBoards(owner, request.query?.archived === '1')).map((b) => ({ ...b, toSort: sorting.get(b.id) ?? 0 })),
       templates: BOARD_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description, columns: [...t.columns] })),
       colors: [...BOARD_COLORS],
     };
@@ -93,7 +109,11 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: P; Querystring: { archived?: string } }>('/api/boards/:id', { config }, async (request, reply) => {
     const owner = ownerOf(request, reply); if (owner === null) return reply;
     if (!ids(request.params)) return reply.code(404).send({ error: 'Board not found', code: 'not_found' });
-    try { return await getBoard(owner, request.params.id, request.query?.archived === '1'); } catch (err) { return fail(err, reply); }
+    try {
+      const board = await getBoard(owner, request.params.id, request.query?.archived === '1');
+      const marks = await taskMarks(board.id);
+      return { ...board, cards: board.cards.map((c) => ({ ...c, taskFile: marks.get(c.id) ?? null })) };
+    } catch (err) { return fail(err, reply); }
   });
 
   fastify.post<{ Params: P; Body: unknown }>('/api/boards/:id/columns', { config }, async (request, reply) => {
@@ -117,7 +137,28 @@ export async function taskBoardRoutes(fastify: FastifyInstance) {
   fastify.put<{ Params: P; Body: unknown }>('/api/boards/:id/cards/:cardId', { config }, async (request, reply) => {
     const owner = ownerOf(request, reply); if (owner === null) return reply;
     if (!ids(request.params)) return reply.code(404).send({ error: 'Card not found', code: 'not_found' });
-    try { return await updateCard(owner, request.params.id, request.params.cardId!, objectBody(request.body)); } catch (err) { return fail(err, reply); }
+    try {
+      const card = await updateCard(owner, request.params.id, request.params.cardId!, objectBody(request.body));
+      // TASKLOG-01: a card from a task file writes its block back (its place, title, agent, priority).
+      await cardChanged(card.id);
+      return { ...card, taskFile: (await taskMarks(request.params.id)).get(card.id) ?? null };
+    } catch (err) { return fail(err, reply); }
+  });
+
+  fastify.post<{ Params: P; Body: unknown }>('/api/boards/:id/cards/:cardId/task-sort', { config }, async (request, reply) => {
+    const owner = ownerOf(request, reply); if (owner === null) return reply;
+    if (!ids(request.params)) return reply.code(404).send({ error: 'Card not found', code: 'not_found' });
+    try {
+      const b = objectBody(request.body);
+      if (Object.keys(b).some((k) => k !== 'department')) throw new BoardError(400, 'invalid_board', 'Only department');
+      return await sortTask(owner, request.params.id, request.params.cardId!, b.department);
+    } catch (err) { return fail(err, reply); }
+  });
+
+  fastify.get<{ Params: P }>('/api/boards/:id/cards/:cardId/task', { config }, async (request, reply) => {
+    const owner = ownerOf(request, reply); if (owner === null) return reply;
+    if (!ids(request.params)) return reply.code(404).send({ error: 'Card not found', code: 'not_found' });
+    return { task: await taskDetail(owner, request.params.id, request.params.cardId!) };
   });
 
   fastify.get<{ Params: P }>('/api/boards/:id/cards/:cardId/comments', { config }, async (request, reply) => {

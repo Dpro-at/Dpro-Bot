@@ -7,7 +7,9 @@ export type RuleWho = 'all' | 'departments' | 'agents';
 export type Rule = Readonly<{ id: string; text: string; when: string | null; projectId: string | null; who: RuleWho; targets: readonly string[]; paused: boolean; status: 'active' | 'suggested'; source: 'owner' | 'agent' | 'girru'; shipped: boolean; locked: boolean; suggestedBy: string | null; reason: string | null; version: number; createdAt: string; updatedAt: string }>;
 export type RuleVersion = Readonly<{ version: number; text: string; when: string | null; changedAt: string }>;
 export type RuleProject = Readonly<{ id: string; name: string; folder?: string | null }>;
-export type FilesState = Readonly<{ projectId: string; hasFolder: boolean; mode: 'private' | 'project'; written: boolean; upToDate: boolean; files: readonly { name: string; action: 'create' | 'add' | 'update' | 'unchanged' | 'tracked' | 'link' }[]; rules: string }>;
+export type FilesState = Readonly<{ projectId: string; hasFolder: boolean; mode: 'private' | 'project'; written: boolean; upToDate: boolean; files: readonly { name: string; action: 'create' | 'add' | 'update' | 'unchanged' | 'tracked' | 'link' }[]; rules: string;
+  /** TASKLOG-01: the project's task file (.girru/tasks.md): on or off, open tasks, lines to fix. */
+  tasks?: Readonly<{ on: boolean; file: string; open: number; problems: readonly { line: number; message: string }[] }> }>;
 export type RuleAgent = Readonly<{ id: string; name: string; department: string | null }>;
 export type RuleGroup = Readonly<{ id: string; title: string; icon: 'bulb' | 'globe' | 'folder' | 'avatar'; rules: readonly Rule[] }>;
 export type RulesState = Readonly<{
@@ -166,6 +168,19 @@ export class RulesController {
       this.say('Coding app files written.');
       return true;
     } catch { this.#publish({ notice: 'The files were not written.' }); return false; } finally { this.#publish({ busy: false }); }
+  }
+  /** TASKLOG-01: turn the project's task file on or off (its locked rule follows). */
+  async setTasks(projectId: string, on: boolean): Promise<FilesState | null> {
+    this.#publish({ busy: true, notice: null });
+    try {
+      const r = await this.#req('PUT', `/api/agent-rules/files/${projectId}/tasks`, { on });
+      if (r.status !== 200 || !record(r.body) || !record(r.body.files)) { this.#publish({ notice: err(r.body, 'The task file was not changed.') }); return null; }
+      const f = r.body.files as FilesState;
+      this.#publish({ files: { ...this.#state.files, [projectId]: f } });
+      this.say(on ? 'Task file on. Agents and apps keep their tasks in it.' : 'Task file off. The file stays in the folder.');
+      void this.load();
+      return f;
+    } catch { this.#publish({ notice: 'The task file was not changed.' }); return null; } finally { this.#publish({ busy: false }); }
   }
   async effective(agentId: string, projectId: string | null): Promise<Rule[] | null> {
     const q = new URLSearchParams({ agentId, ...(projectId ? { projectId } : {}) });
