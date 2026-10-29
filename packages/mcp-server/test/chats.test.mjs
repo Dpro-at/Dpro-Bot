@@ -38,7 +38,8 @@ test('chats: status reads tokens by model, the team and the schedule (never the 
  const {backend}=fake();
  const r=await callTool('chats',{operation:'status',id:CID},{backend});
  assert.equal(r.structuredContent.usage[0].model,'qwen3:8b');
- assert.deepEqual(r.structuredContent.team,[{agent:'QA Tester',model:'subscription:claude',status:'answered',at:'x'}]);
+ assert.deepEqual(r.structuredContent.team,[{agent:'QA Tester',app:'Claude Code',model:'subscription:claude',status:'answered',at:'x'}]);
+ assert.deepEqual(r.structuredContent.models,[{app:'Claude Code',agents:['QA Tester']}],'CH12: the apps used, as in the side panel');
  assert.equal(r.structuredContent.schedule.every,'daily');
  assert.doesNotMatch(JSON.stringify(r),/secret plan/);
 });
@@ -79,4 +80,13 @@ test('chats: a session that is not the owner gets the owner-only answer and noth
  const {BackendError}=await import('../src/backend.ts');
  const backend={async request(){throw new BackendError('The saved Girru session is not the owner account; these tools are owner-only.',403);}};
  for(const input of [{operation:'panel'},{operation:'set_panel',diff:'split'}]){const r=await callTool('chats',input,{backend});assert.equal(r.isError,true);assert.match(r.content[0].text,/owner/);}
+});
+
+test('CH12: replyApp names the app for each model id the way the side panel does',async()=>{
+ const {replyApp}=await import('../src/tools.ts');
+ assert.equal(replyApp('subscription:codex/gpt-6'),'Codex');
+ assert.equal(replyApp('subscription:gemini'),'Gemini');
+ assert.equal(replyApp('subscription:claude:abc'),'Claude Code');
+ assert.equal(replyApp('claude-opus-5-5'),'Claude');
+ assert.equal(replyApp('qwen3:8b'),'On this computer');
 });

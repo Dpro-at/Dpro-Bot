@@ -2873,6 +2873,19 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .app-shell .details-rail-dot { position:absolute; inset-block-start:4px; inset-inline-end:4px; inline-size:7px; block-size:7px; border-radius:50%; background:var(--accent); }
 .app-shell .details-rail-dot[data-tone="needs"] { background:#F0B86E; }
 .app-shell .details-needs-dot { flex:none; inline-size:7px; block-size:7px; border-radius:50%; background:#E0A040; margin-inline-start:auto; }
+/* CH12: which app and model each agent used: a mark on the face corner, the mark before the app name, the Models chips with a hover card. */
+.app-shell .panel-end .details-needs-dot { display:inline-block; margin:0 5px 1px 0; vertical-align:middle; }
+.app-shell .details-face { position:relative; flex-shrink:0; display:grid; }
+.app-shell .details-face-app { position:absolute; inset-inline-end:-4px; inset-block-end:-3px; inline-size:12px; block-size:12px; border-radius:50%; display:grid; place-items:center; background:var(--surface); box-shadow:0 0 0 1px var(--border); color:var(--text-2); }
+.app-shell .details-app { display:inline-grid; place-items:center; vertical-align:-1px; margin-inline-end:3px; color:var(--text-2); }
+.app-shell .details-models { position:relative; display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding:2px 6px 8px; font-size:11.5px; color:var(--text-2); }
+.app-shell .details-models-name { margin-inline-end:4px; }
+.app-shell .details-model-anchor { display:inline-flex; }
+.app-shell .details-model { display:inline-flex; align-items:center; gap:4px; min-block-size:22px; padding:0 7px; border-radius:11px; border:1px solid var(--border); background:var(--surface); box-shadow:none; color:var(--text); font-size:11px; font-weight:500; }
+.app-shell .details-model:hover, .app-shell .details-model:focus-visible { background:var(--row-hover); }
+.app-shell .details-model-card { position:absolute; z-index:20; inset-block-start:calc(100% - 2px); inset-inline:6px;  display:flex; flex-direction:column; gap:3px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); box-shadow:0 6px 20px rgba(0,0,0,.18); font-size:11.5px; color:var(--text-2); }
+.app-shell .details-model-card b { display:flex; align-items:center; gap:5px; color:var(--text); font-weight:600; }
+.app-shell .details-model-card small { color:var(--text-3); }
 .app-shell .chat-screen { display:flex; flex-direction:column; min-block-size:0; }
 .app-shell .chat-terminal { flex:0 0 auto; block-size:clamp(160px,32vh,420px); resize:vertical; overflow:hidden; display:flex; flex-direction:column; border-block-start:1px solid var(--border); background:var(--surface); }
 .app-shell .chat-layout[data-max] .chat-terminal { block-size:70vh; }

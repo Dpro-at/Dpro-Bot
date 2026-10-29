@@ -891,7 +891,10 @@ async function chatsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Prom
   case 'status':{only(args,['operation','id']);const id=chatId(args.id,'id');
    const [u,t,s]=await Promise.all([backend.request('GET',`/api/chat/conversations/${id}/usage`),backend.request('GET',`/api/chat/conversations/${id}/team`),backend.request('GET',`/api/chat/conversations/${id}/schedule`).catch(()=>({schedule:null}))]);
    const sc=obj(obj(s).schedule??{});
-   return ok('This chat: tokens by model (estimates), the agents it handed work to, its schedule.',{usage:obj(u).usage??[],team:((obj(t).team as any[])??[]).map((x:any)=>({agent:x.agentName,model:x.model,status:x.status,at:x.at})),schedule:sc.every?{every:sc.every,at:sc.at,weekday:sc.weekday??null,paused:!!sc.paused,nextRun:sc.nextRun}:null});}
+   const team=((obj(t).team as any[])??[]).map((x:any)=>({agent:x.agentName,app:replyApp(String(x.model??'')),model:x.model,status:x.status,at:x.at}));
+   // CH12: the same Models line as the side panel: each app once, with the helpers that used it (the lead's model is in usage).
+   const models=[...new Set(team.map(x=>x.app))].map(app=>({app,agents:[...new Set(team.filter(x=>x.app===app).map(x=>x.agent))]}));
+   return ok('This chat: tokens by model (estimates), the agents it handed work to (with the app and model each hand-off really ran on), the apps used with their agents, its schedule.',{usage:obj(u).usage??[],team,models,schedule:sc.every?{every:sc.every,at:sc.at,weekday:sc.weekday??null,paused:!!sc.paused,nextRun:sc.nextRun}:null});}
   case 'pull_request':{only(args,['operation','projectId']);if(typeof args.projectId!=='string'||!CHAT_ID.test(args.projectId))throw new InputError('projectId must be a project id from projects');
    const r=obj(await backend.request('GET',`/api/chat/projects/${args.projectId}/pr`));const p=r.pr?obj(r.pr):null;
    if(r.unavailable===true)return ok('PR state unavailable (GitHub could not be asked now).',{pullRequest:null,unavailable:true});
@@ -904,6 +907,12 @@ async function chatsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Prom
    return ok('Side panel saved for the owner. The window shows it the next time the side panel opens.',{panel:panelView(obj(await backend.request('PUT','/api/chat/panel',change)).panel)});}
   default:throw new InputError('operation must be list, projects, rename, pin, archive, move, set_mode, set_thinking, variables, status, pull_request, panel or set_panel');
  }
+}
+
+/** CH12: the reply app for a model id, in the words the side panel uses. */
+export function replyApp(model:string):string{
+ for(const [id,name] of [['subscription:claude','Claude Code'],['subscription:codex','Codex'],['subscription:gemini','Gemini']] as const)if(model===id||model.startsWith(`${id}/`)||model.startsWith(`${id}:`))return name;
+ return /^claude-/.test(model)?'Claude':'On this computer';
 }
 
 async function workspaceApprovalsTool(args:Record<string,unknown>,{backend}:HandlerDeps):Promise<ToolCallResult>{
