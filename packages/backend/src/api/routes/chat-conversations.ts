@@ -59,8 +59,8 @@ import { ProjectVariableError, deleteProjectVariables, deleteVariable, listVaria
 import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard, replyPlan } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
-import { continueMessage } from '../../services/task-file.js';
-import { addCardChat } from '../../services/task-page.js';
+import { addCardChat, cardContinueMessage } from '../../services/task-page.js';
+import { runDueCardSchedules } from '../../services/card-schedules.js';
 import { ChatMemoryError, conversationMemories, rememberFromChat } from '../../services/chat-memory.js';
 import { actorOf } from '../../auth/auth-gate.js';
 import { ChatSearchError, parseSearch, searchConversations } from '../../services/chat-search.js';
@@ -326,6 +326,37 @@ export async function sendScheduled(userId: string, sessionId: string, message: 
   return out.code === 202;
 }
 
+/**
+ * TASKLOG-01 / TASKPAGE-03: a new chat that continues a card's task (from its task file block, else from the
+ * card), with the chosen agent (put on the card when it is not yet) and app; its first turn starts at once.
+ * The Continue button and a card's schedule both start here.
+ */
+export async function continueCard(userId: string, role: string, boardId: string, cardId: string, agentIdIn?: string, model?: string): Promise<{ code: number; body: Record<string, unknown>; conversationId?: string }> {
+  const m = await cardContinueMessage(userId, boardId, cardId);
+  if (!m) return { code: 404, body: { code: 'not_found' } };
+  const agentId = agentIdIn ?? (await q.one<{ agent_id: string }>('SELECT agent_id FROM board_card_agents WHERE card_id = ? ORDER BY agent_id LIMIT 1', cardId))?.agent_id;
+  if (agentId && !(await q.one('SELECT 1 FROM board_card_agents WHERE card_id = ? AND agent_id = ?', cardId, agentId)) && await q.one('SELECT id FROM agents_config WHERE id = ?', agentId)) {
+    // The one who continues does the work: it gets the card (so its board tools reach it).
+    await q.run("INSERT INTO board_card_agents (card_id, agent_id, role) VALUES (?, ?, 'does')", cardId, agentId);
+    await q.run('UPDATE board_cards SET version = version + 1 WHERE id = ?', cardId);
+  }
+  const made = await createConversation(userId, { title: m.title, agentId: agentId ?? null, projectId: m.projectId, model: model || undefined });
+  // The card keeps the chat it came from; every Continue is one more of its chats (TASKPAGE-02).
+  await q.run('UPDATE board_cards SET conversation_id = ? WHERE id = ? AND conversation_id IS NULL', made.id, cardId);
+  await addCardChat(cardId, made.id);
+  const c = await findConversation(userId, made.id);
+  if (!c) return { code: 404, body: { code: 'not_found' } };
+  const out = await startTurn({ userId, role, c, runId: `task-${randomUUID()}`, message: m.message, model: model || undefined });
+  return { code: out.code, body: out.body, conversationId: made.id };
+}
+/** A card's schedule is due: Continue as its agent and app (owner only, like chat schedules). */
+async function runScheduledCard(userId: string, boardId: string, cardId: string, agentId: string | null, model: string): Promise<'started' | 'busy' | 'failed'> {
+  const user = await q.one<{ role: string; status: string }>('SELECT role, status FROM users WHERE id = ?', userId);
+  if (!user || user.status !== 'active' || user.role !== 'owner') return 'failed';
+  const out = await continueCard(userId, user.role, boardId, cardId, agentId ?? undefined, model || undefined);
+  return out.code < 300 ? 'started' : out.code === 409 || out.code === 429 ? 'busy' : 'failed';
+}
+
 export const SIDEBAR_SECTIONS = ['scheduled', 'running', 'pinned', 'projects', 'other', 'archived'] as const;
 type SidebarSection = typeof SIDEBAR_SECTIONS[number];
 export interface SidebarPrefs { order: SidebarSection[]; hidden: SidebarSection[]; folded: string[] }
@@ -427,7 +458,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
   if (!approvalListener) {
     approvalListener = true; addApprovalDecidedListener((id) => { void continueAfterApproval(id).catch(() => null); });
     // CHAT-BUILD-01 stage 4: chats on a schedule, checked once a minute while the background is on.
-    if (backgroundEnabled()) setInterval(() => { void runDueSchedules(sendScheduled).catch(() => 0); }, 60_000).unref();
+    if (backgroundEnabled()) setInterval(() => { void runDueSchedules(sendScheduled).catch(() => 0); void runDueCardSchedules(runScheduledCard).catch(() => 0); }, 60_000).unref();
   }
   fastify.addHook('preHandler', async (request, reply) => {
     const user = authenticateActiveUser(request);
@@ -683,19 +714,10 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (typeof b.boardId !== 'string' || !AGENT_ID.test(b.boardId) || typeof b.cardId !== 'string' || !AGENT_ID.test(b.cardId)) return bad(reply, 'boardId and cardId are required');
     if (b.agentId !== undefined && (typeof b.agentId !== 'string' || !AGENT_ID.test(b.agentId))) return bad(reply, 'invalid agentId');
     if (b.model !== undefined && (typeof b.model !== 'string' || (b.model !== '' && !MODEL.test(b.model)))) return bad(reply, 'invalid model');
-    const userId = caller(request);
-    const m = await continueMessage(userId, b.boardId, b.cardId);
-    if (!m) return notFound(reply);
-    const agentId = b.agentId ?? (await q.one<{ agent_id: string }>('SELECT agent_id FROM board_card_agents WHERE card_id = ? ORDER BY agent_id LIMIT 1', b.cardId))?.agent_id;
-    const made = await createConversation(userId, { title: m.title, agentId: agentId ?? null, projectId: m.projectId, model: b.model || undefined });
-    // The card keeps the chat it came from; every Continue is one more of its chats (TASKPAGE-02).
-    await q.run('UPDATE board_cards SET conversation_id = ? WHERE id = ? AND conversation_id IS NULL', made.id, b.cardId);
-    await addCardChat(b.cardId, made.id);
-    const c = await findConversation(userId, made.id);
-    if (!c) return notFound(reply);
-    const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: `task-${randomUUID()}`, message: m.message, model: b.model || undefined });
-    if (out.code >= 400) return reply.code(out.code).send({ ...out.body, conversation: { id: made.id } });
-    return reply.code(201).send({ conversation: { id: made.id } });
+    const out = await continueCard(caller(request), (request as any).chatUserRole, b.boardId, b.cardId, b.agentId, b.model);
+    if (!out.conversationId) return notFound(reply);
+    if (out.code >= 400) return reply.code(out.code).send({ ...out.body, conversation: { id: out.conversationId } });
+    return reply.code(201).send({ conversation: { id: out.conversationId } });
   });
 
   // ---- chat memory (CHAT-PRO-02 E): owner only, like the memory files and proposals ----

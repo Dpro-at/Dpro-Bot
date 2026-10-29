@@ -146,3 +146,53 @@ test('activity: moves, people, comments, every reply of its chats with the files
   assert.equal((await ok(call('p-owner', 'GET', `${base}/activity`))).items.some((x) => x.kind === 'reply' && x.text === 'secret'), false);
   assert.equal((await call('p-owner', 'GET', `${base}/activity?before=yesterday`)).statusCode, 400);
 });
+
+test('TASKPAGE-03: a task repeats every hour / day / week; a due run starts a Continue once; paused and archived wait', async () => {
+  const sch = await import(join(backendDir, 'src/services/card-schedules.ts'));
+  const { cardContinueMessage } = await import(join(backendDir, 'src/services/task-page.ts'));
+  const rep = await newCard('Check the night build');
+  const url = `/api/boards/${boardId}/cards/${rep.id}/schedule`;
+  assert.deepEqual(await ok(call('p-owner', 'GET', url)), { schedule: null });
+  assert.equal((await call('p-owner', 'PUT', url, { every: 'weekly', at: '08:00' })).statusCode, 400, 'weekly needs a weekday');
+  assert.equal((await call('p-owner', 'PUT', url, { every: 'daily', at: '25:00' })).statusCode, 400);
+  assert.equal((await call('p-owner', 'PUT', url, { every: 'daily', at: '07:00', agentId: 'ghost' })).statusCode, 400);
+  const s = (await ok(call('p-owner', 'PUT', url, { every: 'daily', at: '07:00', agentId: 'g-qa', model: 'subscription:codex' }))).schedule;
+  assert.deepEqual([s.every, s.at, s.agentId, s.model, s.paused], ['daily', '07:00', 'g-qa', 'subscription:codex', false]);
+  assert.ok(new Date(s.nextRun) > new Date());
+  const b = await ok(call('p-owner', 'GET', `/api/boards/${boardId}`));
+  assert.equal(b.cards.find((c) => c.id === rep.id).repeat.every, 'daily');
+  assert.equal(b.cards.find((c) => c.id === main.id).repeat, null);
+  assert.equal((await call('p-sara', 'PUT', url, { every: 'hourly', at: '00:15' })).statusCode, 403);
+  // A due run: claimed once (the next run moves on before it starts), logged, result kept.
+  db.prepare(`UPDATE card_schedules SET next_run = '2000-01-01T00:00:00.000Z' WHERE card_id = ?`).run(rep.id);
+  const runs = [];
+  const start = async (...a) => { runs.push(a); return 'started'; };
+  assert.equal(await sch.runDueCardSchedules(start), 1);
+  assert.equal(await sch.runDueCardSchedules(start), 0, 'not twice');
+  assert.deepEqual(runs[0], ['p-owner', boardId, rep.id, 'g-qa', 'subscription:codex']);
+  const after = (await ok(call('p-owner', 'GET', url))).schedule;
+  assert.equal(after.lastResult, 'started');
+  assert.ok(after.lastRun && new Date(after.nextRun) > new Date());
+  const a = await ok(call('p-owner', 'GET', `/api/boards/${boardId}/cards/${rep.id}/activity`));
+  assert.ok(a.items.some((x) => x.kind === 'event' && x.event === 'ran' && x.detail === 'started'));
+  assert.ok(a.items.some((x) => x.kind === 'event' && x.event === 'repeats'));
+  // Paused: nothing runs. A busy run says so.
+  await ok(call('p-owner', 'PUT', url, { every: 'hourly', at: '00:15', paused: true }));
+  db.prepare(`UPDATE card_schedules SET next_run = '2000-01-01T00:00:00.000Z' WHERE card_id = ?`).run(rep.id);
+  assert.equal(await sch.runDueCardSchedules(start), 0);
+  await ok(call('p-owner', 'PUT', url, { every: 'hourly', at: '00:15' }));
+  db.prepare(`UPDATE card_schedules SET next_run = '2000-01-01T00:00:00.000Z' WHERE card_id = ?`).run(rep.id);
+  await sch.runDueCardSchedules(async () => 'busy');
+  assert.equal((await ok(call('p-owner', 'GET', url))).schedule.lastResult, 'busy');
+  // Never: the schedule goes, the task stays (PUT { every: 'never' } or DELETE).
+  assert.deepEqual(await ok(call('p-owner', 'PUT', url, { every: 'never' })), { schedule: null });
+  await ok(call('p-owner', 'PUT', url, { every: 'hourly', at: '00:15' }));
+  assert.deepEqual(await ok(call('p-owner', 'DELETE', url)), { schedule: null });
+  assert.deepEqual(await ok(call('p-owner', 'GET', url)), { schedule: null });
+  // A task with no task file continues from the card itself.
+  await ok(call('p-owner', 'POST', `/api/boards/${boardId}/cards/${rep.id}/checklist`, { text: 'Read the build log' }), 201);
+  const m = await cardContinueMessage('p-owner', boardId, rep.id);
+  assert.match(m.message, /^Continue the board task "Check the night build"/);
+  assert.match(m.message, /Open checklist items:\n- Read the build log/);
+  assert.match(m.message, /board_check/);
+});

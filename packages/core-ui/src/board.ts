@@ -17,7 +17,14 @@ export type Card = Readonly<{
   conversationId?: string | null;
   /** TASKLOG-01: the card's task in a project's task file (null = a card of the board only). */
   taskFile?: TaskMark | null;
+  /** TASKPAGE-03: how the task repeats (null = it does not). */
+  repeat?: Repeat | null;
 }>;
+export type Every = 'hourly' | 'daily' | 'weekly';
+export type Repeat = Readonly<{ every: Every; at: string; weekday: number | null; nextRun: string; paused: boolean; lastResult: 'started' | 'busy' | 'failed' | null; lastRun?: string | null; agentId?: string | null; model?: string }>;
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+/** "Every day 09:00", "Every hour at :15", "Every week Mon 08:00". */
+export const repeatWords = (r: Pick<Repeat, 'every' | 'at' | 'weekday'>) => r.every === 'hourly' ? `Every hour at :${r.at.slice(3)}` : r.every === 'daily' ? `Every day ${r.at}` : `Every week ${WEEKDAYS[r.weekday ?? 0]} ${r.at}`;
 /** TASKLOG-01: a card's task in its project's task file (.girru/tasks.md). */
 export type TaskMark = Readonly<{ no: string; projectId: string; projectName: string; problem: string | null; apps: readonly string[]; finished: boolean }>;
 export type TaskDetail = TaskMark & Readonly<{
@@ -82,7 +89,9 @@ export type BoardState = Readonly<{
   /** TASKLOG-01: the open card's task as its project's task file has it. */
   task?: Readonly<{ phase: 'loading' | 'ready' | 'error'; detail: TaskDetail | null }>;
   /** Filters: text search, one agent, one department, one app that worked on a task (TASKLOG-01). */
-  filter: Readonly<{ text: string; agent: string; department: string; app?: string }>;
+  filter: Readonly<{ text: string; agent: string; department: string; app?: string; kind?: 'all' | 'tasks' | 'scheduled' }>;
+  /** TASKPAGE-03: the open card's schedule (null = it does not repeat). */
+  schedule?: Repeat | null;
   overview?:Readonly<{tasks:RelatedTask[];total:number;limited:boolean}>; overviewError?:boolean;
   notice?: string;
 }>;
@@ -101,6 +110,8 @@ export function matches(card: Card, f: BoardState['filter']): boolean {
   if (t && !card.title.toLowerCase().includes(t) && !card.description.toLowerCase().includes(t)) return false;
   if (f.agent && !card.agents.includes(f.agent)) return false;
   if (f.app && !card.taskFile?.apps.some(a => a.toLowerCase() === f.app!.toLowerCase())) return false;
+  if (f.kind === 'scheduled' && !card.repeat) return false;
+  if (f.kind === 'tasks' && card.repeat) return false;
   return !f.department || card.departments.includes(f.department);
 }
 
@@ -113,7 +124,7 @@ const draftOf = (c: Card): CardDraft => Object.freeze({ title: c.title, descript
  * edits carry the card version; a conflict shows the current card.
  */
 export class BoardController {
-  #state: BoardState = Object.freeze({ owner: false, phase: 'denied', columns: [], cards: [], agents: [], boards: [], templates: [], colors: [], labels: [], checklist: [], comments: [], commentsPhase: 'idle', filter: { text: '', agent: '', department: '', app: '' } });
+  #state: BoardState = Object.freeze({ owner: false, phase: 'denied', columns: [], cards: [], agents: [], boards: [], templates: [], colors: [], labels: [], checklist: [], comments: [], commentsPhase: 'idle', filter: { text: '', agent: '', department: '', app: '', kind: 'all' as const } });
   #listeners = new Set<() => void>();
   #ticket = 0; #identity = ''; #disposed = false; #unsubscribe: () => void;
   constructor(readonly client: SessionClient) { this.#unsubscribe = client.subscribe(this.#sync); this.#sync(); }
@@ -196,7 +207,7 @@ export class BoardController {
     if(this.hasUnsavedDraft()){this.#publish({notice:'Save or close the current task draft before switching boards.'});return;}
     if (!this.#state.boards.some(b => b.id === id) || id === this.#state.boardId) return;
     this.closeCard();
-    this.#publish({ filter: Object.freeze({ text: '', agent: '', department: '', app: '' }) });
+    this.#publish({ filter: Object.freeze({ text: '', agent: '', department: '', app: '', kind: this.#state.filter.kind ?? 'all' }) });
     await this.load(id);
   }
 
@@ -234,6 +245,8 @@ export class BoardController {
   }
 
   setFilter(patch: Partial<BoardState['filter']>) { this.#publish({ filter: Object.freeze({ ...this.#state.filter, ...patch }) }); }
+  /** The signed-in person (TASKPAGE-03: Take it myself). */
+  myId = () => this.client.getSnapshot().user?.id ?? null;
   commentAuthor = (kind:'user'|'agent',id:string) => kind==='agent'?this.agentName(id):id===this.client.getSnapshot().user?.id?'You':'Team member';
   agentName = (id: string) => this.#state.agents.find(a => a.id === id)?.name ?? 'Former agent';
 
@@ -332,7 +345,7 @@ export class BoardController {
       this.#publish(r.status === 200 && list ? { comments: Object.freeze(list.map(c => Object.freeze(c))), commentsPhase: 'ready' } : { commentsPhase: 'error' });
     } catch { if (this.#state.open === cardId) this.#publish({ commentsPhase: 'error' }); }
   }
-  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined, task: undefined, page: undefined, activity: undefined, diffs: undefined }); }
+  closeCard() { this.#publish({ open: undefined, draft: undefined, comments: [], checklist: [], commentsPhase: 'idle', notice: undefined, chat: undefined, task: undefined, page: undefined, activity: undefined, diffs: undefined, schedule: undefined }); }
   // ---- TASKPAGE-02: the full task page ----
   #cardPath(cardId = this.#state.open) { return `${BOARDS_PATH}/${this.#state.boardId}/cards/${cardId}`; }
   async #loadPage(cardId: string, ticket = this.#ticket) {
@@ -341,6 +354,8 @@ export class BoardController {
       if (ticket !== this.#ticket || this.#state.open !== cardId) return;
       const data = r.status === 200 && record(r.body) ? (r.body.page as TaskPageData) : null;
       this.#publish({ page: { phase: data ? 'ready' : 'error', data } });
+      const sc = await this.client.request({ method: 'GET', path: `${this.#cardPath(cardId)}/schedule` }).catch(() => null);
+      if (ticket === this.#ticket && this.#state.open === cardId && sc?.status === 200 && record(sc.body)) this.#publish({ schedule: (sc.body.schedule as Repeat | null) ?? null });
     } catch { if (this.#state.open === cardId) this.#publish({ page: { phase: 'error', data: null } }); }
   }
   async #loadActivity(cardId: string, ticket = this.#ticket, before?: string) {
@@ -389,6 +404,17 @@ export class BoardController {
   }
   setLink(waitsFor: string, on: boolean) { return this.#pageWrite('PUT', 'links', { waitsFor, on }, 'The link'); }
   setFollow(on: boolean) { return this.#pageWrite('PUT', 'follow', { on }, 'Follow'); }
+  /** How the open task repeats (null: never). Each run continues it as the chosen agent and app. */
+  async setSchedule(s: { every: Every; at: string; weekday?: number | null; agentId?: string | null; model?: string; paused?: boolean } | null) {
+    const cardId = this.#state.open; if (!cardId) return false;
+    const body = s ? { every: s.every, at: s.at, ...(s.every === 'weekly' ? { weekday: s.weekday ?? 1 } : {}), ...(s.agentId ? { agentId: s.agentId } : {}), model: s.model ?? '', paused: !!s.paused } : { every: 'never' };
+    return this.#pageWrite('PUT', 'schedule', body, 'The schedule', b => {
+      const sc = (b.schedule as Repeat | null) ?? null;
+      this.#publish({ schedule: sc });
+      const card = this.#state.cards.find(c => c.id === cardId);
+      if (card) this.#replaceCard({ ...card, repeat: sc });
+    });
+  }
   /** Put the files of one reply back as they were (the chat's own Undo). */
   async undoChange(chatId: string, messageId: string) {
     const ok = await this.#write<unknown>(() => this.client.request({ method: 'POST', path: `/api/chat/conversations/${chatId}/messages/${messageId}/undo`, body: {} } as never), () => undefined, 'Undo');
