@@ -60,6 +60,7 @@ import { q } from '../../repositories/sql-steps.js';
 import { chatProgress, conversationCards, createChatCard, replyPlan } from '../../services/chat-board.js';
 import { BoardError } from '../../services/task-board.js';
 import { continueMessage } from '../../services/task-file.js';
+import { addCardChat } from '../../services/task-page.js';
 import { ChatMemoryError, conversationMemories, rememberFromChat } from '../../services/chat-memory.js';
 import { actorOf } from '../../auth/auth-gate.js';
 import { ChatSearchError, parseSearch, searchConversations } from '../../services/chat-search.js';
@@ -687,7 +688,9 @@ export async function chatConversationRoutes(fastify: FastifyInstance) {
     if (!m) return notFound(reply);
     const agentId = b.agentId ?? (await q.one<{ agent_id: string }>('SELECT agent_id FROM board_card_agents WHERE card_id = ? ORDER BY agent_id LIMIT 1', b.cardId))?.agent_id;
     const made = await createConversation(userId, { title: m.title, agentId: agentId ?? null, projectId: m.projectId, model: b.model || undefined });
-    await q.run('UPDATE board_cards SET conversation_id = ? WHERE id = ?', made.id, b.cardId);
+    // The card keeps the chat it came from; every Continue is one more of its chats (TASKPAGE-02).
+    await q.run('UPDATE board_cards SET conversation_id = ? WHERE id = ? AND conversation_id IS NULL', made.id, b.cardId);
+    await addCardChat(b.cardId, made.id);
     const c = await findConversation(userId, made.id);
     if (!c) return notFound(reply);
     const out = await startTurn({ userId, role: (request as any).chatUserRole, c, runId: `task-${randomUUID()}`, message: m.message, model: b.model || undefined });

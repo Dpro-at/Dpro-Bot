@@ -99,6 +99,28 @@ export async function lineCounts(before: string, after: string): Promise<{ added
   return { added, removed };
 }
 
+/** TASKPAGE-02: each changed file with its line counts and its changed lines (short, for the task page; binary files have none). */
+export interface FileDiff { path: string; status: string; added: number; removed: number; lines: string[]; more: boolean }
+export async function fileDiffs(before: string, after: string, opts: { files?: number; lines?: number } = {}): Promise<FileDiff[]> {
+  const a = split(before), b = split(after);
+  if (a.top !== b.top || a.rel !== b.rel) throw new CheckpointError('Different folders');
+  const scope = a.rel ? [literal(a.rel)] : [];
+  const counts = new Map<string, { added: number; removed: number }>();
+  for (const row of (await git(a.top, ['diff', '--no-renames', '--numstat', '-z', a.tree, b.tree, '--', ...scope])).split('\u0000')) {
+    const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(row);
+    if (m) counts.set(m[3], { added: m[1] === '-' ? 0 : Number(m[1]), removed: m[2] === '-' ? 0 : Number(m[2]) });
+  }
+  const out: FileDiff[] = [];
+  for (const f of (await changedFiles(before, after)).slice(0, opts.files ?? 20)) {
+    // --no-ext-diff and --no-textconv: no program the repository names ever runs for the text.
+    const text = await git(a.top, ['diff', '--no-renames', '--no-color', '--no-ext-diff', '--no-textconv', '-U2', a.tree, b.tree, '--', literal(f.path)]).catch(() => '');
+    const body = text.split('\n').filter((l) => /^[+\- ]/.test(l) && !l.startsWith('+++') && !l.startsWith('---'));
+    const max = opts.lines ?? 60;
+    out.push({ path: f.path, status: f.status, ...(counts.get(f.path) ?? { added: 0, removed: 0 }), lines: body.slice(0, max).map((l) => l.slice(0, 300)), more: body.length > max });
+  }
+  return out;
+}
+
 /** Puts the files changed between `from` and `to` back to `to` (Undo: from=after, to=before). */
 export async function restore(from: string, to: string): Promise<number> {
   const files = await changedFiles(to, from);
