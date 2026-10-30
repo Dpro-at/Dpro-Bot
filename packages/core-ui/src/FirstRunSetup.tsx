@@ -42,7 +42,7 @@ export function useFirstRun(client: SessionClient, owner: boolean): { pending: b
 
 /** Clears what is typed on the shell's line first (Ctrl+U; Esc in PowerShell), so an earlier command is not run with it. */
 const CLEAR_LINE = typeof navigator !== 'undefined' && /win/i.test(navigator.platform) ? '\u001b' : '\u0015';
-/** Types a fixed command into a fresh shell of Girru's terminal; the owner presses Enter. */
+/** Runs a fixed command in Girru's terminal when the owner presses Install or Sign in (Mohamed 2026-10-30: no extra Enter); the output stays in view. */
 function useSetupTerminal(client: SessionClient) {
   const t = useMemo(() => ({ tabs: new TerminalTabs(client), prefs: new TerminalPrefsController(client) }), [client]);
   const [shown, setShown] = useState<string | null>(null);
@@ -53,10 +53,10 @@ function useSetupTerminal(client: SessionClient) {
     if (!tab) return;
     // Type once the shell has printed its prompt, so the command is not echoed before it.
     let typed = false;
-    const off = tab.terminal.onOutput(() => { if (typed) return; typed = true; setTimeout(() => { off(); tab.terminal.write(CLEAR_LINE + command); }, 150); });
+    const off = tab.terminal.onOutput(() => { if (typed) return; typed = true; setTimeout(() => { off(); tab.terminal.write(CLEAR_LINE + command + '\r'); }, 150); });
   };
   const pane = shown ? <div className="setup-terminal" aria-label={`Terminal · ${shown}`}>
-    <p className="setup-terminal-note"><UiIcon name="terminal" size={13}/>{shown}: the command is typed for you. Press Enter to run it.</p>
+    <p className="setup-terminal-note"><UiIcon name="terminal" size={13}/>{shown}: running in Girru's terminal. You can watch it here.</p>
     <TerminalPane tabs={t.tabs} prefs={t.prefs} projectId={null} maximized={false} onToggleMax={() => {}} onClose={() => setShown(null)}/>
   </div> : null;
   return { type, pane, open: !!shown };
@@ -106,7 +106,7 @@ function ToolsStep({ client, terminal, onSignedIn, onNext }: { client: SessionCl
         : t.installed ? <button type="button" onClick={() => terminal.type(t.name, t.signIn)}>Sign in</button>
         : t.install ? <button type="button" onClick={() => terminal.type(t.name, t.install!)}><UiIcon name="download" size={13}/>Install</button> : null}
     </li>)}</ul>}
-    {terminal.pane ?? <p className="fine-print">"Install" and "Sign in" open the terminal here with the command ready; nothing runs before you press Enter.</p>}
+    {terminal.pane ?? <p className="fine-print">"Install" and "Sign in" run in Girru's terminal here, so you can see what happens.</p>}
     {tools && !any && <p className="setup-note" role="note"><UiIcon name="info" size={14}/>No subscription? Continue with only the free local model (next step). Agents will be slower and simpler.</p>}
     <div className="setup-actions"><button type="button" className="primary" disabled={!tools} onClick={onNext}>Continue</button></div>
   </section>;

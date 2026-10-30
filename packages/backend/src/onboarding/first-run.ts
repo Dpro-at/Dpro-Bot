@@ -7,7 +7,7 @@
  * before this feature never see the setup steps again.
  *
  * Nothing here runs a program: install and sign-in commands are fixed strings
- * the app types into Girru's own terminal, where the owner presses Enter.
+ * the app runs in Girru's own terminal when the owner presses Install or Sign in.
  * Sign-in is checked by the presence of each tool's own files; no file content
  * that holds a credential is read or returned.
  */
