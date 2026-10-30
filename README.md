@@ -163,14 +163,14 @@ Download the installer for your system (all versions on the **[Releases page](ht
 
 | System | Download | How |
 |---|---|---|
-| 🪟 **Windows** | 👉 **[Download .msi](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-win-x64.msi)** | Run it and follow the setup wizard |
-| 🍎 **macOS** | 👉 **[Download .dmg](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-macos-x64.dmg)** | Open it and drag the app to Applications |
-| 🐧 **Linux** | 👉 **[Download .AppImage](https://github.com/Dpro-at/Girru/releases/download/v1.3.1/agent-player-installer-1.3.1-x86_64.AppImage)** | Make it executable and run it |
+| 🪟 **Windows** | 👉 **[Download .exe](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-win-x64.exe)** | Run it and follow the setup wizard |
+| 🍎 **macOS** | 👉 **[Download .dmg](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-mac-x64.dmg)** | Open it and drag the app to Applications |
+| 🐧 **Linux** | 👉 **[Download .AppImage](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-linux-x64.AppImage)** | Make it executable and run it |
 
 ```bash
 # Linux
-chmod +x agent-player-installer-1.3.1-x86_64.AppImage
-./agent-player-installer-1.3.1-x86_64.AppImage
+chmod +x Dpro-1.3.2-linux-x64.AppImage
+./Dpro-1.3.2-linux-x64.AppImage
 ```
 
 **What you get:**
