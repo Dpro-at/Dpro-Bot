@@ -1,16 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { SessionClient } from './session';
 import { UiIcon } from './ui-icons';
 import { TerminalPane } from './TerminalPane';
 import { TerminalPrefsController, TerminalTabs } from './terminal';
 import { CompanyController } from './company';
-import type { Share } from './company';
-import { TeamPicture } from './CompanyWizard';
+import { TeamFlow } from './CompanyWizard';
 import { DepartmentTile } from './StaffDirectory';
-import { shareRoles, shareSpecialties, sharesTotal } from './company';
-import { rolesSummary } from './team-split';
 import { AgentsController } from './agents';
-import { PersonalityPicker } from './PersonalityLibrary';
 import { useAppTheme } from './app-navigation';
 
 /** FIRSTRUN-01 (boards FR2–FR3): the steps after the owner account, in the one setup window. */
@@ -141,130 +137,11 @@ function ModelStep({ client, terminal, canSkip, onBack, onNext }: { client: Sess
   </section>;
 }
 
-const COUNTS = [3, 5, 10, 25, 50] as const;
-/** Departments ticked first for a new team, in this order, as far as the catalogue has them. */
-const STARTERS = ['marketing', 'sales', 'support', 'customer-support', 'development'];
-
 function TeamStep({ client, onBack, onDone }: { client: SessionClient; onBack: () => void; onDone: () => void }) {
   const controller = useMemo(() => new CompanyController(client), [client]);
   useEffect(() => () => controller.dispose(), [controller]);
-  const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
-  const [query, setQuery] = useState('');
-  const [other, setOther] = useState('');
-  const [custom, setCustom] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-  useEffect(() => { if (!s.catalogue && s.owner && s.phase !== 'loading') void controller.loadCatalogue(); }, [s.owner, s.catalogue]);
-  const busy = ['loading', 'planning', 'hiring'].includes(s.phase);
-  const choose = (n: number) => {
-    if (!Number.isSafeInteger(n) || n < 1) return;
-    controller.chooseTotal(n);
-    // Pre-tick what fits the number: fewer departments for a small team.
-    const want = n <= 3 ? 1 : n <= 10 ? 3 : 4;
-    const ids = s.catalogue?.departments.map(d => d.id) ?? [];
-    if (!controller.getSnapshot().departments.length) for (const id of STARTERS.filter(x => ids.includes(x)).slice(0, want)) controller.toggleDepartment(id);
-  };
-  // When every agent is hired, the team is shown by itself (Mohamed 2026-10-30).
-  const allHired = s.step === 'done' || (!!s.batch?.done && !s.batch.failed);
-  useEffect(() => { if (allHired) setReady(true); }, [allHired]);
-  if (ready) return <TeamReady client={client} onStart={onDone}/>;
-  if (s.step === 'hiring' || s.step === 'done') {
-    const b = s.batch;
-    const done = s.step === 'done' || !!b?.done;
-    return <section className="setup-pane" aria-label="Hiring your team">
-      <h2>Hiring your team</h2><p>A few seconds. If one fails, the others stay hired and you can try it again.</p>
-      <ul className="setup-progress">{(b?.departments ?? []).map(d => { const label = s.shares.find(x => x.department === d.department)?.departmentLabel ?? d.department;
-        return <li key={d.department}><b>{label}</b><progress max={d.total} value={d.created}>{d.created} of {d.total}</progress><span>{d.created} of {d.total}{d.failed ? ` · ${d.failed} not hired` : ''}</span></li>; })}</ul>
-      {s.notice && <p role="status">{s.notice}</p>}
-      <div className="setup-actions">
-        {s.phase === 'stopped' && b && b.failed > 0 && b.pending === 0 && <button type="button" disabled={busy} onClick={() => void controller.retryFailed()}>Try again</button>}
-        {(s.phase === 'stopped' || s.phase === 'error') && !done && <button type="button" disabled={busy} onClick={() => void controller.continueBatch()}>Continue hiring</button>}
-        <button type="button" className="primary" disabled={!done} onClick={() => setReady(true)}>See your team</button>
-      </div>
-    </section>;
-  }
-  if (s.step === 'review') {
-    const total = sharesTotal(s.shares);
-    const share = s.shares.find(x => x.department === open);
-    return <section className="setup-pane" aria-label="Your team">
-      <h2>Your team</h2>
-      <p>{total} {total === 1 ? 'agent' : 'agents'} over {s.shares.length} {s.shares.length === 1 ? 'department' : 'departments'}. Drag a line to move people; click a department to change its jobs or personality.</p>
-      {s.shares.length > 0 && <TeamPicture shares={s.shares} busy={busy} onOpen={setOpen} onMove={(a, b, [l, r]) => { controller.editShare(a.department, { count: l }); controller.editShare(b.department, { count: r }); }}/>}
-      <ul className="setup-split">{s.shares.map(x => <li key={x.department}><b>{x.departmentLabel}</b><span>{jobsLine(x)}</span></li>)}</ul>
-      {share && <DepartmentJobs share={share} busy={busy} controller={controller} onClose={() => setOpen(null)}/>}
-      <p className="fine-print">Everyone starts Careful: asks you before doing anything outside Girru.</p>
-      {s.notice && <p role="status">{s.notice}</p>}
-      <div className="setup-actions"><button type="button" disabled={busy} onClick={() => controller.back()}>Back</button>
-        <button type="button" className="primary" disabled={busy || !total} onClick={() => void controller.hireBatch()}>Hire {total} {total === 1 ? 'agent' : 'agents'}</button></div>
-    </section>;
-  }
-  if (s.step === 'departments' && s.catalogue) {
-    const list = s.catalogue.departments.filter(d => `${d.label} ${d.summary}`.toLowerCase().includes(query.trim().toLowerCase()));
-    const known = new Set(s.catalogue.departments.map(d => d.id));
-    return <section className="setup-pane" aria-label="Which departments?">
-      <h2>Which departments?</h2>
-      <p>Pick the work you need. Girru splits your {s.total} {s.total === 1 ? 'agent' : 'agents'} by what each department usually needs.</p>
-      <label className="setup-search"><UiIcon name="search" size={13}/><input type="search" aria-label="Search departments" placeholder="Search departments" value={query} onChange={e => setQuery(e.target.value)}/></label>
-      <ul className="setup-departments">{list.map(d => { const on = s.departments.includes(d.id);
-        return <li key={d.id}><button type="button" aria-pressed={on} disabled={busy} onClick={() => controller.toggleDepartment(d.id)}>
-          <DepartmentTile department={d.label} size={26}/><span><b>{d.label}</b><small>{d.summary}</small></span>{on && <UiIcon name="check" size={15}/>}</button></li>; })}
-        {s.departments.filter(d => !known.has(d)).map(d => <li key={d}><button type="button" aria-pressed onClick={() => controller.toggleDepartment(d)}><DepartmentTile department={d} size={26}/><span><b>{d}</b><small>Your own department</small></span><UiIcon name="check" size={15}/></button></li>)}
-      </ul>
-      <form className="setup-add" onSubmit={e => { e.preventDefault(); if (controller.addCustom(custom)) setCustom(''); }}>
-        <UiIcon name="plus" size={13}/><input aria-label="Add your own department" placeholder="Add your own department" maxLength={64} value={custom} onChange={e => setCustom(e.target.value)}/>{custom.trim() && <button type="submit">Add</button>}
-      </form>
-      {s.notice && <p role="status">{s.notice}</p>}
-      <div className="setup-actions"><button type="button" disabled={busy} onClick={() => controller.back()}>Back</button>
-        <button type="button" className="primary" disabled={busy || !s.departments.length} onClick={() => void controller.propose()}>See the split</button></div>
-    </section>;
-  }
-  return <section className="setup-pane" aria-label="How many agents do you want?">
-    <h2>How many agents do you want?</h2>
-    <p>Your Main agent leads them. You can hire or remove people any time.</p>
-    {!s.catalogue ? <p role="status">{s.notice ?? 'Reading the departments…'}</p> : <>
-      <div className="setup-counts" role="radiogroup" aria-label="Number of agents">{COUNTS.map(n =>
-        <button key={n} type="button" role="radio" aria-checked={s.total === n} onClick={() => choose(n)}><b>{n}</b><small>agents</small></button>)}</div>
-      <form className="setup-other" onSubmit={e => { e.preventDefault(); choose(Number(other)); }}>
-        <label>Another number<input type="number" inputMode="numeric" min={1} max={s.catalogue.maxTotal ?? 1000} value={other} onChange={e => setOther(e.target.value)}/></label><small>up to {s.catalogue.maxTotal ?? 1000}</small>
-      </form>
-      <p className="fine-print">More agents do more at once, and use more of your subscription.</p>
-      {s.open.length > 0 && <p className="setup-note"><UiIcon name="info" size={14}/>Unfinished hiring: {s.open[0].created} of {s.open[0].total} hired. <button type="button" className="link-button" onClick={() => void controller.resume(s.open[0].id)}>Continue it</button></p>}
-    </>}
-    <div className="setup-actions"><button type="button" onClick={onBack}>Back</button>
-      <button type="button" className="primary" disabled={!s.catalogue || s.total === undefined} onClick={() => { if (s.total !== undefined) choose(s.total); }}>Continue</button></div>
-  </section>;
-}
-
-function jobsLine(x: Share) {
-  const jobs = shareSpecialties(x).filter(r => r.count > 0);
-  return jobs.length ? jobs.map(r => r.count > 1 ? `${r.name} ×${r.count}` : r.name).join(', ') : rolesSummary(shareRoles(x));
-}
-
-/** FR3d: one department's jobs with − / +; the department's count follows the jobs, so counts always add up. */
-function DepartmentJobs({ share, busy, controller, onClose }: { share: Share; busy: boolean; controller: CompanyController; onClose: () => void }) {
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => { box.current?.focus(); }, [share.department]);
-  const rows = shareSpecialties(share);
-  const set = (i: number, count: number) => {
-    const next = rows.map((r, j) => j === i ? { ...r, count: Math.max(0, count) } : r);
-    const total = next.reduce((n, r) => n + r.count, 0);
-    if (total < 1) return;
-    controller.editShare(share.department, { count: total });
-    controller.editSpecialties(share.department, next);
-  };
-  const choices = (controller.getSnapshot().catalogue?.specialties ?? []).filter(c => c.department === share.department && !rows.some(r => r.name.toLowerCase() === c.name.toLowerCase()));
-  return <div ref={box} tabIndex={-1} className="setup-popover" role="dialog" aria-label={`${share.departmentLabel}: jobs`} onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <header><b>{share.departmentLabel} · {share.count}</b><button type="button" className="tool" aria-label="Close" title="Close" onClick={onClose}><UiIcon name="close" size={13}/></button></header>
-    <span className="setup-popover-label">Jobs</span>
-    <ul>{rows.map((r, i) => <li key={r.name || i}><span>{r.name}</span><span className="setup-stepper">
-      <button type="button" className="tool" aria-label={`One less ${r.name}`} disabled={busy || r.count < 1} onClick={() => set(i, r.count - 1)}><UiIcon name="minus" size={12}/></button>
-      <b>{r.count}</b>
-      <button type="button" className="tool" aria-label={`One more ${r.name}`} disabled={busy} onClick={() => set(i, r.count + 1)}><UiIcon name="plus" size={12}/></button></span></li>)}</ul>
-    <span className="setup-popover-label">Personality</span>
-    <PersonalityPicker client={controller.client} value={share.personalities?.specialist} disabled={busy} onPick={e => controller.editShare(share.department, { role: 'specialist', personality: { id: e.id, revision: e.revision } })}/>
-    {choices.length > 0 && <label className="setup-popover-add">Add a job<select value="" disabled={busy} onChange={e => { const c = choices.find(x => x.name === e.target.value); if (c) { controller.editSpecialties(share.department, [...rows, { name: c.name, description: c.description, count: 1 }]); controller.editShare(share.department, { count: share.count + 1 }); } }}>
-      <option value="">Choose from Specialties…</option>{choices.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}</select></label>}
-  </div>;
+  return ready ? <TeamReady client={client} onStart={onDone}/> : <TeamFlow controller={controller} mode="setup" onBack={onBack} onHired={() => setReady(true)}/>;
 }
 
 /** A steady colour per name, so each person is told apart at a glance. */

@@ -3380,7 +3380,7 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-actions .primary { margin-left:auto; min-height:34px; }
 .setup-counts { display:flex; gap:8px; flex-wrap:wrap; }
 .setup-counts button { width:76px; height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:10px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); border:0; }
-.setup-counts button b { font-size:18px; }
+.setup-counts button b, .setup-counts button strong { font-size:18px; }
 .setup-counts button small { font-size:11px; color:var(--text-2); }
 .setup-counts button[aria-checked="true"] { box-shadow:inset 0 0 0 2px var(--accent); }
 .setup-other { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-2); }
@@ -3429,3 +3429,8 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-actions button { min-height:34px; }
 .setup-recommended { border:0; background:color-mix(in srgb, #3fb27f 18%, transparent); color:#7fd3a8; font-size:11px; padding:1px 8px; border-radius:999px; }
 .setup-face-dot { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:14px; font-weight:600; }
+dialog.company-planner { width:min(560px,94vw); height:min(660px,92vh); padding:16px 24px 18px; border:0; border-radius:14px; background:var(--canvas); color:var(--text); box-shadow:0 0 0 1px var(--border), 0 30px 70px rgba(0,0,0,.5); }
+dialog.company-planner[open] { display:flex; flex-direction:column; }
+.company-planner-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.company-planner-head h3 { margin:0; font-size:14px; }
+.company-planner .setup-pane { width:100%; }

@@ -40,7 +40,7 @@ export function AgentFace({agent,face,profile,size=30}:{agent:Pick<PublicAgent,'
  * job, department tile) and the selected agent on the right with what makes
  * it. Owner actions live in the ⋯ and right-click menus; Remove confirms once.
  */
-export function StaffDirectory({controller,department,query='',notice,onOpen,onMemory,onHire,onCompany,onChat}:{controller:AgentsController;department:string;query?:string;notice?:{id:number;text:string}|null;onDepartment?:(d:string)=>void;onOpen:(id:string,section?:CardTab)=>void;onMemory?:(id:string)=>void;onHire?:()=>void;onCompany?:()=>void;onChat?:(id:string)=>void}){
+export function StaffDirectory({controller,department,query='',notice,hired,onOpen,onMemory,onHire,onCompany,onChat}:{controller:AgentsController;department:string;query?:string;notice?:{id:number;text:string}|null;hired?:{id:number;agentId:string;name:string}|null;onDepartment?:(d:string)=>void;onOpen:(id:string,section?:CardTab)=>void;onMemory?:(id:string)=>void;onHire?:()=>void;onCompany?:()=>void;onChat?:(id:string)=>void}){
  const s=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
  const owner=!!onHire;
  const [role,setRole]=useState('all'),[sort,setSort]=useState('name'),[selected,setSelected]=useState<string|null>(null),[showing,setShowing]=useState(false),[removing,setRemoving]=useState<PublicAgent|null>(null),[toast,setToast]=useState<Toast>(null),[busy,setBusy]=useState(false);
@@ -60,6 +60,8 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  const fold=(id:string)=>setFolded(f=>{const n=new Set(f);if(n.has(id))n.delete(id);else n.add(id);kept.folded=n;savePrefs({folded:[...n].slice(0,500)});return n;});
  const rows=useRef<HTMLDivElement>(null);const menu=useMenu(),toolsMenu=useMenu();
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
+ // FR4b: a new hire is selected and the notice offers Undo (removes the agent again).
+ useEffect(()=>{if(!hired)return;setSelected(hired.agentId);say(`${hired.name} joined the team`,async()=>{const r=await controller.remove(hired.agentId);setToast({id:Date.now(),text:r.ok?`${hired.name} was removed`:r.notice,undo:false});if(r.ok)setSelected(null);});},[hired?.id]);
  const q=query.trim().toLowerCase();
   const shown=withHelpers(s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role),a.description].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??'')));
  const faces=useFaces(controller.client,shown.map(a=>a.id),owner&&!!controller.client),library=useLibraryEntries(controller.client,owner);
@@ -127,6 +129,8 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
     <span className="ag-row-text"><span className="ag-row-name">{a.subAgentOf&&<UiIcon name="sub-agent" size={12}/>}<bdi>{a.name??'Name unavailable'}</bdi>{a.isPrimary&&<span className="ag-tag">Main agent</span>}</span><span className="ag-row-sub">{a.isPrimary?'Talks to you first':a.subAgentOf?`Sub-agent of ${s.agents.find(x=>x.id===a.subAgentOf)?.name??'its agent'}`:roleWord(a.role)}</span></span>
     <span className="ag-row-dept">{a.department&&<><DepartmentTile department={a.department}/>{departmentName(a.department)}</>}</span>
    </button>)}
+   {/* FR4d: only the Main agent so far: one sentence and one action. */}
+   {s.phase==='ready'&&s.agents.length===1&&s.agents[0].isPrimary&&onHire&&!q&&<div className="ag-empty ag-empty-alone"><UiIcon name="users" size={28}/><p><b>{s.agents[0].name??'Your Main agent'} works alone so far</b><br/>Hire a colleague for one kind of work. {s.agents[0].name??'Your Main agent'} hands them tasks.</p><button type="button" className="primary" onClick={onHire}>Hire agent</button></div>}
    {!shown.length&&<div className="ag-empty"><UiIcon name="users" size={28}/><p>{s.phase==='listing'||s.phase==='idle'?'Loading the team…':s.phase==='error'?'The team could not be loaded.':s.agents.length?'No one here matches.':'Hire your first agent.'}</p>{s.phase==='error'&&<button type="button" onClick={()=>void controller.list()}>Try again</button>}{s.phase==='ready'&&!s.agents.length&&onHire&&<button type="button" className="primary" onClick={onHire}>Hire agent</button>}</div>}
   </div>}
  </div>

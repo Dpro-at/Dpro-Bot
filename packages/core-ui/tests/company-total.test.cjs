@@ -116,7 +116,7 @@ test('offline: 400 agents → departments → editable split → one batch, hire
   assert.equal(total, 400 - 133 + 10);
   const html = markup(w);
   assert.match(html, new RegExp(`Hire ${total} agents`));
-  assert.match(html, /Support · 10 agents/); assert.match(html, /Change…/);
+  assert.match(html, /<b>Support<\/b>/); assert.match(html, /Support: 10 agents\. Change…/);
   assert.match(html, /1 manager · 8 specialists · 1 reviewer/);
   await w.hireBatch();
   s = w.getSnapshot();
@@ -233,7 +233,7 @@ test('the first step offers the approved agent numbers and a custom number up to
   await w.loadCatalogue();
   const html = markup(w);
   for (const n of [3, 5, 10, 25, 50]) assert.match(html, new RegExp(`<strong>${n}</strong><small>agents</small>`));
-  assert.match(html, /Custom number of agents/);
+  assert.match(html, /Another number/);
   assert.match(html, /Number of agents/);
   assert.doesNotMatch(html, /people|person|Company size|Just me/i);
   assert.equal(w.chooseTotal(1001), false);
@@ -246,7 +246,7 @@ test('the first step offers the approved agent numbers and a custom number up to
 test('specialty editing blocks unbalanced allocations and sends reviewed names/counts/descriptions',async t=>{
  const {w,calls}=await fixture(t);await w.loadCatalogue();w.chooseTotal(2);w.toggleDepartment('development');await w.propose();
  w.editSpecialties('development',[{name:'Server administrator',count:1,description:'Operate fictional servers.'}]);assert.match(markup(w),/Check specialties/);await w.hireBatch();assert.equal(batchCreates(calls).length,0);assert.match(w.getSnapshot().notice,/Specialty counts/);
- const rows=[{name:'Server administrator',count:1,description:'Operate fictional servers.'},{name:'Custom data guardian',count:1,description:'Review fictional access.'}];w.editSpecialties('development',rows);assert.match(markup(w),/Server administrator × 1 · Custom data guardian × 1/);assert.doesNotMatch(markup(w),/Check specialties/);await w.hireBatch();assert.deepEqual(batchCreates(calls)[0].body.departments[0].specialties,rows);
+ const rows=[{name:'Server administrator',count:1,description:'Operate fictional servers.'},{name:'Custom data guardian',count:1,description:'Review fictional access.'}];w.editSpecialties('development',rows);assert.match(markup(w),/Server administrator, Custom data guardian/);assert.doesNotMatch(markup(w),/Check specialties/);await w.hireBatch();assert.deepEqual(batchCreates(calls)[0].body.departments[0].specialties,rows);
 });
 
 test('specialty contract rejects privilege injection, duplicate names and mismatched totals',()=>{

@@ -1,5 +1,6 @@
 import {defaultLibraryId} from './personality-library';
 import {PersonalityFaces} from './AgentPersonalityLibrary';
+import {libraryRpc,P,type Entry} from './personality-library';
 import {DepartmentTile} from './StaffDirectory';
 import {IconButton} from './desktop-ui';
 import {UiIcon} from './ui-icons';
@@ -22,9 +23,10 @@ const careIcon: Record<Care, UiIconName> = { careful: 'shield', normal: 'check',
 const askWords: Record<string, string> = { browser: 'browsing', network: 'going online', message: 'sending', delete: 'deleting', install: 'installing', money: 'spending', settings: 'changing settings' };
 
 /** AG4a: one sheet for a new agent; permissions remain reviewable after creation. */
-export function HireAgent({ controller, onClose, onOpen }: { controller: HireController; onClose: () => void; onOpen?: (agentId: string) => void }) {
+export function HireAgent({ controller, onClose, onOpen, onHired }: { controller: HireController; onClose: () => void; onOpen?: (agentId: string) => void; onHired?: (agent: { id: string; name: string }) => void }) {
   const [templateMode,setTemplateMode]=useState(false);
   const [suggestingName,setSuggestingName]=useState(false);
+  const [personaName,setPersonaName]=useState('');
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const busy = ['creating', 'loading', 'saving'].includes(s.phase);
   const locked = !s.owner || busy || !!s.agent;
@@ -34,6 +36,8 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
   const other = s.tools.filter(t => !memoryTool(t.name));
   const named = s.agent?.name ?? normalizedName(d.name);
   const who = named || 'The new agent';
+  // FR4b: once hired, the sheet closes and the team list selects the new agent with an Undo notice.
+  useEffect(() => { if (s.phase === 'done' && s.agent && onHired) onHired({ id: s.agent.id, name: s.agent.name ?? who }); }, [s.phase, s.agent?.id]);
   const care = careOf(s.permissions) ?? 'careful';
   const asks = s.permissions ? allCategories.filter(c => s.permissions!.modes[c] === 'ask').map(c => askWords[c]) : [];
   const risky = controller.riskyAllowed();
@@ -66,7 +70,7 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
         <span className="team-avatar" aria-hidden="true">{(named || '?').trim().slice(0, 1).toUpperCase() || '?'}</span>
         <strong>{named || 'Name chosen when hired'}</strong>
         <span>{roleLabel[d.role]}{normalizedDepartment(d.department) ? ` · ${normalizedDepartment(d.department)}` : ''}</span>
-        <span>{d.libraryPersonality ? 'Personality selected' : 'Suggested personality'}</span>
+        {personaName && <span className="badge">{personaName}</span>}
         <span className="badge"><UiIcon name="shield" size={13}/> Careful</span>
       </aside>
       <div className="hire-form">
@@ -80,12 +84,11 @@ export function HireAgent({ controller, onClose, onOpen }: { controller: HireCon
         </div>
         <label>Department<span className="ag-picker"><DepartmentTile department={normalizedDepartment(d.department) || null} size={20}/><input value={d.department} maxLength={64} disabled={locked} placeholder="Choose a department" onChange={e => controller.edit({ department: e.target.value })}/></span></label>
         <section className="ag-hire-personality" aria-label="Personality"><h4>Personality</h4>
-          <PersonalityFaces client={controller.client} value={d.libraryPersonality?.id} disabled={locked} autoPick={defaultLibraryId(d.role, d.department)} onPick={entry => controller.edit({ libraryPersonality: { id: entry.id, revision: entry.revision } })}/>
-          <p className="fine-print">Personality changes how the agent talks, not what it can do.</p>
+          <PersonalityChips client={controller.client} value={d.libraryPersonality?.id} disabled={locked} autoPick={defaultLibraryId(d.role, d.department)} onName={setPersonaName} onPick={entry => controller.edit({ libraryPersonality: { id: entry.id, revision: entry.revision } })}/>
         </section>
         <fieldset className="ag-hire-care"><legend>How careful</legend><div role="radiogroup" aria-label="How careful" className="ag-care">{careLevels.map(c => <label key={c.key} className="ag-role" data-on={care === c.key || undefined}>
-          <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => chooseCare(c.key)}/><UiIcon name={careIcon[c.key]} size={18}/><b>{c.title}</b><small>{c.text}</small>
-        </label>)}</div></fieldset>
+          <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => chooseCare(c.key)}/><UiIcon name={careIcon[c.key]} size={14}/><b>{c.title}</b>
+        </label>)}</div><p className="fine-print">{careLevels.find(c => c.key === care)?.text}</p></fieldset>
         <div className="hire-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="button" className="primary" disabled={locked || s.phase === 'unknown'} onClick={hire}>{named ? <>Hire <bdi>{named}</bdi></> : 'Hire agent'}</button></div>
       </div>
     </div>}
@@ -163,4 +166,21 @@ function ModeTable({ controller, p, confirm, disabled }: { controller: HireContr
     </li>)}</ul>
     {risky.length > 0 && <p className="fine-print">{confirm ? 'Confirmed: ' : 'Needs your confirmation below: '}{risky.map(c => categoryLabel[c].toLowerCase()).join(', ')}.</p>}
   </fieldset>;
+}
+
+/** FR4a: three suggested personalities as chips; More… shows the whole library. */
+function PersonalityChips({ client, value, onPick, onName, disabled, autoPick }: { client: HireController['client']; value?: string; onPick: (e: Entry) => void; onName: (name: string) => void; disabled?: boolean; autoPick?: string }) {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [more, setMore] = useState(false);
+  useEffect(() => { let live = true; void libraryRpc<{ personalities: Entry[] }>(client, 'GET', P).then(r => { if (live) setEntries(r.personalities.filter(e => !e.archived)); }).catch(() => {}); return () => { live = false; }; }, [client]);
+  useEffect(() => { onName(entries.find(e => e.id === value)?.profile.name ?? ''); }, [entries, value]);
+  // The suggested one is chosen at once (as the full list did).
+  useEffect(() => { if (!value && autoPick) { const e = entries.find(x => x.id === autoPick); if (e) onPick(e); } }, [entries]);
+  if (more) return <><PersonalityFaces client={client} value={value} disabled={disabled} autoPick={autoPick} onPick={e => { onPick(e); setMore(false); }}/><p className="fine-print">Personality changes how the agent talks, not what it can do.</p></>;
+  const first = [value, autoPick].filter((x): x is string => !!x);
+  const shown = [...first.map(id => entries.find(e => e.id === id)).filter((e): e is Entry => !!e), ...entries].filter((e, i, all) => all.findIndex(x => x.id === e.id) === i).slice(0, 3);
+  return <div className="ag-persona-chips" role="radiogroup" aria-label="Personality">
+    {shown.map(e => <button key={e.id} type="button" role="radio" aria-checked={value === e.id} className="ag-persona-chip" disabled={disabled} onClick={() => onPick(e)}>{e.profile.name}</button>)}
+    <button type="button" className="ag-persona-chip ag-persona-more" disabled={disabled || !entries.length} onClick={() => setMore(true)}>More…</button>
+  </div>;
 }
