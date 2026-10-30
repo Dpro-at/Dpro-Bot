@@ -504,12 +504,12 @@ export async function databaseRoutes(fastify: FastifyInstance) {
       const storage = db.prepare('DELETE FROM storage_files WHERE zone = ? AND created_at < ?').run('cache', cutoffISO);
       deletedCount += storage.changes;
 
-      // Clean waf_scans if table exists
+      // Clean the WAF Security app's scan history if it is added (APPS-06: a Girru Store app now)
       const tableExists = db.prepare(`
-        SELECT name FROM sqlite_master WHERE type='table' AND name='waf_scans'
+        SELECT name FROM sqlite_master WHERE type='table' AND name='app_waf_security__waf_scans'
       `).get();
       if (tableExists) {
-        const wafScans = db.prepare('DELETE FROM waf_scans WHERE created_at < ?').run(cutoffISO);
+        const wafScans = db.prepare('DELETE FROM app_waf_security__waf_scans WHERE created_at < ?').run(cutoffISO);
         deletedCount += wafScans.changes;
       }
 

@@ -1018,7 +1018,7 @@ export function weatherRoutes(fastify, api) {
 
 ### Example 2: WAF Security (Tool Extension)
 
-**Location:** `packages/backend/extensions/waf-security/`
+**Location:** the Girru Store repository, `apps/waf-security/package/` (moved out of the program in APPS-06)
 
 **Features:**
 - ✅ WAF detection engine (20+ vendors)

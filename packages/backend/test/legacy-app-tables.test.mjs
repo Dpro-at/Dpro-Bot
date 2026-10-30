@@ -1,7 +1,9 @@
-// APPS-06 step 3: an app that used to ship with Girru (seo) now comes from the Girru Store. Its old
+// APPS-06 step 3: apps that used to ship with Girru (seo, waf-security) now come from the Girru Store. Its old
 // tables are renamed once to app_seo__<old name>, after a before-update backup (no backup, no rename),
 // and it is marked to be added again; the add from the Store keeps the moved rows, clears the mark on
 // success and keeps it on failure. A fresh data folder gets no seo tables; the program has no extensions/seo.
+// waf-security: its waf_scans was made for everyone by core migration 023, so only an owner who used
+// the app (config row or recorded migrations) has it moved; a fresh data folder no longer gets it.
 // No network: the Girru Store is a fake. Run: node --import tsx --test test/legacy-app-tables.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,24 +27,41 @@ process.env.ENCRYPTION_KEY = randomBytes(32).toString('hex'); // throwaway, test
 process.env.NODE_ENV = 'test';
 const quiet = () => {}; console.log = quiet; console.warn = quiet; console.error = quiet;
 
-// The Store's seo package, cut down: the same tables under their Store names, IF NOT EXISTS only.
+// The Store's seo and waf-security packages, cut down: the same tables under their Store names, IF NOT EXISTS only.
 const sha = (b) => createHash('sha256').update(b).digest('hex');
-const served = {
-  'agentplayer.plugin.json': JSON.stringify({ id: 'seo', name: 'SEO', version: '1.1.0', main: 'index.js', permissions: ['database'] }),
-  'index.js': 'export default { async register(api) {} };\n',
-  'migrations/001_seo_core.sql': [
-    'CREATE TABLE IF NOT EXISTS app_seo__seo_domains (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, domain TEXT NOT NULL);',
-    'CREATE INDEX IF NOT EXISTS app_seo__idx_domains_user ON app_seo__seo_domains(user_id);',
-    'CREATE TABLE IF NOT EXISTS app_seo__seo_keywords (id TEXT PRIMARY KEY, domain_id TEXT NOT NULL, keyword TEXT NOT NULL, FOREIGN KEY (domain_id) REFERENCES app_seo__seo_domains(id) ON DELETE CASCADE);',
-    'CREATE INDEX IF NOT EXISTS app_seo__idx_keywords_domain ON app_seo__seo_keywords(domain_id);',
-  ].join('\n'),
+const packages = {
+  seo: {
+    'agentplayer.plugin.json': JSON.stringify({ id: 'seo', name: 'SEO', version: '1.1.0', main: 'index.js', permissions: ['database'] }),
+    'index.js': 'export default { async register(api) {} };\n',
+    'migrations/001_seo_core.sql': [
+      'CREATE TABLE IF NOT EXISTS app_seo__seo_domains (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, domain TEXT NOT NULL);',
+      'CREATE INDEX IF NOT EXISTS app_seo__idx_domains_user ON app_seo__seo_domains(user_id);',
+      'CREATE TABLE IF NOT EXISTS app_seo__seo_keywords (id TEXT PRIMARY KEY, domain_id TEXT NOT NULL, keyword TEXT NOT NULL, FOREIGN KEY (domain_id) REFERENCES app_seo__seo_domains(id) ON DELETE CASCADE);',
+      'CREATE INDEX IF NOT EXISTS app_seo__idx_keywords_domain ON app_seo__seo_keywords(domain_id);',
+    ].join('\n'),
+  },
+  'waf-security': {
+    'agentplayer.plugin.json': JSON.stringify({ id: 'waf-security', name: 'WAF Security Scanner', version: '1.1.0', main: 'index.js', permissions: ['database'] }),
+    'index.js': 'export default { async register(api) {} };\n',
+    'migrations/001_waf_scans.sql': [
+      "CREATE TABLE IF NOT EXISTS app_waf_security__waf_scans (id TEXT PRIMARY KEY, target_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')), user_id TEXT);",
+      'CREATE INDEX IF NOT EXISTS app_waf_security__idx_scans_user ON app_waf_security__waf_scans(user_id, created_at DESC);',
+      'CREATE TABLE IF NOT EXISTS app_waf_security__waf_campaigns (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, target_domain TEXT NOT NULL);',
+      'CREATE TABLE IF NOT EXISTS app_waf_security__waf_campaign_scans (id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, scan_id TEXT NOT NULL, FOREIGN KEY (campaign_id) REFERENCES app_waf_security__waf_campaigns(id) ON DELETE CASCADE, FOREIGN KEY (scan_id) REFERENCES app_waf_security__waf_scans(id) ON DELETE CASCADE);',
+      'CREATE INDEX IF NOT EXISTS app_waf_security__idx_campaign_scans_scan ON app_waf_security__waf_campaign_scans(scan_id);',
+    ].join('\n'),
+  },
 };
-const list = Object.entries(served).map(([path, body]) => ({ path, sha256: sha(Buffer.from(body)), size: Buffer.byteLength(body) })).sort((a, b) => a.path.localeCompare(b.path));
-const index = { schema: 1, featured: null, collections: [], items: [{ id: 'seo', kind: 'app', name: 'SEO', summary: 'Track your keyword rankings.', description: 'Keyword tracking.', icon: 'search', maker: 'Girru', version: '1.1.0', updated: '2026-10-30', category: 'marketing', permissions: ['Keeps its data in its own tables'], worksWith: [], languages: ['English'], pricing: { model: 'free' }, package: { files: list, sha256: sha(JSON.stringify(list)) } }] };
+const item = (id, name) => {
+  const list = Object.entries(packages[id]).map(([path, body]) => ({ path, sha256: sha(Buffer.from(body)), size: Buffer.byteLength(body) })).sort((a, b) => a.path.localeCompare(b.path));
+  return { id, kind: 'app', name, summary: `${name}.`, description: name, icon: null, maker: 'Girru', version: '1.1.0', updated: '2026-10-30', category: 'more', permissions: ['Keeps its data in its own tables'], worksWith: [], languages: ['English'], pricing: { model: 'free' }, package: { files: list, sha256: sha(JSON.stringify(list)) } };
+};
+const index = { schema: 1, featured: null, collections: [], items: [item('seo', 'SEO'), item('waf-security', 'WAF Security')] };
 let storeUp = false;
 globalThis.fetch = async (url) => {
   const u = String(url);
-  const body = !storeUp ? undefined : u === 'https://store.test/index.json' ? JSON.stringify(index) : u.startsWith('https://store.test/apps/seo/package/') ? served[u.slice('https://store.test/apps/seo/package/'.length)] : undefined;
+  const m = /^https:\/\/store\.test\/apps\/([a-z-]+)\/package\/(.+)$/.exec(u);
+  const body = !storeUp ? undefined : u === 'https://store.test/index.json' ? JSON.stringify(index) : m ? packages[m[1]]?.[m[2]] : undefined;
   if (body === undefined) return { ok: false, status: 503, text: async () => '', arrayBuffer: async () => new ArrayBuffer(0) };
   const bytes = Buffer.from(body);
   return { ok: true, status: 200, text: async () => body, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) };
@@ -132,4 +151,97 @@ test('adding it again: the Store cannot be reached, the mark stays; then it is a
   assert.deepEqual(indexes('app_seo__seo_domains'), ['app_seo__idx_domains_user']);
   assert.equal(db.prepare("SELECT enabled FROM extension_configs WHERE extension_id = 'seo'").get().enabled, 0, 'the owner had it off: it stays off');
   assert.deepEqual(await reinstallMovedApps(), [], 'nothing left to add');
+});
+
+// Any moved app: "had it" comes from extension_configs (on or off) or its recorded migrations,
+// never from a table alone; an app with no tables moves with no backup; old views are dropped.
+test('an app with no tables that the owner had is marked to be added again, on or off as it was, with no backup', async () => {
+  db.prepare("INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES ('demo-on', 1), ('demo-off', 0)").run();
+  db.exec('CREATE TABLE demo_shared (id TEXT PRIMARY KEY); INSERT INTO demo_shared VALUES (\'x\');'); // made for everyone by an old Girru
+  let backedUp = 0;
+  const apps = [{ id: 'demo-on', tables: [] }, { id: 'demo-off', tables: [] }, { id: 'demo-never', tables: ['demo_shared'] }];
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => { backedUp++; } }), ['demo-on', 'demo-off']);
+  assert.equal(backedUp, 0, 'nothing renamed: no backup');
+  assert.equal(JSON.parse(setting('store.reinstall.demo-on')).enabled, true);
+  assert.equal(JSON.parse(setting('store.reinstall.demo-off')).enabled, false);
+  assert.equal(setting('store.reinstall.demo-never'), undefined, 'never used: nothing to add again');
+  assert.ok(table('demo_shared') && !table('app_demo_never__demo_shared'), 'a table alone does not mean the owner used the app');
+  for (const id of ['demo-on', 'demo-off', 'demo-never']) assert.ok(setting(`store.moved.${id}`), id);
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => { backedUp++; } }), [], 'once');
+  db.prepare("DELETE FROM app_settings WHERE key LIKE 'store.reinstall.demo-%'").run(); // nothing in the fake Store to add
+});
+
+test('old views over a moved app\'s tables are dropped before the rename; its rows move', async () => {
+  db.exec(`CREATE TABLE demo_items (id TEXT PRIMARY KEY, n INTEGER);
+    INSERT INTO demo_items VALUES ('a', 1), ('b', 2);
+    CREATE VIEW v_demo_items AS SELECT COUNT(*) AS n FROM demo_items;`);
+  db.prepare("INSERT INTO extension_migrations (extension_id, filename) VALUES ('demo-views', '001_demo.sql')").run();
+  const apps = [{ id: 'demo-views', tables: ['demo_items'], views: ['v_demo_items'] }];
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => {} }), ['demo-views']);
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'view' AND name = 'v_demo_items'").get(), undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM app_demo_views__demo_items').get().n, 2);
+  assert.equal(JSON.parse(setting('store.reinstall.demo-views')).enabled, false, 'no config row: it was off');
+  db.prepare("DELETE FROM app_settings WHERE key = 'store.reinstall.demo-views'").run();
+});
+
+// waf-security. An older Girru made waf_scans for everyone (core migration 023, no longer); the
+// app's own migrations added user_id, the other tables and two views over them.
+function oldWaf() {
+  db.exec(`CREATE TABLE waf_scans (id TEXT PRIMARY KEY, target_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE INDEX idx_waf_scans_url ON waf_scans(target_url);
+    INSERT INTO waf_scans (id, target_url, status) VALUES ('s-1', 'https://example.test', 'completed');`);
+}
+function wafExtension({ enabled }) {
+  db.exec(`ALTER TABLE waf_scans ADD COLUMN user_id TEXT;
+    UPDATE waf_scans SET user_id = 'u-1';
+    CREATE INDEX idx_waf_scans_user_id ON waf_scans(user_id, created_at DESC);
+    CREATE TABLE waf_campaigns (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, target_domain TEXT NOT NULL);
+    CREATE TABLE waf_campaign_scans (id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, scan_id TEXT NOT NULL, FOREIGN KEY (campaign_id) REFERENCES waf_campaigns(id) ON DELETE CASCADE, FOREIGN KEY (scan_id) REFERENCES waf_scans(id) ON DELETE CASCADE);
+    CREATE TABLE waf_campaign_comparisons (id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL, regression_detected BOOLEAN DEFAULT 0);
+    INSERT INTO waf_campaigns VALUES ('c-1', 'u-1', 'Weekly', 'https://example.test');
+    INSERT INTO waf_campaign_scans VALUES ('cs-1', 'c-1', 's-1');
+    CREATE VIEW v_campaign_summary AS SELECT c.id, (SELECT COUNT(*) FROM waf_campaign_scans WHERE campaign_id = c.id) AS total_scans FROM waf_campaigns c;
+    CREATE VIEW v_latest_comparisons AS SELECT cc.* FROM waf_campaign_comparisons cc INNER JOIN waf_campaigns c ON cc.campaign_id = c.id;`);
+  db.prepare("INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES ('waf-security', ?)").run(enabled);
+  for (const f of ['001_waf_scans.sql', '002_waf_user_isolation.sql', '003_waf_payload_library.sql', '004_waf_campaigns.sql']) db.prepare("INSERT INTO extension_migrations (extension_id, filename) VALUES ('waf-security', ?)").run(f);
+}
+
+test('waf-security: the program ships no extensions/waf-security and a fresh data folder gets no waf_scans', () => {
+  assert.ok(!existsSync(join(backendDir, 'extensions', 'waf-security')), 'waf-security comes from the Girru Store now');
+  assert.ok(MOVED_APPS.some((a) => a.id === 'waf-security' && a.tables.includes('waf_scans') && a.views?.includes('v_campaign_summary')));
+  assert.ok(!table('waf_scans'), 'core migration 023 makes nothing now');
+});
+
+test('waf-security: an owner who never used it keeps the old shared waf_scans as it is; nothing is backed up or added again', async () => {
+  oldWaf();
+  db.prepare("DELETE FROM app_settings WHERE key = 'store.moved.waf-security'").run(); // marked by the first test's start: start from an older Girru
+  let backedUp = 0;
+  assert.deepEqual(await moveLegacyAppTables({ backup: async () => { backedUp++; } }), []);
+  assert.equal(backedUp, 0);
+  assert.ok(table('waf_scans') && !table('app_waf_security__waf_scans'));
+  assert.ok(setting('store.moved.waf-security'));
+  assert.equal(setting('store.reinstall.waf-security'), undefined);
+  db.prepare("DELETE FROM app_settings WHERE key = 'store.moved.waf-security'").run(); // next: the same Girru, used
+});
+
+test('waf-security: an owner who used it gets every table moved with its rows after a backup, the views dropped, and it is added again turned on', async () => {
+  wafExtension({ enabled: 1 });
+  let backedUp = 0;
+  assert.deepEqual(await moveLegacyAppTables({ backup: async () => { backedUp++; assert.ok(table('waf_scans'), 'backup before the rename'); } }), ['waf-security']);
+  assert.equal(backedUp, 1);
+  for (const t of ['waf_scans', 'waf_campaigns', 'waf_campaign_scans', 'waf_campaign_comparisons']) assert.ok(!table(t) && table(`app_waf_security__${t}`), t);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'view' AND name IN ('v_campaign_summary', 'v_latest_comparisons')").get().n, 0, 'views dropped');
+  assert.deepEqual(indexes('app_waf_security__waf_scans'), [], 'old index names go, the one core made too');
+  assert.match(db.prepare("SELECT sql FROM sqlite_master WHERE name = 'app_waf_security__waf_campaign_scans'").get().sql, /REFERENCES "?app_waf_security__waf_scans"?/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM extension_migrations WHERE extension_id = 'waf-security'").get().n, 0);
+  assert.equal(JSON.parse(setting('store.reinstall.waf-security')).enabled, true);
+
+  storeUp = true;
+  const done = await reinstallMovedApps();
+  assert.deepEqual(done.map((d) => [d.id, d.ok]), [['waf-security', true]], done[0]?.message);
+  assert.equal(setting('store.reinstall.waf-security'), undefined);
+  assert.deepEqual(db.prepare('SELECT id, user_id FROM app_waf_security__waf_scans').all().map((r) => ({ ...r })), [{ id: 's-1', user_id: 'u-1' }], 'the moved rows stay');
+  assert.equal(db.prepare('SELECT name FROM app_waf_security__waf_campaigns').get().name, 'Weekly');
+  assert.deepEqual(indexes('app_waf_security__waf_scans'), ['app_waf_security__idx_scans_user'], 'the Store copy made its index on the moved table');
+  assert.equal(db.prepare("SELECT enabled FROM extension_configs WHERE extension_id = 'waf-security'").get().enabled, 1, 'it was on: it stays on');
 });
