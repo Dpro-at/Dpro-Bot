@@ -42,11 +42,10 @@ export default {
 EOF
 ```
 
-## Installed Extensions (8 Total)
+## Installed Extensions (7 Total)
 
 | Extension | Type | Status | Description |
 |-----------|------|--------|-------------|
-| **Discord** | channel | ✅ Active | Discord messaging (new SDK) |
 | **Slack** | channel | ✅ Active | Slack workspace integration (new SDK) |
 | **WhatsApp** | channel | ✅ Active | WhatsApp Business via Twilio (new SDK) |
 | **Call Center** | integration | ✅ Active | Phone call handling system |
@@ -61,7 +60,7 @@ EOF
 No frontend needed - perfect for:
 - **Tools** - Add AI agent capabilities (e.g., code analyzer, file converter)
 - **Integrations** - Connect external services (e.g., GitHub, Stripe, SendGrid)
-- **Channels** - Add messaging platforms (e.g., Discord; Telegram is a Girru Store app now)
+- **Channels** - Add messaging platforms (Telegram and Discord are Girru Store apps now, on Girru's channel host)
 - **Background Services** - Scheduled tasks, data processing
 
 Example: the WAF Security scanner (a Girru Store app now)

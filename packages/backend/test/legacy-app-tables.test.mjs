@@ -65,7 +65,12 @@ packages.telegram = channelPackage('telegram', [
   'CREATE INDEX IF NOT EXISTS app_telegram__idx_telegram_messages_chat ON app_telegram__telegram_messages(chat_id, timestamp DESC);',
   'CREATE TABLE IF NOT EXISTS app_telegram__telegram_config (id INTEGER PRIMARY KEY CHECK (id = 1), bot_token TEXT, allowed_users TEXT);',
 ]);
-const CHANNEL_IDS = ['telegram'];
+packages.discord = channelPackage('discord', [
+  "CREATE TABLE IF NOT EXISTS app_discord__discord_messages (id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, guild_id TEXT, content TEXT NOT NULL, author TEXT NOT NULL, author_id TEXT NOT NULL, timestamp TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'incoming');",
+  'CREATE INDEX IF NOT EXISTS app_discord__idx_discord_messages_channel ON app_discord__discord_messages(channel_id, timestamp DESC);',
+  'CREATE TABLE IF NOT EXISTS app_discord__discord_config (id INTEGER PRIMARY KEY CHECK (id = 1), bot_token TEXT, client_id TEXT, guild_id TEXT, allowed_channels TEXT);',
+]);
+const CHANNEL_IDS = ['telegram', 'discord'];
 const item = (id, name) => {
   const list = Object.entries(packages[id]).map(([path, body]) => ({ path, sha256: sha(Buffer.from(body)), size: Buffer.byteLength(body) })).sort((a, b) => a.path.localeCompare(b.path));
   return { id, kind: 'app', name, summary: `${name}.`, description: name, icon: null, maker: 'Girru', version: '1.1.0', updated: '2026-10-30', category: 'more', permissions: ['Keeps its data in its own tables'], worksWith: [], languages: ['English'], pricing: { model: 'free' }, package: { files: list, sha256: sha(JSON.stringify(list)) } };
@@ -289,6 +294,17 @@ const CHANNELS = {
     config: { bot_token: 'fixture-telegram-token', allowed_users: 'sender-1', auto_reply: true, owner_user_id: 'u-1' },
     rows: { app_telegram__telegram_messages: 2, app_telegram__telegram_config: 0 },
     index: 'app_telegram__idx_telegram_messages_chat',
+  },
+  discord: {
+    used: true,
+    old: `CREATE TABLE discord_messages (id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, guild_id TEXT, content TEXT NOT NULL, author TEXT NOT NULL, author_id TEXT NOT NULL, timestamp TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'incoming');
+      CREATE INDEX idx_discord_messages_channel ON discord_messages(channel_id, timestamp DESC);
+      CREATE INDEX idx_discord_messages_created ON discord_messages(timestamp DESC);
+      CREATE TABLE discord_config (id INTEGER PRIMARY KEY CHECK (id = 1), bot_token TEXT, client_id TEXT, guild_id TEXT, allowed_channels TEXT);
+      INSERT INTO discord_messages VALUES ('d-1', 'room-1', 'guild-1', 'hello', 'Sender', 'sender-1', '2026-10-01T10:00:00Z', 'incoming');`,
+    config: { bot_token: 'fixture-discord-token', allowed_users: ['sender-1'], allowed_channels: ['room-1'], guild_id: 'guild-1', auto_reply: false, owner_user_id: 'u-1' },
+    rows: { app_discord__discord_messages: 1, app_discord__discord_config: 0 },
+    index: 'app_discord__idx_discord_messages_channel',
   },
 };
 const used = Object.entries(CHANNELS).filter(([, c]) => c.used).map(([id]) => id);

@@ -42,7 +42,7 @@ extensions/
 ### Extension Types
 
 - **`tool`** - Adds new AI agent tools (e.g., WAF scanner, code analyzer)
-- **`channel`** - Adds messaging channels (e.g., Discord, Slack)
+- **`channel`** - Adds messaging channels (e.g., Agent Connect; Telegram and Discord are Girru Store apps)
 - **`integration`** - External service integrations (e.g., GitHub, Stripe)
 - **`custom`** - Other functionality
 
@@ -618,7 +618,6 @@ Before publishing, verify:
 See these extensions for reference:
 
 - **WAF Security** (`extensions/waf-security/`) - Full example with routes, tool, migrations, frontend
-- **Discord** (`extensions/discord/`) - Channel integration (needs migration to new SDK)
 - **Slack** (`extensions/slack/`) - Channel integration (needs migration to new SDK)
 
 ## 12. Support
