@@ -91,13 +91,18 @@ export async function aiTools(env?: Partial<Env>): Promise<AiTool[]> {
 
 // ---- Local model --------------------------------------------------------------
 
-export type LocalChoice = Readonly<{ id: string; label: string; sizeGb: number; note: string; minMemoryGb: number }>;
+export type LocalChoice = Readonly<{ id: string; label: string; sizeGb: number; note: string; minMemoryGb: number; installed?: boolean }>;
+/**
+ * The memory each model needs leaves room for Girru, the AI tools and the owner's
+ * own programs: a model sized to all the memory froze a 32 GB Mac (Mohamed 2026-10-31),
+ * so the recommendation stays one size below.
+ */
 export const LOCAL_CHOICES: readonly LocalChoice[] = [
-  { id: 'qwen3:4b', label: 'Qwen 3 · 4B', sizeGb: 3, note: 'For 8 GB computers. Quicker, simpler answers.', minMemoryGb: 8 },
-  { id: 'qwen3.5:9b', label: 'Qwen 3.5 · 9B', sizeGb: 6, note: 'Good answers, fast on 16 GB. Best balance.', minMemoryGb: 16 },
-  { id: 'qwen3:14b', label: 'Qwen 3 · 14B', sizeGb: 9, note: 'Better answers; needs 32 GB.', minMemoryGb: 32 },
+  { id: 'qwen3:4b', label: 'Qwen 3 · 4B', sizeGb: 3, note: 'Quick, simpler answers. For 8 to 16 GB of memory.', minMemoryGb: 8 },
+  { id: 'qwen3.5:9b', label: 'Qwen 3.5 · 9B', sizeGb: 6, note: 'Good answers. For 24 GB of memory or more.', minMemoryGb: 24 },
+  { id: 'qwen3:14b', label: 'Qwen 3 · 14B', sizeGb: 9, note: 'Better answers. For 48 GB of memory or more.', minMemoryGb: 48 },
 ];
-/** The recommended local model for this much memory (D3). */
+/** The recommended model to download for this much memory (D3). */
 export function recommendedLocal(memoryGb: number): LocalChoice {
   return [...LOCAL_CHOICES].reverse().find(c => memoryGb >= c.minMemoryGb) ?? LOCAL_CHOICES[0];
 }
@@ -108,11 +113,19 @@ export async function localModelStep(env?: Partial<Env> & { memoryBytes?: number
   const e: Env = { home, platform, dirs: env?.dirs ?? await subscriptionSearchDirs(home) };
   const memoryGb = Math.round((env?.memoryBytes ?? os.totalmem()) / 1024 ** 3);
   const ollama = !!(await findBinary(e, ['ollama'])) || (platform === 'darwin' && await exists('/Applications/Ollama.app'));
-  let installed: string[] = [];
-  try { installed = (await (env?.models ?? listLocalModels)()).map(m => m.name); } catch { /* Ollama not running yet */ }
+  // Chat models only: an embedding model (memory search) cannot answer.
+  let models: { name: string; size?: number; chat?: boolean }[] = [];
+  try { models = (await (env?.models ?? listLocalModels)()).filter(m => m.chat ?? !/embed/i.test(m.name)); } catch { /* Ollama not running yet */ }
+  const installed = models.map(m => m.name);
+  const listed = (name: string) => LOCAL_CHOICES.find(c => name === c.id || name.startsWith(c.id + '-'));
+  // A model already on this computer is offered first, so nothing is downloaded twice.
+  const own: LocalChoice[] = models.filter(m => !listed(m.name)).map(m => ({ id: m.name, label: m.name, sizeGb: Math.round((m.size ?? 0) / 1e9 * 10) / 10, note: 'Already on this computer.', minMemoryGb: 0, installed: true }));
+  const choices = [...own, ...LOCAL_CHOICES.map(c => installed.some(n => listed(n) === c) ? { ...c, installed: true } : c)];
+  const ready = choices.filter(c => c.installed);
+  const recommended = (ready.find(c => memoryGb >= c.minMemoryGb) ?? recommendedLocal(memoryGb)).id;
   const brew = platform === 'darwin' ? await findBinary(e, ['brew']) : null;
   const install = ollama ? null : platform === 'linux' ? 'curl -fsSL https://ollama.com/install.sh | sh' : platform === 'win32' ? 'winget install Ollama.Ollama' : brew ? 'brew install ollama && brew services start ollama' : null;
-  return { memoryGb, recommended: recommendedLocal(memoryGb).id, choices: LOCAL_CHOICES, ollama, installed, install,
+  return { memoryGb, recommended, choices, ollama, installed, install,
     download: !ollama && !install ? 'https://ollama.com/download' : null };
 }
 /** The command typed for one model: install Ollama first when it is missing (and installable from the terminal). */

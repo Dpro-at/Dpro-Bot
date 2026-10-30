@@ -64,12 +64,21 @@ test('AI tools: installed and signed-in states come from the tools\' own files, 
 
 test('local model: recommendation by memory; command installs Ollama first only when missing', async () => {
   assert.equal(recommendedLocal(8).id, 'qwen3:4b');
-  assert.equal(recommendedLocal(16).id, 'qwen3.5:9b');
+  assert.equal(recommendedLocal(16).id, 'qwen3:4b');
+  assert.equal(recommendedLocal(32).id, 'qwen3.5:9b', 'one size below what the memory holds');
   assert.equal(recommendedLocal(64).id, 'qwen3:14b');
-  const missing = await localModelStep({ home: dir, platform: 'linux', dirs: [], memoryBytes: 16 * 1024 ** 3, models: async () => [] });
+  const missing = await localModelStep({ home: dir, platform: 'linux', dirs: [], memoryBytes: 32 * 1024 ** 3, models: async () => [] });
   assert.equal(missing.recommended, 'qwen3.5:9b');
   assert.equal(localModelCommand(missing, 'qwen3.5:9b'), 'curl -fsSL https://ollama.com/install.sh | sh && ollama pull qwen3.5:9b');
   assert.equal(localModelCommand(missing, 'rm -rf /'), null, 'only listed models');
+  // What is already in Ollama comes first; an embedding model is not offered.
+  const has = await localModelStep({ home: dir, platform: 'linux', dirs: [], memoryBytes: 32 * 1024 ** 3,
+    models: async () => [{ name: 'qwen3-embedding:0.6b', size: 6e8, chat: false }, { name: 'llama3.2:3b', size: 2e9, chat: true }] });
+  assert.equal(has.recommended, 'llama3.2:3b');
+  assert.deepEqual(has.installed, ['llama3.2:3b']);
+  assert.deepEqual(has.choices.map(c => c.id), ['llama3.2:3b', 'qwen3:4b', 'qwen3.5:9b', 'qwen3:14b']);
+  const listedHas = await localModelStep({ home: dir, platform: 'linux', dirs: [], memoryBytes: 32 * 1024 ** 3, models: async () => [{ name: 'qwen3:4b', size: 3e9, chat: true }] });
+  assert.equal(listedHas.recommended, 'qwen3:4b', 'an installed listed model is used, not downloaded again');
   const macNoBrew = await localModelStep({ home: dir, platform: 'darwin', dirs: [], memoryBytes: 8 * 1024 ** 3, models: async () => [] });
   if (!macNoBrew.ollama) assert.equal(macNoBrew.download, 'https://ollama.com/download');
 });

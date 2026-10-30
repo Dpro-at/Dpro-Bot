@@ -13,7 +13,7 @@ import { movePeople, rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
 /** Ready-made company sizes, in agents (D2; any other number up to the catalogue's maximum is typed in). */
-const agentCounts = [3, 5, 10, 25, 50] as const;
+const agentCounts = [3, 5, 10, 25, 50, 100, 250, 500] as const;
 /** Departments ticked first for a new team, in this order, as far as the catalogue has them. */
 const STARTERS = ['marketing', 'sales', 'support', 'development'];
 

@@ -36,7 +36,7 @@ test('first-run team sizes use the approved options and custom 1–1000 range', 
   const { w } = await fixture(t);
   await w.loadCatalogue();
   const html = markup(w);
-  assert.deepEqual([...html.matchAll(/<strong>(\d+)<\/strong><small>agents<\/small>/g)].map(match => Number(match[1])), [3, 5, 10, 25, 50]);
+  assert.deepEqual([...html.matchAll(/<strong>(\d+)<\/strong><small>agents<\/small>/g)].map(match => Number(match[1])), [3, 5, 10, 25, 50, 100, 250, 500]);
   assert.match(html, /min="1" max="1000"/);
 });
 
@@ -232,7 +232,7 @@ test('the first step offers the approved agent numbers and a custom number up to
   const { w } = await fixture(t);
   await w.loadCatalogue();
   const html = markup(w);
-  for (const n of [3, 5, 10, 25, 50]) assert.match(html, new RegExp(`<strong>${n}</strong><small>agents</small>`));
+  for (const n of [3, 5, 10, 25, 50, 100, 250, 500]) assert.match(html, new RegExp(`<strong>${n}</strong><small>agents</small>`));
   assert.match(html, /Another number/);
   assert.match(html, /Number of agents/);
   assert.doesNotMatch(html, /people|person|Company size|Just me/i);
