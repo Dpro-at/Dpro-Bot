@@ -2,13 +2,15 @@
 
 ## Girru integration
 
-The Fastify extension host is in `channel-host.js`. Telegram and Discord extension entry points pass their SDK API to it. The existing extension configuration JSON is the single source of configuration. Old provider-specific configuration tables remain untouched but are no longer read. Existing message tables remain preserved; new messages are stored in `channel_events`. The existing legacy `/api/channels` registry is separate and is not the administration endpoint for these two extensions.
+The Fastify extension host is in `channel-host.js`. The built-in `agent-connect` extension passes its SDK API to it for every channel in the catalog: Telegram and Discord on the library's Node transports (picked by name in a `switch`), every other channel on its Python worker. All settings live in the one `agent-connect` row of `extension_configs`, under `channels.<id>`. The separate Telegram, Discord, Slack and WhatsApp extensions were removed (CHANNELS-01); at the first start after the update their settings move to `channels.telegram` / `channels.discord` once, after a backup, and their old tables are dropped when empty (kept when they hold rows, and no longer read). Messages are stored in `channel_events`. The existing legacy `/api/channels` registry is separate and is not the administration endpoint for these channels.
+
+Other helpers here: `webhook-verify.js` (provider signature checks, used by the call center), `internal-auth.js` (a short-lived token for a tool calling its own routes) and `agent-reply.js` (the chat reply as text).
 
 The backend imports the published `agent-connect-dpro@0.2.0` npm package. From the backend directory, run `pnpm install --frozen-lockfile` (or `npm run setup:channels`) before starting it. Include production dependencies and `backend/extensions` in a deployed backend; copying only `backend/dist` is insufficient. The local `packages/channels` source remains available for package development, but is not the runtime import. Additional adapters require an isolated Python environment and provider-specific setup documented in the package channel guide. Run one backend instance per bot token. Polling and Gateway connections require a persistent Node.js process, not a short-lived Next.js serverless function.
 
 1. Sign in to Girru with an active owner or admin account.
-2. Open `/dashboard/channels/telegram` or `/dashboard/channels/discord`.
-3. If the extension is disabled, enable it, restart the backend, then reload the page. Re-enabling after disable also requires a restart under the existing extension lifecycle.
+2. Open Settings › Channels and choose the channel.
+3. Turning a channel on also turns the agent-connect extension on; if it was off, restart the backend when asked. Re-enabling after disable also requires a restart under the existing extension lifecycle.
 4. Save a bot token and allowed sender IDs. For Discord, also save allowed channel IDs. An empty sender list blocks all incoming messages; an empty Discord channel list also blocks incoming messages.
 5. Automatic agent replies are off by default. Enable them explicitly to route authorized messages through Girru's configured primary agent and real `/api/chat` provider/tool path. The account saving settings becomes the channel owner; only trusted external IDs should act under that account. Multi-user account bindings and selecting different agents per channel are future extensions.
 6. Use the test message form and check the connection and recent messages. Confirm actual receipt in the provider before considering live setup complete.
@@ -21,7 +23,7 @@ The reusable React panel is `../../../../src/components/channels/ChannelPanel.ts
 
 ## Host API
 
-All endpoints below use `/api/ext/{telegram|discord}` and require a Bearer JWT belonging to an active owner/admin. Browser calls also follow Girru's existing CORS and CSRF origin policy.
+All endpoints below use `/api/ext/agent-connect/{channel id}` and require a Bearer JWT belonging to an active owner/admin. Browser calls also follow Girru's existing CORS and CSRF origin policy.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |

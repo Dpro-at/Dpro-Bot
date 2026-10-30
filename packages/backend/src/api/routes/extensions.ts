@@ -196,6 +196,7 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       // 2. Get config
       const configRow = await q.one('SELECT config_json FROM extension_configs WHERE extension_id = ?', id) as { config_json: string } | undefined;
       let config = configRow ? JSON.parse(configRow.config_json) : null;
+      // CHANNELS-01: an old telegram/discord row lasts only until the startup carry-over moves it.
       if (config && ['telegram', 'discord'].includes(id)) delete config.bot_token;
       if (config && id === 'agent-connect') delete config.channels;
       // SECURITY (S0-Q.4): never return secret config values in plaintext
@@ -431,7 +432,7 @@ export async function extensionsRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       let { config } = request.body;
       if (['telegram', 'discord', 'agent-connect'].includes(id)) {
-        return reply.code(409).send({ error: 'Save channel settings through /api/ext/' + id + '/config. Enable the extension and restart the backend first.' });
+        return reply.code(409).send({ error: 'Save channel settings in Settings › Channels.' });
       }
 
       // Check if extension exists

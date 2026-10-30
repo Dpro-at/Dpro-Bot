@@ -73,6 +73,13 @@ test('every catalog channel is hosted; telegram and discord start on their nativ
     assert.ok(h.made.discord instanceof DiscordTransport);
     assert.ok(!(h.made.telegram instanceof PythonTransport));
     assert.deepEqual(Object.keys(h.tools).sort(), ['discord_send', 'telegram_send']);
+    // The removed Slack and WhatsApp extensions had public webhook routes; here no channel has one,
+    // and every channel route is owner/admin only.
+    for (const id of ['slack', 'whatsapp', 'telegram', 'discord']) {
+      assert.equal((await h.request(`${id}/webhook`, 'POST', {}, {})).statusCode, 403, id);
+      assert.equal((await h.request(`${id}/webhook`, 'POST', {})).statusCode, 410, id);
+      assert.equal((await h.request(`${id}/messages`, 'GET', undefined, {})).statusCode, 403, id);
+    }
   } finally { await h.close(); }
 });
 

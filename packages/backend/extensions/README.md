@@ -42,14 +42,11 @@ export default {
 EOF
 ```
 
-## Installed Extensions (9 Total)
+## Installed Extensions
 
 | Extension | Type | Status | Description |
 |-----------|------|--------|-------------|
-| **Discord** | channel | ✅ Active | Discord messaging (new SDK) |
-| **Slack** | channel | ✅ Active | Slack workspace integration (new SDK) |
-| **Telegram** | channel | ✅ Active | Telegram bot API (new SDK) |
-| **WhatsApp** | channel | ✅ Active | WhatsApp Business via Twilio (new SDK) |
+| **Agent Connect** | channel | ✅ Active | Every chat channel (Telegram, Discord, Slack, WhatsApp and the rest of the catalog), set up in Settings › Channels |
 | **Call Center** | integration | ✅ Active | Phone call handling system |
 | **Email Client** | app | ✅ Active | Multi-account email (Gmail, Outlook, IMAP) |
 | **Calendar** 🆕 | app | ✅ Active | Google Calendar + iCal sync, events |
@@ -131,7 +128,7 @@ src/app/(dashboard)/dashboard/my-extension/page.tsx
 - ✅ Enable extension → route appears in sidebar automatically
 - ✅ Disable extension → route disappears from sidebar
 - ✅ No manual sidebar editing needed
-- ✅ Works exactly like Discord/Slack extensions
+- ✅ Works exactly like the bundled extensions
 
 **Available icons:** Any lucide-react icon name (Calendar, Users, MessagesSquare, Puzzle, etc.)
 
