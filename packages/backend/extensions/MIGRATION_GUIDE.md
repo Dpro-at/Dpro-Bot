@@ -505,7 +505,7 @@ Recommended order for migrating old extensions:
 
 ## Getting Help
 
-- **Example:** See `extensions/waf-security/` for complete working extension
+- **Example:** See `extensions/calendar/` for a complete working extension
 - **Documentation:** `EXTENSION_DEVELOPMENT.md` for new SDK API
 - **Test:** Enable extension and check backend console for errors
 - **Inspect:** Use Database icon in Extensions page to see loaded data

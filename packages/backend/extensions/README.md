@@ -42,11 +42,10 @@ export default {
 EOF
 ```
 
-## Installed Extensions (10 Total)
+## Installed Extensions (9 Total)
 
 | Extension | Type | Status | Description |
 |-----------|------|--------|-------------|
-| **WAF Security** | tool | ✅ Active | Test WAF protection + self-audit |
 | **Discord** | channel | ✅ Active | Discord messaging (new SDK) |
 | **Slack** | channel | ✅ Active | Slack workspace integration (new SDK) |
 | **Telegram** | channel | ✅ Active | Telegram bot API (new SDK) |
@@ -66,7 +65,7 @@ No frontend needed - perfect for:
 - **Channels** - Add messaging platforms (e.g., Discord, Telegram)
 - **Background Services** - Scheduled tasks, data processing
 
-Example: WAF Security scanner
+Example: the WAF Security scanner (a Girru Store app now)
 
 ### ✅ Full-Stack Extensions
 Backend + frontend UI:

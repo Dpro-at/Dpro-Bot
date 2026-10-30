@@ -16,6 +16,12 @@ import { startAdd, type AddJob, type Fetch } from './store-install.js';
  */
 export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; views?: readonly string[] }> = [
   { id: 'seo', tables: ['seo_domains', 'seo_keywords', 'seo_scraper_jobs', 'seo_search_analytics', 'seo_gsc_sync_log', 'seo_settings'] },
+  // waf_scans was also made for everyone by core migration 023; it moves only for an owner who used the app.
+  {
+    id: 'waf-security',
+    tables: ['waf_scans', 'waf_rate_limits', 'waf_payload_library', 'waf_campaigns', 'waf_campaign_stages', 'waf_campaign_scans', 'waf_campaign_comparisons', 'waf_campaign_notifications'],
+    views: ['v_campaign_summary', 'v_latest_comparisons'],
+  },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;
