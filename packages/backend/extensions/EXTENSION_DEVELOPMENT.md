@@ -618,7 +618,6 @@ Before publishing, verify:
 See these extensions for reference:
 
 - **WAF Security** (`extensions/waf-security/`) - Full example with routes, tool, migrations, frontend
-- **Slack** (`extensions/slack/`) - Channel integration (needs migration to new SDK)
 
 ## 12. Support
 

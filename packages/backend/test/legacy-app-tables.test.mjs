@@ -306,6 +306,7 @@ const CHANNELS = {
     rows: { app_discord__discord_messages: 1, app_discord__discord_config: 0 },
     index: 'app_discord__idx_discord_messages_channel',
   },
+  slack: { used: false },
 };
 const used = Object.entries(CHANNELS).filter(([, c]) => c.used).map(([id]) => id);
 

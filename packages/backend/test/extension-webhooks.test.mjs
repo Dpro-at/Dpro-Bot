@@ -1,8 +1,9 @@
 // S0-Q.18 review fixes: no extension is blanket public. Only listed webhook /
 // callback routes skip the token check, and each verifies the provider:
-// Slack signing secret, Twilio signature (WhatsApp, call-center). Trading takes the user only from a verified token (header or the
+// Twilio signature (WhatsApp, call-center). Trading takes the user only from a verified token (header or the
 // stream's ?token=). The real extensions are loaded through the runner; all
-// network and provider credentials are stubbed.
+// network and provider credentials are stubbed. APPS-06: Slack is a Girru Store app now; its
+// signature checks run with it there (apps/slack/checks/webhook.check.mjs in the Girru Store).
 // Run: node --import tsx --test test/extension-webhooks.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,7 +35,7 @@ const { getDatabase, closeDatabase } = await import(join(backendDir, 'src/db/dat
 const { generateToken } = await import(join(backendDir, 'src/auth/jwt.ts'));
 const { ExtensionRunner } = await import(join(backendDir, 'src/plugins/extension-runner.ts'));
 const { getCredentialManager } = await import(join(backendDir, 'src/credentials/index.ts'));
-const { twilioSignature, slackSignature } = await import(join(backendDir, 'extensions/shared/webhook-verify.js'));
+const { twilioSignature } = await import(join(backendDir, 'extensions/shared/webhook-verify.js'));
 const { internalAuthHeaders } = await import(join(backendDir, 'extensions/shared/internal-auth.js'));
 const { default: Fastify } = await import('fastify');
 
@@ -56,7 +57,7 @@ getCredentialManager().getValueByName = async (name) => {
   throw new Error(`Credential '${name}' not found`);
 };
 
-for (const id of ['slack', 'whatsapp', 'call-center', 'trading']) {
+for (const id of ['whatsapp', 'call-center', 'trading']) {
   db.prepare(`INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES (?, 1)`).run(id);
 }
 const app = Fastify();
@@ -82,43 +83,7 @@ const FORM = 'application/x-www-form-urlencoded';
 
 test('every target extension loaded', () => {
   const loaded = [...runner.getLoadedExtensions().keys()];
-  for (const id of ['slack', 'whatsapp', 'call-center', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
-});
-
-test('slack: admin routes need owner/admin; /webhook needs a valid Slack signature', async () => {
-  assert.equal((await inject({ method: 'POST', url: '/api/ext/slack/send', payload: { channel: 'c', text: 't' } })).statusCode, 401);
-  assert.equal((await inject({ method: 'GET', url: '/api/ext/slack/messages', headers: { authorization: token('u-user') } })).statusCode, 403);
-
-  const body = JSON.stringify({ type: 'url_verification', challenge: 'abc' });
-  const now = Math.floor(Date.now() / 1000);
-  const SECRET = 'slack-signing-secret-for-tests';
-  const signed = (ts, secret = SECRET, raw = body) => ({
-    method: 'POST', url: '/api/ext/slack/webhook', payload: raw,
-    headers: {
-      'content-type': 'application/json',
-      'x-slack-request-timestamp': String(ts),
-      'x-slack-signature': slackSignature(secret, String(ts), raw),
-    },
-  });
-
-  // No signing secret configured: refused even with a "valid" signature.
-  assert.equal((await inject(signed(now))).statusCode, 401);
-
-  db.prepare(`INSERT OR REPLACE INTO slack_config (id, signing_secret) VALUES (1, ?)`).run(SECRET);
-  const ok = await inject(signed(now));
-  assert.equal(ok.statusCode, 200, ok.body);
-  assert.equal(ok.json().challenge, 'abc');
-
-  assert.equal((await inject(signed(now, 'wrong-secret'))).statusCode, 401, 'wrong secret');
-  assert.equal((await inject(signed(now - 600))).statusCode, 401, 'replayed (old timestamp)');
-  assert.equal((await inject({ ...signed(now), payload: body.replace('abc', 'xyz') })).statusCode, 401, 'tampered body');
-  assert.equal((await inject({ method: 'POST', url: '/api/ext/slack/webhook', payload: body, headers: { 'content-type': 'application/json' } })).statusCode, 401, 'unsigned');
-
-  const event = JSON.stringify({ event: { type: 'message', ts: '1.2', channel: 'C1', text: 'hi', user: 'U1' } });
-  assert.equal((await inject({ ...signed(now, 'nope', event) })).statusCode, 401);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM slack_messages').get().n, 0, 'nothing stored from refused requests');
-  assert.equal((await inject(signed(now, SECRET, event))).statusCode, 200);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM slack_messages').get().n, 1);
+  for (const id of ['whatsapp', 'call-center', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
 });
 
 test('whatsapp: /webhook needs a valid X-Twilio-Signature for the configured token and URL', async () => {
@@ -179,7 +144,6 @@ test('trading: user only from a verified token; x-user-id is ignored; stream ver
 test('tools calling their own routes send a short-lived token for the turn user', async () => {
   const headers = internalAuthHeaders('u-owner');
   assert.equal((await inject({ method: 'GET', url: '/api/ext/trading/accounts', headers: { authorization: headers.Authorization } })).statusCode, 200);
-  assert.equal((await inject({ method: 'GET', url: '/api/ext/slack/status', headers: { authorization: headers.Authorization } })).statusCode, 200);
   assert.throws(() => internalAuthHeaders('u-suspended'));
   assert.throws(() => internalAuthHeaders(undefined));
   assert.equal((await inject({ method: 'GET', url: '/api/ext/trading/accounts', headers: { authorization: internalAuthHeaders('u-user').Authorization } })).statusCode, 403);

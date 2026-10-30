@@ -28,6 +28,7 @@ export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; 
   // messages Telegram and Discord handle are in channel_events, which Girru's channel host keeps.
   { id: 'telegram', tables: ['telegram_messages', 'telegram_config'] },
   { id: 'discord', tables: ['discord_messages', 'discord_config'] },
+  { id: 'slack', tables: ['slack_messages', 'slack_config'] },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;

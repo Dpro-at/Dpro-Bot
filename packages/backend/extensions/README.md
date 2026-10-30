@@ -42,11 +42,10 @@ export default {
 EOF
 ```
 
-## Installed Extensions (7 Total)
+## Installed Extensions (6 Total)
 
 | Extension | Type | Status | Description |
 |-----------|------|--------|-------------|
-| **Slack** | channel | ✅ Active | Slack workspace integration (new SDK) |
 | **WhatsApp** | channel | ✅ Active | WhatsApp Business via Twilio (new SDK) |
 | **Call Center** | integration | ✅ Active | Phone call handling system |
 | **Email Client** | app | ✅ Active | Multi-account email (Gmail, Outlook, IMAP) |
