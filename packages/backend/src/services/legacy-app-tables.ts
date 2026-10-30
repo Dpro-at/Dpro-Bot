@@ -16,6 +16,8 @@ import { startAdd, type AddJob, type Fetch } from './store-install.js';
  */
 export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; views?: readonly string[] }> = [
   { id: 'seo', tables: ['seo_domains', 'seo_keywords', 'seo_scraper_jobs', 'seo_search_analytics', 'seo_gsc_sync_log', 'seo_settings'] },
+  // No tables: an owner who had it (a row in extension_configs) gets it added again, on or off as it was.
+  { id: 'server-monitor', tables: [] },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;
