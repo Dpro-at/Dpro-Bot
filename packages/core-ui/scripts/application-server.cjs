@@ -42,6 +42,7 @@ const { allowedFooter, footerRoute, footerResponse } = require('../src/footer-co
 const { allowedBackups, backupsRoute, backupsResponse } = require('../src/backups-contract.js');
 const { allowedChartPrefs, chartPrefsRoute, chartPrefsResponse } = require('../src/chart-prefs-contract.js');
 const { allowedDepartments, departmentsRoute, departmentsResponse } = require('../src/departments-contract.js');
+const { allowedFirstRun, firstRunRoute, firstRunResponse } = require('../src/first-run-contract.js');
 const { allowedAgentRules, agentRulesRoute, agentRulesResponse } = require('../src/agent-rules-contract.js');
 const { allowedOrg, orgRoute, orgResponse, orgFields } = require('../src/org-contract.js');
 const { allowedLibrary: allowedAgentLibrary, libraryRoute: agentLibraryRoute, libraryResponse: agentLibraryResponse } = require('../src/agent-library-contract.js');
@@ -127,6 +128,7 @@ function allowed(method, target, body) {
   if (backupsRoute(target)) return allowedBackups(method, target, body);
   if (chartPrefsRoute(target)) return allowedChartPrefs(method, target, body);
   if (departmentsRoute(target)) return allowedDepartments(method, target, body);
+  if (firstRunRoute(target)) return allowedFirstRun(method, target, body);
   if (agentRulesRoute(target)) return allowedAgentRules(method, target, body);
   if (orgRoute(target)) return allowedOrg(method, target, body);
   if (agentLibraryRoute(target)) return allowedAgentLibrary(method, target, body);
@@ -214,6 +216,7 @@ function project(target, status, body) {
   if (backupsRoute(target)) return backupsResponse(target, status, body);
   if (chartPrefsRoute(target)) return chartPrefsResponse(status, body);
   if (departmentsRoute(target)) return departmentsResponse(status, body);
+  if (firstRunRoute(target)) return firstRunResponse(target, status, body);
   if (agentRulesRoute(target)) return agentRulesResponse(target, status, body);
   if (orgRoute(target)) return orgResponse(target, status, body);
   if (agentLibraryRoute(target)) return agentLibraryResponse(target, status, body);

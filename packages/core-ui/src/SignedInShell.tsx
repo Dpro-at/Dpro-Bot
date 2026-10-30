@@ -10,6 +10,7 @@ import {useBackupAlert} from './SettingsBackups';
 import {ApprovalsWorkspace} from './HumanReviewsPage';
 import type {ApprovalsPlaceRequest} from './HumanReviewsPage';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { FirstRunSetup, useFirstRun } from './FirstRunSetup';
 import type { ReactNode } from 'react';
 import type { SessionClient } from './session';
 import { displayName } from './session';
@@ -66,7 +67,22 @@ const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' 
  * stays mounted and only the active one is shown, so a conversation or an
  * unsaved agent draft survives switching pages.
  */
+/** FIRSTRUN-01: a new owner finishes the setup steps first; then the workspace opens on the Welcome chat. */
 export function SignedInShell({ client, notice }: { client: SessionClient; notice: ReactNode }) {
+  const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  const first = useFirstRun(client, state.user?.role === 'owner');
+  const [finished, setFinished] = useState(false);
+  if (first.pending === null) return <div className="first-run-setup" aria-busy="true"/>;
+  if (first.pending && !finished) return <FirstRunSetup client={client} initialStep={first.step} onDone={chatId => {
+    if (chatId) try { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#chat=${chatId}`); } catch { /* the last chat opens instead */ }
+    setFinished(true);
+  }}/>;
+  return <Workspace client={client} notice={notice}/>;
+}
+
+function Workspace({ client, notice }: { client: SessionClient; notice: ReactNode }) {
+  // The small setup window grows to the normal size once (a no-op when it is already normal).
+  useEffect(() => { void window.dproApp?.setSetupWindow?.(false).catch(() => {}); }, []);
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [page, setPage] = useState<Page>('chat');
   const nativeEditor=useNabuAvailability();

@@ -13,6 +13,7 @@ import { localSessionKeep } from './local-session-keep';
 import { setupCodeFromFragment } from './owner-setup-contract.js';
 import type { OwnerSetupCode } from './owner-setup-contract.js';
 import { isDeveloperBuild } from './developer-build';
+import { SetupSteps } from './FirstRunSetup';
 
 const notices = {
   recovered:'Authenticator reset. Sign in again, then set up two-step verification in Settings.',
@@ -81,7 +82,6 @@ function SessionWorkspace({ client, setupCode, initialPage }: { client: SessionC
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   useEffect(() => {
     if (state.setup === 'required') void window.dproApp?.setSetupWindow?.(true).catch(() => {});
-    else if (state.phase === 'authenticated') void window.dproApp?.setSetupWindow?.(false).catch(() => {});
   }, [state.setup, state.phase]);
   // Signed in: the full workspace (sidebar, chat, agents, memory, account).
   if (state.phase === 'authenticated' && state.user) return <SignedInShell client={client} notice={state.notice ? <WorkspaceNotice key={`${state.notice}:${state.retryAfterSeconds ?? ''}`} notice={state.notice} seconds={state.retryAfterSeconds}/> : null}/>;
@@ -106,7 +106,7 @@ function SessionWorkspace({ client, setupCode, initialPage }: { client: SessionC
       <button className="primary" disabled={state.phase === 'signing-in'}>Sign in</button>
       {state.phase === 'signing-in' && <button type="button" onClick={() => client.cancel()}>Cancel sign-in</button>}
     </form>}
-    <p>Settings credentials remain masked-only; no credential values are fetched.</p>
+    {state.setup !== 'required' && <p>Settings credentials remain masked-only; no credential values are fetched.</p>}
   </section></PublicShell>;
 }
 function RecoveryCodes({client}:{client:SessionClient}){
@@ -176,7 +176,8 @@ function OwnerSetup({ client, setupCode, initialPage }: { client: SessionClient;
       if (['setup_token_invalid', 'setup_token_expired', 'setup_token_missing'].includes(result.code)) setEditCode(true);
     }
   }}>
-    <h2>Your account</h2>
+    <SetupSteps current="Account"/>
+    <h2>Create your account</h2>
     <p>You are the owner of this workspace. Your information stays on this computer.</p>
     {notice && !['invalid_email','weak_password','missing_fields'].includes(notice) && <p role="alert">{ownerSetupNotices[notice]}</p>}
     <label htmlFor="owner-name">Your name</label><input id="owner-name" required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={busy}/>

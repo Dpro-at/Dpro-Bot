@@ -175,7 +175,7 @@ function call(x) {
     ...(typeof x.isError === 'boolean' ? { isError: x.isError } : {}), ...(num(x.ms) !== undefined ? { ms: num(x.ms) } : {}), ...(typeof x.approvalId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(x.approvalId) ? { approvalId: x.approvalId } : {}) };
 }
 /** CHAT-BUILD-01 stage 5: notices kept with a reply, and their codes. */
-const KEPT_NOTICES = ['injection', 'summarized', 'plan_limit', 'images_not_seen'];
+const KEPT_NOTICES = ['injection', 'summarized', 'plan_limit', 'images_not_seen', 'choices'];
 
 function part(x) {
   if (!record(x)) throw Error('protocol');

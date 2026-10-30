@@ -116,8 +116,12 @@ function showPage(name, query = {}) {
   return mainWindow.loadFile(path.join(PAGES, name), { query });
 }
 
+let setupWindow = false;
 function setSetupWindow(compact) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  // Only a change resizes: the owner's own window size is kept on every later start.
+  if (compact === setupWindow) return;
+  setupWindow = compact;
   if (compact) {
     mainWindow.setResizable(false);
     mainWindow.setMinimumSize(760, 640);
