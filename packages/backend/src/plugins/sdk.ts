@@ -22,6 +22,7 @@ import { getUserIdFromRequest } from '../auth/jwt.js';
 import type { FastifyRequest } from 'fastify';
 import type { Message } from '../agent/types.js';
 import { extractAgentReply } from '../../extensions/shared/agent-reply.js';
+import { isNativeChannel, registerChannelRoutes, sendChannel, stopChannel } from '../../extensions/shared/channel-host.js';
 
 /**
  * Extension SDK API Interface
@@ -36,6 +37,13 @@ export interface ExtensionApi {
    * names the channel and inbound conversation so send tools can only reply there.
    */
   processChannelMessage(userId: string, sessionId: string, message: string, history: Message[], origin?: Partial<ChannelOrigin>): Promise<string>;
+  /**
+   * APPS-06: run this app's chat channel on Girru's channel host (the Telegram and Discord apps
+   * from the Girru Store). The host keeps the provider connection, the sender allow-lists, the
+   * restricted agent turn and channel_events; its settings routes are added under
+   * /api/ext/<this app>/. Only for a channel the host has a transport for, and only the app's own.
+   */
+  hostChannel(): { send(destination: string, text: string): Promise<{ id: string }>; stop(): Promise<void> };
   // Route registration — routes registered at startup, mounted under /api/ext/:extensionId/
   registerRoutes(routesFn: (fastify: FastifyInstance) => Promise<void>, prefix?: string): void;
 
@@ -205,6 +213,14 @@ export function createExtensionApi(
       } finally {
         turn.end();
       }
+    },
+
+    hostChannel() {
+      if (!isNativeChannel(extensionId)) throw new Error(`Extension "${extensionId}" is not a channel Girru can host`);
+      // The host reads db, config, log and the channel checks through this same api.
+      const api = this;
+      this.registerRoutes((scope) => registerChannelRoutes(scope, api, extensionId));
+      return { send: (destination, text) => sendChannel(extensionId, destination, text), stop: () => stopChannel(extensionId) };
     },
 
     // Database access with permission check

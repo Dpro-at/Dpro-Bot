@@ -1,5 +1,8 @@
 /** Owner configuration of the shared channel catalog; saving never starts a provider. */
+import fs from 'node:fs';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
+import { extensionsRoot, installedAppDir } from '../../config/backend-root.js';
 import { CHANNEL_CATALOG } from 'agent-connect-dpro';
 import { actorOf } from '../../auth/auth-gate.js';
 import { requireOwner, ScopeError } from '../../repositories/scope.js';
@@ -11,6 +14,9 @@ import { channelRuntimeState, refreshChannel } from '../../../extensions/shared/
 const catalog = new Map(CHANNEL_CATALOG.map(c => [c.id as string, c]));
 const native = (id: string) => id === 'telegram' || id === 'discord';
 const extensionId = (id: string) => native(id) ? id : 'agent-connect';
+// APPS-06: Telegram and Discord are Girru Store apps. Without the app there is nothing to run them,
+// so they are not listed and their settings are not written (added from the Store, they show again).
+const offered = (id: string) => !native(id) || !!installedAppDir(id) || fs.existsSync(path.join(extensionsRoot(), id, 'agentplayer.plugin.json'));
 const record = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 const accessList = (v: unknown) => Array.isArray(v) && v.length <= 100 && v.every(x => typeof x === 'string' && x.length > 0 && x.length <= 200 && !/[\r\n\0]/.test(x));
 function visible(id: string, root: Record<string, any>, enabled: boolean) {
@@ -31,7 +37,7 @@ export async function agentConnectRoutes(app: FastifyInstance) {
       requireOwner(actorOf(request));
       const rows = await q.all<{ extension_id: string; enabled: number; config_json: string }>("SELECT extension_id, enabled, config_json FROM extension_configs WHERE extension_id IN ('agent-connect', 'telegram', 'discord')");
       const byId = new Map(rows.map(r => [r.extension_id, r]));
-      return { channels: CHANNEL_CATALOG.map(c => { const row = byId.get(extensionId(c.id)); return {
+      return { channels: CHANNEL_CATALOG.filter(c => offered(c.id)).map(c => { const row = byId.get(extensionId(c.id)); return {
         label: c.label, runtime: native(c.id) ? 'node' : 'python', requiredEnv: [...c.requiredEnv], prerequisites: c.prerequisites,
         ...visible(c.id, row ? JSON.parse(row.config_json) : {}, row?.enabled === 1),
       }; }), configurable: q.dialect === 'sqlite' };
@@ -40,7 +46,7 @@ export async function agentConnectRoutes(app: FastifyInstance) {
   app.put<{ Params: { id: string } }>('/api/agent-connect/:id/activation', { config, bodyLimit: 1024 }, async (request, reply) => {
     try {
       const owner = requireOwner(actorOf(request)), item = catalog.get(request.params.id);
-      if (!item) return reply.code(404).send({ code: 'not_found' });
+      if (!item || !offered(item.id)) return reply.code(404).send({ code: 'not_found' });
       // Use the catalog's own id, never the request text, as the key from here on.
       const id = item.id as string;
       if (q.dialect !== 'sqlite') return reply.code(409).send({ code: 'unsupported_store' });
@@ -68,7 +74,7 @@ export async function agentConnectRoutes(app: FastifyInstance) {
   app.put<{ Params: { id: string } }>('/api/agent-connect/:id/config', { config, bodyLimit: 65536 }, async (request, reply) => {
     try {
       const owner = requireOwner(actorOf(request)), item = catalog.get(request.params.id);
-      if (!item) return reply.code(404).send({ code: 'not_found' });
+      if (!item || !offered(item.id)) return reply.code(404).send({ code: 'not_found' });
       const id = item.id as string;
       if (q.dialect !== 'sqlite') return reply.code(409).send({ code: 'unsupported_store' });
       const b = request.body;

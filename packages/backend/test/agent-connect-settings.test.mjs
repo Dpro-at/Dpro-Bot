@@ -1,5 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {randomBytes} from 'node:crypto';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'dpro-connect-settings-'));process.env.AGENT_PLAYER_DATA_DIR=path.join(root,'data');process.env.DATABASE_PATH=path.join(root,'data','agent-player.db');process.env.JWT_SECRET=randomBytes(64).toString('hex');process.env.ENCRYPTION_KEY=randomBytes(32).toString('hex');
+// APPS-06: Telegram and Discord are Girru Store apps; stand-ins in a temp extensions folder make them present.
+process.env.GIRRU_EXTENSIONS_DIR=path.join(root,'extensions');for(const id of ['telegram','discord']){fs.mkdirSync(path.join(root,'extensions',id),{recursive:true});fs.writeFileSync(path.join(root,'extensions',id,'agentplayer.plugin.json'),JSON.stringify({id,name:id,version:'1.0.0',main:'index.js'}));}
 const {getDatabase,closeDatabase}=await import('../src/db/database.ts');const db=getDatabase();await db.initialize();
 for(const [id,role] of [['channel-owner','owner'],['channel-user','user']])db.prepare('INSERT INTO users(id,email,username,password_hash,role,status) VALUES(?,?,?,\'fixture\',?,\'active\')').run(id,id+'@example.invalid',id,role);
 const {default:Fastify}=await import('fastify');const {registerAuthGate}=await import('../src/auth/auth-gate.ts');const {generateToken}=await import('../src/auth/jwt.ts');const {agentConnectRoutes}=await import('../src/api/routes/agent-connect.ts');const {CHANNEL_CATALOG}=await import('agent-connect-dpro');
@@ -56,4 +58,21 @@ test('catalog membership rejects property-like adapter IDs before either write r
   }
  }
  assert.deepEqual(db.prepare("SELECT extension_id,config_json,enabled FROM extension_configs ORDER BY extension_id").all(),before);
+});
+
+test('APPS-06: without the Telegram and Discord apps they are not listed and their settings are not written', async () => {
+ for(const id of ['telegram','discord'])fs.rmSync(path.join(root,'extensions',id),{recursive:true,force:true});
+ try{
+  const listing=(await app.inject({url:'/api/agent-connect/catalog',headers:auth})).json();
+  assert.equal(listing.channels.length,31);assert.ok(!listing.channels.some(c=>['telegram','discord'].includes(c.id)));
+  const before=db.prepare("SELECT extension_id,config_json,enabled FROM extension_configs ORDER BY extension_id").all();
+  for(const id of ['telegram','discord']){
+   assert.equal((await app.inject({method:'PUT',url:'/api/agent-connect/'+id+'/config',headers:auth,payload:{allowedUsers:['a'],allowedChannels:['b'],environment:{}}})).statusCode,404);
+   assert.equal((await app.inject({method:'PUT',url:'/api/agent-connect/'+id+'/activation',headers:auth,payload:{enabled:true}})).statusCode,404);
+  }
+  assert.deepEqual(db.prepare("SELECT extension_id,config_json,enabled FROM extension_configs ORDER BY extension_id").all(),before);
+  // Added from the Girru Store (the data folder), it is listed again.
+  fs.mkdirSync(path.join(root,'data','apps','telegram'),{recursive:true});
+  assert.ok((await app.inject({url:'/api/agent-connect/catalog',headers:auth})).json().channels.some(c=>c.id==='telegram'));
+ }finally{fs.rmSync(path.join(root,'data','apps'),{recursive:true,force:true});}
 });

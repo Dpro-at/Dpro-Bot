@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { ChannelConnector, TelegramTransport, DiscordTransport, channelInfo } from 'agent-connect-dpro';
 
 const runtimes = new Map();
+// Channels whose provider connection Girru's channel library makes itself. The Telegram and
+// Discord apps (Girru Store) run here through the SDK's hostChannel(); any other id has no transport.
+const NATIVE_TRANSPORTS = { telegram: TelegramTransport, discord: DiscordTransport };
+export function isNativeChannel(id) { return Object.prototype.hasOwnProperty.call(NATIVE_TRANSPORTS, id); }
 export function channelRuntimeState(id) { return runtimes.get(id)?.status() ?? 'restart_required'; }
 export function refreshChannel(id) { void runtimes.get(id)?.refresh().catch(() => {}); }
 export async function stopChannel(id) { await runtimes.get(id)?.stop(); }
@@ -13,6 +17,7 @@ export async function sendChannel(id, destination, text) {
 
 /** Girru integration boundary: storage, identity and agent execution stay here. */
 export async function registerChannelRoutes(fastify, api, id, options = {}) {
+  if (!options.createTransport && !isNativeChannel(id)) throw new Error(`No transport for channel ${id}`);
   const db = api.db;
   db.exec(`CREATE TABLE IF NOT EXISTS channel_events (
     channel TEXT NOT NULL, conversation_id TEXT NOT NULL, id TEXT NOT NULL,
@@ -101,8 +106,7 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
       fingerprint = next;
       if (!active() || !configured(config)) return;
       const createConnector = options.createConnector || ((channelId, transport, hooks) => new ChannelConnector(channelId, transport, hooks));
-      const transport = options.createTransport ? options.createTransport(id, config) : id === 'telegram'
-        ? new TelegramTransport(config.bot_token) : new DiscordTransport(config.bot_token);
+      const transport = options.createTransport ? options.createTransport(id, config) : new NATIVE_TRANSPORTS[id](config.bot_token);
       connector = createConnector(id, transport, {
         receive, onError: operation => api.log('warn', `${id} ${operation} failed`),
       });

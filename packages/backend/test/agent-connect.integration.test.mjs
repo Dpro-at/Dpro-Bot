@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { registerChannelRoutes, stopChannel, channelRuntimeState } from '../extensions/shared/channel-host.js';
+import { registerChannelRoutes, stopChannel, channelRuntimeState, isNativeChannel } from '../extensions/shared/channel-host.js';
 const requireBackend = createRequire(new URL('../package.json', import.meta.url));
 const Fastify = requireBackend('fastify');
 const Database = requireBackend('better-sqlite3');
@@ -118,5 +118,17 @@ test('shared extension runs two channels concurrently and disables only the chos
   assert.equal(channelRuntimeState('ntfy'),'disabled');assert.equal(channelRuntimeState('slack'),'connected');
   assert.equal((await app.inject({url:'/ntfy/connect',method:'POST'})).statusCode,409);
   assert.equal((await app.inject({url:'/slack/status'})).json().connected,true);
+ } finally {await app.close();db.close();}
+});
+
+test('APPS-06: the host makes a provider connection only for Telegram and Discord; any other id needs its own transport', async () => {
+ assert.deepEqual(['telegram','discord','slack','whatsapp','__proto__','toString'].map(isNativeChannel),[true,true,false,false,false,false]);
+ const db = new Database(':memory:');
+ db.exec("CREATE TABLE extension_configs (extension_id TEXT PRIMARY KEY, enabled INTEGER)");
+ const app=Fastify();
+ const api={db,getConfig:()=>({}),authorizeChannelRequest:()=>'owner',log:()=>{}};
+ try {
+  for (const id of ['whatsapp','__proto__']) await assert.rejects(registerChannelRoutes(app,api,id),/No transport/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'channel_events'").get().n,0,'refused before touching the database');
  } finally {await app.close();db.close();}
 });
