@@ -164,7 +164,7 @@ Download the installer for your system (all versions on the **[Releases page](ht
 | System | Download | How |
 |---|---|---|
 | 🪟 **Windows** | 👉 **[Download .exe](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-win-x64.exe)** | Run it and follow the setup wizard |
-| 🍎 **macOS** | 👉 **[Download .dmg](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-mac-x64.dmg)** | Open it and drag the app to Applications |
+| 🍎 **macOS** | 👉 **[Apple silicon (M1 and newer)](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-mac-arm64.dmg)** · **[Intel](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-mac-x64.dmg)** | Open it and drag the app to Applications. The app is not signed yet: the first time, right-click it and choose Open |
 | 🐧 **Linux** | 👉 **[Download .AppImage](https://github.com/Dpro-at/Girru/releases/download/v1.3.2/Dpro-1.3.2-linux-x64.AppImage)** | Make it executable and run it |
 
 ```bash
