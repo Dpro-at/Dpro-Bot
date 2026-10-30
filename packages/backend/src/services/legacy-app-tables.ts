@@ -4,12 +4,17 @@
  * already used one, its old tables are renamed once, after a backup, so the data stays; the
  * app is then added again from the Store in the background, and its migrations
  * (CREATE ... IF NOT EXISTS) keep the moved tables and rows. SQLite only, like every extension.
+ * "Used one" means Girru has a row for it in extension_configs (on or off) or ran its migrations,
+ * so an app with no tables moves too, and a table some old Girru made for everyone does not count.
  * The next app that moves only adds an entry to MOVED_APPS.
  */
 import { startAdd, type AddJob, type Fetch } from './store-install.js';
 
-/** Apps moved out of the program into the Girru Store, with the table names they had there. */
-export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[] }> = [
+/**
+ * Apps moved out of the program into the Girru Store, with the table names they had there and
+ * the views their old migrations made over them (a Store app cannot make views; they are dropped).
+ */
+export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; views?: readonly string[] }> = [
   { id: 'seo', tables: ['seo_domains', 'seo_keywords', 'seo_scraper_jobs', 'seo_search_analytics', 'seo_gsc_sync_log', 'seo_settings'] },
 ];
 
@@ -33,18 +38,25 @@ const setting = (db: Db, key: string, value: unknown) => db.prepare('INSERT INTO
 
 /**
  * The one-time move, at startup after the database opens and before extensions load.
- * Old tables found: a before-update backup first (no backup, no rename: tried again at the
- * next start), then one transaction renames them, forgets the app's recorded migrations so
- * the Store copy's run, and marks the app as waiting to be added again. Returns the moved apps.
+ * Only for an app the owner used. Old tables found: a before-update backup first (no backup, no
+ * rename: tried again at the next start), then one transaction drops its old views, renames the
+ * tables, forgets the app's recorded migrations so the Store copy's run, and marks the app as
+ * waiting to be added again, on or off as it was. With nothing to rename, no backup is made.
+ * Returns the moved apps.
  */
 export async function moveLegacyAppTables(options: { backup?: () => Promise<unknown>; apps?: typeof MOVED_APPS } = {}): Promise<string[]> {
   const db = await sqlite();
   if (!db) return [];
   const apps = (options.apps ?? MOVED_APPS).filter((a) => !db.prepare('SELECT 1 FROM app_settings WHERE key = ?').get(MOVED(a.id)));
   if (!apps.length) return [];
-  const has = (t: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t);
+  const has = (t: string, type = 'table') => !!db.prepare('SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?').get(type, t);
+  const config = (id: string) => db.prepare('SELECT enabled FROM extension_configs WHERE extension_id = ?').get(id) as { enabled?: number } | undefined;
+  const used = (id: string) => !!config(id) || !!db.prepare('SELECT 1 FROM extension_migrations WHERE extension_id = ?').get(id);
   // An old table moves only when the new name is free; a fresh data folder has none to move.
-  const found = apps.map((app) => ({ app, old: app.tables.filter((t) => has(t) && !has(prefixOf(app.id) + t)) }));
+  const found = apps.map((app) => {
+    const had = used(app.id);
+    return { app, had, old: had ? app.tables.filter((t) => has(t) && !has(prefixOf(app.id) + t)) : [] };
+  });
   if (found.some((f) => f.old.length)) {
     try {
       await (options.backup ?? (async () => (await import('./backups.js')).backUpNow('before-update')))();
@@ -55,9 +67,10 @@ export async function moveLegacyAppTables(options: { backup?: () => Promise<unkn
   }
   const at = new Date().toISOString();
   db.transaction(() => {
-    for (const { app, old } of found) {
-      if (old.length) {
-        const enabled = (db.prepare('SELECT enabled FROM extension_configs WHERE extension_id = ?').get(app.id) as { enabled?: number } | undefined)?.enabled === 1;
+    for (const { app, had, old } of found) {
+      if (had) {
+        const enabled = config(app.id)?.enabled === 1;
+        for (const v of app.views ?? []) if (has(v, 'view')) db.exec(`DROP VIEW ${quote(v)}`);
         for (const t of old) {
           // Its old indexes go; the Store copy's migrations make them again under its own names.
           for (const { name } of db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL").all(t) as Array<{ name: string }>) db.exec(`DROP INDEX IF EXISTS ${quote(name)}`);
@@ -69,8 +82,8 @@ export async function moveLegacyAppTables(options: { backup?: () => Promise<unkn
       setting(db, MOVED(app.id), { at, tables: old });
     }
   })();
-  const moved = found.filter((f) => f.old.length).map((f) => f.app.id);
-  if (moved.length) console.log(`[Store] Moved the tables of ${moved.join(', ')} to their Store names; adding ${moved.length === 1 ? 'it' : 'them'} again from the Girru Store`);
+  const moved = found.filter((f) => f.had).map((f) => f.app.id);
+  if (moved.length) console.log(`[Store] Moved ${moved.join(', ')} to the Girru Store names; adding ${moved.length === 1 ? 'it' : 'them'} again from the Girru Store`);
   return moved;
 }
 
