@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test test/*.test.mjs"
+    "test": "node --import tsx --import ../../scripts/test-temp-root.mjs --test test/*.test.mjs"
   },
   "license": "MIT",
   "dependencies": {

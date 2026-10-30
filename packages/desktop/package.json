@@ -9,7 +9,7 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.cjs",
+    "test": "node --import ../../scripts/test-temp-root.mjs --test test/*.test.cjs",
     "stage": "node scripts/stage-payload.cjs",
     "dist:mac": "electron-builder --mac dmg zip --publish never",
     "dist:dir": "electron-builder --dir --publish never",

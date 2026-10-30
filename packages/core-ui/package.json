@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 42522 --strictPort",
     "build": "node scripts/build.cjs",
     "typecheck": "node scripts/typecheck.cjs",
-    "test": "node --test tests/*.test.cjs",
+    "test": "node --import ../../scripts/test-temp-root.mjs --test tests/*.test.cjs",
     "preview": "node scripts/preview.cjs",
     "package:preview": "node scripts/package-preview.cjs",
     "build:candidate": "node scripts/build.cjs --candidate",
