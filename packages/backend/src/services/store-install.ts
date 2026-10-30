@@ -24,7 +24,7 @@ const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // no "--", no trailing "-": table pref
 const KEY = (id: string) => `store.installed.${id}`;
 const prefixOf = (id: string) => `app_${id.replace(/-/g, '_')}__`;
 const sha = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
-type Fetch = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<{ ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> }>;
+export type Fetch = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<{ ok: boolean; status: number; arrayBuffer(): Promise<ArrayBuffer> }>;
 
 async function sql() {
   const { getDatabase } = await import('../db/index.js');
@@ -91,11 +91,13 @@ const migrationFiles = (dir: string) => { const m = path.join(dir, 'migrations')
 export function addJob(job: string): AddJob | null { return jobs.get(job) ?? null; }
 
 /** Start adding a Store app; the window follows the job. */
-export function startAdd(app: string, options: { fetch?: Fetch; restart?: () => boolean } = {}): AddJob {
+export function startAdd(app: string, options: { fetch?: Fetch; restart?: () => boolean; onDone?: (job: AddJob) => void } = {}): AddJob {
   const job: AddJob = { id: randomUUID(), app, step: 'getting', done: false };
   jobs.set(job.id, job);
   setTimeout(() => jobs.delete(job.id), 3_600_000).unref?.();
-  void add(job, options).catch((error: unknown) => Object.assign(job, { done: true, ok: false, message: `It could not be added: ${error instanceof Error ? error.message : 'unknown error'}.` }));
+  void add(job, options)
+    .catch((error: unknown) => Object.assign(job, { done: true, ok: false, message: `It could not be added: ${error instanceof Error ? error.message : 'unknown error'}.` }))
+    .finally(() => options.onDone?.(job));
   return job;
 }
 

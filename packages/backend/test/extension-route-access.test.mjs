@@ -117,7 +117,7 @@ test('routeAccess "public" is not a level: the extension stays owner/admin', asy
 });
 
 test('no real extension declares a blanket public level', () => {
-  for (const id of ['agent-connect', 'calendar', 'call-center', 'discord', 'public-chat', 'seo', 'server-monitor', 'slack', 'team', 'telegram', 'trading', 'waf-security', 'whatsapp']) {
+  for (const id of ['agent-connect', 'calendar', 'call-center', 'discord', 'public-chat', 'server-monitor', 'slack', 'team', 'telegram', 'trading', 'waf-security', 'whatsapp']) {
     const manifest = JSON.parse(readFileSync(join(backendDir, 'extensions', id, 'agentplayer.plugin.json'), 'utf8'));
     assert.notEqual(manifest.routeAccess, 'public', id);
     assert.ok(['owner-admin', 'authenticated'].includes(getExtensionRouteAccess(manifest)), id);

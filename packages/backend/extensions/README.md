@@ -42,7 +42,7 @@ export default {
 EOF
 ```
 
-## Installed Extensions (11 Total)
+## Installed Extensions (10 Total)
 
 | Extension | Type | Status | Description |
 |-----------|------|--------|-------------|
@@ -53,7 +53,6 @@ EOF
 | **WhatsApp** | channel | ✅ Active | WhatsApp Business via Twilio (new SDK) |
 | **Call Center** | integration | ✅ Active | Phone call handling system |
 | **Email Client** | app | ✅ Active | Multi-account email (Gmail, Outlook, IMAP) |
-| **SEO Tools** | tool | ✅ Active | SEO analysis and optimization |
 | **Calendar** 🆕 | app | ✅ Active | Google Calendar + iCal sync, events |
 | **Team** 🆕 | app | ✅ Active | Team collaboration, members, invitations |
 | **Public Chat** 🆕 | app | ✅ Active | Multi-user chat rooms with AI agents |

@@ -1,7 +1,6 @@
 // S0-Q.18 review fixes: no extension is blanket public. Only listed webhook /
 // callback routes skip the token check, and each verifies the provider:
-// Slack signing secret, Twilio signature (WhatsApp, call-center), OAuth state
-// (SEO). Trading takes the user only from a verified token (header or the
+// Slack signing secret, Twilio signature (WhatsApp, call-center). Trading takes the user only from a verified token (header or the
 // stream's ?token=). The real extensions are loaded through the runner; all
 // network and provider credentials are stubbed.
 // Run: node --import tsx --test test/extension-webhooks.test.mjs
@@ -57,7 +56,7 @@ getCredentialManager().getValueByName = async (name) => {
   throw new Error(`Credential '${name}' not found`);
 };
 
-for (const id of ['slack', 'whatsapp', 'call-center', 'seo', 'trading']) {
+for (const id of ['slack', 'whatsapp', 'call-center', 'trading']) {
   db.prepare(`INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES (?, 1)`).run(id);
 }
 const app = Fastify();
@@ -83,7 +82,7 @@ const FORM = 'application/x-www-form-urlencoded';
 
 test('every target extension loaded', () => {
   const loaded = [...runner.getLoadedExtensions().keys()];
-  for (const id of ['slack', 'whatsapp', 'call-center', 'seo', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
+  for (const id of ['slack', 'whatsapp', 'call-center', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
 });
 
 test('slack: admin routes need owner/admin; /webhook needs a valid Slack signature', async () => {
@@ -160,35 +159,6 @@ test('call-center: provider webhooks need a valid Twilio signature; other routes
     const ok = await send(path, twilioSignature(TWILIO_TOKEN, url, params));
     assert.equal(ok.statusCode, 200, `${path}: ${ok.body}`);
   }
-});
-
-test('seo: OAuth state is random, single use and bound to the user and domain', async () => {
-  db.prepare(`INSERT INTO seo_domains (id, user_id, domain, slug) VALUES ('d-1', 'u-user', 'example.test', 'example-test')`).run();
-
-  // Forged state (the old format: base64 JSON with any user) is refused before any network call.
-  const forged = Buffer.from(JSON.stringify({ userId: 'u-owner', domain_id: 'd-1' })).toString('base64');
-  const before = outbound.length;
-  const bad = await inject({ method: 'GET', url: `/api/ext/seo/oauth/google/callback?code=c&state=${encodeURIComponent(forged)}` });
-  assert.equal(bad.statusCode, 400);
-  assert.equal(outbound.length, before, 'no token exchange for a forged state');
-
-  assert.equal((await inject({ method: 'GET', url: '/api/ext/seo/oauth/google/authorize?domain_id=d-1' })).statusCode, 401);
-  assert.equal((await inject({ method: 'GET', url: '/api/ext/seo/oauth/google/authorize?domain_id=d-1', headers: { authorization: token('u-owner') } })).statusCode, 404, 'someone else\'s domain');
-
-  const start = await inject({ method: 'GET', url: '/api/ext/seo/oauth/google/authorize?domain_id=d-1', headers: { authorization: token('u-user') } });
-  assert.equal(start.statusCode, 302, start.body);
-  const state = new URL(start.headers.location).searchParams.get('state');
-  assert.match(state, /^[0-9a-f]{64}$/);
-
-  // F-08: the state is also bound to the starting browser's nonce cookie.
-  const cookie = String(start.headers['set-cookie']).split(';')[0];
-  const cb = await inject({ method: 'GET', url: `/api/ext/seo/oauth/google/callback?code=c&state=${state}`, headers: { cookie } });
-  assert.equal(cb.statusCode, 302);
-  assert.equal(outbound.length, before + 1, 'token exchange only for a valid state');
-
-  const reuse = await inject({ method: 'GET', url: `/api/ext/seo/oauth/google/callback?code=c&state=${state}`, headers: { cookie } });
-  assert.equal(reuse.statusCode, 400, 'state is single use');
-  assert.equal(outbound.length, before + 1);
 });
 
 test('trading: user only from a verified token; x-user-id is ignored; stream verifies ?token=', async () => {

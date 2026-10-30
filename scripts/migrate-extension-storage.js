@@ -15,11 +15,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 const storageRoot = path.join(projectRoot, 'public', 'storage');
 
-// All 12 extensions
+// The extensions that ship with Girru
 const extensionIds = [
   'discord', 'slack', 'telegram', 'whatsapp',
   'email-client', 'calendar', 'team', 'public-chat',
-  'waf-security', 'call-center', 'seo', 'trading',
+  'waf-security', 'call-center', 'trading',
 ];
 
 let movedCount = 0;
