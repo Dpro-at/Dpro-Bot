@@ -12,7 +12,7 @@ import { registerExtensionTool, unregisterExtensionTool, isReservedToolName } fr
 import { EXEC_EXTENSION_PERMISSIONS } from '../tools/exec-policy.js';
 import { beginChannelTurn, CHANNEL_TURN_HEADER, type ChannelOrigin } from '../tools/channel-policy.js';
 import { getDatabase } from '../db/index.js';
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve, sep, join } from 'path';
 import { getTranslator, registerExtensionBackendTranslations } from '../i18n/index.js';
@@ -367,8 +367,11 @@ export function createExtensionApi(
         }
 
         // SECURITY: Resolve to absolute path and validate it's within extension directory (H-04)
-        const absolutePath = resolve(resolvedPath);
-        const normalizedExtensionDir = resolve(extensionDir);
+        // Real paths on both sides: a data folder behind a symlink (macOS /var -> /private/var)
+        // still matches, and a migration that links outside the extension is refused.
+        const real = (p: string) => { try { return realpathSync(p); } catch { return resolve(p); } };
+        const absolutePath = real(resolve(resolvedPath));
+        const normalizedExtensionDir = real(resolve(extensionDir));
 
         // Path traversal protection: ensure the resolved path is within the extension directory
         if (!absolutePath.startsWith(normalizedExtensionDir + sep) &&
