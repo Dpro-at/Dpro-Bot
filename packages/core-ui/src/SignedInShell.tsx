@@ -70,7 +70,8 @@ const pages: ReadonlyArray<{ key: Page; label: string; icon: IconName | 'board' 
 /** FIRSTRUN-01: a new owner finishes the setup steps first; then the workspace opens on the Welcome chat. */
 export function SignedInShell({ client, notice }: { client: SessionClient; notice: ReactNode }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
-  const first = useFirstRun(client, state.user?.role === 'owner');
+  // Only a real (live) owner session can still have setup steps; practice and offline modes open the workspace.
+  const first = useFirstRun(client, state.user?.role === 'owner' && state.mode === 'live');
   const [finished, setFinished] = useState(false);
   if (first.pending === null) return <div className="first-run-setup" aria-busy="true"/>;
   if (first.pending && !finished) return <FirstRunSetup client={client} initialStep={first.step} onDone={chatId => {

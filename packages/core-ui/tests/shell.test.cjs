@@ -154,6 +154,11 @@ test('source boundary: only injected session transport may network; no browser s
       assert.match(source, /rel="noopener noreferrer"/);
       source = source.replace(/https:\/\/[^']+/g, 'publisher-source');
     }
+    if (name === 'first-run-contract.js') {
+      // FIRSTRUN-01: the one download page the owner may open for Ollama (a user-opened link, never a transport target).
+      assert.deepEqual(source.match(/https:\/\/[^']+/g), ['https://ollama.com/download']);
+      source = source.replace(/https:\/\/[^']+/g, 'download-page');
+    }
     if (name === 'entry-client.ts') assertEntryBinding(source);
     else if (name !== 'session.ts') assert.doesNotMatch(source, /\bfetch\b|https?:\/\//, name);
     else { assert.match(source, /fetcher: typeof fetch/); assert.doesNotMatch(source, /\bfetch\s*\(/); }

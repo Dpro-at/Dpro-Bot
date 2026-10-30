@@ -3377,7 +3377,7 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-terminal .terminal-pane { height:200px; border-radius:10px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--border); }
 .setup-terminal-note { display:flex; gap:6px; align-items:center; margin:0; font-size:12px; color:var(--text-2); }
 .setup-actions { margin-top:auto; padding-top:16px; display:flex; align-items:center; gap:10px; }
-.setup-actions .primary { margin-left:auto; min-height:34px; }
+.setup-actions .primary { margin-inline-start:auto; min-height:34px; }
 .setup-counts { display:flex; gap:8px; flex-wrap:wrap; }
 .setup-counts button { width:76px; height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:10px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); border:0; }
 .setup-counts button b, .setup-counts button strong { font-size:18px; }
@@ -3390,7 +3390,7 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-search input { flex:1; border:0; background:transparent; color:var(--text); font:inherit; outline:0; }
 .setup-departments { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0; padding:0; list-style:none; max-height:260px; overflow:auto; }
 .setup-departments button .ag-tile { flex:none; }
-.setup-departments button { width:100%; min-width:0; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; border-radius:10px; text-align:left; background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); color:var(--text); }
+.setup-departments button { width:100%; min-width:0; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; border-radius:10px; text-align:start; background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); color:var(--text); }
 .setup-departments button > span:not(.ag-tile) { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
 .setup-departments button b { font-size:12.5px; }
 .setup-departments button small { font-size:11px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
