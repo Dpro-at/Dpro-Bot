@@ -17,7 +17,7 @@
 ![Cross-Platform](https://img.shields.io/badge/🌐-Windows%20%7C%20macOS%20%7C%20Linux-cyan?style=for-the-badge)
 ![Local First](https://img.shields.io/badge/🔒-Local%20First-red?style=for-the-badge)
 
-**[⬇️ Download the app](#install)** · **[🛠️ Run from source](#source)** · **[🤝 Contribute](#contribute)**
+**[🌐 Website: girru.dev](https://girru.dev)** · **[⬇️ Download the app](#install)** · **[🛠️ Run from source](#source)** · **[🤝 Contribute](#contribute)**
 
 </div>
 
@@ -40,6 +40,12 @@ Girru works the way a real professional team works. You do not pick a tool or wr
 - 🛡️ **Compliance Agents** - Review sites and apps against EU and US data-protection rules
 - 📱 **Phone** - Talk to your team and follow the work from your phone
 - 💬 **Multi-Channel** - Telegram, WhatsApp, Discord, Slack, email and web chat
+
+## 🏷️ New Name, Same Project
+
+Girru started in **May 2025** as **Agent Player**, with its own website at **[agent-player.com](https://agent-player.com)** (the 2025 site, kept online as it was). For a short time in 2026 it was called **Dpro**. It is now **Girru**, made by Dpro, and its new home is **[girru.dev](https://girru.dev)**.
+
+It is the same open-source project under the same MIT license. The repository moved from `9mtm/Agent-Player` to **[Dpro-at/Girru](https://github.com/Dpro-at/Girru)**, and old links redirect here. Release files up to 1.3.2 still carry the older names.
 
 ---
 
