@@ -1,0 +1,54 @@
+// MACAPP-01 / DOGFOOD stage 3: the Code editor packed into the app. Only run-time parts of a
+// Nabu checkout are copied: production packages, kept extensions, one shared telemetry copy.
+const test = require('node:test'); const assert = require('node:assert/strict'); const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+const { stage } = require('../scripts/stage-nabu.cjs');
+
+const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
+const pkg = (dir, name, extra = {}) => write(path.join(dir, 'package.json'), JSON.stringify({ name, version: '1.0.0', ...extra }));
+
+function checkout(root) {
+  write(path.join(root, 'nabu', 'runtime.json'), JSON.stringify({ protocolVersion: 1, entry: 'dpro/editor-runtime.mjs' }));
+  write(path.join(root, 'nabu', 'dpro', 'editor-runtime.mjs'), 'export const protocolVersion = 1;\n');
+  const editor = path.join(root, 'editor');
+  pkg(editor, 'editor', { dependencies: { 'run-dep': '1.0.0' }, devDependencies: { 'dev-dep': '1.0.0' } });
+  for (const name of ['run-dep', 'dev-dep']) pkg(path.join(editor, 'node_modules', name), name);
+  write(path.join(editor, 'out', 'server-main.js'), '');
+  write(path.join(editor, 'product.json'), '{}');
+  write(path.join(editor, 'resources', 'r.txt'), '');
+  pkg(path.join(editor, 'remote'), 'remote', { dependencies: { 'server-dep': '1.0.0' } });
+  pkg(path.join(editor, 'remote', 'node_modules', 'server-dep'), 'server-dep');
+  for (const ext of ['markdown', 'git', 'copilot']) {
+    const dir = path.join(editor, 'extensions', ext);
+    pkg(dir, ext, { dependencies: { '@vscode/extension-telemetry': '1.0.0', [`${ext}-server`]: '1.0.0' }, devDependencies: { 'ext-dev': '1.0.0' } });
+    write(path.join(dir, 'out', 'extension.js'), '');
+    pkg(path.join(dir, 'node_modules', '@vscode', 'extension-telemetry'), '@vscode/extension-telemetry');
+    pkg(path.join(dir, 'node_modules', `${ext}-server`), `${ext}-server`);
+    pkg(path.join(dir, 'node_modules', 'ext-dev'), 'ext-dev');
+  }
+}
+
+test('copies only the run-time parts and the kept extensions', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'girru-nabu-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  checkout(path.join(root, 'nabu-code'));
+  const out = path.join(root, 'runtime');
+  const result = stage({ nabu: path.join(root, 'nabu-code'), out });
+  const has = rel => fs.existsSync(path.join(out, ...rel.split('/')));
+  assert.equal(result.extensions, 2);
+  for (const rel of ['nabu/runtime.json', 'nabu/dpro/editor-runtime.mjs', 'editor/out/server-main.js', 'editor/product.json', 'editor/node_modules/run-dep', 'editor/node_modules/server-dep', 'editor/remote/node_modules/server-dep', 'editor/extensions/git/out/extension.js']) assert.ok(has(rel), rel);
+  assert.equal(has('editor/node_modules/dev-dep'), false, 'development packages stay out');
+  assert.equal(has('editor/extensions/copilot'), false, 'dropped extensions stay out');
+  assert.equal(has('editor/extensions/git/node_modules/ext-dev'), false);
+  // Telemetry kept once where Node finds it; packages an extension opens by path stay in its own folder.
+  assert.ok(has('editor/extensions/node_modules/@vscode/extension-telemetry'));
+  assert.equal(has('editor/extensions/git/node_modules/@vscode/extension-telemetry'), false);
+  assert.ok(has('editor/extensions/markdown/node_modules/markdown-server'));
+});
+
+test('refuses a checkout that is not built', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'girru-nabu-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  checkout(path.join(root, 'nabu-code'));
+  fs.rmSync(path.join(root, 'nabu-code', 'editor', 'out'), { recursive: true });
+  assert.throws(() => stage({ nabu: path.join(root, 'nabu-code'), out: path.join(root, 'runtime') }), /not built: out/);
+});

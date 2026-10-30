@@ -11,6 +11,7 @@
     "start": "electron .",
     "test": "node --import ../../scripts/test-temp-root.mjs --test test/*.test.cjs",
     "stage": "node scripts/stage-payload.cjs",
+    "stage:code": "node scripts/stage-nabu.cjs",
     "dist:mac": "electron-builder --mac dmg zip --publish never",
     "dist:dir": "electron-builder --dir --publish never",
     "dist:win": "electron-builder --win nsis --publish never",
@@ -42,6 +43,13 @@
       {
         "from": "payload/node_modules",
         "to": "payload/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "nabu-runtime",
+        "to": "nabu-runtime",
         "filter": [
           "**/*"
         ]
