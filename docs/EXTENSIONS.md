@@ -429,7 +429,7 @@ api.registerTool({
 
 ## Real Example: WAF Security Extension
 
-Complete working example from `packages/backend/extensions/waf-security/`:
+An app that once shipped here and is now in the Girru Store repository (`apps/waf-security/package/`); its tables are named `app_waf_security__...` there:
 
 ### Structure:
 ```
@@ -508,4 +508,4 @@ sqlite> .quit
 
 ---
 
-**See:** `packages/backend/extensions/waf-security/` for complete working example!
+**See:** `apps/waf-security/package/` in the Girru Store repository for a complete working example.

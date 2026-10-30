@@ -19,7 +19,7 @@ const storageRoot = path.join(projectRoot, 'public', 'storage');
 const extensionIds = [
   'discord', 'slack', 'telegram', 'whatsapp',
   'email-client', 'calendar', 'team', 'public-chat',
-  'waf-security', 'call-center', 'trading',
+  'call-center', 'trading',
 ];
 
 let movedCount = 0;
