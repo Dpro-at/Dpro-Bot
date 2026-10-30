@@ -53,7 +53,7 @@ export function localCatalogue(options:{home?:string;repo?:()=>Promise<RepoRead>
    const repo=await (options.repo??readStoreRepo)().catch(():RepoRead=>({index:null,asOf:null,fresh:false}));
    asOf=repo.asOf;if(!repo.fresh)limited.push('store');
    const added=await installedApps();
-   for(const id of Object.keys(added))have.installed.add('store:'+id);
+   for(const [id,x] of Object.entries(added))if(x.source==='store')have.installed.add('store:'+id);
    addable=new Set(Object.keys(repo.packages??{}).map(k=>'store:'+k.slice(6)));
    for(const r of repo.index?.items??[]){
     const at=items.findIndex(x=>x.id===r.id);
@@ -118,6 +118,8 @@ export async function installFromStore(ownerId:string,id:string,hash:string,opti
   const x=repo.index?.items.find(i=>i.id==='girru:'+app);
   if(!x||!repo.packages?.['girru:'+app])return {ok:false,code:'not_found',message:'This app is not in the Girru Store any more.'};
   if(consentHash({id,version:x.version,permissions:x.permissions})!==hash)return {ok:false,code:'changed',message:'This app changed since you saw it. Read what it asks for again.'};
+  // SA6: never replace a private app that has the same id.
+  if((await installedApps())[app]?.source==='private')return {ok:false,code:'refused',message:'You have a private app with the same name. Remove it in My apps first.'};
   const job:AddJob=startAdd(app,{restart:options.restart});
   return {ok:true,state:'adding',job:job.id};
  }
@@ -128,8 +130,9 @@ export async function installFromStore(ownerId:string,id:string,hash:string,opti
  return r.success?{ok:true,state:'installed'}:{ok:false,code:'refused',message:r.error||'It could not be added.'};
 }
 export async function uninstallFromStore(ownerId:string,id:string,options:{confirm?:boolean;restart?:()=>boolean}={}):Promise<StoreChange>{
- if(id.startsWith('store:')){
-  const r=await removeApp(id.slice(6),options);
+ // SA6: a private app (added from a folder) is removed the same way as a Store app.
+ if(id.startsWith('store:')||id.startsWith('private:')){
+  const r=await removeApp(id.slice(id.indexOf(':')+1),options);
   return r.ok?{ok:true,state:'available',copy:r.copy,restart:r.restart}:r;
  }
  const ext=registryId(id);if(!ext)return refuseOther(id);

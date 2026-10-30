@@ -63,6 +63,9 @@ Use these MCP tools through the owner's authenticated local session.
 ## Store (tool `workspace_store`, the Store section)
 
 - The Store lists the apps that come with Girru, the Girru Store (github.com/Dpro-at/girru-store; without internet it shows its last copy and the date), Girru's registry and the coding apps' add-ons. Every item is free.
+- The Store opens on **My apps**: the apps on this computer (built in, added from the Girru Store, and private apps the owner added from a folder). There is no separate Apps section any more. `mine` lists them.
+- Private apps are the owner's own apps, added in Store › My apps › More › Add an app from a folder. They are checked like Store apps (only their own tables) but nobody reviewed them, so `add_private` is refused: only the owner adds one, in the app. They are never listed in the Store.
+- Long lists come in parts: `search` returns up to 40 (or `limit`, at most 100) and a `next` value; ask again with `after` set to it for more.
 - `home`, `search`, `app` and `updates` read it. Adding an app is always the owner's own click in the Store, which shows what the app asks for: tell the owner what it asks for and where to add it.
 - An app from the Girru Store is checked file by file against what the store reviewed, set up in the data folder, and finishes when Girru starts again.
 - `uninstall` only on the owner's instruction. An app that keeps data of its own is removed by the owner in the Store (Girru saves a copy of its data first; adding it again brings it back).

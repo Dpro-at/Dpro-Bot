@@ -30,11 +30,11 @@ test('Agents sidebar is the team only: All staff and Main agent; no Departments 
  assert.match(src('StaffDirectory.tsx'),/className="ag-row-dept">\{a\.department&&<><DepartmentTile department=\{a\.department\}\/>/);
 });
 
-test('Settings has Accounts, Channels, MCP connections and Departments; Library and Apps stay jump rows',()=>{
+test('Settings has Accounts, Channels, MCP connections and Departments; Library and My apps stay jump rows',()=>{
  const {AppSettings}=require('../src/AppSettings.tsx');
  const page=(tab,extra={})=>renderToStaticMarkup(React.createElement(AppSettings,{signedIn:true,preference:'system',onTheme(){},onAccount(){},client:owner,initialTab:tab,onOpenApps(){},onOpenTool(){},...extra}));
  const html=page('general');
- for(const s of ['Accounts','Channels','MCP connections','Departments','Library','Apps'])assert.match(html,new RegExp('dk-place-name">'+s+'<'),s);
+ for(const s of ['Accounts','Channels','MCP connections','Departments','Library','My apps'])assert.match(html,new RegExp('dk-place-name">'+s+'<'),s);
  assert.doesNotMatch(html,/dk-place-name">Connections</);for(const s of ['Skills','Specialties','Personalities'])assert.doesNotMatch(html,new RegExp('dk-place-name">'+s+'<'),s);
  // The old name still opens Accounts; Departments opens its own page.
  assert.match(page('connections'),/<h2 class="settings-page-title">Accounts<\/h2>/);

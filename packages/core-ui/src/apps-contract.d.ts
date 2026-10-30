@@ -7,7 +7,7 @@ export function sourceCatalogueRoute(path:string):boolean;
 export function allowedSourceCatalogue(method:string,path:string,body?:unknown):boolean;
 export function sourceCatalogueResponse(status:number,body:unknown):unknown;
 
-export type WorkspaceApp={id:string;name:string;kind:'builtin'|'mcp'|'api';version:string|null;summary:string;state:'included'|'disabled'|'connected'|'connecting'|'disconnected'|'attention'|'not_connected'|'expired';sourceId:string|null;permissions:string[];tools:number;removable:boolean};
+export type WorkspaceApp={id:string;name:string;kind:'builtin'|'mcp'|'api'|'added';version:string|null;summary:string;state:'included'|'disabled'|'connected'|'connecting'|'disconnected'|'attention'|'not_connected'|'expired';sourceId:string|null;permissions:string[];tools:number;removable:boolean;origin?:'store'|'private'};
 export const WORKSPACE_APPS_PATH:'/api/apps';
 export function workspaceAppsRoute(path:string):boolean;
 export function allowedWorkspaceApps(method:string,path:string,body?:unknown):boolean;
@@ -23,6 +23,8 @@ export function storeJobPath(job:string):string;
 export const STORE_PATH:'/api/store';
 export const STORE_INSTALL_PATH:'/api/store/install';
 export const STORE_UNINSTALL_PATH:'/api/store/uninstall';
+export const STORE_PRIVATE_PATH:'/api/store/private';
+export type PrivateAdd={ok:true;state:'installed';id:string;name:string;restart:'auto'|'manual'}|{code:string;message?:string};
 export function storeRoute(path:string):boolean;
 export function allowedStore(method:string,path:string,body?:unknown):boolean;
-export function storeResponse(path:string,status:number,body:unknown):StoreData|StoreChange|{code:string};
+export function storeResponse(path:string,status:number,body:unknown):StoreData|StoreChange|PrivateAdd|{code:string};

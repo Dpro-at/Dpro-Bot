@@ -39,7 +39,7 @@ const call = (method, who, payload) => app.inject({ method, url: '/api/me/footer
 test('footer: usual footer first, each person saves their own, unknown values refused', async () => {
   assert.equal((await call('GET')).statusCode, 401);
   const first = (await call('GET', 'ft-owner')).json().footer;
-  assert.deepEqual(first.order.slice(0, 7), ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps']);
+  assert.deepEqual(first.order.slice(0, 7), ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'store']);
   assert.ok(first.hidden.includes('skills') && !first.hidden.includes('chat') && !first.hidden.includes('library'));
   assert.ok(!first.order.includes('mcp'));
   assert.equal(first.approvalsWhenWaiting, true);
@@ -48,9 +48,11 @@ test('footer: usual footer first, each person saves their own, unknown values re
   assert.deepEqual(saved.json().footer.hidden, ['board']);
   assert.equal((await call('GET', 'ft-owner')).json().footer.iconsOnly, true);
   assert.notDeepEqual((await call('GET', 'ft-user')).json().footer.hidden, ['board']);
-  const moved = (await call('PUT', 'ft-owner', { order: ['apps', 'chat'] })).json().footer;
-  assert.deepEqual(moved.order.slice(0, 3), ['apps', 'store', 'chat']); // Store, added later, comes in after Apps
-  assert.equal(moved.order.length, 14);
+  const moved = (await call('PUT', 'ft-owner', { order: ['store', 'chat'] })).json().footer;
+  assert.deepEqual(moved.order.slice(0, 2), ['store', 'chat']);
+  assert.equal(moved.order.length, 13);
+  assert.equal((await call('PUT', 'ft-owner', { order: ['apps'] })).statusCode, 400, 'SA6: Apps is no footer section any more');
+  assert.deepEqual((await import(join(backendDir, 'src/api/routes/ui-footer.ts'))).footerPrefs({ order: ['apps', 'chat'] }).order.slice(0, 2), ['store', 'chat'], 'an older saved Apps place becomes the Store');
   for (const bad of [{}, { hidden: ['settings'] }, { hidden: ['mcp'] }, { hidden: ['chat', 'chat'] }, { order: ['nope'] }, { iconsOnly: 'yes' }, { other: true }, []])
     assert.equal((await call('PUT', 'ft-owner', bad)).statusCode, 400, JSON.stringify(bad));
 });

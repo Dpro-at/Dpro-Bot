@@ -6,8 +6,9 @@ import {UiIcon} from './ui-icons';
 import type {UiIconName} from './ui-icons';
 import {ContextMenu,IconButton,Notice,Sheet,useMenu} from './desktop-ui';
 import type {MenuItem} from './desktop-ui';
-import {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH,storeJobPath} from './apps-contract.js';
-import type {StoreData,StoreItem,StoreChange,StoreJob} from './apps-contract.js';
+import {STORE_PATH,STORE_INSTALL_PATH,STORE_UNINSTALL_PATH,STORE_PRIVATE_PATH,storeJobPath} from './apps-contract.js';
+import type {StoreData,StoreItem,StoreChange,StoreJob,PrivateAdd,WorkspaceApp} from './apps-contract.js';
+import {WorkspaceApplications} from './WorkspaceApplications';
 
 /** APPS-06 (board Apps6): the four steps of adding an app from the Girru Store. */
 const ADD_STEPS:[string,string][]=[['getting','Getting it from the Girru Store'],['checking','Checking it is exactly what was reviewed'],['setting-up','Setting it up in your data folder'],['adding','Adding its page and tools']];
@@ -21,7 +22,18 @@ export const itemName=(x:Pick<StoreItem,'name'|'source'>)=>x.source==='girru'?x.
 export type StoreKind='all'|'app'|'mcp'|'skill'|'specialty';
 export const STORE_KINDS:ReadonlyArray<[StoreKind,string,UiIconName]>=[['all','All','store'],['app','Apps','puzzle'],['mcp','MCP servers','server'],['skill','Skills','star'],['specialty','Specialties','layers']];
 /** What the page shows: a kind, a category of the row ('all' for every one), and a "See all" shelf. */
-export type StoreView={kind:StoreKind;category:string;shelf:'girru'|'new'|null;local?:'claude-code'|'codex'|null};
+export type StoreView={kind:StoreKind;category:string;shelf:'girru'|'new'|null;local?:'claude-code'|'codex'|null;mine?:boolean};
+/** SA6: long lists draw this many rows, then the next part as you near the end (or press Show more). */
+export const STORE_PART=40;
+/** How many rows of a long list are drawn: one part to start, one more each time the end comes near. */
+export function useShown(reset:unknown){
+ const [shown,setShown]=useState(STORE_PART),end=useRef<HTMLDivElement|null>(null);
+ useEffect(()=>setShown(STORE_PART),[reset]);
+ useEffect(()=>{const el=end.current;if(!el||typeof IntersectionObserver==='undefined')return;const o=new IntersectionObserver(e=>{if(e.some(x=>x.isIntersecting))setShown(n=>n+STORE_PART);},{rootMargin:'400px'});o.observe(el);return()=>o.disconnect();});
+ return {shown,more:()=>setShown(n=>n+STORE_PART),end};
+}
+/** A private app or a Store app from My apps, as the Store's Remove expects it. */
+export const addedItem=(app:Pick<WorkspaceApp,'name'|'sourceId'|'origin'>):StoreItem=>({id:`${app.origin==='private'?'private':'store'}:${app.sourceId}`,kind:'app',source:'girru',name:app.name,summary:'',description:'',icon:'puzzle',maker:'',verified:false,version:null,updated:null,category:'more',permissions:[],worksWith:[],languages:[],state:'installed',present:true,update:null,hash:'0'.repeat(64)});
 /** SA5: the coding apps whose add-ons get a place of their own ("On this computer"). */
 export const LOCAL_APPS:ReadonlyArray<['claude-code'|'codex',string]>=[['claude-code','Claude Code'],['codex','Codex']];
 export type StoreSort='new'|'az';
@@ -67,14 +79,15 @@ function Chips({item}:{item:StoreItem}){
  * its page (SA2); Get opens a short sheet (SA3); updates that need the owner
  * are a toolbar icon with a badge.
  */
-export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{client:SessionClient;active:boolean;sidebarSlot?:HTMLElement|null;onOpenApp:(id:IncludedApp)=>void;request?:{updates:boolean;n:number;local?:'claude-code'|'codex'}}){
+export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request,onPermissions,onAccounts,footerItem,canCode=true}:{client:SessionClient;active:boolean;sidebarSlot?:HTMLElement|null;onOpenApp:(id:IncludedApp)=>void;request?:{updates:boolean;n:number;local?:'claude-code'|'codex';mine?:boolean};onPermissions:()=>void;onAccounts:()=>void;footerItem?:(id:string)=>MenuItem|null;canCode?:boolean}){
  const owner=client.getSnapshot().user?.role==='owner',store=useStore(client,active&&owner,0),{data,error}=store,onReload=store.reload;
- const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null}),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
+ // SA6 (Mohamed): the owner's Store opens on All, then My apps (what is on this computer), then the kinds; others have My apps only.
+ const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null,mine:!owner}),[mineRefresh,setMineRefresh]=useState(0),[folderOpen,setFolderOpen]=useState(false),[folder,setFolder]=useState(''),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
  const [page,setPage]=useState<string|null>(null),[updatesOpen,setUpdatesOpen]=useState(false),[adding,setAdding]=useState<StoreItem|null>(null),[busy,setBusy]=useState(false),[problem,setProblem]=useState(''),[toast,setToast]=useState<{id:number;text:string;undo:boolean;show?:unknown}|null>(null);
  const [progress,setProgress]=useState<{item:StoreItem;step:string}|null>(null),[removing,setRemoving]=useState<{item:StoreItem;data:{table:string;rows:number}[]}|null>(null);
  const undoRef=useRef<(()=>void)|null>(null),search=useRef<HTMLInputElement>(null),scroll=useRef<HTMLDivElement>(null),{menu,at,close}=useMenu();
- useEffect(()=>{if(request?.updates)setUpdatesOpen(true);if(request?.local){setView({kind:'all',category:'all',shelf:null,local:request.local});setPage(null);setQuery('');}},[request?.n]);
- const show=(next:Partial<StoreView>)=>{setView(v=>({...v,shelf:null,local:null,...next}));setPage(null);setQuery('');scroll.current?.scrollTo?.(0,0);};
+ useEffect(()=>{if(request?.updates)setUpdatesOpen(true);if(request?.local||request?.mine){setView({kind:'all',category:'all',shelf:null,local:request.local??null,mine:!!request.mine});setPage(null);setQuery('');}},[request?.n]);
+ const show=(next:Partial<StoreView>)=>{setView(v=>({...v,shelf:null,local:null,mine:false,...next}));setPage(null);setQuery('');scroll.current?.scrollTo?.(0,0);};
  const item=page?data?.items.find(x=>x.id===page)??null:null;
  const say=(text:string,undo?:()=>void)=>{undoRef.current=undo??null;setToast({id:Date.now(),text,undo:!!undo});};
  const change=async(path:string,body:object)=>{const r=await client.request({method:'POST',path,body} as never);return r.body as StoreChange;};
@@ -103,8 +116,16 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
    // APPS-06: an app that keeps data of its own asks once; Girru saves a copy first.
    if(!('ok' in r)&&r.code==='has_data'&&r.data){setRemoving({item:x,data:r.data});return;}
    setRemoving(null);onReload();
-   if('ok' in r&&x.id.startsWith('store:')){say(`${itemName(x)} removed${r.copied?'; a copy of its data is saved':''}.${r.restart==='auto'?' Girru starts again to finish.':' It leaves when Girru starts again.'}`);return;}if(!quiet)say('ok' in r?`${itemName(x)} removed.`:r.message||'It could not be removed.','ok' in r?()=>void change(STORE_INSTALL_PATH,{id:x.id,hash:x.hash}).then(onReload):undefined);}
+   if('ok' in r&&(x.id.startsWith('store:')||x.id.startsWith('private:'))){if(x.id.startsWith('private:'))setMineRefresh(n=>n+1);say(`${itemName(x)} removed${r.copied?'; a copy of its data is saved':''}.${r.restart==='auto'?' Girru starts again to finish.':' It leaves when Girru starts again.'}`);return;}if(!quiet)say('ok' in r?`${itemName(x)} removed.`:r.message||'It could not be removed.','ok' in r?()=>void change(STORE_INSTALL_PATH,{id:x.id,hash:x.hash}).then(onReload):undefined);}
   catch{say('It could not be removed. Try again.');}
+ }
+ /** SA6: a private app from a folder on this computer; checked like a Store app, never listed in the Store. */
+ async function addFolder(){
+  setBusy(true);setProblem('');
+  try{const r=(await client.request({method:'POST',path:STORE_PRIVATE_PATH,body:{folder:folder.trim()}} as never)).body as PrivateAdd;
+   if('ok' in r){setFolderOpen(false);setFolder('');setMineRefresh(n=>n+1);say(`${r.name} added from a folder.${r.restart==='auto'?' Girru starts again to finish.':' Start Girru again to finish.'}`);}
+   else setProblem(r.message||'It could not be added.');
+  }catch{setProblem('It could not be added. Try again.');}finally{setBusy(false);}
  }
  /** The one action of an item: Open what comes with Girru, Get what is free, read about the rest. */
  const act=(x:StoreItem)=>{const app=includedApp(x);if(app)onOpenApp(app);else if(x.state==='available'){setProblem('');setAdding(x);}else setPage(x.id);};
@@ -114,25 +135,32 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
  const onKey=(e:ReactKeyboardEvent)=>{if(e.defaultPrevented||(e.currentTarget as HTMLElement).querySelector('.dk-sheet'))return;const mod=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();if(mod&&k==='f'){e.preventDefault();search.current?.focus();}else if(mod&&e.key==='['&&page){e.preventDefault();setPage(null);}else if(mod&&k==='r'){e.preventDefault();onReload();}};
  const open=(x:StoreItem)=>setPage(x.id),ctx=(x:StoreItem)=>(e:ReactMouseEvent)=>at(e,itemMenu(x));
  const kindTitle=STORE_KINDS.find(([k])=>k===view.kind)![1],category=data?.categories.find(c=>c.id===view.category);
- const searching=!!query.trim(),home=!searching&&view.kind==='all'&&view.category==='all'&&!view.shelf&&!view.local;
+ const mine=!!view.mine||!owner,searching=!mine&&!!query.trim(),home=!searching&&!mine&&view.kind==='all'&&view.category==='all'&&!view.shelf&&!view.local;
  const localTitle=LOCAL_APPS.find(([k])=>k===view.local)?.[1]??null;
- const title=item?itemName(item):searching?'Search':localTitle?localTitle:view.shelf==='girru'?'Made by Girru':view.shelf==='new'?'New in the store':category?category.title:kindTitle;
+ const title=item?itemName(item):mine?'My apps':searching?'Search':localTitle?localTitle:view.shelf==='girru'?'Made by Girru':view.shelf==='new'?'New in the store':category?category.title:kindTitle;
  const items=!data?[]:searching?matchStore(data.items,query):viewItems(data,view,view.shelf==='new'?'new':sort);
  const updates=data?.items.filter(x=>x.update)??[];
+ const {shown,more,end}=useShown(`${view.kind}|${view.category}|${view.shelf}|${view.local}|${mine}|${query}|${sort}`);
  const nav=<nav className="dk-sidebar store-places" aria-label="Store places">
-  <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label="Search the store" value={query} onChange={e=>{setQuery(e.target.value);setPage(null);}} placeholder="Search the store  ⌘F"/></label></div>
-  {STORE_KINDS.map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
-  {data&&LOCAL_APPS.some(([src])=>data.items.some(x=>x.source===src))&&<><p className="section-label dk-label st-local-label">On this computer</p>
+  <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label={mine?'Search my apps':'Search the store'} value={query} onChange={e=>{setQuery(e.target.value);setPage(null);}} placeholder={mine?'Search my apps  ⌘F':'Search the store  ⌘F'}/></label></div>
+  {owner&&STORE_KINDS.filter(([k])=>k==='all').map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!mine&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
+  <button type="button" className="nav-item dk-place" aria-current={mine?'page':undefined} onClick={()=>show({mine:true})}><UiIcon name="layers" size={15}/><span className="dk-place-name">My apps</span></button>
+  {owner&&STORE_KINDS.filter(([k])=>k!=='all').map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!mine&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
+  {owner&&data&&LOCAL_APPS.some(([src])=>data.items.some(x=>x.source===src))&&<><p className="section-label dk-label st-local-label">On this computer</p>
    {LOCAL_APPS.filter(([src])=>data.items.some(x=>x.source===src)).map(([src,label])=><button type="button" key={src} className="nav-item dk-place" title={`Add-ons turned on in ${label} on this computer`} aria-current={view.local===src&&!searching?'page':undefined} onClick={()=>show({kind:'all',category:'all',local:src})}><UiIcon name="code" size={15}/><span className="dk-place-name">{label}</span></button>)}</>}
  </nav>;
- if(!owner)return <section className="store-workspace"><div className="apps-main"><header className="apps-toolbar"><h2>Store</h2></header><p className="st-empty">The owner of this workspace adds apps from the Store.</p></div></section>;
  return <section className="store-workspace" data-inline-sidebar={!sidebarSlot||undefined} aria-label="Store" onKeyDown={onKey}>{active&&sidebarSlot?createPortal(nav,sidebarSlot):!sidebarSlot?nav:null}
  <div className="apps-main st-store">
   <header className="apps-toolbar">{item&&<IconButton icon="arrow-left" label="Back" shortcut="⌘[" onClick={()=>setPage(null)}/>}<h2>{title}</h2>
-   <span className="st-tools"><IconButton icon="refresh" label={updates.length?`Updates that need your OK (${updates.length})`:'Updates'} badge={updates.length||undefined} onClick={()=>setUpdatesOpen(true)}/>
-   <IconButton icon="more" label="More" onClick={e=>at(e,[{label:'Check for new apps',icon:'refresh',shortcut:'⌘R',run:onReload},{label:'Updates',icon:'download',run:()=>setUpdatesOpen(true)}])}/></span></header>
-  {!searching&&!view.local&&data&&<div className="st-cat-row" role="toolbar" aria-label="Categories">{[{id:'all',title:'All',icon:'store'},...data.categories].map(c=><button type="button" key={c.id} aria-pressed={view.category===c.id} style={{'--tint':TINT[c.id]??'var(--accent)'} as never} onClick={()=>show({category:c.id})}>{c.id!=='all'&&<UiIcon name={(ICONS.has(c.icon)?c.icon:'puzzle') as UiIconName} size={13}/>}{c.title}</button>)}</div>}
-  <div className="st-scroll" ref={scroll}>
+   {mine?<span className="st-tools"><IconButton icon="refresh" label="Look again" onClick={()=>setMineRefresh(n=>n+1)}/>
+    {owner&&<IconButton icon="more" label="More" onClick={e=>at(e,[{label:'Add an app from a folder…',icon:'folder',run:()=>{setProblem('');setFolderOpen(true);}}])}/>}</span>
+   :<span className="st-tools"><IconButton icon="refresh" label={updates.length?`Updates that need your OK (${updates.length})`:'Updates'} badge={updates.length||undefined} onClick={()=>setUpdatesOpen(true)}/>
+   <IconButton icon="more" label="More" onClick={e=>at(e,[{label:'Check for new apps',icon:'refresh',shortcut:'⌘R',run:onReload},{label:'Updates',icon:'download',run:()=>setUpdatesOpen(true)}])}/></span>}</header>
+  {!mine&&!searching&&!view.local&&data&&<div className="st-cat-row" role="toolbar" aria-label="Categories">{[{id:'all',title:'All',icon:'store'},...data.categories].map(c=><button type="button" key={c.id} aria-pressed={view.category===c.id} style={{'--tint':TINT[c.id]??'var(--accent)'} as never} onClick={()=>show({category:c.id})}>{c.id!=='all'&&<UiIcon name={(ICONS.has(c.icon)?c.icon:'puzzle') as UiIconName} size={13}/>}{c.title}</button>)}</div>}
+  {mine?<div className="apps-mine">
+   <WorkspaceApplications client={client} active={active&&mine} query={query} refresh={mineRefresh} onOpen={id=>onOpenApp(id)} onCode={canCode?()=>onOpenApp('code'):undefined} onPermissions={onPermissions} onAccountConnections={onAccounts} footerItem={footerItem} onRemove={owner?app=>void remove(addedItem(app)):undefined}/>
+  </div>
+  :<div className="st-scroll" ref={scroll}>
    {error&&!data?<div className="dk-empty st-empty"><p>The store could not be read.</p><button type="button" onClick={onReload}>Try again</button></div>
    :!data?<p className="st-empty" role="status">Reading the store…</p>
    :item?<AppPage item={item} data={data} onAct={act} onRemove={()=>void remove(item)} onCategory={id=>show({category:id})}/>
@@ -141,12 +169,13 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
    :!items.length?<p className="st-empty">{searching?'Nothing in the store matches.':view.kind==='all'||view.kind==='app'?'Nothing in this category yet.':`No ${kindTitle==='MCP servers'?kindTitle:kindTitle.toLowerCase()} in the store yet. They come with the store’s own catalogue.`}</p>
    :<section className="st-list" aria-label={title}>
      {!searching&&!view.shelf&&!view.local&&<header className="st-list-head"><strong>{title}</strong><span className="st-seg" role="radiogroup" aria-label="Order">{(['new','az'] as const).map(s=><button type="button" key={s} role="radio" aria-checked={sort===s} onClick={()=>setSort(s)}>{s==='new'?'New':'A–Z'}</button>)}</span></header>}
-     {items.map((x,i)=><Row key={x.id} item={x} rank={searching?undefined:i+1} onOpen={open} onAct={act} label={actionLabel(x)} onMenu={ctx(x)}/>)}
-     {searching&&<p className="st-help">Results from Girru, Claude Code and Codex together; the chip says where each comes from.</p>}
+     {items.slice(0,shown).map((x,i)=><Row key={x.id} item={x} rank={searching?undefined:i+1} onOpen={open} onAct={act} label={actionLabel(x)} onMenu={ctx(x)}/>)}
+     {items.length>shown&&<div ref={end} className="st-more"><button type="button" onClick={more}>Show more</button></div>}
+     {searching&&<p className="st-help st-found">{items.length} found. Results from Girru, Claude Code and Codex together; the chip says where each comes from.</p>}
      {view.local&&<p className="st-help">Turned on in {localTitle} itself. Girru shows them here and never copies their keys; turn one off in {localTitle}.</p>}</section>}
    {data&&data.limited.includes('registry')&&!item&&<p className="st-help">Girru’s registry could not be read; the rest of the store is shown.</p>}
    {data&&data.limited.includes('store')&&!item&&<p className="st-offline" role="status"><UiIcon name="refresh" size={13}/>{data.storeAsOf?`No internet — showing the store from ${new Date(data.storeAsOf).toLocaleDateString(undefined,{day:'numeric',month:'short'})}.`:'The Girru Store could not be read; the apps that come with Girru are shown.'}<button type="button" className="link" onClick={onReload}>Try again</button></p>}
-  </div>
+  </div>}
   {updatesOpen&&<Sheet title="Updates" onClose={()=>setUpdatesOpen(false)} actions={<button type="button" className="primary" onClick={()=>setUpdatesOpen(false)}>Done</button>}>
    {updates.length?<ul className="st-updates">{updates.map(x=><li key={x.id}><StoreIcon item={x} size={28}/><span><strong>{itemName(x)}</strong><small>{x.version} → {x.update}</small></span><button type="button" onClick={()=>{setUpdatesOpen(false);setPage(x.id);}}>Details</button></li>)}</ul>
    :<div className="st-calm"><UiIcon name="refresh" size={20}/><strong>Everything is up to date.</strong><p>Girru updates apps by itself; you only see the ones that ask for more.</p></div>}
@@ -160,8 +189,14 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request}:{cl
    <ul>{ADD_STEPS.map(([k,label],i)=>{const at=ADD_STEPS.findIndex(([s])=>s===progress.step);return <li key={k} data-state={i<at?'done':i===at?'now':'wait'}><UiIcon name={i<at?'check':i===at?'refresh':'clock'} size={13}/>{label}</li>;})}</ul></div>}
   {removing&&<Sheet title={`Remove ${itemName(removing.item)}?`} onClose={()=>setRemoving(null)} actions={<><button type="button" onClick={()=>setRemoving(null)}>Cancel</button><button type="button" className="primary" onClick={()=>void remove(removing.item,false,true)}><UiIcon name="trash" size={14}/>Save a copy and remove</button></>}>
    <div className="st-sheet-head"><StoreIcon item={removing.item} size={36}/></div>
-   <p>Its page, its tools and its code leave Girru. It keeps data of its own: <strong>{removing.data.filter(t=>t.rows>0).map(t=>`${t.rows} ${plainTable(t.table,removing.item.id.slice(6))}`).join(', ')}</strong>.</p>
+   <p>Its page, its tools and its code leave Girru. It keeps data of its own: <strong>{removing.data.filter(t=>t.rows>0).map(t=>`${t.rows} ${plainTable(t.table,removing.item.id.slice(removing.item.id.indexOf(':')+1))}`).join(', ')}</strong>.</p>
    <ul className="st-asks"><li><UiIcon name="shield" size={13}/>Girru saves a copy of that data first, then removes it.</li><li><UiIcon name="undo" size={13}/>Add {itemName(removing.item)} again later and the copy comes back.</li><li><UiIcon name="check" size={13}/>Your chats, agents and memory stay as they are.</li></ul>
+  </Sheet>}
+  {folderOpen&&<Sheet title="Add an app from a folder" onClose={()=>setFolderOpen(false)} actions={<><button type="button" onClick={()=>setFolderOpen(false)}>Cancel</button><button type="button" className="primary" disabled={busy||!folder.trim()} onClick={()=>void addFolder()}>Add app</button></>}>
+   <p>For an app you made yourself or got outside the Girru Store. It stays on this computer and is never listed in the Store.</p>
+   <label className="st-folder"><span>Folder, inside your home folder</span><input type="text" value={folder} onChange={e=>setFolder(e.target.value)} placeholder="~/Projects/my-app" spellCheck={false} autoFocus onKeyDown={e=>{if(e.key==='Enter'&&folder.trim()&&!busy){e.preventDefault();void addFolder();}}}/></label>
+   <ul className="st-asks"><li><UiIcon name="check" size={13}/>Girru checks its app file, its files and that it makes only its own tables.</li><li><UiIcon name="shield" size={13}/>It gets only the permissions you give it, like any app.</li><li><UiIcon name="info" size={13}/>Nobody reviewed it. Add it only if you trust where it came from.</li></ul>
+   {problem&&<p className="st-problem" role="alert">{problem}</p>}
   </Sheet>}
   <ContextMenu menu={menu} onClose={close}/>
   <Notice toast={toast} onUndo={()=>{const u=undoRef.current;setToast(null);u?.();}} onDone={id=>setToast(t=>t?.id===id?null:t)}/>
