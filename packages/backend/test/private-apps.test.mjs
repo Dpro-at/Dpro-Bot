@@ -80,6 +80,16 @@ test('refused before anything is written: outside home, links, other tables, bad
   for (const id of ['outside', 'linked', 'sneaky', 'nomain', 'script', 'telegram']) assert.ok(!existsSync(join(data, 'apps', id)), id);
 });
 
+test('a Store app with the same id never replaces a private app', async () => {
+  const { installFromStore } = await import(join(backendDir, 'src/services/store-catalogue.ts'));
+  const index = { schema: 1, featured: null, collections: [], items: [{ id: 'girru:my-crm', kind: 'app', source: 'girru', name: 'CRM', summary: '', description: '', icon: null, maker: 'Someone', verified: true, version: '1.0.0', updated: null, category: 'more', permissions: [], worksWith: [], languages: [] }] };
+  const repo = async () => ({ index, packages: { 'girru:my-crm': { files: [], sha256: 'a'.repeat(64) } }, asOf: null, fresh: true });
+  const { consentHash } = await import(join(backendDir, 'src/services/store-catalogue.ts'));
+  const r = await installFromStore('owner-1', 'store:my-crm', consentHash({ id: 'store:my-crm', version: '1.0.0', permissions: [] }), { repo });
+  assert.equal(r.ok, false); assert.match(r.message, /private app with the same name/);
+  assert.ok(existsSync(join(data, 'apps', 'my-crm', 'index.js')), 'the private app is still there');
+});
+
 test('remove a private app: with rows it asks once and saves a copy; then it is gone from My apps', async () => {
   db.prepare("INSERT INTO app_my_crm__contacts (name) VALUES ('Sara')").run();
   const asked = await uninstallFromStore('owner-1', 'private:my-crm', { restart: () => false });

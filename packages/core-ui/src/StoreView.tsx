@@ -81,8 +81,8 @@ function Chips({item}:{item:StoreItem}){
  */
 export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request,onPermissions,onAccounts,footerItem,canCode=true}:{client:SessionClient;active:boolean;sidebarSlot?:HTMLElement|null;onOpenApp:(id:IncludedApp)=>void;request?:{updates:boolean;n:number;local?:'claude-code'|'codex';mine?:boolean};onPermissions:()=>void;onAccounts:()=>void;footerItem?:(id:string)=>MenuItem|null;canCode?:boolean}){
  const owner=client.getSnapshot().user?.role==='owner',store=useStore(client,active&&owner,0),{data,error}=store,onReload=store.reload;
- // SA6: the Store opens on My apps (what is on this computer); everyone signed in has it, Find more is the owner's.
- const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null,mine:true}),[mineRefresh,setMineRefresh]=useState(0),[folderOpen,setFolderOpen]=useState(false),[folder,setFolder]=useState(''),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
+ // SA6 (Mohamed): the owner's Store opens on All, then My apps (what is on this computer), then the kinds; others have My apps only.
+ const [view,setView]=useState<StoreView>({kind:'all',category:'all',shelf:null,mine:!owner}),[mineRefresh,setMineRefresh]=useState(0),[folderOpen,setFolderOpen]=useState(false),[folder,setFolder]=useState(''),[sort,setSort]=useState<StoreSort>('new'),[query,setQuery]=useState('');
  const [page,setPage]=useState<string|null>(null),[updatesOpen,setUpdatesOpen]=useState(false),[adding,setAdding]=useState<StoreItem|null>(null),[busy,setBusy]=useState(false),[problem,setProblem]=useState(''),[toast,setToast]=useState<{id:number;text:string;undo:boolean;show?:unknown}|null>(null);
  const [progress,setProgress]=useState<{item:StoreItem;step:string}|null>(null),[removing,setRemoving]=useState<{item:StoreItem;data:{table:string;rows:number}[]}|null>(null);
  const undoRef=useRef<(()=>void)|null>(null),search=useRef<HTMLInputElement>(null),scroll=useRef<HTMLDivElement>(null),{menu,at,close}=useMenu();
@@ -143,9 +143,9 @@ export function StoreWorkspace({client,active,sidebarSlot,onOpenApp,request,onPe
  const {shown,more,end}=useShown(`${view.kind}|${view.category}|${view.shelf}|${view.local}|${mine}|${query}|${sort}`);
  const nav=<nav className="dk-sidebar store-places" aria-label="Store places">
   <div className="dk-side-top"><label className="dk-search"><UiIcon name="search" size={13}/><input ref={search} type="search" aria-label={mine?'Search my apps':'Search the store'} value={query} onChange={e=>{setQuery(e.target.value);setPage(null);}} placeholder={mine?'Search my apps  ⌘F':'Search the store  ⌘F'}/></label></div>
+  {owner&&STORE_KINDS.filter(([k])=>k==='all').map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!mine&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
   <button type="button" className="nav-item dk-place" aria-current={mine?'page':undefined} onClick={()=>show({mine:true})}><UiIcon name="layers" size={15}/><span className="dk-place-name">My apps</span></button>
-  {owner&&<><p className="section-label dk-label st-local-label">Find more</p>
-  {STORE_KINDS.map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!mine&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}</>}
+  {owner&&STORE_KINDS.filter(([k])=>k!=='all').map(([k,label,icon])=><button type="button" key={k} className="nav-item dk-place" aria-current={view.kind===k&&!view.local&&!mine&&!searching?'page':undefined} onClick={()=>show({kind:k,category:'all'})}><UiIcon name={icon} size={15}/><span className="dk-place-name">{label}</span></button>)}
   {owner&&data&&LOCAL_APPS.some(([src])=>data.items.some(x=>x.source===src))&&<><p className="section-label dk-label st-local-label">On this computer</p>
    {LOCAL_APPS.filter(([src])=>data.items.some(x=>x.source===src)).map(([src,label])=><button type="button" key={src} className="nav-item dk-place" title={`Add-ons turned on in ${label} on this computer`} aria-current={view.local===src&&!searching?'page':undefined} onClick={()=>show({kind:'all',category:'all',local:src})}><UiIcon name="code" size={15}/><span className="dk-place-name">{label}</span></button>)}</>}
  </nav>;

@@ -38,6 +38,6 @@ test('long lists draw one part at a time, with Show more for the keyboard; no pa
 
 test('the footer has no Apps section; every way to Apps opens Store › My apps',()=>{
  const shell=src('SignedInShell.tsx');
- assert.doesNotMatch(shell,/apps:entry\(/);assert.match(shell,/store:entry\('store',true,openMyApps\)/);assert.match(shell,/if\(page==='apps'\)openMyApps\(\)/);
+ assert.doesNotMatch(shell,/apps:entry\(/);assert.match(shell,/store:entry\('store',true,go\('store'\)\)/);assert.match(shell,/if\(page==='apps'\)openMyApps\(\)/);
  assert.match(shell,/onOpenApps=\{openMyApps\}/);assert.match(shell,/onBack=\{openMyApps\}/);
 });

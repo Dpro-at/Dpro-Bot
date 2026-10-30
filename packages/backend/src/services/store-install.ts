@@ -106,6 +106,7 @@ async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fe
   const pkg: StorePackage | undefined = repo.packages?.[`girru:${id}`];
   const item = repo.index?.items.find((x) => x.id === `girru:${id}`);
   if (!item || !pkg) throw new Error('it is not in the Girru Store any more');
+  if ((await installedApps())[id]?.source === 'private') throw new Error('you have a private app with the same name; remove it in My apps first');
   // 1. Get every file, checked in memory before anything is written.
   const files: Array<{ path: string; bytes: Buffer }> = [];
   for (const f of pkg.files) {
