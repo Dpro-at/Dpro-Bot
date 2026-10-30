@@ -70,6 +70,10 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
   await (await import('../services/backups.js')).loadBackupsFolder();
   console.log('[Server] ✅ Database initialized\n');
 
+  // APPS-06: apps moved to the Girru Store keep their data under their Store table names (once, after a backup).
+  try { await (await import('../services/legacy-app-tables.js')).moveLegacyAppTables(); }
+  catch (err) { console.warn('[Server] Old app tables not moved:', (err as Error).message); }
+
   // Seed database in development mode
   if (process.env.NODE_ENV === 'development') {
     const { seedDatabase } = await import('../db/seed.js');
@@ -299,6 +303,12 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
     const { getExtensionRunner } = await import('../plugins/extension-runner.js');
     const extensionRunner = getExtensionRunner();
     await extensionRunner.initialize(fastify, cronEngine);
+    // APPS-06: apps moved to the Girru Store come back from it, in the background (they load at the next start).
+    const { extensionsAvailable } = await import('../plugins/extension-runner.js');
+    if (extensionsAvailable() && process.env.EXTENSIONS_DISABLED !== 'true') {
+      void import('../services/legacy-app-tables.js').then((m) => m.reinstallMovedApps())
+        .catch((err) => console.warn('[Server] Moved apps not added again:', (err as Error).message));
+    }
 
     // Enable hot reload for extensions (development mode)
     if (process.env.NODE_ENV === 'development') {
