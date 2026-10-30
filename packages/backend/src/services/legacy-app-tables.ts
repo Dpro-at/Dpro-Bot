@@ -22,6 +22,8 @@ export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; 
     tables: ['waf_scans', 'waf_rate_limits', 'waf_payload_library', 'waf_campaigns', 'waf_campaign_stages', 'waf_campaign_scans', 'waf_campaign_comparisons', 'waf_campaign_notifications'],
     views: ['v_campaign_summary', 'v_latest_comparisons'],
   },
+  // No tables: an owner who had it (a row in extension_configs) gets it added again, on or off as it was.
+  { id: 'server-monitor', tables: [] },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;

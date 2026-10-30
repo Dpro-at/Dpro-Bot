@@ -245,3 +245,19 @@ test('waf-security: an owner who used it gets every table moved with its rows af
   assert.deepEqual(indexes('app_waf_security__waf_scans'), ['app_waf_security__idx_scans_user'], 'the Store copy made its index on the moved table');
   assert.equal(db.prepare("SELECT enabled FROM extension_configs WHERE extension_id = 'waf-security'").get().enabled, 1, 'it was on: it stays on');
 });
+
+// server-monitor has no tables: only its extension_configs row says the owner had it.
+test('server-monitor: the program ships no extensions/server-monitor; an owner who had it (even turned off) gets it added again, off, with no backup', async () => {
+  assert.ok(!existsSync(join(backendDir, 'extensions', 'server-monitor')), 'server-monitor comes from the Girru Store now');
+  assert.ok(MOVED_APPS.some((a) => a.id === 'server-monitor' && a.tables.length === 0));
+  db.prepare("DELETE FROM app_settings WHERE key = 'store.moved.server-monitor'").run(); // marked by the first test's start: start from an older Girru
+  db.prepare("INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES ('server-monitor', 0)").run();
+  let backedUp = 0;
+  assert.deepEqual(await moveLegacyAppTables({ backup: async () => { backedUp++; } }), ['server-monitor']);
+  assert.equal(backedUp, 0, 'nothing renamed: no backup');
+  assert.equal(JSON.parse(setting('store.reinstall.server-monitor')).enabled, false);
+  assert.deepEqual(await moveLegacyAppTables({ backup: async () => { backedUp++; } }), [], 'once');
+  const tried = await reinstallMovedApps(); // this fake Store has no server-monitor: the mark waits for the next start
+  assert.deepEqual(tried.map((t) => [t.id, t.ok]), [['server-monitor', false]]);
+  assert.ok(setting('store.reinstall.server-monitor'));
+});

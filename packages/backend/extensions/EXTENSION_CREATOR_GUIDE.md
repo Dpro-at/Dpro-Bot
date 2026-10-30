@@ -997,7 +997,7 @@ export function weatherRoutes(fastify, api) {
 
 ### Example 1: Server Monitor (Full-Featured)
 
-**Location:** `packages/backend/extensions/server-monitor/`
+**Location:** the Girru Store repository, `apps/server-monitor/package/` (moved out of the program in APPS-06; its old pages are not kept). Today it is a preview that returns sample data; the list below is the plan, not what it does.
 
 **Features:**
 - ✅ 16 subtabs (Overview, Resources, Services, Logs, SSL, etc.)
