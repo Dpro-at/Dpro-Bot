@@ -23,8 +23,8 @@
   "scripts": {
     "setup:channels": "pnpm install --frozen-lockfile",
     "build:channels": "npm --prefix ../channels run build",
-    "test:channels": "node --test test/agent-connect*.test.mjs",
-    "test:ollama": "node --import tsx --test test/ollama-chat.integration.test.mjs",
+    "test:channels": "node --import ../../scripts/test-temp-root.mjs --test test/agent-connect*.test.mjs",
+    "test:ollama": "node --import tsx --import ../../scripts/test-temp-root.mjs --test test/ollama-chat.integration.test.mjs",
     "predev": "node scripts/kill-port.js",
     "dev": "tsx watch src/api/server.ts",
     "build": "tsc",
