@@ -4,13 +4,14 @@ import { ChannelConnector, TelegramTransport, DiscordTransport, channelInfo } fr
 const runtimes = new Map();
 // Channels whose provider connection Girru's channel library makes itself. The Telegram and
 // Discord apps (Girru Store) run here through the SDK's hostChannel(); any other id has no transport.
-// A Map, not an object: a channel id can only ever pick one of these two classes.
-const NATIVE_TRANSPORTS = new Map([['telegram', TelegramTransport], ['discord', DiscordTransport]]);
-export function isNativeChannel(id) { return NATIVE_TRANSPORTS.has(id); }
+// Named one by one, so a channel id can never select any other class.
+export function isNativeChannel(id) { return id === 'telegram' || id === 'discord'; }
 function nativeTransport(id, token) {
-  const Transport = NATIVE_TRANSPORTS.get(id);
-  if (!Transport) throw new Error(`No transport for channel ${id}`);
-  return new Transport(token);
+  switch (id) {
+    case 'telegram': return new TelegramTransport(token);
+    case 'discord': return new DiscordTransport(token);
+    default: throw new Error(`No transport for channel ${id}`);
+  }
 }
 export function channelRuntimeState(id) { return runtimes.get(id)?.status() ?? 'restart_required'; }
 export function refreshChannel(id) { void runtimes.get(id)?.refresh().catch(() => {}); }
