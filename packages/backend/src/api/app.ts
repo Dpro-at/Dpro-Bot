@@ -66,6 +66,7 @@ import { discoveryRoutes } from './routes/discovery.js';
 import { credentialsRoutes } from './routes/credentials.js';
 // import { onboardingRoutes } from './routes/onboarding.js'; // S0-Q.14: disabled, see below
 import { onboardingWebRoutes } from './routes/onboarding-web.js'; // F-05: web wizard after first owner login
+import { firstRunRoutes } from './routes/first-run.js'; // FIRSTRUN-01: AI tools, local model, team, Welcome chat
 import { teamPlanRoutes } from './routes/team-plan.js'; // ONBOARD-TEAM-01: company size -> departments -> proposed team
 import { agentRulesRoutes } from './routes/agent-rules.js'; // RULES-01: Agents › Rules, the owner's rules for how agents work
 import { gatewayRoutes } from './routes/gateway.js';
@@ -400,6 +401,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   // F-05: the web wizard (/onboarding page) has its own owner-only API with
   // per-user state in the DB; it never runs the terminal wizard.
   await fastify.register(onboardingWebRoutes);
+  await fastify.register(firstRunRoutes);
   await fastify.register(teamPlanRoutes);
   await fastify.register(agentRulesRoutes);
   await fastify.register(gatewayRoutes); // 🌐 Multi-Interface Gateway

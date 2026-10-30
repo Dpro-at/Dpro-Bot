@@ -12,6 +12,7 @@ import { OWNER_EXISTS_SQL, isPublishedDefaultPassword } from '../../auth/default
 import { sendInternalError } from '../error-handler.js';
 import { safeErrorFields } from '../../services/safe-error-log.js';
 import { checkSetupToken, consumeSetupToken, isLoopbackPeer } from '../../auth/setup-token.js';
+import { startFirstRunStep } from '../../onboarding/first-run.js';
 
 const execAsync = promisify(exec);
 
@@ -278,6 +279,8 @@ export default async function setupRoutes(fastify: FastifyInstance) {
           INSERT INTO users (id, email, username, password_hash, full_name, role, status, email_verified, created_at, updated_at, token_version)
           VALUES (?, ?, ?, ?, ?, 'owner', 'active', 1, ${nowTs(sql().dialect)}, ${nowTs(sql().dialect)}, 1)
         `, userId, email, username, passwordHash, name);
+        // FIRSTRUN-01: the new owner goes through AI tools, Local model and Team once.
+        yield* startFirstRunStep(userId);
         return true;
       }, { immediate: true });
 
