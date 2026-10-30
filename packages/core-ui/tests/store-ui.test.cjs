@@ -42,10 +42,13 @@ test('kinds, the category row, New · A–Z, search order and words',()=>{
 test('the store page: kinds in the sidebar, one featured app, two shelves, no ratings, counts or prices',()=>{
  const data=storeResponse(STORE_PATH,200,raw);let reads=0;
  const client={getSnapshot:()=>({user:{id:'o',username:'Owner',email:'o@example.test',role:'owner'}}),request:async()=>{reads++;return {status:200,body:data};}};
- const html=renderToStaticMarkup(React.createElement(StoreWorkspace,{client,active:false,onOpenApp(){}}));
- const nav=html.split('</nav>')[0];for(const k of ['All','Apps','MCP servers','Skills','Specialties'])assert.match(nav,new RegExp('>'+k+'<'));for(const gone of ['Home','Categories','From','Mine','Updates'])assert.doesNotMatch(nav,new RegExp('>'+gone+'<'),gone);
- assert.match(html,/Reading the store/);assert.match(html,/aria-label="Updates"/);assert.equal(reads,0,'nothing is read while rendering');
- const member=renderToStaticMarkup(React.createElement(StoreWorkspace,{client:{...client,getSnapshot:()=>({user:{id:'m',role:'user'}})},active:false,onOpenApp(){}}));assert.match(member,/The owner of this workspace adds apps/);
+ const props={onOpenApp(){},onPermissions(){},onAccounts(){}};
+ const html=renderToStaticMarkup(React.createElement(StoreWorkspace,{client,active:false,...props}));
+ const nav=html.split('</nav>')[0];for(const k of ['My apps','Find more','All','Apps','MCP servers','Skills','Specialties'])assert.match(nav,new RegExp('>'+k+'<'));for(const gone of ['Home','Categories','From','Mine','Updates'])assert.doesNotMatch(nav,new RegExp('>'+gone+'<'),gone);
+ // SA6: the Store opens on My apps (the apps on this computer), with Look again and More (Add an app from a folder).
+ assert.match(html,/<h2>My apps<\/h2>/);assert.match(html,/aria-label="Look again"/);assert.equal(reads,0,'nothing is read while rendering');
+ const member=renderToStaticMarkup(React.createElement(StoreWorkspace,{client:{...client,getSnapshot:()=>({user:{id:'m',role:'user'}})},active:false,...props}));
+ assert.match(member,/<h2>My apps<\/h2>/);assert.doesNotMatch(member,/Find more|>MCP servers<|aria-label="More"/,'members have My apps only');
  const src=require('node:fs').readFileSync(require('node:path').join(__dirname,'../src/StoreView.tsx'),'utf8');
  assert.match(src,/title:'Made by Girru'/);assert.match(src,/title:'New in the store'/);assert.match(src,/s==='new'\?'New':'A–Z'/);assert.doesNotMatch(src,/★|rating_avg|install_count|installCount/);
 });

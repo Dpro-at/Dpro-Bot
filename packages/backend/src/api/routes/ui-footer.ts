@@ -10,11 +10,13 @@ import { actorOrReply, requireAccount } from '../../repositories/scope.js';
 import { getPref, setPref } from '../../repositories/user-prefs.js';
 
 // Library (Personalities, Specialties, Skills) shows by default; MCP connections live in Settings, not in the footer.
-export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'apps', 'store', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'] as const;
+export const FOOTER_SECTIONS = ['chat', 'agents', 'library', 'board', 'memory', 'approvals', 'store', 'genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'] as const;
 type Section = typeof FOOTER_SECTIONS[number];
 export interface FooterPrefs { order: Section[]; hidden: Section[]; iconsOnly: boolean; approvalsWhenWaiting: boolean }
 const DEFAULT_HIDDEN: Section[] = ['genvr', 'terminal', 'code', 'skills', 'personalities', 'specialties'];
-const ADDED_AFTER: Partial<Record<Section, Section>> = { library: 'agents', store: 'apps' };
+const ADDED_AFTER: Partial<Record<Section, Section>> = { library: 'agents' };
+/** SA6: Apps became Store › My apps; an older saved order keeps the Store where Apps was. */
+const renamed = (id: unknown) => id === 'apps' ? 'store' : id;
 const KEYS = ['order', 'hidden', 'iconsOnly', 'approvalsWhenWaiting'];
 const known = (v: unknown): v is Section => typeof v === 'string' && (FOOTER_SECTIONS as readonly string[]).includes(v);
 const record = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -31,7 +33,7 @@ export function footerChangeOk(x: unknown): x is Partial<FooterPrefs> {
 /** Any saved value made whole: unknown ids dropped, a new section appears in its usual place. */
 export function footerPrefs(x: unknown): FooterPrefs {
   const v = record(x) ? x : {};
-  const listed = Array.isArray(v.order) ? v.order.filter((id, i, all): id is Section => known(id) && all.indexOf(id) === i) : [];
+  const listed = Array.isArray(v.order) ? v.order.map(renamed).filter((id, i, all): id is Section => known(id) && all.indexOf(id) === i) : [];
   const order = [...listed, ...FOOTER_SECTIONS.filter(id => !listed.includes(id))];
   // A section added later lands next to its neighbour in an older saved order (Library after Agents).
   for (const [id, after] of Object.entries(ADDED_AFTER) as [Section, Section][]) if (!listed.includes(id) && listed.includes(after)) { order.splice(order.indexOf(id), 1); order.splice(order.indexOf(after) + 1, 0, id); }

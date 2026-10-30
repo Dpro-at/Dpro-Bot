@@ -49,7 +49,7 @@ const ROWS:Record<Place,Row>={
  memory:{value:'memory',label:'Memory',icon:'database',words:MEMORY_PANES.map(p=>p.label).join(' ')+' memory rules sources access',note:'Memory rules, sources and access.'},
  schedules:{value:'schedules',label:'Scheduled tasks',icon:'clock',words:'schedules cron run now pause permission code recent runs',note:'Workspace schedules and recent outcomes.'},
  departments:{value:'departments',label:'Departments',icon:'building',words:'departments teams groups rename move agents new department',note:'The departments of your agents.'},
- apps:{value:'apps',label:'Apps',icon:'layers',words:'applications my apps store add-ons catalogue',jump:true},
+ apps:{value:'apps',label:'My apps',icon:'layers',words:'applications my apps store add-ons catalogue private',jump:true},
  library:{value:'library',label:'Library',icon:'book',words:'personalities specialties skills library',jump:true},
  backups:{value:'backups',label:'Backups',icon:'shield',words:'backup back up restore daily copy save data folder keep undo',note:'Your data, saved every day by itself.'},
  about:{value:'about',label:'About and updates',icon:'info',words:'version updates check connection installation log folder',note:'Version and installation details.'},

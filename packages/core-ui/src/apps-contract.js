@@ -26,26 +26,29 @@ export function workspaceAppsResponse(status,body){
  if(!body||!Array.isArray(body.items)||body.items.length>1000)throw Error('protocol');
  const seen=new Set();
  return {items:body.items.map(x=>{
-  if(!x||typeof x.id!=='string'||!(/^(terminal|trading|code|genvr|mcp:[a-f0-9-]{36})$/).test(x.id)||seen.has(x.id)||!['builtin','mcp','api'].includes(x.kind)||!['included','disabled','connected','connecting','disconnected','attention','not_connected','expired'].includes(x.state)||!Number.isSafeInteger(x.tools)||x.tools<0||x.tools>10000||!Array.isArray(x.permissions)||x.permissions.length>60)throw Error('protocol');
-  if(x.kind==='mcp'?(x.id!=='mcp:'+x.sourceId||x.removable!==true):x.sourceId!==(x.id==='genvr'?'genvr':null)||x.removable!==false)throw Error('protocol');
-  if(x.kind!==(x.id==='genvr'?'api':x.id.startsWith('mcp:')?'mcp':'builtin'))throw Error('protocol');
+  if(!x||typeof x.id!=='string'||!(/^(terminal|trading|code|genvr|mcp:[a-f0-9-]{36}|app:[a-z0-9]+(?:-[a-z0-9]+)*)$/).test(x.id)||seen.has(x.id)||!['builtin','mcp','api','added'].includes(x.kind)||!['included','disabled','connected','connecting','disconnected','attention','not_connected','expired'].includes(x.state)||!Number.isSafeInteger(x.tools)||x.tools<0||x.tools>10000||!Array.isArray(x.permissions)||x.permissions.length>60)throw Error('protocol');
+  if(x.kind==='mcp'?(x.id!=='mcp:'+x.sourceId||x.removable!==true):x.kind==='added'?(x.id!=='app:'+x.sourceId||x.removable!==true||!['store','private'].includes(x.origin)):x.sourceId!==(x.id==='genvr'?'genvr':null)||x.removable!==false)throw Error('protocol');
+  if(x.kind!==(x.id==='genvr'?'api':x.id.startsWith('mcp:')?'mcp':x.id.startsWith('app:')?'added':'builtin'))throw Error('protocol');
   seen.add(x.id);
-  return {id:x.id,name:text(x.name,180),kind:x.kind,version:x.version===null?null:text(x.version,80),summary:text(x.summary,1500),state:x.state,sourceId:x.sourceId,permissions:x.permissions.map(p=>{if(typeof p!=='string')throw Error('protocol');return text(p,180);}),tools:x.tools,removable:x.removable};
+  return {id:x.id,name:text(x.name,180),kind:x.kind,version:x.version===null?null:text(x.version,80),summary:text(x.summary,1500),state:x.state,sourceId:x.sourceId,permissions:x.permissions.map(p=>{if(typeof p!=='string')throw Error('protocol');return text(p,180);}),tools:x.tools,removable:x.removable,...(x.kind==='added'?{origin:x.origin}:{})};
  })};
 }
 
 /** The Store (STORE-UI-01): one read for the window, Add bound to the shown hash, Remove. */
 export const STORE_PATH='/api/store',STORE_INSTALL_PATH='/api/store/install',STORE_UNINSTALL_PATH='/api/store/uninstall';
+/** SA6: add a private app from a folder on this computer. */
+export const STORE_PRIVATE_PATH='/api/store/private';
 const STORE_JOB=/^\/api\/store\/install\/([0-9a-f-]{36})$/;
 /** APPS-06: how adding an app from the Girru Store goes. */
 export const storeJobPath=job=>`${STORE_INSTALL_PATH}/${job}`;
-export const storeRoute=path=>path===STORE_PATH||path===STORE_INSTALL_PATH||path===STORE_UNINSTALL_PATH||STORE_JOB.test(path);
+export const storeRoute=path=>path===STORE_PATH||path===STORE_INSTALL_PATH||path===STORE_UNINSTALL_PATH||path===STORE_PRIVATE_PATH||STORE_JOB.test(path);
 const STORE_ID=/^[a-z0-9][a-z0-9._@:-]{0,319}$/i,STORE_HASH=/^[a-f0-9]{64}$/;
 const plain=(x,keys)=>!!x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
 export function allowedStore(method,path,body){
  if(path===STORE_PATH)return method==='GET'&&body===undefined;
  if(path===STORE_INSTALL_PATH)return method==='POST'&&plain(body,['id','hash'])&&typeof body.id==='string'&&STORE_ID.test(body.id)&&typeof body.hash==='string'&&STORE_HASH.test(body.hash);
  if(path===STORE_UNINSTALL_PATH)return method==='POST'&&(plain(body,['id'])||(plain(body,['id','confirm'])&&body.confirm===true))&&typeof body.id==='string'&&STORE_ID.test(body.id);
+ if(path===STORE_PRIVATE_PATH)return method==='POST'&&plain(body,['folder'])&&typeof body.folder==='string'&&body.folder.trim().length>0&&body.folder.length<=1024&&!body.folder.includes('\0');
  if(STORE_JOB.test(path))return method==='GET'&&body===undefined;
  return false;
 }
@@ -56,6 +59,10 @@ export function storeResponse(path,status,body){
   if(status!==200)return {code:'not_found'};
   if(!body||!['getting','checking','setting-up','adding'].includes(body.step)||typeof body.done!=='boolean')throw Error('protocol');
   return {step:body.step,done:body.done,...(body.done?{ok:body.ok===true,message:text(body.message??'',300),restart:body.restart==='auto'?'auto':'manual'}:{})};
+ }
+ if(path===STORE_PRIVATE_PATH){
+  if(status===200){if(!body||body.ok!==true||typeof body.id!=='string'||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.id))throw Error('protocol');return {ok:true,state:'installed',id:body.id,name:text(body.name,80),restart:body.restart==='auto'?'auto':'manual'};}
+  return {code:['invalid_folder','refused','not_installable','invalid_input'].includes(body?.code)?body.code:'store_unavailable',message:text(body?.message,300)};
  }
  if(path!==STORE_PATH){
   if(status===200){
