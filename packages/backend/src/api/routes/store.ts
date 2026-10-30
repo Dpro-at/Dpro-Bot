@@ -4,6 +4,7 @@ import {isLoopbackPeer} from './terminal.js';
 import {extensionsAvailable} from '../../plugins/extension-runner.js';
 import {readStore,localCatalogue,installFromStore,uninstallFromStore} from '../../services/store-catalogue.js';
 import {addJob} from '../../services/store-install.js';
+import {addPrivateApp} from '../../services/private-apps.js';
 import {requestRestart} from '../restart-request.js';
 
 /** APPS-06: an added or removed app needs Girru to start again; the desktop app does it by itself. */
@@ -46,6 +47,15 @@ export async function storeRoutes(app:FastifyInstance,options:{home?:string}={})
   if(!body(b,['id','confirm'])||typeof b.id!=='string'||!ID.test(b.id)||(b.confirm!==undefined&&b.confirm!==true))return reply.code(400).send({code:'invalid_input'});
   const r=await uninstallFromStore(request.authUser!.id,b.id,{confirm:b.confirm===true,restart});
   return r.ok?r:reply.code(409).send({code:r.code,message:r.message,...(r.data?{data:r.data}:{})});
+ });
+ // SA6: add a private app from a folder in the owner's home folder (checked like a Store app, never listed).
+ app.post('/api/store/private',{config:{access:'owner'}},async(request,reply)=>{
+  if(!guard(request,reply))return;
+  const b=request.body as {folder?:unknown};
+  if(!body(b,['folder'])||typeof b.folder!=='string'||!b.folder.trim()||b.folder.length>1024||b.folder.includes('\0'))return reply.code(400).send({code:'invalid_input'});
+  if(!extensionsAvailable())return reply.code(409).send({code:'not_installable',message:'Adding apps works only with the local database.'});
+  const r=await addPrivateApp(b.folder.trim(),{home:options.home,restart});
+  return r.ok?{ok:true,state:'installed',id:r.id,name:r.name,restart:r.restart}:reply.code(r.code==='invalid_folder'?400:409).send({code:r.code==='invalid_folder'?'invalid_folder':'refused',message:r.message});
  });
  // APPS-06: how adding an app from the Girru Store goes (the window asks while it waits).
  app.get('/api/store/install/:job',{config:{access:'owner'}},async(request,reply)=>{

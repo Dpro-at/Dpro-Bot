@@ -135,3 +135,10 @@
 .st-progress li[data-state=now] svg{color:var(--accent)}
 .st-progress li[data-state=wait]{color:var(--muted)}
 .st-local-label{margin:14px 8px 4px}
+
+/* SA6: long lists load the next part near the end; the button does the same from the keyboard. */
+.st-more { display: flex; justify-content: center; padding: 12px 0 4px; }
+.st-more button { min-inline-size: 120px; }
+/* SA6: add a private app from a folder. */
+.st-folder { display: grid; gap: 6px; margin: 10px 0; font-size: 12.5px; color: var(--muted, #8a95aa); }
+.st-folder input { font: inherit; color: var(--text, inherit); padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line, #2a2f38); background: var(--field, transparent); }

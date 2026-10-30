@@ -33,12 +33,14 @@ async function sql() {
 const ensureSettings = (db: Awaited<ReturnType<typeof sql>>) => db.exec('CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)');
 
 /** Apps added from the Store, with their version. */
-export async function installedApps(): Promise<Record<string, { version: string; installedAt: string }>> {
+export async function installedApps(): Promise<Record<string, { version: string; installedAt: string; source: 'store' | 'private'; name?: string }>> {
   try {
-    const db = await sql(); ensureSettings(db);
-    const out: Record<string, { version: string; installedAt: string }> = {};
+    // Reading never makes a table: no settings table yet means nothing was added.
+    const db = await sql();
+    if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'").get()) return {};
+    const out: Record<string, { version: string; installedAt: string; source: 'store' | 'private'; name?: string }> = {};
     for (const r of db.prepare("SELECT key, value FROM app_settings WHERE key LIKE 'store.installed.%'").all() as Array<{ key: string; value: string }>) {
-      try { const v = JSON.parse(r.value); out[r.key.slice('store.installed.'.length)] = { version: String(v.version), installedAt: String(v.installedAt) }; } catch { /* skip */ }
+      try { const v = JSON.parse(r.value); out[r.key.slice('store.installed.'.length)] = { version: String(v.version), installedAt: String(v.installedAt), source: v.source === 'private' ? 'private' : 'store', ...(typeof v.name === 'string' ? { name: v.name } : {}) }; } catch { /* skip */ }
     }
     return out;
   } catch { return {}; }
@@ -106,6 +108,7 @@ async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fe
   const pkg: StorePackage | undefined = repo.packages?.[`girru:${id}`];
   const item = repo.index?.items.find((x) => x.id === `girru:${id}`);
   if (!item || !pkg) throw new Error('it is not in the Girru Store any more');
+  if ((await installedApps())[id]?.source === 'private') throw new Error('you have a private app with the same name; remove it in My apps first');
   // 1. Get every file, checked in memory before anything is written.
   const files: Array<{ path: string; bytes: Buffer }> = [];
   for (const f of pkg.files) {
@@ -194,7 +197,7 @@ export async function appData(id: string): Promise<Array<{ table: string; rows: 
 export type RemoveResult = { ok: true; copy: string | null; restart: 'auto' | 'manual' } | { ok: false; code: 'not_found' | 'has_data'; message: string; data?: Array<{ table: string; rows: number }> };
 /** Remove an added app. With rows in its tables, only with confirm: a copy of them is saved first. */
 export async function removeApp(id: string, options: { confirm?: boolean; restart?: () => boolean } = {}): Promise<RemoveResult> {
-  if (!ID.test(id) || !(await installedApps())[id]) return { ok: false, code: 'not_found', message: 'This app was not added from the Girru Store.' };
+  if (!ID.test(id) || !(await installedApps())[id]) return { ok: false, code: 'not_found', message: 'This app was not added to Girru.' };
   const data = await appData(id);
   const rows = data.reduce((n, t) => n + t.rows, 0);
   if (rows > 0 && !options.confirm) return { ok: false, code: 'has_data', message: 'It keeps data of its own.', data };
