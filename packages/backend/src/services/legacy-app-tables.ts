@@ -29,6 +29,7 @@ export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; 
   { id: 'telegram', tables: ['telegram_messages', 'telegram_config'] },
   { id: 'discord', tables: ['discord_messages', 'discord_config'] },
   { id: 'slack', tables: ['slack_messages', 'slack_config'] },
+  { id: 'whatsapp', tables: ['whatsapp_messages', 'whatsapp_config'] },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;

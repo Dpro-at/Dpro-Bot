@@ -17,7 +17,6 @@ const storageRoot = path.join(projectRoot, 'public', 'storage');
 
 // The extensions that ship with Girru
 const extensionIds = [
-  'whatsapp',
   'email-client', 'calendar', 'team', 'public-chat',
   'call-center', 'trading',
 ];

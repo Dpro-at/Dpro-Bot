@@ -1,9 +1,9 @@
 // S0-Q.18 review fixes: no extension is blanket public. Only listed webhook /
 // callback routes skip the token check, and each verifies the provider:
-// Twilio signature (WhatsApp, call-center). Trading takes the user only from a verified token (header or the
+// Twilio signature (call-center). Trading takes the user only from a verified token (header or the
 // stream's ?token=). The real extensions are loaded through the runner; all
-// network and provider credentials are stubbed. APPS-06: Slack is a Girru Store app now; its
-// signature checks run with it there (apps/slack/checks/webhook.check.mjs in the Girru Store).
+// network and provider credentials are stubbed. APPS-06: Slack and WhatsApp are Girru Store apps
+// now; their signature checks run with them there (apps/<id>/checks/webhook.check.mjs in the Girru Store).
 // Run: node --import tsx --test test/extension-webhooks.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -57,7 +57,7 @@ getCredentialManager().getValueByName = async (name) => {
   throw new Error(`Credential '${name}' not found`);
 };
 
-for (const id of ['whatsapp', 'call-center', 'trading']) {
+for (const id of ['call-center', 'trading']) {
   db.prepare(`INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES (?, 1)`).run(id);
 }
 const app = Fastify();
@@ -83,28 +83,7 @@ const FORM = 'application/x-www-form-urlencoded';
 
 test('every target extension loaded', () => {
   const loaded = [...runner.getLoadedExtensions().keys()];
-  for (const id of ['whatsapp', 'call-center', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
-});
-
-test('whatsapp: /webhook needs a valid X-Twilio-Signature for the configured token and URL', async () => {
-  assert.equal((await inject({ method: 'GET', url: '/api/ext/whatsapp/messages' })).statusCode, 401);
-  const params = { MessageSid: 'SM1', From: 'whatsapp:+15550001', To: 'whatsapp:+15550002', Body: 'hello' };
-  const WEBHOOK = 'https://agent.example.test/api/ext/whatsapp/webhook';
-  const post = (signature) => inject({
-    method: 'POST', url: '/api/ext/whatsapp/webhook', payload: form(params),
-    headers: { 'content-type': FORM, ...(signature ? { 'x-twilio-signature': signature } : {}) },
-  });
-  const count = () => db.prepare('SELECT COUNT(*) AS n FROM whatsapp_messages').get().n;
-
-  assert.equal((await post(twilioSignature('x', WEBHOOK, params))).statusCode, 401, 'no auth token configured');
-  db.prepare(`INSERT OR REPLACE INTO whatsapp_config (id, auth_token, webhook_url) VALUES (1, ?, ?)`).run('wa-token', WEBHOOK);
-  assert.equal((await post(null)).statusCode, 401, 'unsigned');
-  assert.equal((await post(twilioSignature('other-token', WEBHOOK, params))).statusCode, 401, 'wrong token');
-  assert.equal((await post(twilioSignature('wa-token', 'https://evil.example.test/x', params))).statusCode, 401, 'wrong URL');
-  assert.equal(count(), 0);
-  const ok = await post(twilioSignature('wa-token', WEBHOOK, params));
-  assert.equal(ok.statusCode, 200, ok.body);
-  assert.equal(count(), 1);
+  for (const id of ['call-center', 'trading']) assert.ok(loaded.includes(id), `${id} loaded: ${loaded}`);
 });
 
 test('call-center: provider webhooks need a valid Twilio signature; other routes owner/admin', async () => {
