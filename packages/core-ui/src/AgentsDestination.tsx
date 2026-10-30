@@ -17,6 +17,7 @@ import { StaffDirectory } from './StaffDirectory';
 
 export function AgentsDestination({ client, active = false, onOpenMemory, sidebarSlot,focusAgent,onChat,onPersonalities,onSpecialties,onSkills,onOpenMcp,onOpenApprovals }: { client: SessionClient; active?: boolean; onOpenMemory?: (agentId?: string) => void; sidebarSlot?: HTMLElement | null;focusAgent?:{id:string;n:number}|null;onChat?:(agentId:string)=>void;onPersonalities?:()=>void;onSpecialties?:()=>void;onSkills?:()=>void;onOpenMcp?:()=>void;onOpenApprovals?:()=>void }) {
   const [department,setDepartment]=useState('all'),[query,setQuery]=useState(''),[notice,setNotice]=useState<{id:number;text:string}|null>(null);
+  const [hired,setHired]=useState<{id:number;agentId:string;name:string}|null>(null);
   const [initialSection,setInitialSection]=useState<CardTab>('profile');
   const [open, setOpen] = useState<string | null>(null);
   // The effect owns subscription cleanup; construction also supports offline SSR without reads.
@@ -57,8 +58,8 @@ export function AgentsDestination({ client, active = false, onOpenMemory, sideba
   </section>;
   return <section aria-label="Agents" className="agents-destination">{sidebar}
     {owner && company && building && <CompanyWizard controller={company} onClose={() => { setBuilding(false); void controller?.list(); }}/>}
-    {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }} onOpen={id => { setHiring(false); void controller?.list(); setInitialSection('profile'); setOpen(id); }}/></HireSheet>}
-    {controller ? <StaffDirectory controller={controller} department={department} query={query} notice={notice} onDepartment={setDepartment} onOpen={owner?(id,section='profile')=>{setInitialSection(section);setOpen(id);}:()=>{}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined} onChat={onChat}/>:<p role="status">Loading your team…</p>}
+    {owner && hire && hiring && !building && <HireSheet onClose={()=>{setHiring(false);void controller?.list();}}><HireAgent controller={hire} onClose={() => { setHiring(false); void controller?.list(); }} onOpen={id => { setHiring(false); void controller?.list(); setInitialSection('profile'); setOpen(id); }} onHired={a => { setHiring(false); void controller?.list(); setHired({ id: Date.now(), agentId: a.id, name: a.name }); }}/></HireSheet>}
+    {controller ? <StaffDirectory controller={controller} department={department} query={query} notice={notice} hired={hired} onDepartment={setDepartment} onOpen={owner?(id,section='profile')=>{setInitialSection(section);setOpen(id);}:()=>{}} onMemory={onOpenMemory} onHire={owner?newHire:undefined} onCompany={owner?newCompany:undefined} onChat={onChat}/>:<p role="status">Loading your team…</p>}
   </section>;
 
 }

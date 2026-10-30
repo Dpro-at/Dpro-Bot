@@ -66,7 +66,7 @@ export function offerSetupToken(deps: OfferDeps): 'issued' | 'no-terminal' | 'do
   if (setupFinished(deps.dataDir)) return 'done';
   const terminal = deps.terminal ?? process.stdout;
   if (!terminal.isTTY) {
-    deps.log('Owner account not created yet. Run `agent-player setup` in a terminal on this computer to get a one-time setup code.');
+    deps.log('Owner account not created yet. Run `girru setup` in a terminal on this computer to get a one-time setup code.');
     return 'no-terminal';
   }
   const token = issueSetupToken(deps.dataDir);

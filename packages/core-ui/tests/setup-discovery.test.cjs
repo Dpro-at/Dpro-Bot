@@ -41,7 +41,7 @@ for (const scenario of ['first-run', 'existing-owner', 'error']) test(`offline d
     assert.deepEqual(s.calls.slice(-2).map(r => r.path), ['/api/auth/login', '/api/auth/me']);
   } else if (scenario === 'first-run') {
     // INSTALLER-07: first run shows the owner form (needs the setup code); still no sign-in.
-    assert.match(html, /Create the owner account/); assert.match(html, /agent-player setup/);
+    assert.match(html, /Create the owner account/); assert.match(html, /girru setup/);
     assert.doesNotMatch(html, /Check your credentials/);
     await s.client.login('demo@example.invalid', 'mock-only'); assert.equal(s.calls.length, 1);
   } else {

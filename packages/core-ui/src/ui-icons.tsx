@@ -11,6 +11,7 @@ const shapes = {
   'tool-refresh': <><path d="M4 13a8 8 0 0 1 13-7l3 2M20 3v5h-5"/><path d="M8 16h12M8 21h8"/><circle cx="4" cy="16" r="1"/><circle cx="4" cy="21" r="1"/></>,
   stop: <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none"/>,
   plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
+  minus: <path d="M5 12h14"/>,
   board: <><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></>,
   search: <><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></>,
   compose: <><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></>,

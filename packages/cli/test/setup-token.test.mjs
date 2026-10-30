@@ -59,7 +59,7 @@ test('no terminal (daemon child, service): nothing issued, hint only', () => {
   assert.equal(st.offerSetupToken({ dataDir, log: (m) => logs.push(m), terminal: { isTTY: false, write: (t) => writes.push(t) } }), 'no-terminal');
   assert.equal(existsSync(join(dataDir, st.SETUP_TOKEN_FILE)), false);
   assert.deepEqual(writes, []);
-  assert.match(logs.join('\n'), /agent-player setup/);
+  assert.match(logs.join('\n'), /girru setup/);
 });
 
 test('setup finished: no code', () => {

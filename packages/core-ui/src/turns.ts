@@ -10,7 +10,7 @@ export type Part =
   | Readonly<{ kind: 'text'; text: string }>
   | Readonly<{ kind: 'tools'; step: number; calls: readonly ToolCall[] }>
   | Readonly<{ kind: 'steer'; text: string; step: number }>
-  | Readonly<{ kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit' | 'images_not_seen'; text?: string }>
+  | Readonly<{ kind: 'notice'; code: 'injection' | 'summarized' | 'plan_limit' | 'images_not_seen' | 'choices'; text?: string }>
   | Readonly<{ kind: 'images'; images: readonly Readonly<{ id: string; type: string; name: string }>[] }>;
 export type TurnStatus = 'running' | 'complete' | 'stopped' | 'error';
 export type Turn = Readonly<{

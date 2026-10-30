@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'"><title>Girru</title><link rel="stylesheet" href="style.css"></head>
-<body><main>
+<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Girru</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="failed">
+<img class="brand-mark" src="brand.svg" alt="Girru">
 <h1 id="title">Girru could not start</h1>
 <p class="reason" id="reason"></p>
-<p>The details are in the log folder (Girru menu → Show Log Folder). No secret is written there.</p>
-<div class="row"><button class="primary" id="retry">Try again</button><button id="connect">Connect to an existing Girru…</button><button id="local" hidden>Use Girru on this computer</button></div>
+<div class="row"><button class="primary" id="retry">Try again</button><button id="logs">Show the log</button></div>
+<div class="links"><button class="text-button" id="connect">Connect to another Girru…</button><button class="text-button" id="local" hidden>Use Girru on this computer</button></div>
 </main><script src="failed.js"></script></body>
 </html>

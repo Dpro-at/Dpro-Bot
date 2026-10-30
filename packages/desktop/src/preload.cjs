@@ -13,6 +13,12 @@ if (window.location.protocol === 'file:') {
     useLocal: () => ipcRenderer.invoke('dpro:use-local'),
     retry: () => ipcRenderer.invoke('dpro:retry'),
     openConnect: () => ipcRenderer.invoke('dpro:open-connect'),
+    showLogs: () => ipcRenderer.invoke('dpro:show-log-folder'),
+    onStartupStatus: callback => {
+      const listener = (_event, value) => callback(value);
+      ipcRenderer.on('dpro:startup-status', listener);
+      return () => ipcRenderer.removeListener('dpro:startup-status', listener);
+    },
   });
 }
 
@@ -30,6 +36,7 @@ contextBridge.exposeInMainWorld('dproApp', {
   },
   chooseProjectFolders: () => ipcRenderer.invoke('dpro:choose-project-folders'),
   openChatWindow: id => ipcRenderer.invoke('dpro:open-chat-window', String(id)),
+  setSetupWindow: compact => ipcRenderer.invoke('dpro:setup-window', compact === true),
   revealFolder: folder => ipcRenderer.invoke('dpro:reveal-folder', String(folder)),
   info: () => ipcRenderer.invoke('dpro:app-info'),
   // MACAPP-01: updates of the installed app. The page reads and asks; installing is confirmed by the app itself.

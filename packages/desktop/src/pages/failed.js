@@ -6,5 +6,6 @@ if (params.get('remote') === '1') {
   document.getElementById('local').hidden = false;
 }
 document.getElementById('retry').addEventListener('click', () => window.dproDesktop.retry());
+document.getElementById('logs').addEventListener('click', () => window.dproDesktop.showLogs());
 document.getElementById('connect').addEventListener('click', () => window.dproDesktop.openConnect());
 document.getElementById('local').addEventListener('click', () => window.dproDesktop.useLocal());

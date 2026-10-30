@@ -59,7 +59,7 @@ const url = (id) => `/api/agents/${id}/permissions`;
 const get = (id, who = 'ap-owner') => app.inject({ method: 'GET', url: url(id), headers: auth(who) });
 const put = (id, payload, who = 'ap-owner') => app.inject({ method: 'PUT', url: url(id), headers: auth(who), payload });
 const ALL = ['owner', 'project', 'experience', 'task', 'people'];
-const modes = (m = {}) => ({ browser: 'ask', network: 'ask', message: 'ask', delete: 'ask', install: 'ask', money: 'ask', settings: 'ask', ...m });
+const modes = (m = {}) => ({ browser: 'ask', network: 'ask', message: 'ask', delete: 'ask', install: 'ask', money: 'off', settings: 'ask', ...m });
 const body = (over = {}) => ({ memoryRead: ALL, memoryWrite: ALL, sharedMemory: false, modes: modes(), ...over });
 const text = (r) => (r.content || []).map((c) => c.text).join('\n');
 
@@ -93,12 +93,12 @@ test('only the owner may read or change permissions', async () => {
   assert.equal((await app.inject({ method: 'GET', url: url(id) })).statusCode, 401);
 });
 
-test('defaults: a new agent asks for everything; an older agent keeps the earlier behaviour', async () => {
+test('defaults: a new agent starts Careful; an older agent keeps the earlier behaviour', async () => {
   const id = await hire('Nova Perms');
   const fresh = (await get(id)).json();
   assert.equal(fresh.version, 1); assert.equal(fresh.stored, true);
   assert.deepEqual(fresh.modes, modes());
-  assert.deepEqual(fresh.memoryRead, ALL); assert.equal(fresh.sharedMemory, false);
+  assert.deepEqual(fresh.memoryRead, ['project', 'task']); assert.deepEqual(fresh.memoryWrite, []); assert.equal(fresh.sharedMemory, false);
   const old = (await get('legacy-agent')).json();
   assert.equal(old.version, 0); assert.equal(old.stored, false);
   assert.equal(old.modes.browser, 'allow'); assert.equal(old.modes.network, 'allow'); assert.equal(old.modes.money, 'ask');

@@ -1,5 +1,6 @@
 import {defaultLibraryId} from './personality-library';
 import {PersonalityFaces} from './AgentPersonalityLibrary';
+import {libraryRpc,P,type Entry} from './personality-library';
 import {DepartmentTile} from './StaffDirectory';
 import {IconButton} from './desktop-ui';
 import {UiIcon} from './ui-icons';
@@ -7,16 +8,13 @@ import type {UiIconName} from './ui-icons';
 import {ROLE_CARDS} from './agent-look';
 import { AgentWorksOn } from './AgentWorksOn';
 import {SpecialtyLibrary} from './SpecialtyLibrary';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   allCategories, allDrawerKinds, allRoles, careLevels, careOf, categoryLabel, drawerKindLabel, isRisky, memoryTool, modeLabel,
-  normalizedDepartment, normalizedName, roleHelp, roleLabel,
+  normalizedDepartment, normalizedName, roleLabel,
 } from './hire';
 import type { Care, HireController, Permissions, Tool } from './hire';
 
-const steps = [
-  { key: 'role', label: 'Who' }, { key: 'persona', label: 'Personality' }, { key: 'care', label: 'How careful' },
-] as const;
 const phaseLabel: Record<string, string> = {
   editing: 'Nothing is saved until you hire', creating: 'Hiring…', loading: 'Reading permissions…', saving: 'Saving…',
   done: 'Hired', error: 'Something went wrong', unknown: 'Outcome unknown', denied: 'Owner only',
@@ -24,96 +22,100 @@ const phaseLabel: Record<string, string> = {
 const careIcon: Record<Care, UiIconName> = { careful: 'shield', normal: 'check', trusted: 'star' };
 const askWords: Record<string, string> = { browser: 'browsing', network: 'going online', message: 'sending', delete: 'deleting', install: 'installing', money: 'spending', settings: 'changing settings' };
 
-/**
- * AG4a: hire an agent in three short steps — Who · Personality · How careful.
- * Nothing is created until the last step's "Hire <name>": then one create request,
- * and the "How careful" fields (Details shows every switch) are one save. Back works
- * on every step, and closing early leaves nothing behind.
- */
-export function HireAgent({ controller, onClose, onOpen }: { controller: HireController; onClose: () => void; onOpen?: (agentId: string) => void }) {
+/** AG4a: one sheet for a new agent; permissions remain reviewable after creation. */
+export function HireAgent({ controller, onClose, onOpen, onHired }: { controller: HireController; onClose: () => void; onOpen?: (agentId: string) => void; onHired?: (agent: { id: string; name: string }) => void }) {
   const [templateMode,setTemplateMode]=useState(false);
+  const [suggestingName,setSuggestingName]=useState(false);
+  const [personaName,setPersonaName]=useState('');
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const busy = ['creating', 'loading', 'saving'].includes(s.phase);
   const locked = !s.owner || busy || !!s.agent;
   const d = s.draft;
-  const step = s.step === 'memory' || s.step === 'permissions' ? 'care' : s.step;
   const stuck = busy || s.phase === 'unknown';
-  const current = steps.findIndex(x => x.key === step);
   const memory = s.tools.filter(t => memoryTool(t.name));
   const other = s.tools.filter(t => !memoryTool(t.name));
   const named = s.agent?.name ?? normalizedName(d.name);
   const who = named || 'The new agent';
-  const care = careOf(s.permissions);
+  // FR4b: once hired, the sheet closes and the team list selects the new agent with an Undo notice.
+  useEffect(() => { if (s.phase === 'done' && s.agent && onHired) onHired({ id: s.agent.id, name: s.agent.name ?? who }); }, [s.phase, s.agent?.id]);
+  const care = careOf(s.permissions) ?? 'careful';
   const asks = s.permissions ? allCategories.filter(c => s.permissions!.modes[c] === 'ask').map(c => askWords[c]) : [];
   const risky = controller.riskyAllowed();
+  const chooseCare = (value: Care) => { if (!controller.getSnapshot().permissions) controller.go('care'); controller.applyCare(value); };
+  const hire = () => { if (!controller.getSnapshot().permissions) controller.go('care'); void controller.hire(); };
+  const suggestName = async (replaceCurrent = false) => {
+    if (suggestingName || locked) return;
+    setSuggestingName(true);
+    try {
+      const response = await controller.client.request({method:'POST',path:'/api/agents/name-suggestion',body:{language:'en',exclude:d.name?[d.name]:[]}} as never);
+      const raw = (response.body as {name?:unknown}|null)?.name;
+      const safe = typeof raw === 'string' ? normalizedName(raw) : null;
+      const currentName = controller.getSnapshot().draft.name;
+      if (response.status === 200 && safe && (!currentName || (replaceCurrent && currentName === d.name))) controller.edit({name:safe});
+    } catch { /* Keep the editable form available when suggestions are offline. */ }
+    finally { setSuggestingName(false); }
+  };
+  useEffect(() => { if (!d.name && !s.agent) void suggestName(); }, [controller]);
   return <section aria-label="Hire an agent" className="hire ag-hire">
     <div className="hire-head">
       <h3>Hire an agent</h3>
-      {step === 'role' && s.owner && <button type="button" className="link-button" disabled={locked} aria-pressed={templateMode} onClick={() => setTemplateMode(v => !v)}>{templateMode ? 'Fill it in myself' : 'From a specialty instead…'}</button>}
+      {!s.agent && s.owner && <button type="button" className="link-button" disabled={locked} aria-pressed={templateMode} onClick={() => setTemplateMode(v => !v)}>{templateMode ? 'Fill it in myself' : 'A specialty…'}</button>}
       <IconButton icon="close" label="Close" disabled={busy} onClick={onClose}/>
     </div>
-    {step !== 'done' && <ol className="hire-steps ag-steps" aria-label="Steps">{steps.map((x, i) =>
-      <li key={x.key} aria-current={x.key === step ? 'step' : undefined} data-done={i < current ? 'true' : undefined}>
-        <span className="hire-step-n" aria-hidden="true">{i < current ? '✓' : i + 1}</span>{x.label}
-      </li>)}
-    </ol>}
-    {(s.notice || busy || s.phase === 'error' || s.phase === 'unknown' || (s.agent && s.phase === 'editing')) && <p role="status" className="ag-muted">{s.notice ?? (s.agent && s.phase === 'editing' ? 'Hired — finish to save how careful it is' : phaseLabel[s.phase] ?? s.phase)}</p>}
+    {(s.notice || busy || s.phase === 'error' || s.phase === 'unknown') && <p role="status" className="ag-muted">{s.notice ?? phaseLabel[s.phase] ?? s.phase}</p>}
 
-    {step==='role'&&templateMode&&<SpecialtyLibrary client={controller.client} hire onHired={onClose}/>}
-    {step === 'role' && !templateMode && <form className="hire-form" onSubmit={e => { e.preventDefault(); controller.go('persona'); }}>
-      <label>Name<input value={d.name} maxLength={80} disabled={locked} placeholder="Leave empty for a generated name" onChange={e => controller.edit({ name: e.target.value })}/></label>
-      <div role="radiogroup" aria-label="Role in the team" className="ag-roles">
-        {allRoles.map(r => { const c = ROLE_CARDS.find(x => x.key === r); return <label key={r} className="ag-role" data-on={d.role === r || undefined}>
-          <input type="radio" name="hire-role" aria-label={roleLabel[r]} checked={d.role === r} disabled={locked} onChange={() => controller.edit({ role: r })}/>
-          <UiIcon name={c?.icon ?? 'star'} size={17}/><b>{roleLabel[r]}</b><small>{roleHelp[r]}</small>
-        </label>; })}
+    {templateMode && !s.agent && <SpecialtyLibrary client={controller.client} hire onHired={onClose}/>}
+    {!templateMode && !s.agent && <div className="ag-hire-one-page">
+      <aside className="ag-hire-preview" aria-label="Agent preview">
+        <span className="team-avatar" aria-hidden="true">{(named || '?').trim().slice(0, 1).toUpperCase() || '?'}</span>
+        <strong>{named || 'Name chosen when hired'}</strong>
+        <span>{roleLabel[d.role]}{normalizedDepartment(d.department) ? ` · ${normalizedDepartment(d.department)}` : ''}</span>
+        {personaName && <span className="badge">{personaName}</span>}
+        <span className="badge"><UiIcon name="shield" size={13}/> Careful</span>
+      </aside>
+      <div className="hire-form">
+        <label>What should this agent do?<textarea value={d.description} maxLength={500} disabled={locked} placeholder="Describe the work you want this agent to own" onChange={e => controller.edit({ description: e.target.value })}/></label>
+        <label className="ag-hire-name-field">Name<input value={d.name} maxLength={80} disabled={locked} placeholder={suggestingName?'Choosing a name…':'Choose a name'} onChange={e => controller.edit({ name: e.target.value })}/><button type="button" className="tool" disabled={locked||suggestingName} aria-label="Suggest another name" title="Suggest another name" onClick={()=>void suggestName(true)}><UiIcon name="refresh" size={14}/></button></label>
+        <div role="radiogroup" aria-label="Job" className="ag-roles ag-role-segmented">
+          {allRoles.map(r => { const c = ROLE_CARDS.find(x => x.key === r); return <label key={r} className="ag-role" data-on={d.role === r || undefined}>
+            <input type="radio" name="hire-role" aria-label={roleLabel[r]} checked={d.role === r} disabled={locked} onChange={() => controller.edit({ role: r })}/>
+            <UiIcon name={c?.icon ?? 'star'} size={16}/><b>{roleLabel[r]}</b>
+          </label>; })}
+        </div>
+        <label>Department<span className="ag-picker"><DepartmentTile department={normalizedDepartment(d.department) || null} size={20}/><input value={d.department} maxLength={64} disabled={locked} placeholder="Choose a department" onChange={e => controller.edit({ department: e.target.value })}/></span></label>
+        <section className="ag-hire-personality" aria-label="Personality"><h4>Personality</h4>
+          <PersonalityChips client={controller.client} value={d.libraryPersonality?.id} disabled={locked} autoPick={defaultLibraryId(d.role, d.department)} onName={setPersonaName} onPick={entry => controller.edit({ libraryPersonality: { id: entry.id, revision: entry.revision } })}/>
+        </section>
+        <fieldset className="ag-hire-care"><legend>How careful</legend><div role="radiogroup" aria-label="How careful" className="ag-care">{careLevels.map(c => <label key={c.key} className="ag-role" data-on={care === c.key || undefined}>
+          <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => chooseCare(c.key)}/><UiIcon name={careIcon[c.key]} size={14}/><b>{c.title}</b>
+        </label>)}</div><p className="fine-print">{careLevels.find(c => c.key === care)?.text}</p></fieldset>
+        <div className="hire-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="button" className="primary" disabled={locked || s.phase === 'unknown'} onClick={hire}>{named ? <>Hire <bdi>{named}</bdi></> : 'Hire agent'}</button></div>
       </div>
-      <label>Department<span className="ag-picker"><DepartmentTile department={normalizedDepartment(d.department) || null} size={20}/><input value={d.department} maxLength={64} disabled={locked} placeholder="e.g. marketing, finance, development" onChange={e => controller.edit({ department: e.target.value })}/></span></label>
-      <label>Job description<textarea value={d.description} maxLength={500} disabled={locked} placeholder="What this agent is responsible for" onChange={e => controller.edit({ description: e.target.value })}/></label>
-      <div className="hire-actions"><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary" disabled={locked}>Next</button></div>
-    </form>}
+    </div>}
 
-    {step === 'persona' && <form className="hire-form" onSubmit={e => { e.preventDefault(); controller.go('care'); }}>
-      <PersonalityFaces client={controller.client} value={d.libraryPersonality?.id} disabled={locked} autoPick={defaultLibraryId(d.role, d.department)} onPick={entry => controller.edit({ libraryPersonality: { id: entry.id, revision: entry.revision } })}/>
-      <p className="fine-print">A personality changes how it talks, never its tools or permissions. Edit the library in Personalities.</p>
-      <div className="hire-actions">
-        <button type="button" disabled={locked} onClick={() => controller.go('role')}>Back</button>
-        <button type="submit" className="primary" disabled={locked || !d.libraryPersonality || s.phase === 'unknown'}>Next</button>
-      </div>
-    </form>}
-
-    {step === 'care' && <div className="hire-form">
+    {s.agent && s.phase !== 'done' && <div className="hire-form">
+      <p><bdi>{who}</bdi> was created. Review its permissions and save to finish hiring.</p>
       {s.permissions && <div role="radiogroup" aria-label="How careful" className="ag-care">{careLevels.map(c => <label key={c.key} className="ag-role" data-on={care === c.key || undefined}>
-        <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => controller.applyCare(c.key)}/>
-        <UiIcon name={careIcon[c.key]} size={18}/><b>{c.title}</b><small>{c.text}</small></label>)}</div>}
-      <details className="ag-details"><summary>Details: memory places, projects it works on, each action and tool</summary>
-        {s.agent && <ToolList tools={memory} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No memory tools on this server."/>}
+        <input type="radio" name="hire-care" aria-label={c.title} checked={care === c.key} disabled={stuck} onChange={() => controller.applyCare(c.key)}/><UiIcon name={careIcon[c.key]} size={18}/><b>{c.title}</b><small>{c.text}</small></label>)}</div>}
+      <details className="ag-details"><summary>Permissions: memory, projects and tools</summary>
         {s.permissions && <MemoryScope controller={controller} p={s.permissions} disabled={stuck}/>}
-        {s.agent && <AgentWorksOn client={controller.client} agentId={s.agent.id} agentName={who}/>}
         {s.permissions && <ModeTable controller={controller} p={s.permissions} confirm={s.confirmRisky} disabled={stuck}/>}
-        {s.agent ? <ToolList tools={other} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No other tools on this server."/>
-          : <p className="fine-print">Projects it works on and single tools are set on the agent's page after hiring.</p>}
+        <ToolList tools={memory} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No memory tools on this server."/>
+        {s.agent && <AgentWorksOn client={controller.client} agentId={s.agent.id} agentName={who}/>}
+        <ToolList tools={other} selected={s.selected} disabled={stuck} onToggle={t => controller.toggle(t)} empty="No other tools on this server."/>
       </details>
       {risky.length > 0 && <label className="check hire-risky"><input type="checkbox" checked={s.confirmRisky} onChange={e => controller.setConfirmRisky(e.target.checked)}/> I understand that {risky.map(c => categoryLabel[c].toLowerCase()).join(', ')} will run without asking me.</label>}
       {s.permissions && <p className="ag-summary"><bdi>{who}</bdi> will be a {roleLabel[d.role]}{normalizedDepartment(d.department) ? ` in ${normalizedDepartment(d.department)}` : ''}{asks.length ? `, and will ask you before ${asks.join(', ')}` : ', and will work on its own'}.</p>}
-      <div className="hire-actions">
-        <button type="button" disabled={busy || !!s.agent} onClick={() => controller.go('persona')}>Back</button>
-        {s.phase === 'unknown'
-          ? <button type="button" className="primary" disabled={busy || !s.agent} onClick={() => void controller.reconcile()}>Read permissions again</button>
-          : <button type="button" className="primary" disabled={busy || !s.permissions || (!!s.agent && s.grantsVersion === undefined)} onClick={() => void controller.hire()}>{named ? <>Hire <bdi>{named}</bdi></> : 'Hire agent'}</button>}
+      <div className="hire-actions">{s.phase === 'unknown'
+        ? <button type="button" className="primary" disabled={busy} onClick={() => void controller.reconcile()}>Read permissions again</button>
+        : <button type="button" className="primary" disabled={busy || !s.permissions || s.grantsVersion === undefined} onClick={() => void controller.hire()}>Save permissions</button>}
       </div>
     </div>}
-
-    {s.step === 'done' && <div className="hire-form">
-      <p><bdi>{who}</bdi> joined your team with {s.selected.length} permission{s.selected.length === 1 ? '' : 's'}.</p>
-      <div className="hire-actions">
-        <button type="button" onClick={() => controller.restart()}>Hire another</button>
-        {onOpen && s.agent ? <button type="button" className="primary" onClick={() => onOpen(s.agent!.id)}>Open <bdi>{who}</bdi></button> : <button type="button" className="primary" onClick={onClose}>Back to team</button>}
-      </div>
-    </div>}
-
-    {s.phase === 'error' && s.agent && s.step !== 'done' && s.grantsVersion === undefined &&
-      <div className="hire-actions"><button type="button" disabled={busy} onClick={() => void controller.reloadTools()}>Read permissions again</button></div>}
+    {s.phase === 'done' && <div className="hire-form"><p><bdi>{who}</bdi> joined your team.</p><div className="hire-actions">
+      <button type="button" onClick={() => controller.restart()}>Hire another</button>
+      {onOpen && s.agent ? <button type="button" className="primary" onClick={() => onOpen(s.agent!.id)}>Open <bdi>{who}</bdi></button> : <button type="button" className="primary" onClick={onClose}>Back to team</button>}
+    </div></div>}
+    {s.phase === 'error' && s.agent && s.grantsVersion === undefined && <div className="hire-actions"><button type="button" disabled={busy} onClick={() => void controller.reloadTools()}>Read permissions again</button></div>}
   </section>;
 }
 
@@ -164,4 +166,21 @@ function ModeTable({ controller, p, confirm, disabled }: { controller: HireContr
     </li>)}</ul>
     {risky.length > 0 && <p className="fine-print">{confirm ? 'Confirmed: ' : 'Needs your confirmation below: '}{risky.map(c => categoryLabel[c].toLowerCase()).join(', ')}.</p>}
   </fieldset>;
+}
+
+/** FR4a: three suggested personalities as chips; More… shows the whole library. */
+function PersonalityChips({ client, value, onPick, onName, disabled, autoPick }: { client: HireController['client']; value?: string; onPick: (e: Entry) => void; onName: (name: string) => void; disabled?: boolean; autoPick?: string }) {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [more, setMore] = useState(false);
+  useEffect(() => { let live = true; void libraryRpc<{ personalities: Entry[] }>(client, 'GET', P).then(r => { if (live) setEntries(r.personalities.filter(e => !e.archived)); }).catch(() => {}); return () => { live = false; }; }, [client]);
+  useEffect(() => { onName(entries.find(e => e.id === value)?.profile.name ?? ''); }, [entries, value]);
+  // The suggested one is chosen at once (as the full list did).
+  useEffect(() => { if (!value && autoPick) { const e = entries.find(x => x.id === autoPick); if (e) onPick(e); } }, [entries]);
+  if (more) return <><PersonalityFaces client={client} value={value} disabled={disabled} autoPick={autoPick} onPick={e => { onPick(e); setMore(false); }}/><p className="fine-print">Personality changes how the agent talks, not what it can do.</p></>;
+  const first = [value, autoPick].filter((x): x is string => !!x);
+  const shown = [...first.map(id => entries.find(e => e.id === id)).filter((e): e is Entry => !!e), ...entries].filter((e, i, all) => all.findIndex(x => x.id === e.id) === i).slice(0, 3);
+  return <div className="ag-persona-chips" role="radiogroup" aria-label="Personality">
+    {shown.map(e => <button key={e.id} type="button" role="radio" aria-checked={value === e.id} className="ag-persona-chip" disabled={disabled} onClick={() => onPick(e)}>{e.profile.name}</button>)}
+    <button type="button" className="ag-persona-chip ag-persona-more" disabled={disabled || !entries.length} onClick={() => setMore(true)}>More…</button>
+  </div>;
 }

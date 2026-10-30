@@ -64,7 +64,7 @@
         "zip"
       ],
       "category": "public.app-category.developer-tools",
-      "identity": null,
+      "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Girru uses the microphone only when you press the microphone button to dictate a message."

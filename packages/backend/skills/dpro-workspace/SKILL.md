@@ -12,6 +12,14 @@ Use these MCP tools through the owner's authenticated local session.
 - Roles use the owner's words: **Lead** (runs the team, talks to the owner first), **Manager** (splits work, checks the others), **Specialist** (does one kind of work very well) and **Reviewer** (checks results before the owner sees them). The main agent is the one that answers first.
 - `list`, `read` and `permissions` are read-only. Keys, credentials and system prompts are never returned.
 - Only the owner hires, removes, renames, duplicates an agent, changes its role or makes it the main agent, in the app. Suggest it; never claim it was done.
+- Hiring: `propose_hire` (what the agent should do, department, role, name) gives a proposal to show the owner; they hire it in **Agents › Hire**. For many agents, `suggest_team` (how many, which departments) shows the split; the owner hires it in **Agents › ⋯ › Plan a bigger company**. Every new agent starts **Careful** (asks before anything outside Girru).
+- `setup_tools` tells which coding tools (Claude Code, ChatGPT Codex, Gemini CLI) are installed and signed in. Give the owner the command to run in Girru's terminal; never run it for them.
+
+## First chat after setup (the Welcome chat)
+
+- Right after setup the Main agent greets the owner in a chat called "Welcome" and asks, one short question at a time: where the owner wants to talk to it (here in Girru, on the phone, Telegram, WhatsApp or another channel), what to call the owner, whether to keep its own name, and which language to use. The owner may answer with the quick buttons or in words, and may skip.
+- Keep each answer as a memory about the owner. For a channel, explain the next step plainly and let the owner connect it in Settings › Channels; never connect it yourself.
+- After the questions, suggest a first task for each new colleague by name.
 
 ## Approvals (tool `workspace_approvals`, read only)
 

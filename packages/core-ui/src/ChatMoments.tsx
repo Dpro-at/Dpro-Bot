@@ -42,6 +42,9 @@ export function NoticeCard({ part }: { part: Extract<Part, { kind: 'notice' }> }
     {part.text && <div className="moment-actions"><button type="button" className="link-button" aria-expanded={shown} onClick={() => setShown(v => !v)}>{shown ? 'Hide the text' : 'Show the text'}</button></div>}
     {shown && part.text && <blockquote dir="auto">{part.text}</blockquote>}
   </div>;
+  // FIRSTRUN-01 / ONBOARD-CHAT-01: quick answers under the Main agent's setup question; a click puts the answer in the box.
+  if (part.code === 'choices') { const options = (part.text ?? '').split('\n').map(t => t.trim()).filter(Boolean).slice(0, 8);
+    return options.length ? <div className="moment-choices" role="group" aria-label="Quick answers">{options.map(o => <button key={o} type="button" className="moment-choice" disabled={!m.onDraft} onClick={() => m.onDraft?.(o)}>{o}</button>)}</div> : null; }
   if (part.code === 'images_not_seen') return <p className="moment-line"><UiIcon name="image" size={12}/>{part.text ?? 'This model does not see images in this chat.'}</p>;
   if (part.code === 'plan_limit' && shown) return <p className="moment-line"><UiIcon name="pulse" size={12}/>Kept the model. It answers again when its plan allows.</p>;
   if (part.code === 'plan_limit') return <div className="moment-card" data-tone="needs" role="note">

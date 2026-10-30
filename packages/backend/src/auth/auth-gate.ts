@@ -167,6 +167,7 @@ export const TIER_RULES: readonly Rule[] = [
   { methods: '*', prefix: '/api/store', access: 'owner' },           // Store: read, add and remove apps (STORE-UI-01)     // proposed team; reads only (ONBOARD-TEAM-01)
   { methods: ['POST'], exact: '/api/onboarding/team-distribution', access: 'owner' }, // total headcount split; reads nothing (ONBOARD-TEAM-02)
   { methods: '*', prefix: '/api/onboarding/team-batches', access: 'owner' },      // batch hire of a reviewed plan (ONBOARD-TEAM-02)
+  { methods: '*', prefix: '/api/first-run', access: 'owner' },       // setup steps after the owner account; reads this computer's AI tools (FIRSTRUN-01)
   { methods: '*', prefix: '/api/agent-rules', access: 'owner' },     // the owner's rules for how agents work (RULES-01)
   { methods: '*', prefix: '/api/system', access: 'owner' },          // restart / shutdown
   { methods: '*', prefix: '/api/browser', access: 'owner' },         // headless browser: JS eval, file:// and SSRF

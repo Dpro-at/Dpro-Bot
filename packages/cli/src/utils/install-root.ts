@@ -115,4 +115,4 @@ export function findInstall(options: FindOptions = {}): InstallPaths | null {
 
 export const NOT_FOUND_MESSAGE =
   'Girru install folder not found. Set AGENT_PLAYER_ROOT to the folder that contains packages/backend, '
-  + 'or run "agent-player setup" from inside the install once.';
+  + 'or run "girru setup" from inside the install once.';

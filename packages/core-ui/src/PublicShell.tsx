@@ -26,7 +26,7 @@ export function PublicShell({ children, setup, notice, initialPage = 'home', blo
         {setup === 'required' && <p className="fine-print">This workspace still needs its first owner.</p>}
         {setup === 'unavailable' && <p className="fine-print" role="status">Girru’s engine is not answering yet. Sign in works once it starts.</p>}
       </section>
-      : <div className="public-account">{!blocking&&<button onClick={() => setPage('home')}>Back</button>}{children}</div>}
+      : <div className={`public-account${setup === 'required' ? ' first-run-account' : ''}`}>{!blocking&&setup!=='required'&&<button onClick={() => setPage('home')}>Back</button>}{children}</div>}
     </main>
   </div>;
 }

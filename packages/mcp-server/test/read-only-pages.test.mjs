@@ -135,3 +135,16 @@ test('agents tool: chart choices read and saved',async()=>{
  await callTool('agents',{operation:'set_chart',mode:'reports'},{backend});assert.deepEqual(calls.at(-1),{method:'PUT',path:'/api/me/agents-chart',body:{mode:'reports'}});
  for(const input of [{operation:'set_chart'},{operation:'set_chart',zoom:9},{operation:'set_chart',lines:'wavy'},{operation:'chart',view:'list'}])await refused('agents',input,calls);
 });
+
+test('FIRSTRUN-01: agents read setup tools, suggest a split and propose hires; they never hire',async()=>{
+ const {calls,backend}=fake({'/api/first-run/tools':{tools:[{id:'claude',name:'Claude Code',installed:true,signedIn:false,install:null,signIn:'claude',account:'x@example.test'}]},'/api/onboarding/team-distribution':{shares:[{department:'sales',count:3}]}});
+ const tools=await callTool('agents',{operation:'setup_tools'},{backend});assert.notEqual(tools.isError,true);
+ assert.deepEqual(tools.structuredContent.tools,[{id:'claude',name:'Claude Code',installed:true,signedIn:false,install:null,signIn:'claude'}]);
+ const split=await callTool('agents',{operation:'suggest_team',total:3,departments:[' Sales ']},{backend});assert.notEqual(split.isError,true);
+ assert.deepEqual(calls.at(-1),{method:'POST',path:'/api/onboarding/team-distribution',body:{departments:['sales'],total:3}});
+ const n=calls.length;
+ const p=await callTool('agents',{operation:'propose_hire',name:'Nora',department:'marketing',description:'Write our Instagram posts'},{backend});assert.notEqual(p.isError,true);
+ assert.equal(calls.length,n,'a proposal calls nothing');
+ assert.deepEqual(p.structuredContent.proposal,{name:'Nora',role:'specialist',department:'marketing',description:'Write our Instagram posts',startsAs:'careful'});
+ for(const input of [{operation:'suggest_team',total:0,departments:['sales']},{operation:'suggest_team',total:3,departments:[]},{operation:'propose_hire'},{operation:'propose_hire',description:'x',role:'main'},{operation:'hire',description:'x'}])await refused('agents',input,calls);
+});

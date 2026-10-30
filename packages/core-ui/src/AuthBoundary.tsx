@@ -13,6 +13,7 @@ import { localSessionKeep } from './local-session-keep';
 import { setupCodeFromFragment } from './owner-setup-contract.js';
 import type { OwnerSetupCode } from './owner-setup-contract.js';
 import { isDeveloperBuild } from './developer-build';
+import { SetupSteps } from './FirstRunSetup';
 
 const notices = {
   recovered:'Authenticator reset. Sign in again, then set up two-step verification in Settings.',
@@ -79,11 +80,14 @@ function WorkspaceNotice({ notice, seconds }: { notice: keyof typeof notices; se
 function SessionWorkspace({ client, setupCode, initialPage }: { client: SessionClient; setupCode: string | null; initialPage?: 'home' | 'account' }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
+  useEffect(() => {
+    if (state.setup === 'required') void window.dproApp?.setSetupWindow?.(true).catch(() => {});
+  }, [state.setup, state.phase]);
   // Signed in: the full workspace (sidebar, chat, agents, memory, account).
   if (state.phase === 'authenticated' && state.user) return <SignedInShell client={client} notice={state.notice ? <WorkspaceNotice key={`${state.notice}:${state.retryAfterSeconds ?? ''}`} notice={state.notice} seconds={state.retryAfterSeconds}/> : null}/>;
   if(state.phase==='recovery-codes')return <PublicShell setup="login" initialPage="account" blocking><RecoveryCodes client={client}/></PublicShell>;
-  return <PublicShell setup={state.setup} initialPage={initialPage} accountStep={state.phase==='signing-in'||!!state.verification||!!state.notice}><section className="auth-workspace" aria-label="Account sign-in" lang="en" dir="ltr">
-    <h1>Girru · {state.mode === 'mock' ? 'Offline login exercise' : 'Account'}</h1>
+  return <PublicShell setup={state.setup} initialPage={state.setup === 'required' ? 'account' : initialPage} accountStep={state.setup === 'required'||state.phase==='signing-in'||!!state.verification||!!state.notice}><section className="auth-workspace" aria-label="Account sign-in" lang="en" dir="ltr">
+    {state.setup !== 'required' && <h1>Girru · {state.mode === 'mock' ? 'Offline login exercise' : 'Account'}</h1>}
     {state.notice && <p role="status">{notices[state.notice]}{retryAfterNotice(state.retryAfterSeconds)}</p>}
     {(state.phase === 'verifying'||state.phase==='signing-in') && state.verification ? <VerificationForm client={client} method={state.verification.method} busy={state.phase==='signing-in'}/> : state.phase === 'authenticated' && state.user ? null : state.phase === 'signed-out' && state.setup === 'required' ? <OwnerSetup client={client} setupCode={setupCode} initialPage={initialPage}/> : state.phase === 'signing-out' ? <><p role="status">Signing out on all devices…</p><button onClick={() => client.cancel()}>Clear locally; server outcome remains unknown</button></> : state.phase === 'signed-out' && state.setup !== 'login' ? <section aria-label="Setup discovery">
       <p role="status">{state.setup === 'checking' ? 'Checking installation setup…' : state.setup === 'unavailable' ? 'Setup status unavailable. Sign-in is withheld; no automatic retry was sent.'
@@ -102,7 +106,7 @@ function SessionWorkspace({ client, setupCode, initialPage }: { client: SessionC
       <button className="primary" disabled={state.phase === 'signing-in'}>Sign in</button>
       {state.phase === 'signing-in' && <button type="button" onClick={() => client.cancel()}>Cancel sign-in</button>}
     </form>}
-    <p>Settings credentials remain masked-only; no credential values are fetched.</p>
+    {state.setup !== 'required' && <p>Settings credentials remain masked-only; no credential values are fetched.</p>}
   </section></PublicShell>;
 }
 function RecoveryCodes({client}:{client:SessionClient}){
@@ -141,9 +145,9 @@ function readSetupLink(): string | null {
   return linkCode;
 }
 const ownerSetupNotices: Record<OwnerSetupCode | 'unavailable' | 'mismatch', string> = {
-  setup_token_missing: 'No setup code is active. Run `agent-player setup` in a terminal on this computer, then enter the code it shows.',
-  setup_token_invalid: 'This setup code is not valid. Check it, or run `agent-player setup` again for a new one.',
-  setup_token_expired: 'This setup code has expired (it lasts 24 hours). Run `agent-player setup` again for a new one.',
+  setup_token_missing: 'Enter the setup code from Girru on this computer.',
+  setup_token_invalid: 'This setup code is not valid. Check it or run `girru setup` for a new one.',
+  setup_token_expired: 'This setup code has expired. Run `girru setup` for a new one.',
   setup_not_local: 'The owner can only be created on the installation computer itself.',
   setup_complete: 'An owner already exists. Sign in instead.',
   missing_fields: 'Fill in every field. The password needs at least 12 characters.',
@@ -151,19 +155,19 @@ const ownerSetupNotices: Record<OwnerSetupCode | 'unavailable' | 'mismatch', str
   invalid_email: 'Enter a valid email address.',
   user_exists: 'An account with this email already exists.',
   unavailable: 'The installation did not answer. Nothing was created; try again.',
-  mismatch: 'The two passwords do not match.',
+  mismatch: 'Check your password and try again.',
 };
-/** First run (INSTALLER-07): create the owner with the one-time code from this computer's terminal. */
+/** First run: create the owner; desktop setup code stays in memory and is never shown. */
 function OwnerSetup({ client, setupCode, initialPage }: { client: SessionClient; setupCode: string | null; initialPage?: 'home' | 'account' }) {
   const [name, setName] = useState(''); const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState('');
+  const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const strength = passwordStrength(password);
   const [code, setCode] = useState(setupCode ?? ''); const [editCode, setEditCode] = useState(!setupCode);
   const [busy, setBusy] = useState(false); const [notice, setNotice] = useState<keyof typeof ownerSetupNotices | null>(null);
   return <form className="owner-setup" aria-label="Create the owner account" method="post" onSubmit={async e => {
     e.preventDefault();
-    if (password !== confirm) { setNotice('mismatch'); return; }
+    if (password.length < 12) { setNotice('weak_password'); return; }
     setBusy(true); setNotice(null);
     const result = await client.createOwner({ name: name.trim(), email: email.trim(), password, setupToken: code.trim() });
     setBusy(false);
@@ -172,27 +176,24 @@ function OwnerSetup({ client, setupCode, initialPage }: { client: SessionClient;
       if (['setup_token_invalid', 'setup_token_expired', 'setup_token_missing'].includes(result.code)) setEditCode(true);
     }
   }}>
-    <h2>Create the owner account</h2>
-    <p>Set up the owner of this new workspace. If you used Girru before, open your existing workspace from the desktop setup instead. The owner controls agents, keys and settings.</p>
-    {notice && <p role="alert">{ownerSetupNotices[notice]}</p>}
+    <SetupSteps current="Account"/>
+    <h2>Create your account</h2>
+    <p>You are the owner of this workspace. Your information stays on this computer.</p>
+    {notice && !['invalid_email','weak_password','missing_fields'].includes(notice) && <p role="alert">{ownerSetupNotices[notice]}</p>}
     <label htmlFor="owner-name">Your name</label><input id="owner-name" required maxLength={100} autoComplete="name" value={name} onChange={e => setName(e.target.value)} disabled={busy}/>
-    <label htmlFor="owner-email">Email</label><input id="owner-email" type="email" name="username" required maxLength={320} autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} disabled={busy}/>
-    <label htmlFor="owner-password">Password (at least 12 characters)</label><input id="owner-password" type={visible ? 'text' : 'password'} name="new-password" required minLength={12} maxLength={4096} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} disabled={busy}/>
-    <label htmlFor="owner-confirm">Repeat the password</label><input id="owner-confirm" type={visible ? 'text' : 'password'} required minLength={12} maxLength={4096} autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} disabled={busy}/>
-    <div className="row">
-      <button type="button" disabled={busy} onClick={() => { const value = generatePassword(); setPassword(value); setConfirm(value); }}>Generate password</button>
-      <button type="button" disabled={busy} aria-pressed={visible} onClick={() => setVisible(!visible)}>{visible ? 'Hide password' : 'Show password'}</button>
-    </div>
-    <label htmlFor="password-strength">Password strength: {strength.label}</label>
-    <meter id="password-strength" min={0} max={3} low={2} high={3} optimum={3} value={strength.value} aria-describedby="password-guidance" />
-    <p id="password-guidance">{strength.hint} This estimate does not check leaked passwords.</p>
+    <label htmlFor="owner-email">Email <span className="owner-field-hint">You sign in with it. Nothing is sent anywhere.</span></label><input id="owner-email" type="email" name="username" required maxLength={320} autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} disabled={busy}/>
+    {notice === 'invalid_email' && <p className="owner-field-error" role="alert">{ownerSetupNotices[notice]}</p>}
+    <label htmlFor="owner-password">Password <span className="owner-field-hint">At least 12 characters</span></label>
+    <div className="owner-password-input"><input id="owner-password" type={visible ? 'text' : 'password'} name="new-password" required minLength={12} maxLength={4096} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} disabled={busy}/><button type="button" className="owner-password-action" disabled={busy} aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible} onClick={() => setVisible(!visible)}><UiIcon name={visible ? 'eye-off' : 'eye'} size={16}/></button><button type="button" className="owner-password-action" disabled={busy} aria-label="Suggest a strong password" title="Suggest a strong password" onClick={() => { setPassword(generatePassword()); setVisible(true); }}><UiIcon name="key" size={16}/></button></div>
+    <div className="owner-strength" aria-label={`Password strength: ${strength.label}`}><span data-strength={strength.value}/><b>{password ? strength.label : '—'}</b></div>
+    {notice === 'weak_password' && <p className="owner-field-error" role="alert">{ownerSetupNotices[notice]}</p>}
     {editCode ? <>
       <label htmlFor="owner-code">Setup code</label>
-      <input id="owner-code" required autoComplete="one-time-code" spellCheck={false} pattern="[A-Za-z0-9_\-]{43}" title="The 43-character code from agent-player setup" value={code} onChange={e => setCode(e.target.value)} disabled={busy}/>
-      <p>Run <code>agent-player setup</code> in a terminal on this computer: it shows a one-time code (valid 24 hours) and a link that fills it in.</p>
-    </> : <p>Setup code received from the local link. <button type="button" onClick={() => setEditCode(true)} disabled={busy}>Enter a different code</button></p>}
-    <button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Create owner and sign in'}</button>
-    <button type="button" onClick={() => void client.discoverSetup()} disabled={busy}>Check setup again</button>
+      <input id="owner-code" required autoComplete="one-time-code" spellCheck={false} pattern="[A-Za-z0-9_\-]{43}" title="The 43-character code from girru setup" value={code} onChange={e => setCode(e.target.value)} disabled={busy}/>
+      <p>Run <code>girru setup</code> in a terminal on this computer to get a one-time code.</p>
+    </> : null}
+    {notice === 'missing_fields' && <p className="owner-field-error" role="alert">{ownerSetupNotices[notice]}</p>}
+    <button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Continue'}</button>
   </form>;
 }
 /** Local test accounts (dev-quick-login.ts): fills the form only; local builds on a loopback host only. */

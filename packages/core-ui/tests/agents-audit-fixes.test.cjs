@@ -24,7 +24,7 @@ async function signedIn(t) {
 const creates = calls => calls.filter(c => c.method === 'POST' && c.path === '/api/agents');
 const hireMarkup = h => renderToStaticMarkup(React.createElement(HireAgent, { controller: h, onClose() {} }));
 
-test('A4: nothing is created before the last step; Back works there; closing early leaves nothing', async t => {
+test('A4: nothing is created before Hire; changing the care choice keeps it; closing early leaves nothing', async t => {
   const { client, calls } = await signedIn(t);
   const h = new HireController(client); t.after(() => h.dispose());
   h.edit({ name: 'Late Hire', role: 'specialist', libraryPersonality: { id: 'temperament-balanced', revision: 1 } });
@@ -33,7 +33,7 @@ test('A4: nothing is created before the last step; Back works there; closing ear
   assert.equal(s.step, 'care'); assert.equal(s.agent, undefined); assert.equal(creates(calls).length, 0, 'Next on Personality creates nothing');
   assert.equal(careOf(s.permissions), 'careful', 'Careful is the default before hiring');
   const html = hireMarkup(h);
-  assert.match(html, /Hire <bdi>Late Hire<\/bdi>/); assert.match(html, />Back</); assert.doesNotMatch(html, /Finish hiring/);
+  assert.match(html, /Hire <bdi>Late Hire<\/bdi>/); assert.match(html, />Cancel</, 'FR4a: one sheet, no steps to go back through'); assert.doesNotMatch(html, /Finish hiring|>Back</);
   h.applyCare('normal'); h.go('persona'); assert.equal(h.getSnapshot().step, 'persona');
   h.go('care'); assert.equal(careOf(h.getSnapshot().permissions), 'normal', 'the choice survives Back');
   h.restart();

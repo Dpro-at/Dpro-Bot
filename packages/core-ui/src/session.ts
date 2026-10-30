@@ -44,6 +44,7 @@ import { allowedFooter, footerRoute, footerResponse } from './footer-contract.js
 import { allowedBackups, backupsRoute, backupsResponse } from './backups-contract.js';
 import { allowedChartPrefs, chartPrefsRoute, chartPrefsResponse } from './chart-prefs-contract.js';
 import { allowedDepartments, departmentsRoute, departmentsResponse } from './departments-contract.js';
+import { allowedFirstRun, firstRunRoute, firstRunResponse } from './first-run-contract.js';
 import { allowedAgentRules, agentRulesRoute, agentRulesResponse } from './agent-rules-contract.js';
 import { allowedOrg, orgRoute, orgResponse } from './org-contract.js';
 import { allowedLibrary as allowedAgentLibrary, libraryRoute as agentLibraryRoute, libraryResponse as agentLibraryResponse } from './agent-library-contract.js';
@@ -91,7 +92,8 @@ function user(value: unknown): User {
   if (!record(value) || !['owner', 'admin', 'user', 'guest'].includes(value.role as string)
     || !['id', 'email', 'username'].every(k => typeof value[k] === 'string' && (value[k] as string).length > 0 && (value[k] as string).length <= 320)
     || !id(value.id as string)) throw new SessionFailure('unavailable');
-  const name = typeof value.full_name === 'string' ? value.full_name.trim() : '';
+  // The wire answer says full_name; an already projected user (projected again after login) says name.
+  const name = typeof value.full_name === 'string' ? value.full_name.trim() : typeof value.name === 'string' ? value.name.trim() : '';
   return Object.freeze({ id: value.id as string, email: value.email as string, username: value.username as string, role: value.role as User['role'], ...(name && name.length <= 200 ? { name } : {}) });
 }
 // Reject before URL normalization. No generic URL, header, key or mutation escape hatch.
@@ -127,6 +129,7 @@ export function allowedRequest(method: string, path: string, body?: unknown): bo
   if (backupsRoute(path)) return allowedBackups(method, path, body);
   if (chartPrefsRoute(path)) return allowedChartPrefs(method, path, body);
   if (departmentsRoute(path)) return allowedDepartments(method, path, body);
+  if (firstRunRoute(path)) return allowedFirstRun(method, path, body);
   if (agentRulesRoute(path)) return allowedAgentRules(method, path, body);
   if (orgRoute(path)) return allowedOrg(method, path, body);
   if (agentLibraryRoute(path)) return allowedAgentLibrary(method, path, body);
@@ -217,6 +220,7 @@ function projectResponse(path: string, response: WireResponse): WireResponse {
   if (backupsRoute(path)) return { status: response.status, body: backupsResponse(path, response.status, response.body) };
   if (chartPrefsRoute(path)) return { status: response.status, body: chartPrefsResponse(response.status, response.body) };
   if (departmentsRoute(path)) return { status: response.status, body: departmentsResponse(response.status, response.body) };
+  if (firstRunRoute(path)) return { status: response.status, body: firstRunResponse(path, response.status, response.body) };
   if (agentRulesRoute(path)) return { status: response.status, body: agentRulesResponse(path, response.status, response.body) };
   if (orgRoute(path)) return { status: response.status, body: orgResponse(path, response.status, response.body) };
   if (agentLibraryRoute(path)) return { status: response.status, body: agentLibraryResponse(path, response.status, response.body) };
