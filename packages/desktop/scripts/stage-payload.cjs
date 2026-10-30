@@ -77,8 +77,8 @@ function stage(options) {
   const moduleFilter = src => !SKIP_MODULES.has(path.basename(src)) && noSecrets(src);
   copy(fs.realpathSync(options.backendModules), path.join(out, 'backend', 'node_modules'), moduleFilter);
   copy(fs.realpathSync(options.rootModules), path.join(out, 'node_modules'), moduleFilter);
-  // MACAPP-01: every package the program depends on must be in the app (extensions such as
-  // Telegram and Discord load agent-connect-dpro at run time; a missing one fails quietly).
+  // MACAPP-01: every package the program depends on must be in the app (the agent-connect
+  // extension, which runs every chat channel, loads agent-connect-dpro at run time; a missing one fails quietly).
   const missing = missingPackages(backend, [path.join(out, 'backend', 'node_modules'), path.join(out, 'node_modules')]);
   if (missing.length) throw new Error(`packages missing from the payload: ${missing.join(', ')}`);
   // node-pty's helper must stay executable (npm may have installed it without the bit).

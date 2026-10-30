@@ -73,6 +73,9 @@ export async function initializeBackend(fastify: FastifyInstance): Promise<Start
   // APPS-06: apps moved to the Girru Store keep their data under their Store table names (once, after a backup).
   try { await (await import('../services/legacy-app-tables.js')).moveLegacyAppTables(); }
   catch (err) { console.warn('[Server] Old app tables not moved:', (err as Error).message); }
+  // CHANNELS-01: Telegram and Discord settings move to the agent-connect extension (once, after a backup).
+  try { await (await import('../services/channel-carry-over.js')).carryOverChannels(); }
+  catch (err) { console.warn('[Server] Old channel settings not moved:', (err as Error).message); }
 
   // Seed database in development mode
   if (process.env.NODE_ENV === 'development') {

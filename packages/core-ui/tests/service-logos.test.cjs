@@ -23,3 +23,18 @@ test('the marks are bundled with their licences, never loaded from the internet'
   assert.match(src, /Licences \(per mark\): .*telegram CC0-1\.0/);
   assert.doesNotMatch(src, /https?:\/\//);
 });
+
+test('CHANNELS-01: every catalog channel shows its brand mark or a plain glyph, never a letter tile', () => {
+  const path = require('node:path');
+  const { CHANNEL_CATALOG } = require(path.resolve(__dirname, '../../backend/node_modules/agent-connect-dpro/dist/catalog.js'));
+  const { ChannelMark, channelGlyph } = require('../src/AgentConnectSettings.tsx');
+  const generic = [];
+  for (const c of CHANNEL_CATALOG) {
+    const html = renderToStaticMarkup(React.createElement(ChannelMark, { id: c.id, size: 17 }));
+    assert.match(html, /^<svg/, c.id);
+    if (!serviceMark(c.id)) generic.push(c.id);
+  }
+  for (const id of ['telegram', 'discord', 'slack', 'whatsapp', 'whatsapp_cloud', 'signal', 'matrix', 'mattermost', 'line', 'google_chat', 'homeassistant', 'weixin', 'qqbot', 'ntfy']) assert.ok(!generic.includes(id), id);
+  assert.deepEqual([channelGlyph('email'), channelGlyph('sms'), channelGlyph('webhook'), channelGlyph('api_server'), channelGlyph('relay'), channelGlyph('teams'), channelGlyph('__proto__')],
+    ['inbox', 'phone', 'link', 'server', 'wifi', 'message', 'message']);
+});

@@ -1,16 +1,16 @@
 {
   "id": "agent-connect",
   "name": "Agent Connect",
-  "description": "Additional channel adapters using an isolated optional Python runtime. Configure each channel through its channel settings page.",
-  "version": "0.2.0",
+  "description": "Every chat channel: Telegram and Discord through built-in connections, the other channels through an isolated optional Python runtime. Set each one up in Settings › Channels.",
+  "version": "0.3.0",
   "type": "channel",
   "author": "Dpro",
   "main": "index.js",
-  "permissions": ["network", "database"],
+  "permissions": ["network", "database", "tools"],
   "settingsUI": {
     "type": "form",
     "title": "Agent Connect channel catalog",
-    "description": "Open /dashboard/channels/agent-connect. Enable this extension and restart the backend before configuring the additional channels.",
+    "description": "Set up channels in Settings › Channels. Turning a channel on also turns this extension on; restart Girru if asked.",
     "fields": []
   }
 }

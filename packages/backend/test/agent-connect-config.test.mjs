@@ -112,6 +112,7 @@ test('HTTP config: interpreter, foreign env and escaping state dir are refused; 
     },
     async processChannelMessage() { throw new Error('not used'); },
     registerRoutes(fn) { app.register(fn, { prefix: '/api/ext/agent-connect' }); },
+    registerTool() {},
   };
   await extension.register(api);
   await app.ready();

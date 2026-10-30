@@ -24,6 +24,7 @@ test('expanded host protects all catalog routes, hides provider settings and pre
     },
     async processChannelMessage() { throw new Error('Automatic replies should be off'); },
     registerRoutes(fn) { app.register(fn, { prefix: '/api/ext/agent-connect' }); },
+    registerTool() {},
   };
   await extension.register(api);
   await app.ready();
@@ -31,7 +32,8 @@ test('expanded host protects all catalog routes, hides provider settings and pre
   try {
     const catalog = (await app.inject({ url: '/api/ext/agent-connect/catalog', headers: auth })).json();
     assert.equal(catalog.channels.length, 33);
-    for (const channel of catalog.channels.filter(item => !['telegram', 'discord'].includes(item.id))) {
+    // CHANNELS-01: every catalog channel, Telegram and Discord included, is hosted here.
+    for (const channel of catalog.channels) {
       const url = `/api/ext/agent-connect/${channel.id}/config`;
       assert.equal((await app.inject({ url })).statusCode, 403);
       assert.equal((await app.inject({ url, headers: auth })).statusCode, 200);

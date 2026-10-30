@@ -14,8 +14,10 @@ test('all33 canonical integrations are listed and configurable without activatio
   const again=await app.inject({method:'PUT',url,headers:auth,payload:{allowedUsers:['trusted-person','another'],allowedChannels:['allowed-room']}});assert.equal(again.statusCode,200,c.id);
  }
  const end=await app.inject({url:'/api/agent-connect/catalog',headers:auth});assert.equal(end.json().channels.filter(c=>c.configured).length,33);assert.ok(!end.body.includes('secret-fixture-'));
- const rows=db.prepare("SELECT * FROM extension_configs WHERE extension_id IN ('agent-connect','telegram','discord')").all();assert.equal(rows.length,3);assert.ok(rows.every(r=>r.enabled===0));
- const py=JSON.parse(rows.find(r=>r.extension_id==='agent-connect').config_json).channels;assert.equal(Object.keys(py).length,31);assert.ok(Object.values(py).every(c=>c.auto_reply===false&&c.owner_user_id==='channel-owner'));assert.equal(py.ntfy.environment.NTFY_TOPIC,'secret-fixture-ntfy');
+ // CHANNELS-01: one row for every channel; Telegram and Discord keep their token as bot_token there.
+ const rows=db.prepare("SELECT * FROM extension_configs WHERE extension_id IN ('agent-connect','telegram','discord')").all();assert.deepEqual(rows.map(r=>r.extension_id),['agent-connect']);assert.equal(rows[0].enabled,0);
+ const all=JSON.parse(rows[0].config_json).channels;assert.equal(Object.keys(all).length,33);assert.ok(Object.values(all).every(c=>c.auto_reply===false&&c.owner_user_id==='channel-owner'&&c.enabled===false));assert.equal(all.ntfy.environment.NTFY_TOPIC,'secret-fixture-ntfy');
+ assert.equal(all.telegram.bot_token,'secret-fixture-telegram');assert.equal(all.telegram.environment,undefined);assert.equal(all.discord.bot_token,'secret-fixture-discord');
 });
 test('settings reject unauthorized access, unknown adapters, unsafe worker fields and injected config grants',async()=>{
  assert.equal((await app.inject({url:'/api/agent-connect/catalog'})).statusCode,401);
