@@ -133,3 +133,34 @@ test('adding it again: the Store cannot be reached, the mark stays; then it is a
   assert.equal(db.prepare("SELECT enabled FROM extension_configs WHERE extension_id = 'seo'").get().enabled, 0, 'the owner had it off: it stays off');
   assert.deepEqual(await reinstallMovedApps(), [], 'nothing left to add');
 });
+
+// Any moved app: "had it" comes from extension_configs (on or off) or its recorded migrations,
+// never from a table alone; an app with no tables moves with no backup; old views are dropped.
+test('an app with no tables that the owner had is marked to be added again, on or off as it was, with no backup', async () => {
+  db.prepare("INSERT OR REPLACE INTO extension_configs (extension_id, enabled) VALUES ('demo-on', 1), ('demo-off', 0)").run();
+  db.exec('CREATE TABLE demo_shared (id TEXT PRIMARY KEY); INSERT INTO demo_shared VALUES (\'x\');'); // made for everyone by an old Girru
+  let backedUp = 0;
+  const apps = [{ id: 'demo-on', tables: [] }, { id: 'demo-off', tables: [] }, { id: 'demo-never', tables: ['demo_shared'] }];
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => { backedUp++; } }), ['demo-on', 'demo-off']);
+  assert.equal(backedUp, 0, 'nothing renamed: no backup');
+  assert.equal(JSON.parse(setting('store.reinstall.demo-on')).enabled, true);
+  assert.equal(JSON.parse(setting('store.reinstall.demo-off')).enabled, false);
+  assert.equal(setting('store.reinstall.demo-never'), undefined, 'never used: nothing to add again');
+  assert.ok(table('demo_shared') && !table('app_demo_never__demo_shared'), 'a table alone does not mean the owner used the app');
+  for (const id of ['demo-on', 'demo-off', 'demo-never']) assert.ok(setting(`store.moved.${id}`), id);
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => { backedUp++; } }), [], 'once');
+  db.prepare("DELETE FROM app_settings WHERE key LIKE 'store.reinstall.demo-%'").run(); // nothing in the fake Store to add
+});
+
+test('old views over a moved app\'s tables are dropped before the rename; its rows move', async () => {
+  db.exec(`CREATE TABLE demo_items (id TEXT PRIMARY KEY, n INTEGER);
+    INSERT INTO demo_items VALUES ('a', 1), ('b', 2);
+    CREATE VIEW v_demo_items AS SELECT COUNT(*) AS n FROM demo_items;`);
+  db.prepare("INSERT INTO extension_migrations (extension_id, filename) VALUES ('demo-views', '001_demo.sql')").run();
+  const apps = [{ id: 'demo-views', tables: ['demo_items'], views: ['v_demo_items'] }];
+  assert.deepEqual(await moveLegacyAppTables({ apps, backup: async () => {} }), ['demo-views']);
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'view' AND name = 'v_demo_items'").get(), undefined);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM app_demo_views__demo_items').get().n, 2);
+  assert.equal(JSON.parse(setting('store.reinstall.demo-views')).enabled, false, 'no config row: it was off');
+  db.prepare("DELETE FROM app_settings WHERE key = 'store.reinstall.demo-views'").run();
+});
