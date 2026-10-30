@@ -58,12 +58,15 @@ if (URL_) {
   };
 }
 
-test('new agent seeded with "ask"; save, conflict and fail-closed reads on PostgreSQL', { skip }, async () => {
+test('new agent seeded Careful; save, conflict and fail-closed reads on PostgreSQL', { skip }, async () => {
   const { q, perms, agents, actor } = m;
   const created = await agents.createConfig(actor({ id: `pg-owner-${tag}`, role: 'owner' }), { name: `Perm ${tag}`, role: 'specialist' });
   const seeded = await perms.loadAgentPermissions(created.id);
   assert.equal(seeded.version, 1);
   assert.equal(seeded.modes.network, 'ask');
+  assert.equal(seeded.modes.money, 'off');
+  assert.deepEqual(seeded.memoryRead, ['project', 'task']);
+  assert.deepEqual(seeded.memoryWrite, []);
   await q.run(`INSERT INTO agents_config (id, name) VALUES (?, ?)`, `old-${tag}`, `Old ${tag}`);
   assert.equal((await perms.loadAgentPermissions(`old-${tag}`)).modes.browser, 'allow', 'no row: earlier behaviour');
   const input = { memoryRead: ['task', 'owner'], memoryWrite: ['task'], sharedMemory: true, modes: { ...seeded.modes, browser: 'off' } };

@@ -98,4 +98,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./packages/desktop/package.json').version")
-          gh release create "v$VERSION" release-assets/* --draft --target "$GITHUB_SHA" --title "Girru $VERSION" --notes "Current Electron desktop application with background imports and existing workspace reuse. These builds are unsigned. Verify the platform SHA256 manifest before installation."
+          gh release create "v$VERSION" release-assets/* --draft --target "$GITHUB_SHA" --title "Girru $VERSION" --notes "Current Electron desktop application with background imports and existing workspace reuse. macOS builds are ad-hoc signed and not notarized; Windows builds are unsigned. First-open instructions are in the README. Verify the platform SHA256 manifest before installation."

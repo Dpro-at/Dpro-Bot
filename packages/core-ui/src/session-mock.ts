@@ -1,4 +1,4 @@
-import { createPersonalityMock } from './personality-mock';
+import { createPersonalityMock, fictionalPersonalityLibrary } from './personality-mock';
 import { personalityRoute } from './personality-contract.js';
 import { createChatMock } from './chat-mock';
 import { createAgentsMock } from './agents-mock';
@@ -54,6 +54,7 @@ export function createLoginMock(agents = createAgentsMock(), setup: 'existing-ow
       return { status: 200, body: { user, token: active, deviceToken: `fictional-device-${serial}`.padEnd(43, '_') } };
     }
     if (!active || request.headers.Authorization !== `Bearer ${active}`) return { status: 401, body: null };
+    if (request.method === 'GET' && request.path === '/api/personality-library') return { status: 200, body: { personalities: fictionalPersonalityLibrary() } };
     if (request.path === '/api/chat') return chat(request);
     if (request.path === '/api/auth/me') return { status: 200, body: { user } };
     if (request.path === '/api/auth/logout') { active = ''; return { status: 200, body: { success: true } }; }

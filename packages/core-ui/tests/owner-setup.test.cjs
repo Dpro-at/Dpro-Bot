@@ -84,8 +84,9 @@ test('refusals keep the user signed out with a fixed code; setup_complete moves 
 test('screen: first run shows the owner form; a code from the link is used but never put in the page', async () => {
   const s = clientFor(createLoginMock(undefined, 'first-run')); s.client.selectMode('mock'); await s.client.discoverSetup();
   const html = render(s.client);
-  assert.match(html, /Create the owner account/);
-  assert.match(html, /Setup code received from the local link/);
+  assert.match(html, /Your account/);
+  assert.match(html, /Suggest a strong password/);
+  assert.doesNotMatch(html, /Repeat the password|Check setup again|Setup code received/);
   assert.ok(!html.includes(CODE), 'code not rendered');
   assert.equal(globalThis.window.location.hash, '', 'fragment removed from the address bar');
   assert.doesNotMatch(html, /finish it from the CLI/);

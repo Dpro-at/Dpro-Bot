@@ -15,8 +15,8 @@
  *    must be confirmed explicitly by the owner (confirmRisky).
  *
  * No stored row = the behaviour before CORE-PERMS-01 (LEGACY_PERMISSIONS);
- * agents created from now on get a row with every category on "ask"
- * (NEW_AGENT_PERMISSIONS, the safe default of D-AGENT-PERMS).
+ * new agents start with Careful: project/task memory only, no memory writes
+ * or shared memory, external categories ask and money off.
  */
 
 import { all, dialect, one, run, sql, sqliteSync, type Step } from '../repositories/sql-steps.js';
@@ -57,7 +57,9 @@ const modesOf = (m: Partial<Record<PermissionCategory, PermissionMode>>, rest: P
 
 /** Before CORE-PERMS-01: every drawer; browser and network ran freely; the risky categories asked. */
 export const LEGACY_MODES = modesOf({ browser: 'allow', network: 'allow' }, 'ask');
-export const NEW_AGENT_MODES = modesOf({}, 'ask');
+export const NEW_AGENT_MODES = modesOf({ money: 'off' }, 'ask');
+export const NEW_AGENT_MEMORY_READ: readonly DrawerKind[] = ['project', 'task'];
+export const NEW_AGENT_MEMORY_WRITE: readonly DrawerKind[] = [];
 
 export function legacyPermissions(agentId: string): AgentPermissions {
   return { agentId, memoryRead: [...ALL_KINDS], memoryWrite: [...ALL_KINDS], sharedMemory: false, modes: { ...LEGACY_MODES }, version: 0 };
@@ -192,12 +194,12 @@ function closedPermissions(agentId: string): AgentPermissions {
   return { agentId, memoryRead: [], memoryWrite: [], sharedMemory: false, modes: modesOf({}, 'off'), version: 0 };
 }
 
-/** Seed the safe default row for a new agent. A step: run it in the agent's create transaction. */
+/** Seed the Careful default row for a new agent inside its create transaction. */
 export function* seedNewAgentPermissionsStep(agentId: string, by: string | null): Step<void> {
   const d = yield* dialect();
   yield* run(`INSERT INTO agent_permissions (agent_id, memory_read, memory_write, shared_memory, modes, version, updated_by, updated_at)
     VALUES (?, ?, ?, 0, ?, 1, ?, ${nowText(d)})`,
-  agentId, JSON.stringify(ALL_KINDS), JSON.stringify(ALL_KINDS), JSON.stringify(NEW_AGENT_MODES), by);
+  agentId, JSON.stringify(NEW_AGENT_MEMORY_READ), JSON.stringify(NEW_AGENT_MEMORY_WRITE), JSON.stringify(NEW_AGENT_MODES), by);
 }
 
 export class PermissionsInputError extends Error {

@@ -104,7 +104,7 @@ test('full offline hire: role → persona → one create → memory → permissi
   assert.deepEqual([...s.selected].sort(), ['memory_forget', 'memory_save', 'memory_search', 'storage_search']);
   h.edit({ name: 'changed' }); assert.equal(h.getSnapshot().draft.name, '  Nora   Sales ', 'draft is frozen after hire');
   await h.create(); assert.equal(calls.filter(c => c.method === 'POST' && c.path === '/api/agents').length, 1, 'never a second create');
-  assert.match(markup(h), /Hired — finish to save how careful it is/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
+  assert.match(markup(h), /was created\. Review its permissions and save to finish hiring/); assert.doesNotMatch(markup(h), /nothing is saved until you hire/);
   assert.match(markup(h), /aria-label="memory_save"/);
   h.toggle('memory_forget'); h.next(); assert.equal(h.getSnapshot().step, 'permissions');
   h.toggle('web_fetch'); h.toggle('exec');
@@ -114,7 +114,7 @@ test('full offline hire: role → persona → one create → memory → permissi
   const put = calls.find(c => c.method === 'PUT');
   assert.deepEqual(put.body, { grants: ['memory_search', 'memory_save', 'storage_search', 'web_fetch'], expectedVersion: 1, keepScopes: true });
   s = h.getSnapshot(); assert.equal(s.step, 'done'); assert.equal(s.phase, 'done'); assert.equal(s.grantsVersion, 2);
-  assert.match(markup(h), /joined your team with 4 permissions/);
+  assert.match(markup(h), /joined your team/);
   h.restart(); assert.equal(h.getSnapshot().step, 'role'); assert.equal(h.getSnapshot().agent, undefined);
 });
 
@@ -162,10 +162,17 @@ test('not the owner: no hire controls and no requests', async t => {
   assert.doesNotMatch(page, /Hire an agent/);
 });
 
-test('markup escapes tool text and shows the three steps (Who, Personality, How careful)', async t => {
+test('hire markup is a single sheet with a preview, brief, job, personality and careful default', async t => {
   const { h } = await fixture(t);
-  assert.match(markup(h), /aria-label="Steps"/); assert.match(markup(h), /aria-current="step"[^>]*>.*Who/);
-  for (const r of ['Lead', 'Manager', 'Specialist', 'Reviewer']) assert.match(markup(h), new RegExp(r));
+  const html = markup(h);
+  assert.doesNotMatch(html, /aria-label="Steps"/);
+  assert.match(html, /aria-label="Agent preview"/);
+  assert.match(html, /What should this agent do\?/);
+  assert.match(html, /aria-label="Personality"/);
+  assert.match(html, /aria-label="How careful"/);
+  assert.match(html, /aria-label="Careful"[^>]*checked/);
+  assert.match(html, /Hire agent/);
+  for (const r of ['Lead', 'Manager', 'Specialist', 'Reviewer']) assert.match(html, new RegExp(r));
   h.edit({ name: '<img src=x onerror=alert(1)>' }); assert.doesNotMatch(markup(h), /<img src=x/);
 });
 

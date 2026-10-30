@@ -112,14 +112,35 @@ ipcMain.handle('dpro:open-chat-window', async (event, id) => {
 function showPage(name, query = {}) {
   appOrigin = null;
   for (const win of chatWindows) win.close();
+  if (name === 'welcome.html') setSetupWindow(true);
   return mainWindow.loadFile(path.join(PAGES, name), { query });
 }
 
+function setSetupWindow(compact) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (compact) {
+    mainWindow.setResizable(false);
+    mainWindow.setMinimumSize(760, 640);
+    mainWindow.setSize(760, 640, true);
+  } else {
+    mainWindow.setResizable(true);
+    mainWindow.setMinimumSize(900, 600);
+    mainWindow.setSize(1280, 860, true);
+  }
+  mainWindow.center();
+}
+
+function startupStatus(status) {
+  if (!mainWindow || !mainWindow.webContents || !mainWindow.webContents.getURL().startsWith(pathToFileURL(path.join(PAGES, 'starting.html')).href)) return;
+  mainWindow.webContents.send('dpro:startup-status', status);
+}
+
 async function startLocal() {
-  await showPage('starting.html');
+  await showPage('starting.html', { status: 'Checking the installation files…' });
   const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
   const problems = checkPayload(payload);
   if (problems.length) return showPage('failed.html', { reason: problems.join(', ') });
+  startupStatus('Preparing your workspace…');
   log = log || openLog(path.join(app.getPath('userData'), 'logs', 'backend.log'));
   const { createApplicationServer } = require(path.join(payload.coreUiDir, 'scripts', 'application-server.cjs'));
   runtime = createLocalRuntime({
@@ -140,8 +161,10 @@ async function startLocal() {
     },
   });
   try {
+    startupStatus('Starting the local engine…');
     const started = await runtime.start();
     appOrigin = started.origin;
+    startupStatus('Opening your workspace…');
     await mainWindow.loadURL(started.url);
   } catch (error) {
     runtime = null;
@@ -171,7 +194,7 @@ async function applyMode() {
   }
   if (!runtime) {
     if (!selectedData) {
-      await showPage('starting.html');
+      await showPage('starting.html', { status: 'Looking for an existing workspace…' });
       await scanData();
       let decision = discovery.decide(discovered, readSelection());
       try { const saved = JSON.parse(fs.readFileSync(path.join(settingsDir(), 'workspace.json'), 'utf8')); if (saved.newWorkspace === true && saved.dir.startsWith(path.join(settingsDir(), 'workspaces') + path.sep) && discovered.find(r => r.dir === saved.dir)?.state === 'unconfigured') decision = { kind: 'existing', dir: saved.dir }; } catch { /* no confirmed new workspace */ }
@@ -204,6 +227,20 @@ ipcMain.handle('dpro:choose-project-folders', async event => {
   return result.canceled ? [] : result.filePaths.slice(0,8);
 });
 const fromWelcome = event => mainWindow && event.sender === mainWindow.webContents && mainWindow.webContents.getURL().split('?')[0] === pathToFileURL(path.join(PAGES, 'welcome.html')).href;
+const fromFailed = event => mainWindow && event.sender === mainWindow.webContents && mainWindow.webContents.getURL().split('?')[0] === pathToFileURL(path.join(PAGES, 'failed.html')).href;
+ipcMain.handle('dpro:show-log-folder', event => {
+  if (!fromFailed(event)) return false;
+  void shell.openPath(path.join(app.getPath('userData'), 'logs'));
+  return true;
+});
+ipcMain.handle('dpro:setup-window', (event, compact) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) return false;
+  let origin = null;
+  try { origin = new URL(event.senderFrame.url).origin; } catch { /* invalid frame */ }
+  if (!appOrigin || !appOrigin.startsWith('http://127.0.0.1:') || origin !== appOrigin || typeof compact !== 'boolean') return false;
+  setSetupWindow(compact);
+  return true;
+});
 ipcMain.handle('dpro:discover-data', event => fromWelcome(event) ? discovered : []);
 // A project's folder in Finder / Explorer (right-click › Show in Finder), asked for by a window of the app.
 ipcMain.handle('dpro:reveal-folder', async (event, folder) => {

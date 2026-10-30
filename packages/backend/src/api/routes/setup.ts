@@ -215,7 +215,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({
           error: 'Forbidden',
           code: token === 'missing' ? 'setup_token_missing' : token === 'expired' ? 'setup_token_expired' : 'setup_token_invalid',
-          message: 'A valid setup code from `agent-player setup` on this computer is required'
+          message: 'A valid setup code from `girru setup` on this computer is required'
         });
       }
 

@@ -58,7 +58,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
  }
  const setView=(v:View)=>{setViewState(v);kept.view=v;savePrefs({view:v});};
  const fold=(id:string)=>setFolded(f=>{const n=new Set(f);if(n.has(id))n.delete(id);else n.add(id);kept.folded=n;savePrefs({folded:[...n].slice(0,500)});return n;});
- const rows=useRef<HTMLDivElement>(null);const menu=useMenu();
+ const rows=useRef<HTMLDivElement>(null);const menu=useMenu(),toolsMenu=useMenu();
  useEffect(()=>{if(notice)setToast({id:notice.id,text:notice.text,undo:false});},[notice?.id]);
  const q=query.trim().toLowerCase();
   const shown=withHelpers(s.agents.filter(a=>(department==='all'||(department==='main'?a.isPrimary:department==='none'?!a.department:a.department===department))&&(role==='all'||a.role===role)&&(!q||[a.name,a.department,roleWord(a.role),a.description].some(x=>x?.toLowerCase().includes(q)))).sort((a,b)=>Number(!!b.isPrimary)-Number(!!a.isPrimary)||(sort==='department'?(a.department??'~').localeCompare(b.department??'~'):sort==='role'?roleWord(a.role).localeCompare(roleWord(b.role)):0)||(a.name??'').localeCompare(b.name??'')));
@@ -116,7 +116,7 @@ export function StaffDirectory({controller,department,query='',notice,onOpen,onM
    <span className="oc-switch" role="group" aria-label="View"><button type="button" aria-pressed={view==='list'} title="List" onClick={()=>setView('list')}><UiIcon name="list" size={13}/>List</button><button type="button" aria-pressed={view==='chart'} title="Chart: who reports to whom" onClick={()=>setView('chart')}><UiIcon name="org" size={13}/>Chart</button></span>
    <span className="ag-anchor" data-popover-anchor><IconButton icon="filter" label="Show" pressed={showing||role!=='all'||sort!=='name'} onClick={()=>setShowing(v=>!v)}/>
     <Popover open={showing} onClose={()=>setShowing(false)} label="Show"><div className="ag-show"><label>Role<select aria-label="Staff role" value={role} onChange={e=>setRole(e.target.value)}><option value="all">Every role</option>{ROLE_CARDS.map(r=><option key={r.key} value={r.key}>{r.label}</option>)}</select></label><label>Sort by<select aria-label="Sort staff" value={sort} onChange={e=>setSort(e.target.value)}><option value="name">Name</option><option value="department">Department</option><option value="role">Role</option></select></label><button type="button" className="ghost" disabled={s.phase==='listing'} onClick={()=>{if(controller.client)forgetFacts(controller.client);void controller.list();}}><UiIcon name="refresh" size={14}/>Read the team again</button></div></Popover></span>
-   {onCompany&&<IconButton icon="building" label="Build your company (many agents at once)" onClick={onCompany}/>}
+   {onCompany&&<span className="ag-anchor" data-popover-anchor><IconButton icon="more" label="More team actions" onClick={e=>toolsMenu.at(e,[{label:'Plan a bigger company…',icon:'building',run:onCompany}])}/><ContextMenu menu={toolsMenu.menu} onClose={toolsMenu.close}/></span>}
    {onHire&&<button type="button" className="primary ag-main-button" title="Hire an agent (⌘N)" onClick={onHire}><UiIcon name="plus" size={14}/>Hire agent</button>}
   </header>
   {view==='chart'&&s.agents.length>0?<OrgChart agents={s.agents.filter(a=>department==='all'||department==='main'||(department==='none'?!a.department:a.department===department)||a.placed==='main')} selected={selected} query={query} owner={owner} folded={folded} onFold={fold}

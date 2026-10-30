@@ -52,7 +52,7 @@ test('staff list: quiet rows, owner commands only for the owner, inspector waits
   assert.match(member, /Main agent/); assert.match(member, /Talks to you first/); assert.match(member, /Manager/);
   assert.doesNotMatch(member, /Hire agent|Build your company|Private responsibilities/);
   const owner = render({ onHire() {}, onCompany() {}, query: 'ell' });
-  assert.match(owner, /Hire agent/); assert.match(owner, /Build your company/);
+  assert.match(owner, /Hire agent/); assert.match(owner, /More team actions/);
   assert.match(owner, /Ellis/); assert.doesNotMatch(owner, /Nora/);
   assert.match(render({ department: 'main' }), /Nora/); assert.doesNotMatch(render({ department: 'main' }), /Ellis/);
 });
@@ -71,7 +71,7 @@ test('AG4a "How careful" only fills the existing permission fields; a risky Allo
   let p = h.getSnapshot().permissions;
   assert.equal(careOf(p), 'careful'); assert.deepEqual([...p.memoryRead].sort(), ['project', 'task']); assert.equal(p.modes.money, 'off');
   const html = renderToStaticMarkup(React.createElement(HireAgent, { controller: h, onClose() {} }));
-  for (const words of [/How careful/, /Careful/, /Normal/, /Trusted/, /Details: memory places/, /will ask you before/]) assert.match(html, words);
+  for (const words of [/How careful/, /Careful/, /Normal/, /Trusted/, /Permissions: memory, projects and tools/, /will ask you before/]) assert.match(html, words);
   h.applyCare('trusted');
   p = h.getSnapshot().permissions; assert.equal(careOf(p), 'trusted'); assert.equal(p.modes.install, 'allow');
   assert.deepEqual(h.riskyAllowed(), ['install']);

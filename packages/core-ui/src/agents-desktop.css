@@ -181,7 +181,22 @@
 .ag-hire{display:grid;gap:14px}
 .ag-hire .hire-head{gap:10px}
 .ag-hire .hire-head h3{margin-inline-end:auto}
-.ag-steps li{border-radius:8px!important;padding:4px 12px 4px 6px!important}
+.ag-hire-one-page{display:grid;grid-template-columns:minmax(150px,.62fr) minmax(0,1.5fr);gap:18px;align-items:start}
+.ag-hire-preview{position:sticky;top:0;display:grid;justify-items:center;gap:8px;padding:20px 14px;border:1px solid var(--border);border-radius:12px;background:var(--secondary);text-align:center;color:var(--text-2);font-size:12px}
+.ag-hire-preview .team-avatar{inline-size:52px;block-size:52px;font-size:20px}
+.ag-hire-preview strong{color:var(--text);font-size:15px}
+.ag-hire-preview .badge{display:inline-flex;align-items:center;gap:5px}
+.ag-hire-name-field{position:relative}.ag-hire-name-field input{padding-inline-end:38px}.ag-hire-name-field .tool{position:absolute;inset-inline-end:5px;inset-block-end:5px}
+.ag-role-segmented .ag-role{grid-template-columns:auto auto;align-items:center;justify-content:center;min-block-size:38px;padding:7px}
+.ag-role-segmented .ag-role small{display:none}
+.ag-hire-personality h4{margin:0 0 8px;font-size:12px}
+.ag-hire-personality .ag-faces{grid-template-columns:repeat(3,minmax(0,1fr));max-block-size:190px;overflow:auto}
+.ag-hire-personality .ag-face-card{min-inline-size:0;padding:8px}
+.ag-hire-care{min-inline-size:0;margin:0;padding:0;border:0}
+.ag-hire-care legend{margin-block-end:6px;font-size:12px;font-weight:650}
+.ag-hire-care .ag-care .ag-role{padding:9px}
+.ag-hire .hire-form{gap:12px}
+.ag-hire .hire-form>label{font-size:12px}
 .ag-faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .ag-face-card{display:grid!important;justify-items:start;gap:6px;padding:12px;border-radius:10px;background:var(--secondary);text-align:start}
 .ag-face-card b{font-size:12.5px}
@@ -223,4 +238,4 @@
 .ag-hire .ag-roles{grid-template-columns:repeat(4,minmax(0,1fr))}
 .ag-hire .ag-care{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ag-hire .hire-actions{justify-content:flex-end;margin-block-start:4px}
-@media (max-width:600px){.ag-hire .ag-roles,.ag-hire .ag-care{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.ag-hire-one-page{grid-template-columns:minmax(0,1fr)}.ag-hire-preview{position:static;grid-template-columns:auto 1fr;justify-items:start;text-align:start;align-items:center;padding:10px}.ag-hire-preview .team-avatar{grid-row:span 3}.ag-hire .ag-roles,.ag-hire .ag-care{grid-template-columns:repeat(2,minmax(0,1fr))}.ag-hire-personality .ag-faces{grid-template-columns:repeat(2,minmax(0,1fr))}}

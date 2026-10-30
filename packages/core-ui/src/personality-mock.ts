@@ -3,6 +3,23 @@ import { allowedPersonality, personalityRoute } from './personality-contract.js'
 import type { PersonalityProposal } from './personality-contract.js';
 import type { WireTransport } from './session';
 
+const fictionalLibrary = ['Balanced', 'Warm', 'Orderly'].map((name, index) => ({
+  id: ['temperament-balanced', 'temperament-warm', 'temperament-orderly'][index], revision: 1, archived: false, starter: true, usedBy: 0,
+  profile: {
+    name, description: ['Flexible, measured and approachable.', 'Considerate and encouraging.', 'Structured and consistent.'][index], archetype: 'Temperament',
+    strengths: 'Clear communication; reliable follow-through.', blindSpots: 'May need clearer priorities when requests conflict.',
+    bestFor: 'Any specialty; choose by preferred interaction style.', notFor: 'Assigning expertise or permissions.',
+    samples: ['I will keep the next step clear and ask when your decision is needed.'],
+    traits: [
+      { doubt:50,caution:60,creativity:55,thoroughness:65,independence:55,verbosity:45,warmth:70,curiosity:60,persistence:65 },
+      { doubt:50,caution:65,creativity:55,thoroughness:65,independence:45,verbosity:50,warmth:95,curiosity:65,persistence:80 },
+      { doubt:65,caution:80,creativity:40,thoroughness:95,independence:65,verbosity:40,warmth:55,curiosity:55,persistence:90 },
+    ][index], dialect:'en', temperament:[{extraversion:50,emotionalStability:75},{extraversion:75,emotionalStability:85},{extraversion:40,emotionalStability:85}][index],
+    pace: index === 2 ? 'deliberate' : 'balanced', formality: index === 1 ? 'casual' : 'neutral', humour: index === 1 ? 'light' : 'off', seniority:'senior', principles:{do:'',never:'',ask:''},
+  },
+}));
+export function fictionalPersonalityLibrary() { return structuredClone(fictionalLibrary); }
+
 const promptBlock = [
   '## Working style (personality settings)',
   'These settings shape how you answer. They never give you extra tools or permissions, and they never replace an approval the system asks for.',

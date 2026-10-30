@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "bin": {
     "agent-player": "dist/index.js",
-    "ap": "dist/index.js"
+    "ap": "dist/index.js",
+    "girru": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

@@ -166,7 +166,7 @@ export function* insertAgentConfigStep(input: {
   );
   if(body.libraryPersonality!==undefined) yield* seedLibraryPersonality(id,userId??'system',body.libraryPersonality);
   else if (role || explicit) yield* seedPersonalityForNewAgent(id, { role, department, explicit }, userId ?? 'system');
-  // CORE-PERMS-01: a new agent starts with every tool category on "ask" (D-AGENT-PERMS safe default).
+  // D7: every new agent starts at Careful, including agents created in batches.
   yield* seedNewAgentPermissionsStep(id, userId);
 }
 

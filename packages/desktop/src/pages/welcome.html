@@ -1,6 +1,32 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'"><title>Welcome to Girru</title><link rel="stylesheet" href="style.css"></head><body><main>
-<h1>Welcome to Girru</h1><p>Use your existing workspace and account, connect to another Girru, or set up this computer.</p>
-<p id="status" role="status">Checking existing data…</p><div id="sources"></div>
-<div class="row"><button id="folder">Find my existing data…</button><button id="connect">Connect to an existing Girru…</button></div>
-<details><summary>Set up a new workspace</summary><p>This creates a separate installation. Your previous account and conversations will not appear here. If you used Girru before, find your existing data first.</p><label><input type="checkbox" id="confirm"> I want a separate new workspace</label><button id="new" disabled>Set up this computer</button></details>
-<p id="error" role="alert"></p></main><script src="welcome.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to Girru</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="welcome">
+    <img class="brand-mark" src="brand.svg" alt="Girru">
+    <h1>Welcome to Girru</h1>
+    <p class="intro">Your company of AI agents, on this computer.</p>
+    <button id="primary" class="primary">Set up Girru on this computer</button>
+    <p id="status" class="status" role="status">Checking for a workspace…</p>
+    <section id="sources" class="sources" aria-label="Existing workspaces" hidden></section>
+    <div class="links">
+      <button id="folder" class="text-button">I used Girru before…</button>
+      <button id="separate" class="text-button" hidden>Start a separate new workspace…</button>
+      <button id="connect" class="text-button">Connect to a Girru on another computer…</button>
+    </div>
+    <p id="error" class="error" role="alert"></p>
+  </main>
+  <dialog id="separate-confirm" class="confirm-sheet" aria-labelledby="separate-title">
+    <h2 id="separate-title">Start a separate workspace?</h2>
+    <p>Your earlier workspace will stay where it is. Girru will create a new workspace beside it.</p>
+    <div class="row"><button id="cancel-separate">Cancel</button><button id="confirm-separate" class="primary">Start a separate workspace</button></div>
+  </dialog>
+  <script src="welcome.js"></script>
+</body>
+</html>

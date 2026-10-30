@@ -32,6 +32,14 @@ test('role split matches the server rule', () => {
   assert.equal(rolesSummary(rolesFor(1)), '1 manager');
 });
 
+test('first-run team sizes use the approved options and custom 1–1000 range', async t => {
+  const { w } = await fixture(t);
+  await w.loadCatalogue();
+  const html = markup(w);
+  assert.deepEqual([...html.matchAll(/<strong>(\d+)<\/strong><small>agents<\/small>/g)].map(match => Number(match[1])), [3, 5, 10, 25, 50]);
+  assert.match(html, /min="1" max="1000"/);
+});
+
 test('distribution, batch and run bodies: contract and boundaries (browser and bridge)', () => {
   assert.equal(validDistributionBody({ departments: ['sales', 'legal'], total: 400 }), true);
   assert.equal(validDistributionBody({ departments: ['sales', 'legal'], counts: { sales: 300, legal: 100 } }), true);
@@ -93,10 +101,11 @@ test('offline: 400 agents → departments → editable split → one batch, hire
   assert.equal(w.chooseTotal(400), true);
   assert.equal(w.getSnapshot().step, 'departments');
   w.toggleDepartment('marketing'); w.toggleDepartment('finance'); w.toggleDepartment('support');
-  assert.match(markup(w), /Split 400 agents over 3 departments/);
+  assert.match(markup(w), /See the split/);
   await w.propose();
   let s = w.getSnapshot();
   assert.equal(s.step, 'review'); assert.equal(sharesTotal(s.shares), 400);
+  assert.match(markup(w), /Everyone starts Careful and asks you before doing anything outside Girru/);
   assert.deepEqual(calls.find(c => c.path === '/api/onboarding/team-distribution').body, { departments: ['marketing', 'finance', 'support'], total: 400 });
   assert.equal(batchCreates(calls).length, 0, 'nothing hired before confirm');
   w.editShare('support', { count: 10 });
@@ -219,15 +228,16 @@ test('ephemeral fictional HTTP bridge: distribution and batch hire end to end wi
   assert.deepEqual(paths, ['GET /api/onboarding/team-catalogue', 'GET /api/onboarding/team-batches', 'POST /api/onboarding/team-distribution', 'POST /api/onboarding/team-batches', 'POST /api/onboarding/team-batches/:id/run', 'POST /api/onboarding/team-batches/:id/run']);
 });
 
-test('the first step offers agent numbers up to 500 or a custom number, never "people"', async t => {
+test('the first step offers the approved agent numbers and a custom number up to 1000', async t => {
   const { w } = await fixture(t);
   await w.loadCatalogue();
   const html = markup(w);
-  for (const n of [5, 10, 25, 50, 100, 250, 500]) assert.match(html, new RegExp(`<strong>${n}</strong><small>agents</small>`));
+  for (const n of [3, 5, 10, 25, 50]) assert.match(html, new RegExp(`<strong>${n}</strong><small>agents</small>`));
   assert.match(html, /Custom number of agents/);
   assert.match(html, /Number of agents/);
   assert.doesNotMatch(html, /people|person|Company size|Just me/i);
-  assert.equal(w.chooseTotal(500), true);
+  assert.equal(w.chooseTotal(1001), false);
+  assert.equal(w.chooseTotal(1000), true);
   assert.equal(w.getSnapshot().step, 'departments');
   assert.doesNotMatch(markup(w), /people|person/i);
 });

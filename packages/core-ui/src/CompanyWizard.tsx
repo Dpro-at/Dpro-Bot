@@ -16,8 +16,8 @@ import { movePeople, rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
 const steps = [
-  { key: 'size', label: 'Size' }, { key: 'departments', label: 'Departments' },
-  { key: 'review', label: 'Your team' }, { key: 'hiring', label: 'Hire' },
+  { key: 'size', label: 'How many' }, { key: 'departments', label: 'Departments' },
+  { key: 'review', label: 'The split' }, { key: 'hiring', label: 'Hire' },
 ] as const;
 const statusLabel: Record<PlannedHire['status'], string> = { planned: '', creating: 'Hiring…', created: 'Hired', failed: 'Not hired', unknown: 'Unknown' };
 
@@ -74,7 +74,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
 
     {s.step === 'departments' && s.catalogue && <div className="hire-form">
       <p>{s.total !== undefined ? `Choose the departments for your ${s.total} ${s.total === 1 ? 'agent' : 'agents'}. Girru splits them by the size each department usually needs; you can change every count.` : 'Choose the departments you want. Each one gets its own small team.'}</p>
-      <label>Suggest departments<select aria-label="Suggested company profile" disabled={busy} defaultValue="" onChange={e=>controller.chooseProfile(e.target.value)}><option value="">Choose a company profile…</option><option value="education">Education, languages and integration</option><option value="software">Software company</option><option value="creative">Creative studio</option></select></label><label>Search departments<input type="search" aria-label="Search departments" value={query} onChange={e=>setQuery(e.target.value)}/></label><p className="fine-print">{s.departments.length} selected · up to 72 per plan. Department selection does not make pending specialty packages executable.</p>
+      <label>Search departments<input type="search" aria-label="Search departments" value={query} onChange={e=>setQuery(e.target.value)}/></label><p className="fine-print">{s.departments.length} selected. Pick the work you need; you can change the split next.</p>
       <ul className="company-departments" aria-label="Departments">{s.catalogue.departments.filter(d=>`${d.label} ${d.summary}`.toLowerCase().includes(query.toLowerCase())).map(d => {
         const on = s.departments.includes(d.id);
         return <li key={d.id}><button type="button" className="company-dep" aria-pressed={on} disabled={busy} onClick={() => controller.toggleDepartment(d.id)}><DepartmentTile department={d.label} size={26}/>
@@ -88,17 +88,18 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
       </form>
       <div className="hire-actions">
         <button type="button" disabled={busy} onClick={() => controller.back()}>Back</button>
-        <button type="button" className="primary" disabled={busy || !s.departments.length} onClick={() => void controller.propose()}>{s.total !== undefined ? `Split ${s.total} agents over ${s.departments.length} ${s.departments.length === 1 ? 'department' : 'departments'}` : `Propose my team (${s.departments.length})`}</button>
+        <button type="button" className="primary" disabled={busy || !s.departments.length} onClick={() => void controller.propose()}>See the split</button>
       </div>
     </div>}
 
     {s.step==='review'&&<TeamResourceReview client={controller.client} departments={[...s.departments]} roles={(bulk?s.shares.flatMap(x=>shareSpecialties(x).map(r=>({department:x.department,name:r.name}))):s.hires.filter(h=>h.include).map(h=>({department:h.department,name:h.title}))).filter(r=>r.name.trim()).slice(0,300)}/>}
     {(s.step==='done'||s.phase==='stopped')&&s.boardSetup&&<p role="status">{s.boardSetup==='ready'?'Company and department boards are ready. Skills and MCP permissions still need individual review.':s.boardSetup==='syncing'?'Preparing department boards…':s.boardSetup==='error'?<>Agents are kept. Board setup needs another attempt. <button onClick={()=>void controller.setupBoards()}>Retry board setup</button></>:null}</p>}
+    {bulk && s.step === 'review' && <p className="fine-print">Everyone starts Careful and asks you before doing anything outside Girru. You can adjust each agent later.</p>}
     {bulk && s.step === 'review' && <TeamEditor shares={s.shares} busy={busy} controller={controller}/>}
     {bulk && (s.step === 'hiring' || s.step === 'done') && <BatchView batch={s.batch} shares={s.shares} phase={s.phase} busy={busy} controller={controller} onClose={onClose}/>}
 
     {!bulk && (s.step === 'review' || s.step === 'hiring' || s.step === 'done') && <div className="hire-form">
-      {s.step === 'review' && <p>Here is the proposed team. Rename anyone, change their role or personality, or untick agents you don't need. Each hire starts with memory tools only; give more permissions on the agent later.</p>}
+      {s.step === 'review' && <p>Here is the proposed team. Rename anyone, change their role or personality, or untick agents you don't need. Everyone starts Careful and asks you before doing anything outside Girru. You can adjust each agent later.</p>}
       {s.step === 'done' && <p>{chosen.length} new {chosen.length === 1 ? 'agent has' : 'agents have'} joined your team.</p>}
       {groups.map(dep => {
         const list = s.hires.filter(h => h.department === dep);
@@ -148,7 +149,7 @@ export function TeamPicture({ shares, busy = false, onOpen, onMove }: { shares: 
 }
 
 /** Ready-made company sizes, in agents (any other number is typed in). */
-const agentCounts = [5, 10, 25, 50, 100, 250, 500] as const;
+const agentCounts = [3, 5, 10, 25, 50] as const;
 
 function HireRow({ hire, locked, controller }: { hire: PlannedHire; locked: boolean; controller: CompanyController }) {
   return <li className="company-hire" data-status={hire.status}>

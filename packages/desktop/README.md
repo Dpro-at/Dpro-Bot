@@ -33,7 +33,7 @@ on macOS); the redacted backend log in `…/Dpro/logs/backend.log`.
 npm start
 ```
 
-## Local app build (unsigned)
+## Local app build
 
 ```sh
 npm run stage      # copies Node, backend + modules, UI build into payload/
@@ -44,9 +44,22 @@ npm run dist:mac   # DMG + ZIP in release/  (dist:win = NSIS, dist:linux = AppIm
 Without `nabu-runtime/` the app builds without the Code editor. `stage:code` copies only what the editor needs at run time (~1.6 GB of a several-GB checkout): its production packages, and the built-in extensions minus the ones Girru does not use (assistant, account sign-ins, the editor's own tests).
 
 The local payload copies every installed module (large). Release bundles with
-a pinned, checksummed Node and production-only modules come later. The app is
-not signed yet, so macOS and Windows show their usual warning for apps from
-an unidentified developer.
+a pinned, checksummed Node and production-only modules come later. macOS builds
+use ad-hoc signing only; they are not notarized. Windows builds are unsigned.
+
+### First open after downloading
+
+- **macOS:** Control-click Girru.app and choose **Open**, then confirm **Open** once.
+  If macOS still blocks it, open **System Settings → Privacy & Security** and choose
+  **Open Anyway** for Girru. This is the expected first-open warning for an app
+  that has not been notarized; do not remove system protections globally.
+- **Windows:** On SmartScreen, choose **More info → Run anyway** for the Girru
+  installer only if it came from the official Girru release page.
+
+The installer does not report a fabricated percentage. When Girru launches, its
+Starting window names the current checks (“Checking the installation files…”,
+“Starting the local service…”, and “Looking for an existing workspace…”); the
+window stays open while each real stage completes.
 
 ## Tests
 
@@ -59,7 +72,7 @@ npm test   # process lifecycle with a stand-in backend, settings, setup code
 
 Use the **Current Desktop Release** workflow in `.github/workflows/desktop-release.yml`. It builds the shared `core-ui`, backend and Electron shell for macOS Apple Silicon, macOS Intel, Windows x64 and Linux x64. Root Next.js sources and the Tauri bootstrap installer are retired. The legacy release workflows intentionally refuse to build.
 
-The workflow uses Node 24.21.0 and package lockfiles, runs UI/import/desktop retention tests, prunes backend development dependencies, stages the bundled runtime and verifies its dependencies from outside the checkout. Test quick-login builds are refused independently of any private local account configuration. Installers have platform-specific SHA256 manifests. A normal manual run only uploads build artifacts; `publish_draft` creates a draft only after every platform passes. Public publication is a separate release review. These builds are unsigned and are not notarized.
+The workflow uses Node 24.21.0 and package lockfiles, runs UI/import/desktop retention tests, prunes backend development dependencies, stages the bundled runtime and verifies its dependencies from outside the checkout. Test quick-login builds are refused independently of any private local account configuration. Installers have platform-specific SHA256 manifests. A normal manual run only uploads build artifacts; `publish_draft` creates a draft only after every platform passes. Public publication is a separate release review. macOS builds are ad-hoc signed but not notarized; Windows builds are unsigned.
 
 Updates replace application binaries while retaining the selected workspace and operating-system profile. Never package a developer database, `.data`, `.env`, local account configuration or live keys. Do not migrate or merge existing workspaces as part of installation. Existing installations must retain their saved workspace selection; ambiguous discovery requires an explicit choice rather than creating another owner.
 
