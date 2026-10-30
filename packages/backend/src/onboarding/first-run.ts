@@ -108,7 +108,7 @@ export function recommendedLocal(memoryGb: number): LocalChoice {
 }
 
 export type LocalModelStep = Readonly<{ memoryGb: number; recommended: string; choices: readonly LocalChoice[]; ollama: boolean; installed: readonly string[]; install: string | null; download: string | null }>;
-export async function localModelStep(env?: Partial<Env> & { memoryBytes?: number; models?: () => Promise<{ name: string }[]> }): Promise<LocalModelStep> {
+export async function localModelStep(env?: Partial<Env> & { memoryBytes?: number; models?: () => Promise<{ name: string; size?: number; chat?: boolean }[]> }): Promise<LocalModelStep> {
   const home = env?.home ?? os.homedir(), platform = env?.platform ?? process.platform;
   const e: Env = { home, platform, dirs: env?.dirs ?? await subscriptionSearchDirs(home) };
   const memoryGb = Math.round((env?.memoryBytes ?? os.totalmem()) / 1024 ** 3);

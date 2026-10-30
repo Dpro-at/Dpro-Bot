@@ -119,8 +119,11 @@ test('bad plans get 400 invalid_plan with no backend detail beyond the message',
   }
 });
 
- test('all 72 catalogue departments can be reviewed without creating staff', async () => {
-  assert.equal(plan.DEPARTMENTS.length,72);
+ test('FR7: 16 departments are offered; main-work and pre-FR7 group departments still resolve', async () => {
+  assert.equal(plan.DEPARTMENTS.length,16);
+  assert.equal(plan.catalogueEntry('tourism and hospitality')?.label,'Tourism and hospitality','a kind is its main-work department');
+  assert.ok(plan.catalogueEntry('contact centres'),'an agent hired into a joined group before FR7 keeps a known department');
+  assert.deepEqual(plan.parseDepartments(['tourism and hospitality','sales','a','b','c','d']).length,6,'a main-work department is not counted as custom');
   const before=agentCount();
   const response=await app.inject({method:'POST',url:'/api/onboarding/team-resources',headers:auth('tp-owner'),payload:{departments:['education','finance'],roles:[]}});
   assert.equal(response.statusCode,200,response.body);

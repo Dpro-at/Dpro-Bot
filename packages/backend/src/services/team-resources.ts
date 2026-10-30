@@ -1,4 +1,5 @@
-import {parseDepartments,DEPARTMENTS,CompanyPlanInputError} from './company-plan.js';
+import {parseDepartments,catalogueEntry,CompanyPlanInputError} from './company-plan.js';
+import {departmentJobGroups} from './department-groups.js';
 import {SPECIALTY_GROUPS,SPECIALTY_DEPARTMENT_GROUPS,PLANNED_SPECIALTIES} from './specialty-catalogue.js';
 import {BOARD_TEMPLATES,templateForDepartment} from './board-templates.js';
 import {centralSkills} from '../skills/central-store.js';
@@ -14,8 +15,9 @@ export async function teamResources(raw:Record<string,unknown>){
  if(!Array.isArray(roles)||roles.length>300||!roles.every(r=>r&&typeof r==='object'&&Object.keys(r).sort().join(',')==='department,name'&&departments.includes(r.department)&&typeof r.name==='string'&&r.name.trim()&&r.name.length<=80))throw new CompanyPlanInputError('Invalid role selection');
  const [skills,servers,templates]=await Promise.all([centralSkills().list(),listServers(),sql().read(all<{name:string;department:string;config_json:string}>('SELECT name,department,config_json FROM specialty_templates'))]);
  return {departments:departments.map(department=>{
-  const label=DEPARTMENTS.find(d=>d.id===department)?.label??department;
+  const label=catalogueEntry(department)?.label??department;
   const groupName=SPECIALTY_DEPARTMENT_GROUPS[department]??SPECIALTY_GROUPS.find(g=>g.name.toLowerCase()===department)?.name;
+  const groups=departmentJobGroups(department,groupName);
   const chosen:string[]=roles.filter(r=>r.department===department).map(r=>String(r.name).toLowerCase());
   const required=new Set<string>();const configuredNeeds:string[]=[];
   for(const t of templates.filter(t=>t.department===department&&chosen.includes(t.name.toLowerCase()))){try{const c=JSON.parse(t.config_json);for(const id of [c.primarySkill,...(Array.isArray(c.skills)?c.skills:[])])if(typeof id==='string')required.add(id);for(const r of Array.isArray(c.requirements)?c.requirements:[])if(typeof r.name==='string')configuredNeeds.push(r.name.slice(0,160));}catch{/* Invalid configuration never becomes a recommendation. */}}
@@ -25,6 +27,6 @@ export async function teamResources(raw:Record<string,unknown>){
   return {department,label,board:{name:tpl.name,columns:[...tpl.columns]},needs:[...new Set([...(needs[department]??['Task planning','Document review','Source research']),...configuredNeeds])].slice(0,15),
    skills:skills.filter(s=>required.has(s.id)||match(s.name+' '+s.description)).slice(0,8).map(s=>({id:s.id,name:s.name,reason:required.has(s.id)?'Selected specialty configuration':'Keyword match; review instructions before assigning'})),
    connections:servers.filter(s=>match(s.name+' '+(s.description??''))).slice(0,8).map(s=>({id:s.id,name:s.name,state:!s.enabled?'disabled':!s.active?'blocked':s.lastError?'needs-attention':connectionState(s.id),reason:'Keyword match; review tools and per-agent access'})),
-   pendingRoles:PLANNED_SPECIALTIES.filter(p=>p.groups.includes(groupName??'')&&!templates.some(t=>t.name.toLowerCase()===p.name.toLowerCase())).slice(0,8).map(p=>p.name)};
+   pendingRoles:PLANNED_SPECIALTIES.filter(p=>p.groups.some(g=>groups.includes(g))&&!templates.some(t=>t.name.toLowerCase()===p.name.toLowerCase())).slice(0,8).map(p=>p.name)};
  })};
 }

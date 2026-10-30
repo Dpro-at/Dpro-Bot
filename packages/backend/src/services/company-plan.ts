@@ -1,4 +1,5 @@
 import {SPECIALTY_GROUPS,SPECIALTY_DEPARTMENT_GROUPS} from './specialty-catalogue.js';
+import {companyKind} from './department-groups.js';
 /**
  * Company plan for first-run setup (ONBOARD-TEAM-01, decision D-ONBOARD-TEAM).
  *
@@ -74,8 +75,21 @@ const LEGACY_DEPARTMENTS: readonly DepartmentInfo[] = Object.freeze([
 
 ].map((d) => Object.freeze(d)));
 
-/** Every approved organisational group is selectable; pending specialist packages are not made executable. */
-export const DEPARTMENTS:readonly DepartmentInfo[]=Object.freeze([...LEGACY_DEPARTMENTS,...SPECIALTY_GROUPS.filter(g=>!Object.values(SPECIALTY_DEPARTMENT_GROUPS).includes(g.name)).map(g=>({id:g.name.toLowerCase(),label:g.name,summary:'Organisational group. Specialist packages are being prepared; review the generic team before hiring.',titles:{manager:(g.name+' lead').slice(0,80),specialist:'Specialist',evaluator:'Reviewer'},weight:2}))]);
+/** The departments people choose from (FR7): the 16 company departments. */
+export const DEPARTMENTS: readonly DepartmentInfo[] = LEGACY_DEPARTMENTS;
+
+/**
+ * Every department id Girru understands: the 16, the main-work department of each
+ * company kind, and the specialty groups that were offered as departments before
+ * FR7 (agents and plans made then keep them).
+ */
+const KNOWN_DEPARTMENTS: readonly DepartmentInfo[] = Object.freeze([...LEGACY_DEPARTMENTS,
+  ...SPECIALTY_GROUPS.filter(g => !Object.values(SPECIALTY_DEPARTMENT_GROUPS).includes(g.name)).map(g => {
+    const k = companyKind(g.name.toLowerCase());
+    const label = k?.label ?? g.name;
+    return Object.freeze({ id: g.name.toLowerCase(), label, summary: k ? `Your main work: ${label.toLowerCase()}.` : `${g.name}.`,
+      titles: { manager: `${label} lead`.slice(0, 80), specialist: k ? `${label} specialist`.slice(0, 80) : 'Specialist', evaluator: k ? `${label} reviewer`.slice(0, 80) : 'Reviewer' }, weight: k ? 3 : 2 });
+  })]);
 
 const GENERIC_TITLE: Readonly<Record<AgentRole, string>> = Object.freeze({
   main: 'Company lead', manager: 'Team lead', specialist: 'Specialist', evaluator: 'Reviewer',
@@ -112,8 +126,9 @@ export interface CompanyPlanInput {
   language?: unknown;
 }
 
-function catalogueEntry(id: string): DepartmentInfo | undefined {
-  return DEPARTMENTS.find((d) => d.id === id);
+/** A known department (one of the 16, a main-work one, or one from before FR7). */
+export function catalogueEntry(id: string): DepartmentInfo | undefined {
+  return KNOWN_DEPARTMENTS.find((d) => d.id === id);
 }
 
 /** Validated, de-duplicated department ids (catalogue ids or custom names). */
