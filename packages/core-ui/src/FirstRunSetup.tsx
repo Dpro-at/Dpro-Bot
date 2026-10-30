@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { SessionClient } from './session';
 import { UiIcon } from './ui-icons';
+import { ClaudeCodeIcon, CodexIcon, GeminiIcon } from './brand-icons';
 import { TerminalPane } from './TerminalPane';
 import { TerminalPrefsController, TerminalTabs } from './terminal';
 import { CompanyController } from './company';
@@ -99,7 +100,7 @@ function ToolsStep({ client, terminal, onSignedIn, onNext }: { client: SessionCl
     <h2>Your AI tools</h2>
     <p>{none ? 'None of them is on this computer yet.' : 'Your agents think with these. Sign in to at least one; your own subscription pays, Girru adds nothing.'}</p>
     {!tools ? <p role="status">Looking at this computer…</p> : <ul className="setup-rows">{tools.map(t => <li key={t.id} className="setup-row">
-      <span className="setup-mark" data-tool={t.id} aria-hidden="true">{t.id === 'claude' ? 'CC' : t.id === 'codex' ? 'CX' : 'GE'}</span>
+      <span className="setup-mark" data-tool={t.id} aria-hidden="true">{t.id === 'claude' ? <ClaudeCodeIcon size={18}/> : t.id === 'codex' ? <CodexIcon size={18}/> : <GeminiIcon size={18}/>}</span>
       <span className="setup-row-text"><b>{t.name}</b><small data-state={t.signedIn ? 'ok' : t.installed ? 'warn' : undefined}>
         {t.signedIn ? 'Installed · signed in' : t.installed ? 'Installed · not signed in' : t.needs === 'node' ? 'Not installed · needs Node.js first' : 'Not installed'}</small></span>
       {t.signedIn ? <UiIcon name="check" size={16}/>

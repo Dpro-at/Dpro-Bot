@@ -3364,9 +3364,7 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-row-text small[data-state="ok"] { color:var(--success, #3fb27f); }
 .setup-row-text small[data-state="warn"] { color:var(--warning, #e8c48a); }
 .setup-row > svg { color:var(--success, #3fb27f); }
-.setup-mark { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff; background:#2b2f36; flex:none; }
-.setup-mark[data-tool="claude"] { background:#b4562f; }
-.setup-mark[data-tool="gemini"] { background:#2f5fd0; }
+.setup-mark { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; color:var(--text); background:var(--secondary); box-shadow:inset 0 0 0 1px var(--border); flex:none; }
 .setup-choice { cursor:pointer; }
 .setup-choice input { accent-color:var(--accent); width:16px; height:16px; min-height:0; flex:none; margin:0; padding:0; }
 .setup-choice[data-on] { box-shadow:inset 0 0 0 2px var(--accent); }
