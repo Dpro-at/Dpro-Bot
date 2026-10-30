@@ -4,8 +4,14 @@ import { ChannelConnector, TelegramTransport, DiscordTransport, channelInfo } fr
 const runtimes = new Map();
 // Channels whose provider connection Girru's channel library makes itself. The Telegram and
 // Discord apps (Girru Store) run here through the SDK's hostChannel(); any other id has no transport.
-const NATIVE_TRANSPORTS = { telegram: TelegramTransport, discord: DiscordTransport };
-export function isNativeChannel(id) { return Object.prototype.hasOwnProperty.call(NATIVE_TRANSPORTS, id); }
+// A Map, not an object: a channel id can only ever pick one of these two classes.
+const NATIVE_TRANSPORTS = new Map([['telegram', TelegramTransport], ['discord', DiscordTransport]]);
+export function isNativeChannel(id) { return NATIVE_TRANSPORTS.has(id); }
+function nativeTransport(id, token) {
+  const Transport = NATIVE_TRANSPORTS.get(id);
+  if (!Transport) throw new Error(`No transport for channel ${id}`);
+  return new Transport(token);
+}
 export function channelRuntimeState(id) { return runtimes.get(id)?.status() ?? 'restart_required'; }
 export function refreshChannel(id) { void runtimes.get(id)?.refresh().catch(() => {}); }
 export async function stopChannel(id) { await runtimes.get(id)?.stop(); }
@@ -106,7 +112,7 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
       fingerprint = next;
       if (!active() || !configured(config)) return;
       const createConnector = options.createConnector || ((channelId, transport, hooks) => new ChannelConnector(channelId, transport, hooks));
-      const transport = options.createTransport ? options.createTransport(id, config) : new NATIVE_TRANSPORTS[id](config.bot_token);
+      const transport = options.createTransport ? options.createTransport(id, config) : nativeTransport(id, config.bot_token);
       connector = createConnector(id, transport, {
         receive, onError: operation => api.log('warn', `${id} ${operation} failed`),
       });
