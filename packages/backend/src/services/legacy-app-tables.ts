@@ -24,6 +24,9 @@ export const MOVED_APPS: ReadonlyArray<{ id: string; tables: readonly string[]; 
   },
   // No tables: an owner who had it (a row in extension_configs) gets it added again, on or off as it was.
   { id: 'server-monitor', tables: [] },
+  // The chat channels. Their bot settings stay in extension_configs (kept when added again); the
+  // messages Telegram and Discord handle are in channel_events, which Girru's channel host keeps.
+  { id: 'telegram', tables: ['telegram_messages', 'telegram_config'] },
 ];
 
 const MOVED = (id: string) => `store.moved.${id}`;

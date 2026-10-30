@@ -4,6 +4,8 @@
 // success and keeps it on failure. A fresh data folder gets no seo tables; the program has no extensions/seo.
 // waf-security: its waf_scans was made for everyone by core migration 023, so only an owner who used
 // the app (config row or recorded migrations) has it moved; a fresh data folder no longer gets it.
+// The chat channels: the owner's real shape (Telegram and Discord on, Slack and WhatsApp never used);
+// their bot settings stay in extension_configs, and channel_events stays Girru's.
 // No network: the Girru Store is a fake. Run: node --import tsx --test test/legacy-app-tables.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,11 +54,23 @@ const packages = {
     ].join('\n'),
   },
 };
+// The Store's chat channel packages, cut down the same way: their old tables under Store names.
+const channelPackage = (id, sql) => ({
+  'agentplayer.plugin.json': JSON.stringify({ id, name: id, version: '1.1.0', main: 'index.js', permissions: ['database', 'tools'] }),
+  'index.js': 'export default { async register(api) {} };\n',
+  [`migrations/001_${id}_messages.sql`]: sql.join('\n'),
+});
+packages.telegram = channelPackage('telegram', [
+  "CREATE TABLE IF NOT EXISTS app_telegram__telegram_messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'incoming');",
+  'CREATE INDEX IF NOT EXISTS app_telegram__idx_telegram_messages_chat ON app_telegram__telegram_messages(chat_id, timestamp DESC);',
+  'CREATE TABLE IF NOT EXISTS app_telegram__telegram_config (id INTEGER PRIMARY KEY CHECK (id = 1), bot_token TEXT, allowed_users TEXT);',
+]);
+const CHANNEL_IDS = ['telegram'];
 const item = (id, name) => {
   const list = Object.entries(packages[id]).map(([path, body]) => ({ path, sha256: sha(Buffer.from(body)), size: Buffer.byteLength(body) })).sort((a, b) => a.path.localeCompare(b.path));
   return { id, kind: 'app', name, summary: `${name}.`, description: name, icon: null, maker: 'Girru', version: '1.1.0', updated: '2026-10-30', category: 'more', permissions: ['Keeps its data in its own tables'], worksWith: [], languages: ['English'], pricing: { model: 'free' }, package: { files: list, sha256: sha(JSON.stringify(list)) } };
 };
-const index = { schema: 1, featured: null, collections: [], items: [item('seo', 'SEO'), item('waf-security', 'WAF Security')] };
+const index = { schema: 1, featured: null, collections: [], items: [item('seo', 'SEO'), item('waf-security', 'WAF Security'), ...CHANNEL_IDS.map((id) => item(id, id))] };
 let storeUp = false;
 globalThis.fetch = async (url) => {
   const u = String(url);
@@ -260,4 +274,79 @@ test('server-monitor: the program ships no extensions/server-monitor; an owner w
   const tried = await reinstallMovedApps(); // this fake Store has no server-monitor: the mark waits for the next start
   assert.deepEqual(tried.map((t) => [t.id, t.ok]), [['server-monitor', false]]);
   assert.ok(setting('store.reinstall.server-monitor'));
+});
+
+// The chat channels, in the shape of the owner's real data folder: those used are on, with their 001
+// migration recorded, bot settings in extension_configs and the tables their bundled copy made (a few
+// rows here); those never used have nothing. channel_events is Girru's channel host's: no app owns it.
+const CHANNELS = {
+  telegram: {
+    used: true,
+    old: `CREATE TABLE telegram_messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'incoming');
+      CREATE INDEX idx_telegram_messages_chat ON telegram_messages(chat_id, timestamp DESC);
+      CREATE TABLE telegram_config (id INTEGER PRIMARY KEY CHECK (id = 1), bot_token TEXT, allowed_users TEXT);
+      INSERT INTO telegram_messages VALUES ('m-1', 'chat-1', 'hello', '2026-10-01T10:00:00Z', 'incoming'), ('m-2', 'chat-1', 'hi', '2026-10-01T10:00:01Z', 'outgoing');`,
+    config: { bot_token: 'fixture-telegram-token', allowed_users: 'sender-1', auto_reply: true, owner_user_id: 'u-1' },
+    rows: { app_telegram__telegram_messages: 2, app_telegram__telegram_config: 0 },
+    index: 'app_telegram__idx_telegram_messages_chat',
+  },
+};
+const used = Object.entries(CHANNELS).filter(([, c]) => c.used).map(([id]) => id);
+
+test('chat channels: the program ships none of them; their old tables are listed to move, channel_events never', () => {
+  for (const id of Object.keys(CHANNELS)) {
+    assert.ok(!existsSync(join(backendDir, 'extensions', id)), `${id} comes from the Girru Store now`);
+    assert.ok(MOVED_APPS.some((a) => a.id === id && a.tables.length === 2), id);
+  }
+  assert.ok(!MOVED_APPS.some((a) => a.tables.includes('channel_events')), 'channel_events stays with Girru');
+});
+
+test('chat channels: the used ones move with their rows after one backup and come back on with their bot settings untouched; the others are left alone; once', async () => {
+  db.prepare("DELETE FROM app_settings WHERE key LIKE 'store.reinstall.%' OR key = 'store.girru-store'").run(); // earlier tests' leftovers; a fresh Store read
+  for (const id of Object.keys(CHANNELS)) db.prepare('DELETE FROM app_settings WHERE key = ?').run(`store.moved.${id}`); // start from an older Girru
+  db.exec(`CREATE TABLE IF NOT EXISTS channel_events (channel TEXT NOT NULL, conversation_id TEXT NOT NULL, id TEXT NOT NULL, sender_id TEXT NOT NULL, sender_name TEXT, content TEXT NOT NULL, timestamp TEXT NOT NULL, direction TEXT NOT NULL, state TEXT NOT NULL, PRIMARY KEY (channel, conversation_id, id, direction));
+    INSERT INTO channel_events VALUES ('telegram', 'chat-1', 'e-1', 'sender-1', 'Sender', 'hello', '2026-10-01T10:00:00Z', 'incoming', 'processed');`);
+  for (const id of used) {
+    db.exec(CHANNELS[id].old);
+    db.prepare('INSERT OR REPLACE INTO extension_configs (extension_id, enabled, config_json) VALUES (?, 1, ?)').run(id, JSON.stringify(CHANNELS[id].config));
+    db.prepare('INSERT INTO extension_migrations (extension_id, filename) VALUES (?, ?)').run(id, `001_${id}_messages.sql`);
+  }
+  const config = (id) => db.prepare('SELECT enabled, config_json FROM extension_configs WHERE extension_id = ?').get(id);
+  const before = Object.fromEntries(used.map((id) => [id, config(id).config_json]));
+
+  let backedUp = 0;
+  const moved = await moveLegacyAppTables({ backup: async () => { backedUp++; for (const id of used) assert.ok(Object.keys(CHANNELS[id].rows).every((t) => table(t.split('__')[1])), 'backup before the rename'); } });
+  assert.deepEqual(moved.sort(), [...used].sort());
+  assert.equal(backedUp, 1, 'one backup for all of them');
+  for (const id of used) {
+    for (const [t, n] of Object.entries(CHANNELS[id].rows)) {
+      assert.ok(!table(t.split('__')[1]) && table(t), t);
+      assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n, n, t);
+    }
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM extension_migrations WHERE extension_id = ?').get(id).n, 0);
+    assert.equal(JSON.parse(setting(`store.reinstall.${id}`)).enabled, true);
+  }
+  for (const id of Object.keys(CHANNELS).filter((x) => !used.includes(x))) {
+    assert.ok(setting(`store.moved.${id}`), `${id} marked done`);
+    assert.equal(setting(`store.reinstall.${id}`), undefined, `${id} was never used: not added`);
+    assert.equal(config(id), undefined);
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM channel_events').get().n, 1, 'channel_events is not touched');
+
+  storeUp = true;
+  const done = await reinstallMovedApps();
+  assert.deepEqual(done.map((d) => [d.id, d.ok]).sort(), used.map((id) => [id, true]).sort(), JSON.stringify(done));
+  for (const id of used) {
+    assert.ok(existsSync(join(data, 'apps', id, 'index.js')), `${id} in the data folder`);
+    assert.equal(config(id).enabled, 1, `${id} was on: it stays on`);
+    assert.equal(config(id).config_json, before[id], `${id}: the bot settings are kept as they were`);
+    assert.deepEqual(indexes(Object.keys(CHANNELS[id].rows)[0]), [CHANNELS[id].index]);
+    for (const [t, n] of Object.entries(CHANNELS[id].rows)) assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n, n, `${t} keeps its rows`);
+  }
+  for (const id of Object.keys(CHANNELS).filter((x) => !used.includes(x))) assert.ok(!existsSync(join(data, 'apps', id)), `${id} not added`);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM channel_events').get().n, 1);
+  let again = 0;
+  assert.deepEqual(await moveLegacyAppTables({ backup: async () => { again++; } }), [], 'once');
+  assert.equal(again, 0);
+  assert.deepEqual(await reinstallMovedApps(), []);
 });
