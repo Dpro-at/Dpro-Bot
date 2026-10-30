@@ -49,7 +49,7 @@ test('new linked hires use the same live specialty while keeping safe permission
  const {id,...body}=template;body.config.modes.money='allow';const saved=await call('PUT',base+'/'+id,body);assert.equal(saved.statusCode,200,saved.body);template=saved.json();
  const request={templateId:id,revision:template.revision,requestId:randomUUID(),name:'Fictional linked accountant',confirmed:true,confirmRisky:false,linked:true};const result=await call('POST',base+'/hire',request);assert.equal(result.statusCode,200,result.body);const agent=result.json().id;
  assert.equal((await call('POST',base+'/hire',request)).json().id,agent);assert.equal(db.prepare('SELECT template_id FROM agent_specialties WHERE agent_id=?').get(agent).template_id,id);
- const permissions=db.prepare('SELECT * FROM agent_permissions WHERE agent_id=?').get(agent);assert.equal(JSON.parse(permissions.modes).money,'ask');assert.equal(db.prepare('SELECT system_prompt FROM agents_config WHERE id=?').get(agent).system_prompt,'');assert.equal(db.prepare('SELECT count(*) n FROM agent_template_snapshots WHERE agent_id=?').get(agent).n,0);
+ const permissions=db.prepare('SELECT * FROM agent_permissions WHERE agent_id=?').get(agent);assert.equal(JSON.parse(permissions.modes).money,'off','a new hire starts Careful (D7): money off');assert.equal(db.prepare('SELECT system_prompt FROM agents_config WHERE id=?').get(agent).system_prompt,'');assert.equal(db.prepare('SELECT count(*) n FROM agent_template_snapshots WHERE agent_id=?').get(agent).n,0);
  const {agentSkillsPrompt}=await import('../src/skills/central-store.ts');assert.match(await agentSkillsPrompt(agent),/revised linked accounting role/);
 });
 

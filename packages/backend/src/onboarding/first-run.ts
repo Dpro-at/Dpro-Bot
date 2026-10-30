@@ -84,7 +84,7 @@ export async function aiTools(env?: Partial<Env>): Promise<AiTool[]> {
       install: claude ? null : win ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash', signIn: 'claude' },
     { id: 'codex', name: 'ChatGPT Codex', installed: !!codex, signedIn: !!codex && await exists(path.join(codexHome, 'auth.json')),
       install: codex ? null : pkg('@openai/codex', 'codex'), signIn: 'codex login', ...(!codex && !npm && !brew ? { needs: 'node' as const } : {}) },
-    { id: 'gemini', name: 'Gemini CLI', installed: !!gemini, signedIn: !!gemini && (await exists(path.join(home, '.gemini', 'oauth_creds.json')) || !!process.env.GEMINI_API_KEY),
+    { id: 'gemini', name: 'Gemini CLI', installed: !!gemini, signedIn: !!gemini && await exists(path.join(home, '.gemini', 'oauth_creds.json')),
       install: gemini ? null : pkg('@google/gemini-cli', 'gemini-cli'), signIn: 'gemini', ...(!gemini && !npm && !brew ? { needs: 'node' as const } : {}) },
   ];
 }
