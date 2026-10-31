@@ -2,6 +2,8 @@
 // shared by the browser client (session.ts) and the local bridge
 // (application-server.cjs). Only these shapes pass in either direction.
 
+import { validCompanyName } from './owner-setup-contract.js';
+
 export const FIRST_RUN_PATH = '/api/first-run';
 const STEPS = ['tools', 'model', 'team'];
 const TOOLS = ['claude', 'codex', 'gemini'];
@@ -14,7 +16,7 @@ export function firstRunRoute(path) {
 }
 export function allowedFirstRun(method, path, body) {
   if (!firstRunRoute(path)) return false;
-  if (path === FIRST_RUN_PATH && method === 'PUT') return record(body) && Object.keys(body).length === 1 && STEPS.includes(body.step);
+  if (path === FIRST_RUN_PATH && method === 'PUT') return record(body) && Object.keys(body).every(k => ['step', 'workspaceType', 'companyName'].includes(k)) && STEPS.includes(body.step) && (!Object.hasOwn(body, 'workspaceType') || ['individual', 'company'].includes(body.workspaceType)) && (body.workspaceType === 'company' ? validCompanyName(body.companyName) : !Object.hasOwn(body, 'companyName'));
   if (path === `${FIRST_RUN_PATH}/finish`) return method === 'POST' && body === undefined;
   return method === 'GET' && body === undefined;
 }
@@ -24,7 +26,9 @@ export function firstRunResponse(path, status, body) {
   if (status !== 200 || !record(body)) return code(status);
   if (path === FIRST_RUN_PATH) {
     if (typeof body.pending !== 'boolean' || !STEPS.includes(body.step)) throw Error('protocol');
-    return { pending: body.pending, step: body.step };
+    if (Object.hasOwn(body, 'workspaceType') && !['individual', 'company'].includes(body.workspaceType)) throw Error('protocol');
+    if (Object.hasOwn(body, 'companyName') && (body.workspaceType !== 'company' || !validCompanyName(body.companyName))) throw Error('protocol');
+    return { pending: body.pending, step: body.step, ...(body.workspaceType ? { workspaceType: body.workspaceType } : {}), ...(body.workspaceType === 'company' && body.companyName ? { companyName: body.companyName } : {}) };
   }
   if (path === `${FIRST_RUN_PATH}/finish`) {
     if (body.conversationId !== null && !text(body.conversationId, 128)) throw Error('protocol');
@@ -37,7 +41,7 @@ export function firstRunResponse(path, status, body) {
   }
   if (!Array.isArray(body.choices) || body.choices.length > 6 || !Number.isFinite(body.memoryGb) || !text(body.recommended, 60) || !record(body.commands)) throw Error('protocol');
   const choices = body.choices.filter(c => record(c) && text(c.id, 60) && text(c.label, 60) && Number.isFinite(c.sizeGb) && text(c.note, 200))
-    .map(c => ({ id: c.id, label: c.label, sizeGb: c.sizeGb, note: c.note }));
+    .map(c => ({ id: c.id, label: c.label, sizeGb: c.sizeGb, note: c.note, installed: c.installed === true, ...(Number.isFinite(c.minMemoryGb) && c.minMemoryGb >= 0 ? { minMemoryGb: c.minMemoryGb } : {}) }));
   const commands = Object.fromEntries(choices.map(c => [c.id, command(body.commands[c.id]) ? body.commands[c.id] ?? null : null]));
   const download = body.download === 'https://ollama.com/download' ? body.download : null;
   return { memoryGb: Math.round(body.memoryGb), recommended: body.recommended, choices, ollama: body.ollama === true,

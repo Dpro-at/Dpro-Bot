@@ -3440,3 +3440,58 @@ dialog.company-planner[open] { display:flex; flex-direction:column; }
 .setup-mainwork { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; border-radius:10px; text-align:start; color:inherit; background:var(--surface); box-shadow:inset 0 0 0 2px var(--accent); }
 .setup-mainwork > span:nth-of-type(1) { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
 .setup-mainwork small { color:var(--muted); }
+
+/* First-run window: scroll the question, keep its navigation visible. */
+.shell.first-run-shell { display:block; height:100dvh; min-height:0; overflow:hidden; }
+.first-run-shell > .first-run-setup { height:100%; min-height:0; overflow:hidden; padding:32px 28px 20px; gap:0; }
+.first-run-setup > .setup-steps { width:min(680px,100%); flex-shrink:0; margin:0 0 28px; }
+.first-run-setup > .setup-pane { width:min(680px,100%); min-height:0; overflow:auto; padding:2px 4px 0; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.setup-pane > * { flex-shrink:0; }
+.setup-pane > h2 { font-size:23px; line-height:1.3; }
+.setup-pane > p { max-width:66ch; }
+.setup-pane .setup-actions, .owner-setup > .setup-actions { position:sticky; bottom:0; z-index:2; min-height:64px; margin-top:auto; padding:16px 0 8px; background:var(--canvas); border-top:1px solid var(--border); }
+.setup-actions > button { flex-shrink:0; min-width:64px; }
+.setup-actions > .primary { min-width:104px; }
+.setup-pane .setup-search { flex-shrink:0; min-height:36px; height:auto; }
+.setup-pane .setup-search input { min-width:0; padding:6px 0; box-shadow:none; }
+.setup-kinds { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+label.setup-kind { display:flex; align-items:center; justify-content:flex-start; gap:10px; min-height:48px; padding:10px 12px; text-align:start; line-height:1.4; }
+.setup-kind > span { flex:1; min-width:0; }
+.app-shell label.setup-kind input[type=radio], .app-shell label.setup-choice input[type=radio] { inline-size:16px; block-size:16px; width:16px; height:16px; min-inline-size:16px; min-block-size:16px; max-inline-size:16px; flex:0 0 16px; margin:0; padding:0; accent-color:var(--accent); }
+.setup-audience { display:grid; gap:12px; }
+.setup-audience .setup-row { min-height:88px; padding:18px; }
+.setup-audience .setup-row > svg { color:var(--accent); flex-shrink:0; }
+.setup-audience .setup-row-text b { font-size:15px; }
+.setup-intro { min-height:260px; }
+.first-run-account { width:min(736px,100%); min-height:100%; margin:0 auto; padding:32px 28px 20px; display:flex; align-items:stretch; }
+.first-run-account .auth-workspace { display:flex; flex-direction:column; width:100%; min-width:0; padding:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
+.first-run-account .setup-pane { width:100%; min-height:0; flex:1; }
+.first-run-account .owner-setup { display:flex; flex-direction:column; gap:8px; flex:1; }
+.first-run-account .owner-setup > * { flex-shrink:0; }
+.first-run-account .owner-setup .setup-steps { margin-bottom:24px; }
+.first-run-account .owner-setup .setup-actions { margin-top:20px; }
+.first-run-account .auth-workspace button.primary { min-height:36px; border-radius:6px; }
+.company-planner > .setup-pane { flex:1; min-height:0; overflow:auto; padding:2px 4px 0; scrollbar-gutter:stable; }
+.setup-pane .setup-popover { max-width:100%; }
+@media(max-width:700px) {
+  .first-run-shell > .first-run-setup, .first-run-account { padding:20px 16px 12px; }
+  .first-run-setup > .setup-steps { gap:12px; margin-bottom:20px; }
+  .setup-kinds { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-height:650px) {
+  .first-run-shell > .first-run-setup, .first-run-account { padding-top:18px; }
+  .first-run-setup > .setup-steps { margin-bottom:18px; }
+}
+
+/* Use available desktop space; short windows scroll the question rather than a fixed-height list. */
+.first-run-setup .setup-departments { max-height:none; overflow:visible; }
+@media(min-width:1100px) {
+  .first-run-setup > .setup-pane, .first-run-setup > .setup-steps { width:min(920px,100%); }
+  .first-run-setup .setup-kinds, .first-run-setup .setup-departments { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+
+/* Account-form labels must not turn workspace choices into stacked fields. */
+.app-shell .setup-audience label.setup-choice { display:flex; flex-direction:row; align-items:center; gap:12px; margin:0; }
+
+.app-shell .setup-company-name { display:flex; flex-direction:column; align-items:stretch; gap:6px; margin:4px 0 0; font-size:13px; font-weight:550; }
+.setup-company-name input { min-height:38px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface); font-weight:400; }

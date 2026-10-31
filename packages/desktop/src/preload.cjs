@@ -5,6 +5,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 if (window.location.protocol === 'file:') {
   contextBridge.exposeInMainWorld('dproDesktop', {
+    enableNotifications: () => ipcRenderer.invoke('dpro:permissions-notifications'),
+    notificationSettings: () => ipcRenderer.invoke('dpro:permissions-notification-settings'),
+    permissionStatus: () => ipcRenderer.invoke('dpro:permissions-status'),
+    fullDiskSettings: () => ipcRenderer.invoke('dpro:permissions-full-disk'),
+    enableFiles: () => ipcRenderer.invoke('dpro:permissions-files'),
+    enableMicrophone: () => ipcRenderer.invoke('dpro:permissions-microphone'),
+    permissionsNext: () => ipcRenderer.invoke('dpro:permissions-next'),
     discoverData: () => ipcRenderer.invoke('dpro:discover-data'),
     findData: () => ipcRenderer.invoke('dpro:find-data'),
     selectData: dir => ipcRenderer.invoke('dpro:select-data', String(dir)),
@@ -24,6 +31,7 @@ if (window.location.protocol === 'file:') {
 
 // Public application metadata and fixed navigation only; never filesystem or authentication access.
 contextBridge.exposeInMainWorld('dproApp', {
+  notifyDone: () => ipcRenderer.invoke('dpro:notify-done'),
   nabu: {
     status: () => ipcRenderer.invoke('dpro:nabu-status'),
     select: (mode, top, bottom) => ipcRenderer.invoke('dpro:nabu-select', { mode, top, bottom }),
@@ -52,7 +60,7 @@ contextBridge.exposeInMainWorld('dproApp', {
     },
   },
   onNavigate: callback => {
-    const listener = (_event, destination) => { if (['home', 'settings', 'account', 'about'].includes(destination)) callback(destination); };
+    const listener = (_event, destination) => { if (['home', 'settings', 'account', 'about', 'new-chat', 'agents', 'library', 'board', 'memory'].includes(destination)) callback(destination); };
     ipcRenderer.on('dpro:navigate', listener);
     return () => ipcRenderer.removeListener('dpro:navigate', listener);
   },

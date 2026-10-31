@@ -21,7 +21,10 @@ import { addAssistantMessage, createConversation } from '../repositories/chat-co
 
 export const FIRST_RUN_STEPS = ['tools', 'model', 'team'] as const;
 export type FirstRunStep = (typeof FIRST_RUN_STEPS)[number];
-export type FirstRunState = Readonly<{ pending: boolean; step: FirstRunStep }>;
+export type WorkspaceType = 'individual' | 'company';
+export type FirstRunState = Readonly<{ pending: boolean; step: FirstRunStep; workspaceType?: WorkspaceType; companyName?: string }>;
+
+export const validCompanyName = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && [...value].length <= 100 && value === value.trim() && !/[\u0000-\u001f\u007f]/.test(value);
 
 type Row = { answers: string; completed: number };
 const answersOf = (raw: string | undefined): Record<string, unknown> => {
@@ -30,25 +33,25 @@ const answersOf = (raw: string | undefined): Record<string, unknown> => {
 const stepOf = (v: unknown): FirstRunStep => (FIRST_RUN_STEPS as readonly unknown[]).includes(v) ? v as FirstRunStep : 'tools';
 
 /** Inside the owner-creation transaction: the new owner goes through the setup steps once. */
-export function* startFirstRunStep(userId: string): Step<void> {
+export function* startFirstRunStep(userId: string, workspaceType?: WorkspaceType, companyName?: string): Step<void> {
   yield* run(`INSERT INTO onboarding_state (user_id, current_step, answers, completed, skipped, updated_at)
-    VALUES (?, 1, ?, 0, 0, CURRENT_TIMESTAMP)`, userId, JSON.stringify({ firstRun: true, firstRunStep: 'tools' }));
+    VALUES (?, 1, ?, 0, 0, CURRENT_TIMESTAMP)`, userId, JSON.stringify({ firstRun: true, firstRunStep: 'tools', ...(workspaceType ? { workspaceType, companyName: workspaceType === 'company' ? companyName : undefined } : {}) }));
 }
 
 export async function firstRunState(userId: string): Promise<FirstRunState> {
   const row = await sql().read(one<Row>('SELECT answers, completed FROM onboarding_state WHERE user_id = ?', userId));
   const a = answersOf(row?.answers);
-  return { pending: !!row && row.completed === 0 && a.firstRun === true, step: stepOf(a.firstRunStep) };
+  return { pending: !!row && row.completed === 0 && a.firstRun === true, step: stepOf(a.firstRunStep), ...(['individual', 'company'].includes(a.workspaceType as string) ? { workspaceType: a.workspaceType as WorkspaceType, ...(a.workspaceType === 'company' && validCompanyName(a.companyName) ? { companyName: a.companyName } : {}) } : {}) };
 }
 
 /** Remembers the step reached, so a restart continues where the owner left. */
-export async function saveFirstRunStep(userId: string, step: FirstRunStep): Promise<FirstRunState> {
+export async function saveFirstRunStep(userId: string, step: FirstRunStep, workspaceType?: WorkspaceType, companyName?: string): Promise<FirstRunState> {
   await sql().tx(function* () {
     yield* lockName(`onboarding_state:${userId}`);
     const row = yield* one<Row>('SELECT answers, completed FROM onboarding_state WHERE user_id = ?', userId);
     const a = answersOf(row?.answers);
     if (!row || row.completed !== 0 || a.firstRun !== true) return;
-    yield* run('UPDATE onboarding_state SET answers = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?', JSON.stringify({ ...a, firstRunStep: step }), userId);
+    yield* run('UPDATE onboarding_state SET answers = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?', JSON.stringify({ ...a, firstRunStep: step, ...(workspaceType ? { workspaceType, companyName: workspaceType === 'company' ? companyName : undefined } : {}) }), userId);
   });
   return firstRunState(userId);
 }

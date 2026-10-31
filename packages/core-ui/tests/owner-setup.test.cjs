@@ -28,6 +28,14 @@ const render = client => renderToStaticMarkup(React.createElement(AuthBoundary, 
 test('contract: exact body; replies keep only reviewed codes at their status; fragment code', () => {
   assert.equal(CODE.length, 43);
   assert.equal(validOwnerSetupBody(owner), true);
+  for (const workspaceType of ['individual', 'company']) {
+    const body = { ...owner, workspaceType, ...(workspaceType === 'company' ? { companyName: 'Example Company' } : {}) };
+    assert.equal(validOwnerSetupBody(body), true);
+    assert.equal(allowed('POST', OWNER_SETUP_PATH, body), true);
+  }
+  for (const companyName of ['', ' padded ', 'x'.repeat(101), 'line\nbreak', null]) assert.equal(validOwnerSetupBody({ ...owner, workspaceType: 'company', companyName }), false);
+  assert.equal(validOwnerSetupBody({ ...owner, workspaceType: 'individual', companyName: 'Example Company' }), false);
+  for (const workspaceType of [null, undefined, 'owner', 'other', {}, []]) assert.equal(validOwnerSetupBody({ ...owner, workspaceType }), false);
   for (const bad of [null, [], {}, { ...owner, extra: 1 }, { ...owner, setupToken: CODE + 'x' }, { ...owner, setupToken: undefined },
     { ...owner, password: 'short' }, { ...owner, email: 'no-at' }, { ...owner, name: ' padded ' }, { ...owner, name: '' }, { ...owner, role: 'owner' }]) {
     assert.equal(validOwnerSetupBody(bad), false, JSON.stringify(bad));
@@ -58,11 +66,12 @@ test('offline first run: no call before discovery; then create owner -> signed i
   assert.deepEqual(await s.client.createOwner(owner), { ok: false, code: 'unavailable' }); assert.equal(s.calls.length, 0);
   await s.client.discoverSetup(); assert.equal(s.client.getSnapshot().setup, 'required');
   assert.deepEqual(await s.client.createOwner({ ...owner, setupToken: 'bad' }), { ok: false, code: 'missing_fields' }); assert.equal(s.calls.length, 1);
-  assert.deepEqual(await s.client.createOwner(owner), { ok: true });
+  assert.deepEqual(await s.client.createOwner({ ...owner, workspaceType: 'individual' }), { ok: true });
   const state = s.client.getSnapshot();
   assert.equal(state.phase, 'authenticated'); assert.equal(state.user.email, owner.email); assert.equal(state.user.role, 'owner');
   assert.deepEqual(s.calls.map(r => [r.method, r.path]), [['GET', '/api/setup/status'], ['POST', OWNER_SETUP_PATH], ['POST', '/api/auth/login'], ['GET', '/api/auth/me']]);
   assert.deepEqual(s.calls[1].headers, {}, 'no Authorization on owner creation');
+  assert.equal(s.calls[1].body.workspaceType, 'individual', 'choice reaches anonymous setup without losing it');
   assert.deepEqual(await s.client.createOwner(owner), { ok: false, code: 'unavailable' }, 'not again once signed in');
 });
 
@@ -81,11 +90,13 @@ test('refusals keep the user signed out with a fixed code; setup_complete moves 
   assert.equal(s.client.getSnapshot().setup, 'login');
 });
 
-test('screen: first run shows the owner form; a code from the link is used but never put in the page', async () => {
+test('screen: first run asks individual or company before requesting credentials', async () => {
   const s = clientFor(createLoginMock(undefined, 'first-run')); s.client.selectMode('mock'); await s.client.discoverSetup();
   const html = render(s.client);
-  assert.match(html, /Create your account/);
-  assert.match(html, /Suggest a strong password/);
+  assert.match(html, /Who is Girru for/);
+  assert.match(html, /For myself/);
+  assert.match(html, /For a company/);
+  assert.doesNotMatch(html, /type="password"|owner-email/);
   assert.doesNotMatch(html, /Repeat the password|Check setup again|Setup code received/);
   assert.ok(!html.includes(CODE), 'code not rendered');
   assert.equal(globalThis.window.location.hash, '', 'fragment removed from the address bar');

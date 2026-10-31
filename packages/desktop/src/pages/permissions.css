@@ -1,0 +1,30 @@
+body { display: block; margin: 0; min-width: 0; }
+.permissions-page { box-sizing: border-box; width: min(840px, 100%); min-height: 100dvh; margin: auto; padding: 48px 40px 28px; display: flex; flex-direction: column; }
+.permissions-page header { text-align: left; }
+.permissions-page h1 { font-size: 26px; margin: 18px 0 8px; }
+.permission-list { margin: 32px 0 20px; }
+.permission-row { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+.permission-row h2 { font-size: 16px; margin: 0 0 8px; }
+.permission-row p { margin: 0 0 8px; line-height: 1.5; }
+.permission-row small, .permission-demand { color: var(--muted); }
+.permission-switch { display: flex; align-items: center; gap: 10px; flex-shrink: 0; background: transparent; border: 0; padding: 8px; }
+.switch-track { display: inline-flex; align-items: center; width: 42px; height: 24px; border-radius: 20px; background: #53565d; padding: 3px; box-sizing: border-box; }
+.switch-track > span { width: 18px; height: 18px; border-radius: 50%; background: white; }
+[aria-checked="true"] .switch-track { background: #4787ff; }
+[aria-checked="true"] .switch-track > span { transform: translateX(18px); }
+.permissions-page footer { margin-top: auto; padding-top: 32px; display: flex; justify-content: flex-end; }
+#next { min-width: 110px; }
+#error { color: #f3a5a5; }
+@media(max-width:600px) { .permissions-page { padding: 24px; } .permission-row { gap: 16px; } }
+
+button:disabled { cursor: default; opacity: .5; }
+.permission-row[hidden] { display: none; }
+
+/* Keep optional permission rows and the main action usable on short windows. */
+.permissions-page { padding-top: 28px; height: 100dvh; overflow-y: auto; }
+.permissions-page > * { flex-shrink: 0; }
+.permission-list { margin-top: 20px; margin-bottom: 12px; }
+.permission-row { padding: 16px 0; }
+.permissions-page footer { position: sticky; bottom: -28px; background: var(--bg); padding: 12px 0 20px; }
+
+.permission-notification-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }

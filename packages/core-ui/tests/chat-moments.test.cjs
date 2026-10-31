@@ -65,3 +65,23 @@ test('CH6: the role after the name, a sub-agent nested in its lead\'s card, and 
   const team = conversationResponse(`/api/chat/conversations/${CID}/team`, 200, { team: [], apps: [], steps: [{ agentId: 'qa', tool: 'read_file', at: 'now' }, { agentId: 'x', tool: 'bad tool!', at: '' }] });
   assert.deepEqual(team.steps, [{ agentId: 'qa', tool: 'read_file', at: 'now' }]);
 });
+
+test('background work uses the native desktop bridge without a web permission prompt', async () => {
+  const { notifyDone } = require('../src/ChatMoments.tsx');
+  const oldDocument = globalThis.document, oldWindow = globalThis.window, oldNotification = globalThis.Notification;
+  let nativeCalls = 0, webRequests = 0;
+  try {
+    globalThis.document = { visibilityState: 'hidden' };
+    globalThis.window = { dproApp: { notifyDone: async () => { nativeCalls++; return true; } } };
+    globalThis.Notification = { permission: 'default', requestPermission: () => { webRequests++; } };
+    notifyDone('Private chat title', 'Private content');
+    await Promise.resolve();
+    assert.equal(nativeCalls, 1); assert.equal(webRequests, 0);
+    globalThis.document.visibilityState = 'visible';
+    notifyDone('Girru', 'Done'); assert.equal(nativeCalls, 1);
+  } finally {
+    if (oldDocument === undefined) delete globalThis.document; else globalThis.document = oldDocument;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+    if (oldNotification === undefined) delete globalThis.Notification; else globalThis.Notification = oldNotification;
+  }
+});

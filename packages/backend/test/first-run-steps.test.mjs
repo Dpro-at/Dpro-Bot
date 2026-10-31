@@ -21,6 +21,7 @@ const { authRoutes } = await import('../src/api/routes/auth.ts');
 const { firstRunRoutes } = await import('../src/api/routes/first-run.ts');
 const { issueSetupToken } = await import('../src/auth/setup-token.ts');
 const { aiTools, localModelStep, localModelCommand, recommendedLocal, welcomeText, firstRunState } = await import('../src/onboarding/first-run.ts');
+const { sql, one } = await import('../src/repositories/sql-steps.js');
 const { listConversationMessages } = await import('../src/repositories/chat-conversations.ts');
 
 const db = getDatabase();
@@ -37,10 +38,19 @@ let token = '';
 const call = (method, url, payload) => app.inject({ method, url, payload, headers: { authorization: `Bearer ${token}` } });
 
 test('a new owner starts the setup steps at AI tools; steps are remembered', async () => {
-  assert.equal((await app.inject({ method: 'POST', url: '/api/setup/admin', payload: { ...OWNER, setupToken: issueSetupToken() } })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'POST', url: '/api/setup/admin', payload: { ...OWNER, workspaceType: 'company', companyName: 'Example Company', setupToken: issueSetupToken() } })).statusCode, 200);
   token = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: OWNER.email, password: OWNER.password } })).json().token;
-  assert.deepEqual((await call('GET', '/api/first-run')).json(), { pending: true, step: 'tools' });
-  assert.equal((await call('PUT', '/api/first-run', { step: 'team' })).json().step, 'team');
+  assert.deepEqual((await call('GET', '/api/first-run')).json(), { pending: true, step: 'tools', workspaceType: 'company', companyName: 'Example Company' });
+  for (const workspaceType of [null, 'owner', {}, []]) assert.equal((await call('PUT', '/api/first-run', { step: 'model', workspaceType })).statusCode, 400);
+  assert.equal((await call('PUT', '/api/first-run', { step: 'team' })).json().companyName, 'Example Company');
+  const individual = (await call('PUT', '/api/first-run', { step: 'team', workspaceType: 'individual' })).json();
+  assert.equal(individual.workspaceType, 'individual'); assert.equal(Object.hasOwn(individual, 'companyName'), false);
+  for (const companyName of ['', ' padded ', 'x'.repeat(101), 'line\nbreak', null]) assert.equal((await call('PUT', '/api/first-run', { step: 'tools', workspaceType: 'company', companyName })).statusCode, 400);
+  assert.equal((await call('PUT', '/api/first-run', { step: 'team', workspaceType: 'company', companyName: 'Fictional Works' })).json().workspaceType, 'company');
+  assert.equal((await call('PUT', '/api/first-run', { step: 'tools' })).json().workspaceType, 'company');
+  assert.deepEqual((await call('GET', '/api/first-run')).json(), { pending: true, step: 'tools', workspaceType: 'company', companyName: 'Fictional Works' });
+  const stored = await sql().read(one('SELECT answers FROM onboarding_state WHERE user_id = (SELECT id FROM users WHERE email = ?)', OWNER.email));
+  assert.equal(JSON.parse(stored.answers).companyName, 'Fictional Works', 'saved in database, not only projected in the response');
   assert.equal((await call('PUT', '/api/first-run', { step: 'nowhere' })).statusCode, 400);
   assert.equal((await app.inject({ method: 'GET', url: '/api/first-run' })).statusCode, 401, 'owner only');
 });

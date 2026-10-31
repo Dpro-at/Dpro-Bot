@@ -1,0 +1,84 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { permissionStatus, requestMicrophone } = require('../src/permissions.cjs');
+test('Windows reads system status and opens settings only when blocked', async () => {
+  const opened = [];
+  const shell = { openExternal: async url => opened.push(url) };
+  const prefs = { getMediaAccessStatus: () => 'granted' };
+  assert.deepEqual(await requestMicrophone(prefs, shell, 'win32'), { platform: 'win32', microphone: 'granted' });
+  assert.equal(opened.length, 0);
+  await requestMicrophone({ getMediaAccessStatus: () => 'denied' }, shell, 'win32');
+  assert.deepEqual(opened, ['ms-settings:privacy-microphone']);
+});
+test('Mac asks only for an undetermined microphone permission', async () => {
+  let status = 'not-determined', requests = 0;
+  const prefs = { getMediaAccessStatus: () => status, askForMediaAccess: async kind => { assert.equal(kind, 'microphone'); requests++; status = 'granted'; } };
+  assert.equal((await requestMicrophone(prefs, null, 'darwin')).microphone, 'granted');
+  await requestMicrophone(prefs, null, 'darwin');
+  assert.equal(requests, 1);
+});
+test('Denied microphone opens only its fixed settings pane; restricted does not request', async () => {
+  const opened = [];
+  const shell = { openExternal: async url => opened.push(url) };
+  await requestMicrophone({ getMediaAccessStatus: () => 'denied' }, shell, 'darwin');
+  await requestMicrophone({ getMediaAccessStatus: () => 'restricted' }, shell, 'darwin');
+  assert.deepEqual(opened, ['x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone']);
+  assert.equal(permissionStatus({ getMediaAccessStatus: () => 'restricted' }, 'darwin').microphone, 'restricted');
+});
+test('bundled permissions IPC rejects remote frames and cannot continue before folder access; microphone stays optional', async () => {
+  const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
+  const { pathToFileURL } = require('node:url');
+  const source = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  const start = source.indexOf('// Native permission controls'), end = source.indexOf('const fromWelcome =', start);
+  const PAGES = '/test/pages', frame = { url: pathToFileURL(path.join(PAGES, 'permissions.html')).href }, contents = { mainFrame: frame };
+  const handlers = {}, writes = []; let status = 'not-determined', advanced = 0, filesAllowed = false;
+  const context = { notificationControl: { view: () => ({ notifications: 'not-requested' }) }, mainWindow: { webContents: contents }, PAGES, path, pathToFileURL, process: { platform: 'darwin' }, require: () => ({ permissionStatus, requestMicrophone, createFilePermissions: () => ({ check: async () => ({ files: filesAllowed }), view: () => ({ files: filesAllowed, folders: [] }) }) }), electron: { systemPreferences: { getMediaAccessStatus: () => status } }, shell: {}, ipcMain: { handle: (name, fn) => { handlers[name] = fn; } }, fs: { writeFileSync: (...args) => writes.push(args) }, settingsDir: () => '/test/profile', applyMode: async () => { advanced++; } };
+  vm.runInNewContext(source.slice(start, end), context);
+  const event = { sender: contents, senderFrame: frame }, next = handlers['dpro:permissions-next'];
+  assert.equal(await next(event), false);
+  assert.equal(writes.length, 0);
+  assert.equal(await handlers['dpro:permissions-status']({ sender: contents, senderFrame: { url: frame.url } }), null);
+  frame.url = 'https://foreign.invalid/'; status = 'granted';
+  assert.equal(await next(event), false);
+  frame.url = pathToFileURL(path.join(PAGES, 'permissions.html')).href;
+  assert.equal(await next(event), false);
+  filesAllowed = true; status = 'denied';
+  assert.equal(await next(event), true); assert.equal(advanced, 1); assert.equal(writes.length, 1);
+});
+test('microphone switch tracks approval independently; folder access enables Next', async () => {
+  const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
+  const elements = new Map();
+  for (const id of ['microphone', 'next', 'error', 'microphone-status', 'microphone-label', 'help', 'files', 'files-status', 'files-label', 'full-disk', 'notifications', 'notifications-status', 'notification-settings', 'notifications-label', 'full-disk-label', 'full-disk-status', 'full-disk-row']) elements.set(id, { disabled: true, textContent: '', attrs: {}, handlers: {}, setAttribute(k,v) { this.attrs[k] = v; }, addEventListener(k,v) { this.handlers[k] = v; } });
+  let approve; const nativeRequest = new Promise(resolve => { approve = resolve; });
+  const context = { window: { dproDesktop: { permissionStatus: async () => ({ platform: 'darwin', microphone: 'not-determined', files: false }), enableMicrophone: () => nativeRequest, enableFiles: async () => ({ platform: 'darwin', microphone: 'denied', files: true }) }, addEventListener() {} }, document: { getElementById: id => elements.get(id) } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/pages/permissions.js'), 'utf8'), context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(elements.get('next').disabled, true);
+  const pending = elements.get('microphone').handlers.click();
+  assert.equal(elements.get('next').disabled, true); assert.equal(elements.get('microphone').attrs['aria-checked'], 'false');
+  approve({ platform: 'darwin', microphone: 'granted', files: false }); await pending;
+  assert.equal(elements.get('microphone').attrs['aria-checked'], 'true'); assert.equal(elements.get('next').disabled, true);
+  await elements.get('files').handlers.click();
+  assert.equal(elements.get('files').attrs['aria-checked'], 'true'); assert.equal(elements.get('next').disabled, false);
+});
+test('protected-folder requests happen only after click, discard entries and recheck denials', async () => {
+  const { createFilePermissions } = require('../src/permissions.cjs');
+  const opened = []; let denied = true;
+  const permissions = createFilePermissions({ platform: 'darwin', getPath: name => '/fixed/' + name, fs: { promises: { async opendir(folder) { opened.push(folder); if (denied && folder.endsWith('downloads')) throw Object.assign(new Error('private'), { code: 'EPERM' }); return { async close() {} }; } } } });
+  assert.equal((await permissions.check()).files, false); assert.equal(opened.length, 0);
+  const first = await permissions.request(); assert.equal(first.files, false);
+  assert.deepEqual(first.folders.map(item => item.status), ['granted', 'denied', 'granted']);
+  assert.deepEqual(opened, ['/fixed/documents', '/fixed/downloads', '/fixed/desktop']);
+  assert.equal(JSON.stringify(first).includes('/fixed'), false);
+  denied = false; assert.equal((await permissions.check()).files, true);
+});
+test('broader access request opens a fixed protected resource without reading data or inventing a grant', async () => {
+  const { requestFullDiskRegistration } = require('../src/permissions.cjs');
+  const path = require('node:path'); let closed = 0; const calls = [];
+  const fs = { promises: { async open(target, flags) { calls.push({ target, flags }); return { async close() { closed++; } }; } } };
+  assert.deepEqual(await requestFullDiskRegistration({ fs, path, home: '/fictional', platform: 'darwin' }), { status: 'probe-accessible' });
+  assert.deepEqual(calls, [{ target: '/fictional/Library/Safari/Bookmarks.plist', flags: 'r' }]); assert.equal(closed, 1);
+  fs.promises.open = async () => { throw Object.assign(new Error('private'), { code: 'EPERM' }); };
+  assert.deepEqual(await requestFullDiskRegistration({ fs, path, home: '/fictional', platform: 'darwin' }), { status: 'access-blocked' });
+});

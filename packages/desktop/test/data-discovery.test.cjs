@@ -53,3 +53,16 @@ test('fresh installs and explicit folder-picker scans retain full ambiguity chec
  assert.deepEqual(calls,['/a','/b']);assert.equal(decide(rows).kind,'choose');
  const explicit=await discover('node','backend',['/test'],'/saved',async(_,__,dir)=>({dir,state:'existing'}));assert.deepEqual(explicit,[{dir:'/test',state:'existing'}]);
 });
+
+
+test('explicit trial data preserves saved workspaces inside its profile, never external symlinks', () => {
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'girru-saved-profile-'));
+ try {
+  const workspaces=path.join(root,'workspaces'), saved=path.join(workspaces,'saved'), outside=path.join(root,'outside');
+  fs.mkdirSync(saved,{recursive:true});fs.mkdirSync(outside);
+  const options={defaultDir:'/personal',home:'/personal',cwd:'/repo',backendDir:'/repo/backend',explicitDir:path.join(root,'test'),workspaceRoot:workspaces};
+  assert.deepEqual(candidates({...options,savedDir:saved}),[fs.realpathSync(saved),options.explicitDir]);
+  fs.symlinkSync(outside,path.join(workspaces,'escape'),'dir');
+  assert.deepEqual(candidates({...options,savedDir:path.join(workspaces,'escape')}),[options.explicitDir]);
+ } finally {fs.rmSync(root,{recursive:true,force:true});}
+});

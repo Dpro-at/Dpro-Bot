@@ -193,3 +193,10 @@ test('the name typed at setup is shown; missing or odd names fall back to the us
     assert.ok(Object.isFrozen(user));
   }
 });
+
+
+test('logout accepts the bridge cookie deletion while protected requests omit cookies',async()=>{
+ let options;const transport=createSameOriginTransport('http://127.0.0.1:42522',async(url,init)=>{options=init;return new Response('{}',{headers:{'Content-Type':'application/json'}});});
+ await transport({method:'POST',path:'/api/auth/logout',headers:{Authorization:`Bearer ${token}`},signal:new AbortController().signal});
+ assert.equal(options.credentials,'same-origin');
+});
