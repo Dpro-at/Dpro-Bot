@@ -213,7 +213,9 @@ test('silent native startup timeout reaps first child before one successful retr
     const child=require('node:child_process').spawn(node,pids.length ? args : ['-e','setInterval(()=>{},1000)'],opts);
     pids.push(child.pid);return child;
   };
-  const runtime=createLocalRuntime({node:process.execPath,args:[FAKE],cwd:dir,dataDir:dir,createBridge:fakeBridge,spawn,readyTimeoutMs:250});
+  // This verifies reaping before retry, not a 250 ms Node startup benchmark.
+  // The healthy retry needs room to boot on shared macOS Intel runners.
+  const runtime=createLocalRuntime({node:process.execPath,args:[FAKE],cwd:dir,dataDir:dir,createBridge:fakeBridge,spawn,readyTimeoutMs:2000});
   t.after(() => runtime.stop());
   try {await runtime.start();assert.equal(pids.length,2);assert.equal(runtime.state,'running');}
   finally {await runtime.stop();}

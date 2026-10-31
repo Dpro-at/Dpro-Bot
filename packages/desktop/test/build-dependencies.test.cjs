@@ -21,7 +21,7 @@ test('patched packaging dependencies preserve filtering, archives and temporary 
   assert.equal(filter(path.join(input, 'src', 'main.cjs'), fs.statSync(path.join(input, 'src', 'main.cjs'))), true);
   assert.equal(filter(path.join(input, 'src', 'private.txt'), fs.statSync(path.join(input, 'src', 'private.txt'))), false);
   const { glob } = builderRequire('glob');
-  assert.deepEqual(await glob('src/**/*.cjs', { cwd: input }), ['src/main.cjs']);
+  assert.deepEqual(await glob('src/**/*.cjs', { cwd: input }), [path.join('src', 'main.cjs')]);
   const asar = await import(builderRequire.resolve('@electron/asar'));
   const archive = path.join(root, 'app.asar');
   await asar.createPackage(input, archive);
