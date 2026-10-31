@@ -1,0 +1,38 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createRequire } = require('node:module');
+const builderRequire = createRequire(require.resolve('app-builder-lib'));
+
+test('patched packaging dependencies preserve filtering, archives and temporary cleanup', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'girru-build-contract-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const input = path.join(root, 'input');
+  fs.mkdirSync(path.join(input, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(input, 'src', 'main.cjs'), 'module.exports = 42;');
+  fs.writeFileSync(path.join(input, 'src', 'private.txt'), 'excluded');
+  const { FileMatcher } = builderRequire('./fileMatcher');
+  const matcher = new FileMatcher(input, path.join(root, 'out'), value => value, ['src', '!**/*.txt']);
+  const filter = matcher.createFilter();
+  assert.equal(filter(path.join(input, 'src'), fs.statSync(path.join(input, 'src'))), true);
+  assert.equal(filter(path.join(input, 'src', 'main.cjs'), fs.statSync(path.join(input, 'src', 'main.cjs'))), true);
+  assert.equal(filter(path.join(input, 'src', 'private.txt'), fs.statSync(path.join(input, 'src', 'private.txt'))), false);
+  const { glob } = builderRequire('glob');
+  assert.deepEqual(await glob('src/**/*.cjs', { cwd: input }), ['src/main.cjs']);
+  const asar = await import(builderRequire.resolve('@electron/asar'));
+  const archive = path.join(root, 'app.asar');
+  await asar.createPackage(input, archive);
+  assert.equal(asar.extractFile(archive, 'src/main.cjs').toString(), 'module.exports = 42;');
+  const squirrelRequire = createRequire(builderRequire.resolve('electron-builder-squirrel-windows'));
+  const installerRequire = createRequire(squirrelRequire.resolve('electron-winstaller'));
+  const temp = installerRequire('temp');
+  temp.track();
+  const directory = await new Promise((resolve, reject) => temp.mkdir({ prefix: 'girru-installer-', dir: root }, (error, dir) => error ? reject(error) : resolve(dir)));
+  assert.ok(fs.statSync(directory).isDirectory());
+  fs.writeFileSync(path.join(directory, 'build.tmp'), 'temporary');
+  await new Promise((resolve, reject) => temp.cleanup(error => error ? reject(error) : resolve()));
+  assert.equal(fs.existsSync(directory), false);
+});

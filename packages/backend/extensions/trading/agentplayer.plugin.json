@@ -185,8 +185,5 @@
       "icon": "BarChart3",
       "position": "main"
     }
-  ],
-  "dependencies": {
-    "@alpacahq/alpaca-trade-api": "^3.0.0"
-  }
+  ]
 }
