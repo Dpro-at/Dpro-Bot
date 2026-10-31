@@ -53,7 +53,8 @@ jobs:
           node packages/core-ui/scripts/build.cjs
           node packages/core-ui/scripts/build.cjs --candidate --live-entry
       - name: Test UI and desktop retention
-        timeout-minutes: 5
+        # The macOS Intel runner needs more than 5 minutes for the 1700 UI tests.
+        timeout-minutes: 15
         shell: bash
         run: |
           node --import ./scripts/test-temp-root.mjs --test --test-concurrency=2 --test-timeout=90000 packages/core-ui/tests/*.test.cjs
