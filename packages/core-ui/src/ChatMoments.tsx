@@ -339,7 +339,10 @@ export function TaskList({ turns, who, waits = 0 }: { turns: readonly Turn[]; wh
 /** Desktop notification when long work ends while the window is in the back (CH10). */
 export function notifyDone(title: string, body: string) {
   try {
-    if (typeof document === 'undefined' || document.visibilityState === 'visible' || typeof Notification === 'undefined') return;
+    if (typeof document === 'undefined' || document.visibilityState === 'visible') return;
+    const desktop = typeof window === 'undefined' ? undefined : (window as unknown as { dproApp?: { notifyDone?: () => Promise<boolean> } }).dproApp;
+    if (desktop?.notifyDone) { void desktop.notifyDone().catch(() => {}); return; }
+    if (typeof Notification === 'undefined') return;
     if (Notification.permission === 'granted') new Notification(title, { body, silent: false });
     else if (Notification.permission === 'default') void Notification.requestPermission();
   } catch { /* notifications are optional */ }

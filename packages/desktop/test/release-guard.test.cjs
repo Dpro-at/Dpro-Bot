@@ -16,3 +16,20 @@ test('release packaging refuses test login builds even after their private accou
     assert.doesNotThrow(() => refuseDevAccounts(root, root));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+
+test('staged UI bridge imports outside the checkout and refuses a missing runtime module', () => {
+  const { execFileSync } = require('node:child_process');
+  const { stageUiBridge } = require('../scripts/stage-payload.cjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'girru-bridge-runtime-'));
+  try {
+    const ui = path.join(root, 'core-ui');
+    stageUiBridge(path.resolve(__dirname, '..', '..', 'core-ui'), ui);
+    const entry = path.join(ui, 'scripts', 'application-server.cjs');
+    const script = "const m=require(process.argv[1]);if(typeof m.createApplicationServer!=='function')process.exit(2)";
+    const options = { cwd: root, env: { ...process.env, NODE_PATH: '', HOME: root }, encoding: 'utf8', timeout: 15000, stdio: 'pipe' };
+    assert.doesNotThrow(() => execFileSync(process.execPath, ['-e', script, entry], options));
+    fs.renameSync(path.join(ui, 'scripts', 'genvr-studio-host.cjs'), path.join(root, 'removed-studio.cjs'));
+    assert.throws(() => execFileSync(process.execPath, ['-e', script, entry], options), error => /Cannot find module.*genvr-studio-host/.test(error.stderr));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

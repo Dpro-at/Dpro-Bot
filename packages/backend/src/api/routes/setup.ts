@@ -12,7 +12,7 @@ import { OWNER_EXISTS_SQL, isPublishedDefaultPassword } from '../../auth/default
 import { sendInternalError } from '../error-handler.js';
 import { safeErrorFields } from '../../services/safe-error-log.js';
 import { checkSetupToken, consumeSetupToken, isLoopbackPeer } from '../../auth/setup-token.js';
-import { startFirstRunStep } from '../../onboarding/first-run.js';
+import { startFirstRunStep, validCompanyName } from '../../onboarding/first-run.js';
 
 const execAsync = promisify(exec);
 
@@ -181,6 +181,8 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       email: string;
       password: string;
       setupToken?: string;
+      workspaceType?: 'individual' | 'company';
+      companyName?: string;
     };
   }>('/api/setup/admin', async (request: FastifyRequest<{
     Body: {
@@ -188,6 +190,8 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       email: string;
       password: string;
       setupToken?: string;
+      workspaceType?: 'individual' | 'company';
+      companyName?: string;
     };
   }>, reply: FastifyReply) => {
     try {
@@ -211,6 +215,8 @@ export default async function setupRoutes(fastify: FastifyInstance) {
       }
 
       const body = (request.body ?? {}) as Record<string, unknown>;
+      if (Object.hasOwn(body, 'workspaceType') && !['individual', 'company'].includes(body.workspaceType as string)) return reply.code(400).send({ code: 'missing_fields', error: 'Invalid workspace type' });
+      if (body.workspaceType === 'company' ? !validCompanyName(body.companyName) : Object.hasOwn(body, 'companyName')) return reply.code(400).send({ code: 'missing_fields', error: 'Company name is required only for a company workspace' });
       const token = checkSetupToken(body.setupToken);
       if (token !== 'ok') {
         return reply.status(403).send({
@@ -280,7 +286,7 @@ export default async function setupRoutes(fastify: FastifyInstance) {
           VALUES (?, ?, ?, ?, ?, 'owner', 'active', 1, ${nowTs(sql().dialect)}, ${nowTs(sql().dialect)}, 1)
         `, userId, email, username, passwordHash, name);
         // FIRSTRUN-01: the new owner goes through AI tools, Local model and Team once.
-        yield* startFirstRunStep(userId);
+        yield* startFirstRunStep(userId, body.workspaceType as 'individual' | 'company' | undefined, body.companyName as string | undefined);
         return true;
       }, { immediate: true });
 

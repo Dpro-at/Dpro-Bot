@@ -3,8 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 
-function candidates({ defaultDir, home, cwd, backendDir, savedDir, explicitDir }) {
-  const values = explicitDir ? [explicitDir] : [savedDir, defaultDir, path.join(home, '.agent-player'), path.join(home, '.dpro')];
+function candidates({ defaultDir, home, cwd, backendDir, savedDir, explicitDir, workspaceRoot }) {
+  const insideWorkspaces = workspaceRoot && savedDir && (() => {
+    try { const relative = path.relative(fs.realpathSync(workspaceRoot), fs.realpathSync(savedDir)); return relative !== '' && !relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative); } catch { return false; }
+  })();
+  const values = explicitDir ? [insideWorkspaces ? savedDir : null, explicitDir] : [savedDir, defaultDir, path.join(home, '.agent-player'), path.join(home, '.dpro')];
   if (!explicitDir) for (const start of [cwd, backendDir]) {
     let dir = path.resolve(start);
     for (let i = 0; i < 7; i++) {

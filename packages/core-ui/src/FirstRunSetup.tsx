@@ -8,6 +8,7 @@ import { CompanyController } from './company';
 import { TeamFlow } from './CompanyWizard';
 import { DepartmentTile } from './StaffDirectory';
 import { AgentsController } from './agents';
+import { WorkspaceTypeStep, type WorkspaceType } from './WorkspaceTypeStep';
 import { useAppTheme } from './app-navigation';
 
 /** FIRSTRUN-01 (boards FR2–FR3): the steps after the owner account, in the one setup window. */
@@ -30,12 +31,12 @@ async function get<T>(client: SessionClient, path: string): Promise<T | null> {
 const save = (client: SessionClient, step: FirstRunStep) => client.request({ method: 'PUT', path: '/api/first-run', body: { step } } as never).catch(() => null);
 
 /** True while the signed-in owner still has setup steps to do (null while asking). */
-export function useFirstRun(client: SessionClient, owner: boolean): { pending: boolean | null; step: FirstRunStep } {
-  const [state, setState] = useState<{ pending: boolean | null; step: FirstRunStep }>({ pending: owner ? null : false, step: 'tools' });
+export function useFirstRun(client: SessionClient, owner: boolean): { pending: boolean | null; step: FirstRunStep; workspaceType?: WorkspaceType; companyName?: string } {
+  const [state, setState] = useState<{ pending: boolean | null; step: FirstRunStep; workspaceType?: WorkspaceType; companyName?: string }>({ pending: owner ? null : false, step: 'tools' });
   useEffect(() => {
     if (!owner) { setState({ pending: false, step: 'tools' }); return; }
     let live = true;
-    void get<{ pending: boolean; step: FirstRunStep }>(client, '/api/first-run').then(r => { if (live) setState({ pending: !!r?.pending, step: r?.step ?? 'tools' }); });
+    void get<{ pending: boolean; step: FirstRunStep; workspaceType?: WorkspaceType; companyName?: string }>(client, '/api/first-run').then(r => { if (live) setState({ pending: !!r?.pending, step: r?.step ?? 'tools', workspaceType: r?.workspaceType, companyName: r?.companyName }); });
     return () => { live = false; };
   }, [client, owner]);
   return state;
@@ -63,8 +64,21 @@ function useSetupTerminal(client: SessionClient) {
   return { type, pane, open: !!shown };
 }
 
-export function FirstRunSetup({ client, initialStep, onDone }: { client: SessionClient; initialStep: FirstRunStep; onDone: (chatId: string | null) => void }) {
+export function FirstRunSetup({ client, initialStep, workspaceType: initialType, companyName: initialName, onDone }: { client: SessionClient; initialStep: FirstRunStep; workspaceType?: WorkspaceType; companyName?: string; onDone: (chatId: string | null) => void }) {
   const [step, setStep] = useState<FirstRunStep>(initialStep);
+  const [workspaceType, setWorkspaceType] = useState(initialType);
+  const [companyName, setCompanyName] = useState(initialName);
+  const [savingType, setSavingType] = useState(false);
+  const [typeNotice, setTypeNotice] = useState<string>();
+  const chooseType = async (type: WorkspaceType, name?: string) => {
+    setSavingType(true); setTypeNotice(undefined);
+    try {
+      const r = await client.request({ method: 'PUT', path: '/api/first-run', body: { step, workspaceType: type, ...(type === 'company' ? { companyName: name } : {}) } } as never);
+      if (r.status !== 200 || (r.body as { workspaceType?: string })?.workspaceType !== type) throw Error();
+      setWorkspaceType(type); setCompanyName(name);
+    } catch { setTypeNotice('Could not save your choice. Try again.'); }
+    finally { setSavingType(false); }
+  };
   const [signedIn, setSignedIn] = useState(false);
   const terminal = useSetupTerminal(client);
   useEffect(() => { void window.dproApp?.setSetupWindow?.(true).catch(() => {}); }, []);
@@ -79,10 +93,12 @@ export function FirstRunSetup({ client, initialStep, onDone }: { client: Session
   };
   const appearance = useAppTheme();
   return <div className="shell app-shell first-run-shell" data-theme={appearance.theme} lang="en" dir="ltr"><main className="first-run-setup" aria-label="Set up Girru">
+    {!workspaceType || (workspaceType === 'company' && !companyName) ? <WorkspaceTypeStep value={workspaceType} companyName={companyName} busy={savingType} notice={typeNotice} onNext={(type, name) => void chooseType(type, name)}/> : <>
     <SetupSteps current={step === 'tools' ? 'AI tools' : step === 'model' ? 'Local model' : 'Team'}/>
     {step === 'tools' && <ToolsStep client={client} terminal={terminal} onSignedIn={setSignedIn} onNext={() => go('model')}/>}
     {step === 'model' && <ModelStep client={client} terminal={terminal} canSkip={signedIn} onBack={() => go('tools')} onNext={() => go('team')}/>}
-    {step === 'team' && <TeamStep client={client} onBack={() => go('model')} onDone={finish}/>}
+    {step === 'team' && <TeamStep client={client} workspaceType={workspaceType} onBack={() => go('model')} onDone={finish}/>}
+    </>}
   </main></div>;
 }
 
@@ -138,11 +154,11 @@ function ModelStep({ client, terminal, canSkip, onBack, onNext }: { client: Sess
   </section>;
 }
 
-function TeamStep({ client, onBack, onDone }: { client: SessionClient; onBack: () => void; onDone: () => void }) {
+function TeamStep({ client, workspaceType, onBack, onDone }: { client: SessionClient; workspaceType: WorkspaceType; onBack: () => void; onDone: () => void }) {
   const controller = useMemo(() => new CompanyController(client), [client]);
   useEffect(() => () => controller.dispose(), [controller]);
   const [ready, setReady] = useState(false);
-  return ready ? <TeamReady client={client} onStart={onDone}/> : <TeamFlow controller={controller} mode="setup" onBack={onBack} onHired={() => setReady(true)}/>;
+  return ready ? <TeamReady client={client} onStart={onDone}/> : <TeamFlow controller={controller} workspaceType={workspaceType} mode="setup" onBack={onBack} onHired={() => setReady(true)}/>;
 }
 
 /** A steady colour per name, so each person is told apart at a glance. */

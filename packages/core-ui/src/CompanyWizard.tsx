@@ -9,6 +9,7 @@ import { presetLabel } from './hire';
 import { shareRoles, sharesTotal, shareSpecialties } from './company';
 import { validSpecialties } from './hire-contract.js';
 import type { CompanyController, CompanyKind, Share } from './company';
+import type { WorkspaceType } from './WorkspaceTypeStep';
 import { movePeople, rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
@@ -21,7 +22,7 @@ const STARTERS = ['marketing', 'sales', 'support', 'development'];
  * FIRSTRUN-01 (FR3, FR4c): how many → departments → the split → hire. The same flow is the
  * Team step of setup and Agents › ⋯ › Plan a bigger company.
  */
-export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { controller: CompanyController; mode: 'setup' | 'planner'; onBack?: () => void; onHired?: () => void; onClose?: () => void }) {
+export function TeamFlow({ controller, mode, workspaceType, onBack, onHired, onClose }: { controller: CompanyController; workspaceType?: WorkspaceType; mode: 'setup' | 'planner'; onBack?: () => void; onHired?: () => void; onClose?: () => void }) {
   const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [query, setQuery] = useState('');
   const [other, setOther] = useState('');
@@ -94,7 +95,7 @@ export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { contr
     const invalid = s.shares.some(x => !validSpecialties(x.specialties, x.count));
     return <section className="setup-pane" aria-label="Your team">
       <h2>Your team</h2>
-      <p>{total} {total === 1 ? 'agent' : 'agents'} over {s.shares.length} {s.shares.length === 1 ? 'department' : 'departments'}. Drag a line to move agents; click a department to change its jobs or personality.</p>
+      <p>{total} {total === 1 ? 'agent' : 'agents'} over {s.shares.length} {s.shares.length === 1 ? 'department' : 'departments'}. {s.shares.length > 6 ? 'Click a department to change its agent count, jobs or personality.' : 'Drag a line to move agents; click a department to change its jobs or personality.'}</p>
       {s.shares.length > 0 && <TeamPicture shares={s.shares} busy={busy} onOpen={setOpen} onMove={(a, b, [l, r]) => { controller.editShare(a.department, { count: l }); controller.editShare(b.department, { count: r }); }}/>}
       <ul className="setup-split">{s.shares.map(x => <li key={x.department}><b>{x.departmentLabel}</b><span>{jobsLine(x)}</span>{!validSpecialties(x.specialties, x.count) && <span className="badge">Check specialties</span>}</li>)}</ul>
       {share && <DepartmentJobs share={share} busy={busy} controller={controller} entries={entries} onClose={() => setOpen(null)}/>}
@@ -105,13 +106,13 @@ export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { contr
     </section>;
   }
 
-  if (s.step === 'departments' && s.catalogue?.kinds?.length && kind === null) {
+  if (workspaceType === 'company' && s.step === 'departments' && s.catalogue?.kinds?.length && kind === null) {
     const q = kindQuery.trim().toLowerCase();
     const found = s.catalogue.kinds.filter(k => k.label.toLowerCase().includes(q));
     const shown = q || allKinds ? found : found.slice(0, 13);
-    return <KindStep kinds={shown} more={!q && !allKinds ? found.length - shown.length : 0} query={kindQuery} busy={busy}
+    return <KindStep workspaceType={workspaceType} kinds={shown} more={!q && !allKinds ? found.length - shown.length : 0} query={kindQuery} busy={busy}
       onQuery={setKindQuery} onMore={() => setAllKinds(true)} onBack={() => controller.back()}
-      onDone={id => { setKind(id); if (id) controller.chooseKind(id); }}/>;
+      onDone={id => { if (id.startsWith('custom:')) { if (!controller.addCustom(id.slice(7))) return; } else if (id) controller.chooseKind(id); setKind(id); }}/>;
   }
 
   if (s.step === 'departments' && s.catalogue) {
@@ -163,7 +164,7 @@ export function CompanyWizard({ controller, onClose }: { controller: CompanyCont
   return <dialog ref={dialog} className="company-wizard company-planner" aria-label="Plan a bigger company" onCancel={e => { e.preventDefault(); if (!busy) onClose(); }}>
     <header className="company-planner-head"><h3>Plan a bigger company</h3>
       <button type="button" className="tool" aria-label="Close" title="Close" disabled={busy} onClick={onClose}><UiIcon name="close" size={14}/></button></header>
-    <TeamFlow controller={controller} mode="planner" onClose={onClose}/>
+    <TeamFlow controller={controller} workspaceType="company" mode="planner" onClose={onClose}/>
   </dialog>;
 }
 
@@ -219,12 +220,12 @@ export function TeamPicture({ shares, busy = false, onOpen, onMove }: { shares: 
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!step || busy || !onMove) return;
     e.preventDefault(); onMove(shares[i], shares[i + 1], movePeople(shares[i].count, shares[i + 1].count, step));
   };
-  return <div ref={box} className="ag-team-picture" aria-label={`${total} agents over ${shares.length} departments`}>{shares.map((x, i) => { const tone = departmentTone(x.departmentLabel);
+  return <div ref={box} className={`ag-team-picture${shares.length > 6 ? ' ag-team-grid' : ''}`} aria-label={`${total} agents over ${shares.length} departments`}>{shares.map((x, i) => { const tone = departmentTone(x.departmentLabel);
     return <Fragment key={x.department}>
       <button type="button" className="ag-band" disabled={!onOpen} style={{ flexGrow: Math.max(1, x.count), ...tileStyle(tone) }} aria-label={`${x.departmentLabel}: ${x.count} ${x.count === 1 ? 'agent' : 'agents'}. Change…`} onClick={() => onOpen?.(x.department)}>
         <span><UiIcon name={departmentIcon(x.departmentLabel)} size={14}/>{x.departmentLabel}</span><b>{x.count}</b><small>{rolesSummary(shareRoles(x))}</small>
       </button>
-      {onMove && i < shares.length - 1 && <span className="ag-band-line" role="separator" tabIndex={busy ? -1 : 0} aria-orientation="vertical" aria-label={`Move people between ${x.departmentLabel} and ${shares[i + 1].departmentLabel}`}
+      {onMove && shares.length <= 6 && i < shares.length - 1 && <span className="ag-band-line" role="separator" tabIndex={busy ? -1 : 0} aria-orientation="vertical" aria-label={`Move people between ${x.departmentLabel} and ${shares[i + 1].departmentLabel}`}
         aria-valuemin={1} aria-valuemax={x.count + shares[i + 1].count - 1} aria-valuenow={x.count} title="Drag to move people" data-busy={busy || undefined}
         onPointerDown={down(i)} onPointerMove={move(i)} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onKeyDown={key(i)}/>}
     </Fragment>; })}</div>;
@@ -253,21 +254,25 @@ export function personalityLine(share: Share, entries: readonly Pick<Entry, 'id'
 
 
 /** FR7a: one optional question before the departments, for a company or one person. */
-function KindStep({ kinds, more, query, busy, onQuery, onMore, onBack, onDone }: { kinds: readonly CompanyKind[]; more: number; query: string; busy: boolean;
+export function KindStep({ workspaceType, kinds, more, query, busy, onQuery, onMore, onBack, onDone }: { workspaceType?: WorkspaceType; kinds: readonly CompanyKind[]; more: number; query: string; busy: boolean;
   onQuery: (q: string) => void; onMore: () => void; onBack: () => void; onDone: (id: string) => void }) {
   const [pick, setPick] = useState('');
+  const [customKind, setCustomKind] = useState('');
+  const customValid = /^[\p{L}\p{N} _-]{1,64}$/u.test(customKind.trim());
   return <section className="setup-pane" aria-label="What is your work?">
-    <h2>What is your work?</h2>
-    <p>For you or your company. Girru adds a department for your main work and picks the others that usually go with it. You can skip this.</p>
+    <h2>{workspaceType === 'company' ? 'What does your company do?' : workspaceType === 'individual' ? 'What do you do?' : 'What is your work?'}</h2>
+    <p>Choose your main work. Girru suggests departments to help with it. You can change them or skip this.</p>
     <label className="setup-search"><UiIcon name="search" size={13}/><input type="search" aria-label="Search kinds of work" placeholder="Search" value={query} onChange={e => onQuery(e.target.value)}/></label>
     <div className="setup-kinds" role="radiogroup" aria-label="Your work">
       {[{ id: '', label: 'Office and online work' }, ...kinds].map(k =>
         <label key={k.id || 'general'} className="setup-kind" data-on={pick === k.id || undefined}>
-          <input type="radio" name="kind" checked={pick === k.id} onChange={() => setPick(k.id)}/>{k.label}</label>)}
+          <input type="radio" name="kind" disabled={busy} checked={pick === k.id} onChange={() => setPick(k.id)}/><span>{k.label}</span></label>)}
     </div>
+    <label className="setup-kind" data-on={pick === '__custom' || undefined}><input type="radio" name="kind" disabled={busy} checked={pick === '__custom'} onChange={() => setPick('__custom')}/><span>Other company specialty</span></label>
+    {pick === '__custom' && <label className="setup-company-name">Company specialty<input type="text" maxLength={64} value={customKind} disabled={busy} placeholder="Enter your company specialty" onChange={e => setCustomKind(e.target.value)}/><small>Up to 64 letters, numbers, spaces, hyphens or underscores. Added to your team departments.</small></label>}
     {more > 0 && <button type="button" className="link-button" onClick={onMore}>Show {more} more</button>}
     <div className="setup-actions"><button type="button" disabled={busy} onClick={onBack}>Back</button>
       <button type="button" className="link-button" disabled={busy} onClick={() => onDone('')}>Skip</button>
-      <button type="button" className="primary" disabled={busy} onClick={() => onDone(pick)}>Continue</button></div>
+      <button type="button" className="primary" disabled={busy || (pick === '__custom' && !customValid)} onClick={() => onDone(pick === '__custom' ? `custom:${customKind.trim()}` : pick)}>Continue</button></div>
   </section>;
 }

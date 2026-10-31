@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { NabuBridge } from './workspace-modes';
-export type AppDestination = 'home' | 'settings' | 'account' | 'about';
+export type AppDestination = 'home' | 'settings' | 'account' | 'about' | 'new-chat' | 'agents' | 'library' | 'board' | 'memory';
 type AppInfo = { version: string; connection: 'local' | 'remote' };
 declare global { interface Window { dproApp?: { nabu?: NabuBridge; setSetupWindow?: (compact: boolean) => Promise<boolean>; onNavigate: (fn: (page: AppDestination) => void) => () => void; info: () => Promise<AppInfo> }; } }
 export function useAppNavigation(open: (page: AppDestination) => void) {
-  useEffect(() => window.dproApp?.onNavigate(page => { if (['home', 'settings', 'account', 'about'].includes(page)) open(page); }), [open]);
+  useEffect(() => window.dproApp?.onNavigate(page => { if (['home', 'settings', 'account', 'about', 'new-chat', 'agents', 'library', 'board', 'memory'].includes(page)) open(page); }), [open]);
 }
 export function useAppInfo() {
   const [info, setInfo] = useState<AppInfo | null>(null);

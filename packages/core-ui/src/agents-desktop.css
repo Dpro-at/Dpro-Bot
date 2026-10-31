@@ -249,3 +249,9 @@
 .ag-hire-care .fine-print{margin:6px 0 0}
 .ag-hire-one-page .ag-roles.ag-role-segmented{display:flex;gap:4px}
 .ag-hire-one-page .ag-role-segmented .ag-role{flex:1;min-block-size:32px;padding:4px 8px}
+
+/* Many departments need readable cards rather than a clipped proportional strip. */
+.ag-team-picture.ag-team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:8px;overflow:visible}
+.ag-team-picture.ag-team-grid>.ag-band{min-inline-size:0;padding:14px;border-radius:8px;overflow-wrap:anywhere}
+.ag-team-grid>.ag-band>span{white-space:normal;align-items:flex-start}
+.ag-team-grid>.ag-band>span>svg{flex-shrink:0}

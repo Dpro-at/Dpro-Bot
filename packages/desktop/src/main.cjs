@@ -76,8 +76,9 @@ function createMainWindow() {
 
 // Every window shows only the app's own origin; other links open in the normal browser.
 function createAppWindow() {
+  const area = electron.screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
-    width: 1280, height: 860, minWidth: 900, minHeight: 600,
+    width: Math.min(1280, area.width), height: Math.min(860, area.height), minWidth: Math.min(800, area.width), minHeight: Math.min(600, area.height),
     title: 'Girru', show: false, backgroundColor: '#111111',
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, spellcheck: true, preload: path.join(__dirname, 'preload.cjs') },
   });
@@ -116,22 +117,10 @@ function showPage(name, query = {}) {
   return mainWindow.loadFile(path.join(PAGES, name), { query });
 }
 
-let setupWindow = false;
-function setSetupWindow(compact) {
+// Setup uses the normal app window. Keep the owner's size and allow resizing.
+function setSetupWindow(_setup) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  // Only a change resizes: the owner's own window size is kept on every later start.
-  if (compact === setupWindow) return;
-  setupWindow = compact;
-  if (compact) {
-    mainWindow.setResizable(false);
-    mainWindow.setMinimumSize(760, 640);
-    mainWindow.setSize(760, 640, true);
-  } else {
-    mainWindow.setResizable(true);
-    mainWindow.setMinimumSize(900, 600);
-    mainWindow.setSize(1280, 860, true);
-  }
-  mainWindow.center();
+  mainWindow.setResizable(true);
 }
 
 function startupStatus(status) {
@@ -141,30 +130,30 @@ function startupStatus(status) {
 
 async function startLocal() {
   await showPage('starting.html', { status: 'Checking the installation files…' });
-  const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
-  const problems = checkPayload(payload);
-  if (problems.length) return showPage('failed.html', { reason: problems.join(', ') });
-  startupStatus('Preparing your workspace…');
-  log = log || openLog(path.join(app.getPath('userData'), 'logs', 'backend.log'));
-  const { createApplicationServer } = require(path.join(payload.coreUiDir, 'scripts', 'application-server.cjs'));
-  runtime = createLocalRuntime({
-    node: payload.node,
-    readyTimeoutMs: 30000,
-    args: backendArgs(payload.backendDir),
-    cwd: path.basename(dataDir()) === '.data' ? path.dirname(dataDir()) : dataDir(),
-    dataDir: dataDir(),
-    extraEnv: { AGENT_TERMINAL: 'true', DPRO_SUBSCRIPTION_CHAT: '1', ...(path.basename(dataDir()) === '.data' ? { AGENT_PLAYER_DATA_DIR: undefined } : {}) },
-    createBridge: ({ upstreamPort, launchToken }) => createApplicationServer({ packageRoot: payload.coreUiDir, channel: 'candidate', upstreamPort, launchToken }),
-    onLog: line => log.write(line),
-    onBackendExit: ({ code, signal }) => {
-      // BACKUP-01: the program stops with 75 to put a backup in place; start it again.
-      if (code === 75 && !quitting) { log.write('backend restarting (restore)'); runtime = null; void startLocal(); return; }
-      log.write(`backend stopped unexpectedly (${signal || code})`);
-      if (!quitting && mainWindow) showPage('failed.html', { reason: 'The Girru engine stopped unexpectedly.' });
-      runtime = null;
-    },
-  });
   try {
+    const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
+    const problems = checkPayload(payload);
+    if (problems.length) return showPage('failed.html', { reason: problems.join(', ') });
+    startupStatus('Preparing your workspace…');
+    log = log || openLog(path.join(app.getPath('userData'), 'logs', 'backend.log'));
+    const { createApplicationServer } = require(path.join(payload.coreUiDir, 'scripts', 'application-server.cjs'));
+    runtime = createLocalRuntime({
+      node: payload.node,
+      readyTimeoutMs: 30000,
+      args: backendArgs(payload.backendDir),
+      cwd: path.basename(dataDir()) === '.data' ? path.dirname(dataDir()) : dataDir(),
+      dataDir: dataDir(),
+      extraEnv: { AGENT_TERMINAL: 'true', DPRO_SUBSCRIPTION_CHAT: '1', ...(path.basename(dataDir()) === '.data' ? { AGENT_PLAYER_DATA_DIR: undefined } : {}) },
+      createBridge: ({ upstreamPort, launchToken }) => createApplicationServer({ packageRoot: payload.coreUiDir, channel: 'candidate', upstreamPort, launchToken }),
+      onLog: line => log.write(line),
+      onBackendExit: ({ code, signal }) => {
+        // BACKUP-01: the program stops with 75 to put a backup in place; start it again.
+        if (code === 75 && !quitting) { log.write('backend restarting (restore)'); runtime = null; void startLocal(); return; }
+        log.write(`backend stopped unexpectedly (${signal || code})`);
+        if (!quitting && mainWindow) showPage('failed.html', { reason: 'The Girru engine stopped unexpectedly.' });
+        runtime = null;
+      },
+    });
     startupStatus('Starting the local engine…');
     const started = await runtime.start();
     appOrigin = started.origin;
@@ -172,8 +161,8 @@ async function startLocal() {
     await mainWindow.loadURL(started.url);
   } catch (error) {
     runtime = null;
-    log.write(`start failed: ${error.message}`);
-    for (const line of error.logTail || []) log.write(`  ${line}`);
+    log?.write(`start failed: ${error.message}`);
+    for (const line of error.logTail || []) log?.write(`  ${line}`);
     await showPage('failed.html', { reason: error.message });
   }
 }
@@ -216,7 +205,7 @@ async function applyMode() {
 function readSelection() { return require('./workspace-selection.cjs').readSelection(settingsDir()); }
 async function scanData(extra) {
   const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
-  const dirs = discovery.candidates({ defaultDir: path.join(settingsDir(), 'data'), home: app.getPath('home'), cwd: process.cwd(), backendDir: payload.backendDir, savedDir: readSelection(), explicitDir: process.env.DPRO_DESKTOP_DATA_DIR });
+  const dirs = discovery.candidates({ defaultDir: path.join(settingsDir(), 'data'), home: app.getPath('home'), cwd: process.cwd(), backendDir: payload.backendDir, savedDir: readSelection(), workspaceRoot: path.join(settingsDir(), 'workspaces'), explicitDir: process.env.DPRO_DESKTOP_DATA_DIR });
   if (extra && !dirs.includes(extra)) dirs.push(extra);
   discovered = await discovery.discover(payload.node, payload.backendDir, dirs, extra ? null : readSelection());
   fs.writeFileSync(path.join(settingsDir(), 'workspace-discovery.json'), JSON.stringify(discovered), { mode: 0o600 });
@@ -229,6 +218,49 @@ ipcMain.handle('dpro:choose-project-folders', async event => {
   if (origin !== appOrigin || !appOrigin.startsWith('http://127.0.0.1:')) return [];
   const result=await dialog.showOpenDialog(mainWindow,{title:'Choose project folders to scan for documentation',properties:['openDirectory','multiSelections']});
   return result.canceled ? [] : result.filePaths.slice(0,8);
+});
+const notificationControl = require('./desktop-notifications.cjs').createDesktopNotifications({
+  Notification: electron.Notification,
+  optedIn: (() => { try { return JSON.parse(fs.readFileSync(path.join(settingsDir(), 'desktop-notifications.json'), 'utf8')).requested === true; } catch { return false; } })(),
+  saveOptIn: () => fs.writeFileSync(path.join(settingsDir(), 'desktop-notifications.json'), '{"requested":true}\n', { mode: 0o600 }),
+});
+ipcMain.handle('dpro:notify-done', event => {
+  if (!runtime || !appOrigin || !mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || mainWindow.isFocused()) return false;
+  try { if (!appOrigin.startsWith('http://127.0.0.1:') || new URL(event.senderFrame.url).origin !== appOrigin) return false; } catch { return false; }
+  return notificationControl.done();
+});
+// Native permission controls are available only on the bundled first-launch page.
+const { permissionStatus, requestMicrophone, createFilePermissions, requestFullDiskRegistration } = require('./permissions.cjs');
+const filePermissions = createFilePermissions({ getPath: name => app.getPath(name), fs, platform: process.platform });
+async function devicePermissionStatus() { return { ...permissionStatus(electron.systemPreferences, process.platform), ...await filePermissions.check(), ...notificationControl.view() }; }
+function fromPermissions(event) {
+  return !!mainWindow && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame && event.senderFrame.url === pathToFileURL(path.join(PAGES, 'permissions.html')).href;
+}
+ipcMain.handle('dpro:permissions-status', event => fromPermissions(event) ? devicePermissionStatus() : null);
+ipcMain.handle('dpro:permissions-microphone', async event => { if (!fromPermissions(event)) return null; await requestMicrophone(electron.systemPreferences, shell, process.platform); return devicePermissionStatus(); });
+ipcMain.handle('dpro:permissions-files', async event => {
+  if (!fromPermissions(event)) return null;
+  if (filePermissions.view().folders.some(folder => folder.status === 'denied')) await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders');
+  await filePermissions.request();
+  return devicePermissionStatus();
+});
+ipcMain.handle('dpro:permissions-notifications', event => fromPermissions(event) ? notificationControl.test() : null);
+ipcMain.handle('dpro:permissions-notification-settings', event => {
+  if (!fromPermissions(event)) return false;
+  void shell.openExternal(process.platform === 'win32' ? 'ms-settings:notifications' : 'x-apple.systempreferences:com.apple.preference.notifications');
+  return true;
+});
+ipcMain.handle('dpro:permissions-full-disk', async event => {
+  if (!fromPermissions(event) || process.platform !== 'darwin') return null;
+  const result = await requestFullDiskRegistration({ fs, home: app.getPath('home'), path, platform: process.platform });
+  await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles');
+  return result;
+});
+ipcMain.handle('dpro:permissions-next', async event => {
+  if (!fromPermissions(event) || !(await devicePermissionStatus()).files) return false;
+  fs.writeFileSync(path.join(settingsDir(), 'permissions-reviewed-v3.json'), '{"reviewed":true}\n', { mode: 0o600 });
+  await applyMode();
+  return true;
 });
 const fromWelcome = event => mainWindow && event.sender === mainWindow.webContents && mainWindow.webContents.getURL().split('?')[0] === pathToFileURL(path.join(PAGES, 'welcome.html')).href;
 const fromFailed = event => mainWindow && event.sender === mainWindow.webContents && mainWindow.webContents.getURL().split('?')[0] === pathToFileURL(path.join(PAGES, 'failed.html')).href;
@@ -341,6 +373,7 @@ ipcMain.handle('dpro:app-info', event => {
 // MACAPP-01: updates of the installed app (Settings › About and updates). Only the main
 // window's own Girru page may ask; installing backs up first and replaces the app.
 let updater = null;
+let systemTray = null;
 const fromAppPage = event => !!mainWindow && !!appOrigin && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame;
 function startUpdater() {
   if (!app.isPackaged || updater) return;
@@ -360,7 +393,7 @@ ipcMain.handle('dpro:app-update-check', event => fromAppPage(event) && updater ?
 ipcMain.handle('dpro:app-update-install', async event => {
   if (!fromAppPage(event) || !updater || !updater.view().update) return null;
   const v = updater.view().update.version;
-  const answer = await dialog.showMessageBox(mainWindow, { type: 'question', message: `Back up and update to Girru ${v}?`, detail: 'Girru makes a backup of your data, puts the new version in place and starts again. You sign in again.', buttons: ['Cancel', 'Back up and update'], defaultId: 1, cancelId: 0 });
+  const answer = await dialog.showMessageBox(mainWindow, { type: 'question', message: `Back up and update to Girru ${v}?`, detail: 'Girru makes a backup of your data, puts the new version in place and starts again. Your saved workspace is kept; valid sign-in sessions are restored.', buttons: ['Cancel', 'Back up and update'], defaultId: 1, cancelId: 0 });
   return answer.response === 1 ? updater.install() : updater.view();
 });
 ipcMain.handle('dpro:app-update-page', event => { if (fromAppPage(event) && updater?.view().update) void shell.openExternal(updater.view().update.page); return null; });
@@ -402,6 +435,7 @@ async function boot() {
   hardenSession();
   buildMenu();
   mainWindow = createMainWindow();
+  systemTray = require('./system-tray.cjs').createSystemTray({ electron, platform: process.platform, getWindow: () => mainWindow, navigate, checkUpdates: () => updater?.check() });
   const payload = resolvePayload({ packaged: app.isPackaged, resourcesPath: process.resourcesPath });
   nabuEditor = installNabuEditor({
     win: mainWindow, electron, getOrigin: () => appOrigin,
@@ -409,7 +443,10 @@ async function boot() {
     node: process.env.DPRO_DESKTOP_NODE || payload.node, dataDir: path.join(settingsDir(), 'nabu-editor'),
     onLog: line => { editorLog ||= openLog(path.join(settingsDir(), 'logs', 'editor.log')); editorLog.write(line); },
   });
-  await applyMode();
+  const permissions = permissionStatus(electron.systemPreferences, process.platform);
+  const firstMacLaunch = process.platform === 'darwin' && (!fs.existsSync(path.join(settingsDir(), 'permissions-reviewed-v3.json')));
+  if (firstMacLaunch || (process.platform === 'win32' && permissions.microphone === 'denied' && !fs.existsSync(path.join(settingsDir(), 'permissions-reviewed-v3.json')))) await showPage('permissions.html');
+  else await applyMode();
   startUpdater();
 }
 
@@ -423,7 +460,11 @@ app.on('before-quit', event => {
   quitting = true;
   Promise.resolve(nabuEditor?.requestClose()).then(async allowed => {
     if (allowed === false) { quitting = false; return false; }
-    try { await nabuEditor?.stop(); } finally { await stopLocal(); }
+    try { await nabuEditor?.stop(); } finally {
+      try { await session.defaultSession.cookies.flushStore(); session.defaultSession.flushStorageData(); }
+      catch { log?.write('Session storage could not be flushed before shutdown.'); }
+      await stopLocal();
+    }
     return true;
   })
     .catch(error => { quitting = false; if (log) log.write(`stop failed: ${error.message}`); editorLog?.write(`Editor shutdown failed: ${error.message}`); return false; })

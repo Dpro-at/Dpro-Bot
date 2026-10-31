@@ -1,7 +1,7 @@
 {
   "name": "@agent-player/desktop",
   "productName": "Girru",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "description": "Girru desktop app",
   "license": "MIT",
@@ -67,7 +67,11 @@
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Girru uses the microphone only when you press the microphone button to dictate a message."
+        "NSMicrophoneUsageDescription": "Girru uses the microphone only when you press the microphone button to dictate a message.",
+        "NSAppDataUsageDescription": "Girru checks protected-folder access only when you request broader file access. It does not read file contents during this check.",
+        "NSDocumentsFolderUsageDescription": "Girru accesses your Documents folder when you enable file access and choose tasks that use those files.",
+        "NSDownloadsFolderUsageDescription": "Girru accesses your Downloads folder when you enable file access and choose tasks that use those files.",
+        "NSDesktopFolderUsageDescription": "Girru accesses your Desktop folder when you enable file access and choose tasks that use those files."
       },
       "icon": "build/icon.icns"
     },

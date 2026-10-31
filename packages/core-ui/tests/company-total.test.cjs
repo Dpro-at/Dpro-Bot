@@ -254,3 +254,17 @@ test('specialty contract rejects privilege injection, duplicate names and mismat
  const valid=[{name:'Data engineer',count:1,description:'Build pipelines.'},{name:'Data security specialist',count:1,description:'Review access.'}];
  for(const allow of [allowedRequest,allowed]){assert.equal(allow('POST','/api/onboarding/team-batches',make(valid)),true);for(const rows of [[valid[0]],[{...valid[0],count:3}],[valid[0],{...valid[1],name:'data engineer'}],[{...valid[0],count:2,tools:['all']}]] )assert.equal(allow('POST','/api/onboarding/team-batches',make(rows)),false);}
 });
+
+
+test('company setup alone asks its work kind and offers a custom specialty', async t => {
+  const { w } = await fixture(t);
+  await w.loadCatalogue(); w.chooseTotal(5);
+  const { TeamFlow } = require('../src/CompanyWizard.tsx');
+  const state = w.getSnapshot();
+  const withKinds = { ...w, client: w.client, subscribe: w.subscribe, getSnapshot: () => ({ ...state, catalogue: { ...state.catalogue, kinds: [{ id: 'healthcare', label: 'Healthcare', suggests: [] }] } }) };
+  const render = workspaceType => renderToStaticMarkup(React.createElement(TeamFlow, { controller: withKinds, mode: 'setup', workspaceType }));
+  assert.match(render('company'), /What does your company do/);
+  assert.match(render('company'), /Other company specialty/);
+  assert.doesNotMatch(render('individual'), /Other company specialty|What does your company do/);
+  assert.match(render('individual'), /Which departments/);
+});

@@ -284,7 +284,7 @@ export function createSameOriginTransport(origin: string, fetcher: typeof fetch)
       const response = await fetcher(origin + request.path, {
         method: request.method, body: request.body === undefined ? undefined : JSON.stringify(request.body),
         headers: { Accept: chat || runEvents ? 'text/event-stream' : 'application/json', ...(request.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...request.headers },
-        signal: request.signal, credentials: request.path === '/api/auth/login' || request.headers.Authorization === 'Bearer dpro-remembered-session' ? 'same-origin' : 'omit', mode: 'same-origin', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
+        signal: request.signal, credentials: ['/api/auth/login', '/api/auth/logout'].includes(request.path) || request.headers.Authorization === 'Bearer dpro-remembered-session' ? 'same-origin' : 'omit', mode: 'same-origin', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
       });
       if (response.redirected || response.type === 'opaqueredirect' || (response.url && response.url !== origin + request.path) || (response.status >= 300 && response.status < 400)) throw new SessionFailure('blocked');
       if (runEvents && response.status === 200) {
@@ -411,7 +411,7 @@ export class SessionClient {
     const epoch = this.#state.epoch;
     let result: ReturnType<typeof ownerSetupResponse>;
     try {
-      const response = await this.#send('POST', OWNER_SETUP_PATH, { name: input.name, email: input.email, password: input.password, setupToken: input.setupToken }, undefined, epoch);
+      const response = await this.#send('POST', OWNER_SETUP_PATH, { name: input.name, email: input.email, password: input.password, setupToken: input.setupToken, ...(input.workspaceType ? { workspaceType: input.workspaceType } : {}), ...(input.workspaceType === 'company' ? { companyName: input.companyName } : {}) }, undefined, epoch);
       result = ownerSetupResponse(response.status, response.body);
     } catch { return { ok: false, code: 'unavailable' }; }
     if (!result) return { ok: false, code: 'unavailable' };

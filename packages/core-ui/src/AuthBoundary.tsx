@@ -10,10 +10,11 @@ import { createLoginMock } from './session-mock';
 import { retryAfterNotice } from './retry-after.js';
 import { devQuickLoginAccounts } from './dev-quick-login';
 import { localSessionKeep } from './local-session-keep';
-import { setupCodeFromFragment } from './owner-setup-contract.js';
+import { setupCodeFromFragment, SETUP_CODE } from './owner-setup-contract.js';
 import type { OwnerSetupCode } from './owner-setup-contract.js';
 import { isDeveloperBuild } from './developer-build';
 import { SetupSteps } from './FirstRunSetup';
+import { WorkspaceTypeStep, type WorkspaceType } from './WorkspaceTypeStep';
 
 const notices = {
   recovered:'Authenticator reset. Sign in again, then set up two-step verification in Settings.',
@@ -145,9 +146,9 @@ function readSetupLink(): string | null {
   return linkCode;
 }
 const ownerSetupNotices: Record<OwnerSetupCode | 'unavailable' | 'mismatch', string> = {
-  setup_token_missing: 'Enter the setup code from Girru on this computer.',
-  setup_token_invalid: 'This setup code is not valid. Check it or run `girru setup` for a new one.',
-  setup_token_expired: 'This setup code has expired. Run `girru setup` for a new one.',
+  setup_token_missing: 'Open setup from Girru on the installation computer.',
+  setup_token_invalid: 'This setup link is no longer valid. Reopen setup on the installation computer.',
+  setup_token_expired: 'This setup link has expired. Reopen setup on the installation computer.',
   setup_not_local: 'The owner can only be created on the installation computer itself.',
   setup_complete: 'An owner already exists. Sign in instead.',
   missing_fields: 'Fill in every field. The password needs at least 12 characters.',
@@ -163,17 +164,26 @@ function OwnerSetup({ client, setupCode, initialPage }: { client: SessionClient;
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const strength = passwordStrength(password);
-  const [code, setCode] = useState(setupCode ?? ''); const [editCode, setEditCode] = useState(!setupCode);
+  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>();
+  const [companyName, setCompanyName] = useState<string>();
+  const [chooseType, setChooseType] = useState(true);
+  const code = setupCode ?? '';
+  const hasSetupLink = SETUP_CODE.test(code);
   const [busy, setBusy] = useState(false); const [notice, setNotice] = useState<keyof typeof ownerSetupNotices | null>(null);
+  if (chooseType) return <WorkspaceTypeStep value={workspaceType} companyName={companyName} onNext={(type, name) => { setWorkspaceType(type); setCompanyName(name); setChooseType(false); }}/>;
+  if (!hasSetupLink) return <section className="setup-pane" aria-label="Open the setup link">
+    <h2>Open setup on this computer</h2>
+    <p>Open the setup link shown by Girru on the installation computer. It connects this page to your new workspace.</p>
+    <div className="setup-actions"><button type="button" onClick={() => setChooseType(true)}>Back</button></div>
+  </section>;
   return <form className="owner-setup" aria-label="Create the owner account" method="post" onSubmit={async e => {
     e.preventDefault();
     if (password.length < 12) { setNotice('weak_password'); return; }
     setBusy(true); setNotice(null);
-    const result = await client.createOwner({ name: name.trim(), email: email.trim(), password, setupToken: code.trim() });
+    const result = await client.createOwner({ name: name.trim(), email: email.trim(), password, setupToken: code.trim(), workspaceType, ...(workspaceType === 'company' ? { companyName } : {}) });
     setBusy(false);
     if (!result.ok) {
       setNotice(result.code);
-      if (['setup_token_invalid', 'setup_token_expired', 'setup_token_missing'].includes(result.code)) setEditCode(true);
     }
   }}>
     <SetupSteps current="Account"/>
@@ -187,13 +197,9 @@ function OwnerSetup({ client, setupCode, initialPage }: { client: SessionClient;
     <div className="owner-password-input"><input id="owner-password" type={visible ? 'text' : 'password'} name="new-password" required minLength={12} maxLength={4096} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} disabled={busy}/><button type="button" className="owner-password-action" disabled={busy} aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible} onClick={() => setVisible(!visible)}><UiIcon name={visible ? 'eye-off' : 'eye'} size={16}/></button><button type="button" className="owner-password-action" disabled={busy} aria-label="Suggest a strong password" title="Suggest a strong password" onClick={() => { setPassword(generatePassword()); setVisible(true); }}><UiIcon name="key" size={16}/></button></div>
     <div className="owner-strength" aria-label={`Password strength: ${strength.label}`}><span data-strength={strength.value}/><b>{password ? strength.label : '—'}</b></div>
     {notice === 'weak_password' && <p className="owner-field-error" role="alert">{ownerSetupNotices[notice]}</p>}
-    {editCode ? <>
-      <label htmlFor="owner-code">Setup code</label>
-      <input id="owner-code" required autoComplete="one-time-code" spellCheck={false} pattern="[A-Za-z0-9_\-]{43}" title="The 43-character code from girru setup" value={code} onChange={e => setCode(e.target.value)} disabled={busy}/>
-      <p>Run <code>girru setup</code> in a terminal on this computer to get a one-time code.</p>
-    </> : null}
     {notice === 'missing_fields' && <p className="owner-field-error" role="alert">{ownerSetupNotices[notice]}</p>}
-    <button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Continue'}</button>
+    <div className="setup-actions"><button type="button" disabled={busy} onClick={() => setChooseType(true)}>Back</button>
+      <button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Continue'}</button></div>
   </form>;
 }
 /** Local test accounts (dev-quick-login.ts): fills the form only; local builds on a loopback host only. */

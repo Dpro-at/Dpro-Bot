@@ -74,7 +74,7 @@ export function SignedInShell({ client, notice }: { client: SessionClient; notic
   const first = useFirstRun(client, state.user?.role === 'owner' && state.mode === 'live');
   const [finished, setFinished] = useState(false);
   if (first.pending === null) return <div className="first-run-setup" aria-busy="true"/>;
-  if (first.pending && !finished) return <FirstRunSetup client={client} initialStep={first.step} onDone={chatId => {
+  if (first.pending && !finished) return <FirstRunSetup client={client} initialStep={first.step} workspaceType={first.workspaceType} companyName={first.companyName} onDone={chatId => {
     if (chatId) try { window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#chat=${chatId}`); } catch { /* the last chat opens instead */ }
     setFinished(true);
   }}/>;
@@ -94,8 +94,8 @@ function Workspace({ client, notice }: { client: SessionClient; notice: ReactNod
   const theme = appearance.theme;
   // The title-bar switch goes back to "system" when it lands on the system's own theme.
   const toggleTheme = () => { const next = theme === 'dark' ? 'light' : 'dark'; const system = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; appearance.setPreference(next === system ? 'system' : next); };
-  useAppNavigation(destination => setPage(destination === 'home' ? 'chat' : destination));
   const [chat, setChat] = useState<ConversationsController>();
+  useAppNavigation(destination => { if (destination === 'new-chat') { chat?.newChat(); setPage('chat'); } else setPage(destination === 'home' ? 'chat' : destination); });
   // A window opened for one chat (⌘O) carries `#chat=<id>`: open that chat once the list is in.
   useEffect(() => { const c = new ConversationsController(client); setChat(c); const linked = chatFromLink(window.location.hash);
     void c.load().then(() => {
