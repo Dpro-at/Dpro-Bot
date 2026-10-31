@@ -9,8 +9,10 @@ export type CompanySize = 'solo' | 'small' | 'medium' | 'large';
 export type PlanBody = { size: CompanySize; departments: string[]; language?: string };
 export type CatalogueDepartment = Readonly<{ id: string; label: string; summary: string }>;
 export type Specialty = Readonly<{name:string;count:number;description:string}>;
-export type SpecialtyChoice = Readonly<{department:string;name:string;description:string}>;
-export type Catalogue = Readonly<{ sizes: readonly Readonly<{ id: CompanySize; label: string }>[]; departments: readonly CatalogueDepartment[]; maxTotal?: number; specialties?: readonly SpecialtyChoice[] }>;
+export type SpecialtyChoice = Readonly<{department:string;name:string;description:string;group?:string}>;
+/** FR7: a kind of company (or of work); its id is also its main-work department. */
+export type CompanyKind = Readonly<{ id: string; label: string; suggests: readonly string[] }>;
+export type Catalogue = Readonly<{ sizes: readonly Readonly<{ id: CompanySize; label: string }>[]; departments: readonly CatalogueDepartment[]; maxTotal?: number; specialties?: readonly SpecialtyChoice[]; kinds?: readonly CompanyKind[] }>;
 /** ONBOARD-TEAM-02: one department of a total headcount, as the owner edits it. */
 export type Share = Readonly<{ specialties?: readonly Specialty[]; personalities?:Partial<Record<TeamRole,{id:string;revision:number}>>; department: string; departmentLabel: string; count: number; presets: Readonly<Record<TeamRole, Preset>>; titles: Readonly<Record<TeamRole, string>> }>;
 export type BatchProgress = Readonly<{ id: string; total: number; created: number; failed: number; pending: number; done: boolean; departments: readonly Readonly<{ department: string; total: number; created: number; failed: number }>[] }>;
@@ -135,16 +137,19 @@ export class CompanyController {
     if (s.departments.length >= MAX_DEPARTMENTS) return this.#publish({ notice: `At most ${MAX_DEPARTMENTS} departments.` });
     this.#publish({ departments: Object.freeze([...s.departments, dep]), notice: undefined });
   }
-  chooseProfile(profile:string){
-    const plans:Record<string,string[]>={education:['education','languages and translation','equality accessibility and integration','career guidance and employment services','coaching mentoring and professional supervision','psychological and social support','hr','operations','finance','legal','support','marketing','development'],software:['development','data','infrastructure','security','support','sales','marketing','operations','hr','finance','legal'],creative:['design','production','marketing','sales','operations','finance']};
-    if(!this.#state.owner||this.#busy()||this.#state.step!=='departments'||!this.#state.catalogue||!plans[profile])return;
-    const known=new Set(this.#state.catalogue.departments.map(d=>d.id));this.#publish({departments:Object.freeze(plans[profile].filter(d=>known.has(d))),notice:'Suggested departments selected. Review or change them before planning.'});
+  /** FR7: the kind of work picks the departments: its main-work department first, then the usual ones (fewer for a small team). */
+  chooseKind(id: string) {
+    const s = this.#state; if (!s.owner || this.#busy() || s.step !== 'departments' || !s.catalogue) return;
+    const kind = s.catalogue.kinds?.find(k => k.id === id); if (!kind) return;
+    const known = new Set(s.catalogue.departments.map(d => d.id));
+    const n = s.total ?? 0, want = n <= 3 ? 1 : n <= 10 ? 3 : 4;
+    this.#publish({ departments: Object.freeze([kind.id, ...kind.suggests.filter(d => known.has(d))].slice(0, want)), notice: undefined });
   }
   addCustom(name: string) {
     const s = this.#state; if (!s.owner || this.#busy() || s.step !== 'departments') return false;
     const dep = normalizeDepartment(name);
     if (!dep || !validDepartment(dep)) { this.#publish({ notice: 'Department: up to 64 letters, numbers, spaces, - or _.' }); return false; }
-    const known = new Set(s.catalogue?.departments.map(d => d.id) ?? []);
+    const known = new Set([...(s.catalogue?.departments ?? []), ...(s.catalogue?.kinds ?? [])].map(d => d.id));
     if (s.departments.filter(d => !known.has(d)).length >= MAX_CUSTOM && !known.has(dep) && !s.departments.includes(dep)) { this.#publish({ notice: `At most ${MAX_CUSTOM} custom departments.` }); return false; }
     if (!s.departments.includes(dep)) this.toggleDepartment(dep);
     return true;

@@ -214,7 +214,9 @@ function catalogueResult(status, body) {
   if (!record(body) || !Array.isArray(body.sizes) || !Array.isArray(body.departments) || body.departments.length > 100) fail();
   return {
     ...(headcount(body.maxTotal) ? { maxTotal: body.maxTotal } : {}),
-    ...(Array.isArray(body.specialties)?{specialties:body.specialties.filter(s=>record(s)&&department(s.department)&&typeof s.name==='string'&&s.name.length<=80&&typeof s.description==='string'&&s.description.length<=1800).slice(0,250).map(s=>({department:s.department,name:s.name,description:s.description}))}:{}),
+    ...(Array.isArray(body.specialties)?{specialties:body.specialties.filter(s=>record(s)&&department(s.department)&&typeof s.name==='string'&&s.name.length<=80&&typeof s.description==='string'&&s.description.length<=1800&&(s.group===undefined||(typeof s.group==='string'&&s.group.length<=80))).slice(0,1000).map(s=>({department:s.department,name:s.name,description:s.description,...(typeof s.group==='string'?{group:s.group}:{})}))}:{}),
+    // FR7: kinds of company; each adds its main-work department and pre-ticks the usual ones.
+    ...(Array.isArray(body.kinds)?{kinds:body.kinds.filter(k=>record(k)&&department(k.id)&&Array.isArray(k.suggests)&&k.suggests.length<=8&&k.suggests.every(department)).slice(0,40).map(k=>({id:k.id,label:clip(k.label,60),suggests:[...k.suggests]}))}:{}),
     sizes: body.sizes.filter(x => record(x) && companySizes.includes(x.id)).map(x => ({ id: x.id, label: clip(x.label, 60) })),
     departments: body.departments.filter(x => record(x) && department(x.id)).map(x => ({ id: x.id, label: clip(x.label, 60), summary: clip(x.summary, 200) })),
   };

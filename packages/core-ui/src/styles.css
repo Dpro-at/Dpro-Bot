@@ -3364,9 +3364,7 @@ button.danger-solid { background:var(--danger); color:#fff; }
 .setup-row-text small[data-state="ok"] { color:var(--success, #3fb27f); }
 .setup-row-text small[data-state="warn"] { color:var(--warning, #e8c48a); }
 .setup-row > svg { color:var(--success, #3fb27f); }
-.setup-mark { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff; background:#2b2f36; flex:none; }
-.setup-mark[data-tool="claude"] { background:#b4562f; }
-.setup-mark[data-tool="gemini"] { background:#2f5fd0; }
+.setup-mark { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; color:var(--text); background:var(--secondary); box-shadow:inset 0 0 0 1px var(--border); flex:none; }
 .setup-choice { cursor:pointer; }
 .setup-choice input { accent-color:var(--accent); width:16px; height:16px; min-height:0; flex:none; margin:0; padding:0; }
 .setup-choice[data-on] { box-shadow:inset 0 0 0 2px var(--accent); }
@@ -3434,3 +3432,11 @@ dialog.company-planner[open] { display:flex; flex-direction:column; }
 .company-planner-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
 .company-planner-head h3 { margin:0; font-size:14px; }
 .company-planner .setup-pane { width:100%; }
+/* FR7: "What is your work?" and the main-work department */
+.setup-kinds { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.setup-kind { display:flex; align-items:center; gap:8px; min-height:34px; padding:0 10px; border-radius:8px; font-size:12.5px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--border); cursor:pointer; }
+.setup-kind[data-on] { box-shadow:inset 0 0 0 2px var(--accent); }
+.setup-kind input { margin:0; accent-color:var(--accent); }
+.setup-mainwork { width:100%; display:flex; align-items:center; gap:10px; padding:9px 10px; border:0; border-radius:10px; text-align:start; color:inherit; background:var(--surface); box-shadow:inset 0 0 0 2px var(--accent); }
+.setup-mainwork > span:nth-of-type(1) { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.setup-mainwork small { color:var(--muted); }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { SessionClient } from './session';
 import { UiIcon } from './ui-icons';
+import { ClaudeCodeIcon, CodexIcon, GeminiIcon } from './brand-icons';
 import { TerminalPane } from './TerminalPane';
 import { TerminalPrefsController, TerminalTabs } from './terminal';
 import { CompanyController } from './company';
@@ -13,7 +14,7 @@ import { useAppTheme } from './app-navigation';
 export type FirstRunStep = 'tools' | 'model' | 'team';
 const STEPS = ['Account', 'AI tools', 'Local model', 'Team'] as const;
 type AiTool = { id: 'claude' | 'codex' | 'gemini'; name: string; installed: boolean; signedIn: boolean; install: string | null; signIn: string; needs?: 'node' };
-type LocalChoice = { id: string; label: string; sizeGb: number; note: string };
+type LocalChoice = { id: string; label: string; sizeGb: number; note: string; minMemoryGb: number; installed?: boolean };
 type LocalStep = { memoryGb: number; recommended: string; choices: LocalChoice[]; ollama: boolean; installed: string[]; download: string | null; commands: Record<string, string | null> };
 
 /** The step dots at the top of the setup window. */
@@ -99,7 +100,7 @@ function ToolsStep({ client, terminal, onSignedIn, onNext }: { client: SessionCl
     <h2>Your AI tools</h2>
     <p>{none ? 'None of them is on this computer yet.' : 'Your agents think with these. Sign in to at least one; your own subscription pays, Girru adds nothing.'}</p>
     {!tools ? <p role="status">Looking at this computer…</p> : <ul className="setup-rows">{tools.map(t => <li key={t.id} className="setup-row">
-      <span className="setup-mark" data-tool={t.id} aria-hidden="true">{t.id === 'claude' ? 'CC' : t.id === 'codex' ? 'CX' : 'GE'}</span>
+      <span className="setup-mark" data-tool={t.id} aria-hidden="true">{t.id === 'claude' ? <ClaudeCodeIcon size={18}/> : t.id === 'codex' ? <CodexIcon size={18}/> : <GeminiIcon size={18}/>}</span>
       <span className="setup-row-text"><b>{t.name}</b><small data-state={t.signedIn ? 'ok' : t.installed ? 'warn' : undefined}>
         {t.signedIn ? 'Installed · signed in' : t.installed ? 'Installed · not signed in' : t.needs === 'node' ? 'Not installed · needs Node.js first' : 'Not installed'}</small></span>
       {t.signedIn ? <UiIcon name="check" size={16}/>
@@ -117,7 +118,7 @@ function ModelStep({ client, terminal, canSkip, onBack, onNext }: { client: Sess
   const [pick, setPick] = useState('');
   const [started, setStarted] = useState(false);
   useEffect(() => { void get<LocalStep>(client, '/api/first-run/local-model').then(r => { if (r) { setInfo(r); setPick(r.recommended); } }); }, [client]);
-  const has = !!info?.installed.some(n => n === pick || n.startsWith(pick + '-'));
+  const has = !!info?.choices.find(c => c.id === pick)?.installed;
   const command = info?.commands[pick] ?? null;
   const install = () => { if (command) { terminal.type('Local model', command); setStarted(true); } };
   return <section className="setup-pane" aria-label="A free model on this computer">
@@ -126,8 +127,8 @@ function ModelStep({ client, terminal, canSkip, onBack, onNext }: { client: Sess
     {!info ? <p role="status">Looking at this computer…</p> : <div role="radiogroup" aria-label="Local model" className="setup-rows">{info.choices.map(c =>
       <label key={c.id} className="setup-row setup-choice" data-on={pick === c.id || undefined}>
         <input type="radio" name="local-model" aria-label={c.label} checked={pick === c.id} onChange={() => setPick(c.id)}/>
-        <span className="setup-row-text"><b>{c.label} {c.id === info.recommended && <span className="badge setup-recommended">Recommended for this computer</span>}</b><small>{info.installed.includes(c.id) ? 'Already on this computer' : c.note}</small></span>
-        <span className="setup-size">{c.sizeGb} GB</span>
+        <span className="setup-row-text"><b>{c.label} {c.id === info.recommended && <span className="badge setup-recommended">Recommended for this computer</span>}</b><small>{c.installed ? 'Already on this computer.' : info.memoryGb < c.minMemoryGb ? `Too big for this computer: it can slow it down or make it stop. ${c.note}` : c.note}</small></span>
+        {c.sizeGb > 0 && <span className="setup-size">{c.sizeGb} GB</span>}
       </label>)}</div>}
     {info?.download && !info.ollama && <p className="setup-note" role="note"><UiIcon name="info" size={14}/>Girru runs local models with Ollama, a free program. <a href={info.download} target="_blank" rel="noreferrer">Download Ollama</a>, open it once, then come back and press Install.</p>}
     {terminal.pane ?? <p className="fine-print">Install opens the terminal here: it installs Ollama if needed and downloads the model. You can go on while it downloads.</p>}

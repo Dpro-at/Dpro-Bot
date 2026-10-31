@@ -8,12 +8,12 @@ import type { PointerEvent as PointerEv, KeyboardEvent as KeyEv } from 'react';
 import { presetLabel } from './hire';
 import { shareRoles, sharesTotal, shareSpecialties } from './company';
 import { validSpecialties } from './hire-contract.js';
-import type { CompanyController, Share } from './company';
+import type { CompanyController, CompanyKind, Share } from './company';
 import { movePeople, rolesSummary } from './team-split';
 import type { TeamRole } from './team-split';
 
 /** Ready-made company sizes, in agents (D2; any other number up to the catalogue's maximum is typed in). */
-const agentCounts = [3, 5, 10, 25, 50] as const;
+const agentCounts = [3, 5, 10, 25, 50, 100, 250, 500] as const;
 /** Departments ticked first for a new team, in this order, as far as the catalogue has them. */
 const STARTERS = ['marketing', 'sales', 'support', 'development'];
 
@@ -27,6 +27,10 @@ export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { contr
   const [other, setOther] = useState('');
   const [custom, setCustom] = useState('');
   const [open, setOpen] = useState<string | null>(null);
+  // FR7: "What is your work?" is asked once, before the departments; null = not answered yet, '' = general work.
+  const [kind, setKind] = useState<string | null>(null);
+  const [kindQuery, setKindQuery] = useState('');
+  const [allKinds, setAllKinds] = useState(false);
   const busy = ['loading', 'planning', 'hiring'].includes(s.phase);
   const bulk = s.total !== undefined || s.shares.length > 0 || !!s.batch;
   const entries = useLibrary(controller.client, s.shares, busy, controller);
@@ -37,6 +41,7 @@ export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { contr
   const choose = (n: number) => {
     if (!Number.isSafeInteger(n) || n < 1) return;
     controller.chooseTotal(n);
+    setKind(null);
     // Pre-tick what fits the number: fewer departments for a small team.
     const want = n <= 3 ? 1 : n <= 10 ? 3 : 4;
     const ids = s.catalogue?.departments.map(d => d.id) ?? [];
@@ -100,13 +105,24 @@ export function TeamFlow({ controller, mode, onBack, onHired, onClose }: { contr
     </section>;
   }
 
+  if (s.step === 'departments' && s.catalogue?.kinds?.length && kind === null) {
+    const q = kindQuery.trim().toLowerCase();
+    const found = s.catalogue.kinds.filter(k => k.label.toLowerCase().includes(q));
+    const shown = q || allKinds ? found : found.slice(0, 13);
+    return <KindStep kinds={shown} more={!q && !allKinds ? found.length - shown.length : 0} query={kindQuery} busy={busy}
+      onQuery={setKindQuery} onMore={() => setAllKinds(true)} onBack={() => controller.back()}
+      onDone={id => { setKind(id); if (id) controller.chooseKind(id); }}/>;
+  }
+
   if (s.step === 'departments' && s.catalogue) {
+    const mainWork = s.catalogue.kinds?.find(k => s.departments.includes(k.id));
     const list = s.catalogue.departments.filter(d => `${d.label} ${d.summary}`.toLowerCase().includes(query.trim().toLowerCase()));
-    const known = new Set(s.catalogue.departments.map(d => d.id));
+    const known = new Set([...s.catalogue.departments, ...(s.catalogue.kinds ?? [])].map(d => d.id));
     return <section className="setup-pane" aria-label="Which departments?">
       <h2>Which departments?</h2>
-      <p>Pick the work you need. Girru splits your {s.total} {s.total === 1 ? 'agent' : 'agents'} by what each department usually needs.</p>
-      <label className="setup-search"><UiIcon name="search" size={13}/><input type="search" aria-label="Search departments" placeholder="Search departments" value={query} onChange={e => setQuery(e.target.value)}/></label>
+      <p>{mainWork ? `Girru ticked what ${mainWork.label.toLowerCase()} work usually needs. Change it as you like.` : `Pick the work you need. Girru splits your ${s.total} ${s.total === 1 ? 'agent' : 'agents'} by what each department usually needs.`}</p>
+      {mainWork && <button type="button" className="setup-mainwork" aria-pressed disabled={busy} onClick={() => controller.toggleDepartment(mainWork.id)}>
+        <DepartmentTile department={mainWork.label} size={26}/><span><b>{mainWork.label}</b><small>Your main work</small></span><span className="badge setup-recommended">Your main work</span><UiIcon name="check" size={15}/></button>}
       <ul className="setup-departments">{list.map(d => { const on = s.departments.includes(d.id);
         return <li key={d.id}><button type="button" aria-pressed={on} disabled={busy} onClick={() => controller.toggleDepartment(d.id)}>
           <DepartmentTile department={d.label} size={26}/><span><b>{d.label}</b><small>{d.summary}</small></span>{on && <UiIcon name="check" size={15}/>}</button></li>; })}
@@ -177,7 +193,8 @@ function DepartmentJobs({ share, busy, controller, entries, onClose }: { share: 
       <b>{r.count}</b>
       <button type="button" className="tool" aria-label={`One more ${r.name}`} disabled={busy} onClick={() => set(i, r.count + 1)}><UiIcon name="plus" size={12}/></button></span></li>)}</ul>
     {choices.length > 0 && <label className="setup-popover-add">Add a job<select value="" disabled={busy} onChange={e => { const c = choices.find(x => x.name === e.target.value); if (c) { controller.editSpecialties(share.department, [...rows, { name: c.name, description: c.description, count: 1 }]); controller.editShare(share.department, { count: share.count + 1 }); } }}>
-      <option value="">Choose from Specialties…</option>{choices.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}</select></label>}
+      <option value="">Choose from Specialties…</option>{choices.filter(c => !c.group).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+      {[...new Set(choices.map(c => c.group).filter((g): g is string => !!g))].map(g => <optgroup key={g} label={g}>{choices.filter(c => c.group === g).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}</optgroup>)}</select></label>}
     <span className="setup-popover-label">Personality</span>
     <div aria-label={`Personality for ${share.departmentLabel}`}><PersonalityPicker client={controller.client} value={share.personalities?.specialist} defaultId="temperament-balanced" disabled={busy} onPick={e => controller.editShare(share.department, { role: 'specialist', personality: { id: e.id, revision: e.revision } })}/></div>
     <small className="fine-print">{personalityLine(share, entries)}</small>
@@ -234,3 +251,23 @@ export function personalityLine(share: Share, entries: readonly Pick<Entry, 'id'
   return teamRoleOrder.filter(r => roles[r] > 0).map(r => `${teamRoleLabel[r]}: ${entries.find(e => e.id === share.personalities?.[r]?.id)?.profile.name ?? presetLabel[share.presets[r]]}`).join(' · ');
 }
 
+
+/** FR7a: one optional question before the departments, for a company or one person. */
+function KindStep({ kinds, more, query, busy, onQuery, onMore, onBack, onDone }: { kinds: readonly CompanyKind[]; more: number; query: string; busy: boolean;
+  onQuery: (q: string) => void; onMore: () => void; onBack: () => void; onDone: (id: string) => void }) {
+  const [pick, setPick] = useState('');
+  return <section className="setup-pane" aria-label="What is your work?">
+    <h2>What is your work?</h2>
+    <p>For you or your company. Girru adds a department for your main work and picks the others that usually go with it. You can skip this.</p>
+    <label className="setup-search"><UiIcon name="search" size={13}/><input type="search" aria-label="Search kinds of work" placeholder="Search" value={query} onChange={e => onQuery(e.target.value)}/></label>
+    <div className="setup-kinds" role="radiogroup" aria-label="Your work">
+      {[{ id: '', label: 'Office and online work' }, ...kinds].map(k =>
+        <label key={k.id || 'general'} className="setup-kind" data-on={pick === k.id || undefined}>
+          <input type="radio" name="kind" checked={pick === k.id} onChange={() => setPick(k.id)}/>{k.label}</label>)}
+    </div>
+    {more > 0 && <button type="button" className="link-button" onClick={onMore}>Show {more} more</button>}
+    <div className="setup-actions"><button type="button" disabled={busy} onClick={onBack}>Back</button>
+      <button type="button" className="link-button" disabled={busy} onClick={() => onDone('')}>Skip</button>
+      <button type="button" className="primary" disabled={busy} onClick={() => onDone(pick)}>Continue</button></div>
+  </section>;
+}
