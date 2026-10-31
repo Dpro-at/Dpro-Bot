@@ -116,7 +116,8 @@ const run = (cmd, args) => new Promise((resolve, reject) => execFile(cmd, args, 
 
 /** The .app the running process belongs to (…/Girru.app/Contents/MacOS/Girru). */
 function currentAppPath(execPath = process.execPath) {
-  const app = path.resolve(execPath, '..', '..', '..');
+  // A macOS bundle path: always POSIX, also when the tests run on Windows.
+  const app = path.posix.resolve(execPath, '..', '..', '..');
   return app.endsWith('.app') ? app : null;
 }
 
