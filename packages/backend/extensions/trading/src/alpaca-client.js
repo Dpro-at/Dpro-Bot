@@ -5,38 +5,27 @@
  * Supports: Paper Trading, Live Trading, Stocks, Crypto, Real-time data
  */
 
-import Alpaca from '@alpacahq/alpaca-trade-api';
+import { createAlpacaRest } from './alpaca-rest.js';
 
 /**
  * Create Alpaca client instance
  * @param {string} apiKey - Alpaca API key
  * @param {string} apiSecret - Alpaca API secret
  * @param {string} mode - 'paper' or 'live'
- * @returns {Alpaca} Alpaca client instance
+ * @returns {ReturnType<typeof createAlpacaRest>} Alpaca client instance
  */
 export function createAlpacaClient(apiKey, apiSecret, mode = 'paper') {
-  const isPaper = mode === 'paper';
-  const baseUrl = isPaper
-    ? 'https://paper-api.alpaca.markets'
-    : 'https://api.alpaca.markets';
-
-  const dataUrl = isPaper
-    ? 'https://data.alpaca.markets'
-    : 'https://data.alpaca.markets';
-
-  return new Alpaca({
+  return createAlpacaRest({
     keyId: apiKey,
     secretKey: apiSecret,
-    paper: isPaper,
-    baseUrl: baseUrl,
-    dataBaseUrl: dataUrl,
+    paper: mode === 'paper',
     feed: 'iex', // IEX for stocks, use 'sip' for crypto
   });
 }
 
 /**
  * Get account information
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @returns {Promise<Object>} Account information
  */
 export async function getAccountInfo(alpaca) {
@@ -62,7 +51,7 @@ export async function getAccountInfo(alpaca) {
 
 /**
  * Get all positions
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @returns {Promise<Array>} List of positions
  */
 export async function getPositions(alpaca) {
@@ -87,7 +76,7 @@ export async function getPositions(alpaca) {
 
 /**
  * Get recent orders
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} status - 'all', 'open', 'closed'
  * @param {number} limit - Max number of orders to return
  * @returns {Promise<Array>} List of orders
@@ -120,7 +109,7 @@ export async function getOrders(alpaca, status = 'all', limit = 50) {
 
 /**
  * Place a new order
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {Object} orderParams - Order parameters
  * @returns {Promise<Object>} Order confirmation
  */
@@ -160,7 +149,7 @@ export async function placeOrder(alpaca, orderParams) {
       }
     }
 
-    // OCO (One-Cancels-Other) - Note: Alpaca SDK might not directly support OCO
+    // OCO (One-Cancels-Other) - Note: Alpaca has no single OCO request here
     // This would need to be handled by placing two separate orders and managing cancellation
     if (orderParams.order_class === 'oco' && orderParams.oco_order) {
       // For now, we'll place the primary order
@@ -189,7 +178,7 @@ export async function placeOrder(alpaca, orderParams) {
 
 /**
  * Cancel an order
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} orderId - Order ID to cancel
  * @returns {Promise<Object>} Cancellation result
  */
@@ -205,7 +194,7 @@ export async function cancelOrder(alpaca, orderId) {
 
 /**
  * Get latest stock/crypto quote
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} symbol - Stock/crypto symbol
  * @returns {Promise<Object>} Latest quote
  */
@@ -244,7 +233,7 @@ export async function getLatestQuote(alpaca, symbol) {
 
 /**
  * Get historical bars (for charts)
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} symbol - Stock/crypto symbol
  * @param {string} timeframe - '1Min', '5Min', '15Min', '1Hour', '1Day'
  * @param {Object} options - { start, end, limit }
@@ -285,7 +274,7 @@ export async function getHistoricalBars(alpaca, symbol, timeframe = '1Day', opti
 
 /**
  * Check if market is currently open
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @returns {Promise<boolean>} True if market is open
  */
 export async function isMarketOpen(alpaca) {
@@ -300,7 +289,7 @@ export async function isMarketOpen(alpaca) {
 
 /**
  * Get market calendar
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {Object} options - { start, end }
  * @returns {Promise<Array>} Market calendar
  */
@@ -328,52 +317,32 @@ export async function getMarketCalendar(alpaca, options = {}) {
  */
 export function createRealtimeConnection(apiKey, apiSecret, symbols, onUpdate) {
   try {
-    const alpaca = new Alpaca({
-      keyId: apiKey,
-      secretKey: apiSecret,
-      paper: true, // Use paper for WebSocket (same data)
-      feed: 'iex',
-    });
-
-    const dataStream = alpaca.data_stream_v2;
-
-    dataStream.onConnect(() => {
-      console.log('[Alpaca WebSocket] Connected');
-      dataStream.subscribeForTrades(symbols);
-      dataStream.subscribeForQuotes(symbols);
-    });
-
-    dataStream.onError((error) => {
-      console.error('[Alpaca WebSocket] Error:', error);
-    });
-
-    dataStream.onStockTrade((trade) => {
-      onUpdate({
+    // Paper keys read the same market data.
+    const stream = createAlpacaRest({ keyId: apiKey, secretKey: apiSecret, paper: true, feed: 'iex' }).stream({
+      symbols,
+      onConnect: () => console.log('[Alpaca WebSocket] Connected'),
+      onError: (error) => console.error('[Alpaca WebSocket] Error:', error),
+      onTrade: (trade) => onUpdate({
         type: 'trade',
-        symbol: trade.Symbol,
-        price: trade.Price,
-        size: trade.Size,
-        timestamp: trade.Timestamp,
-      });
-    });
-
-    dataStream.onStockQuote((quote) => {
-      onUpdate({
+        symbol: trade.S,
+        price: trade.p,
+        size: trade.s,
+        timestamp: trade.t,
+      }),
+      onQuote: (quote) => onUpdate({
         type: 'quote',
-        symbol: quote.Symbol,
-        bid: quote.BidPrice,
-        ask: quote.AskPrice,
-        bid_size: quote.BidSize,
-        ask_size: quote.AskSize,
-        timestamp: quote.Timestamp,
-      });
+        symbol: quote.S,
+        bid: quote.bp,
+        ask: quote.ap,
+        bid_size: quote.bs,
+        ask_size: quote.as,
+        timestamp: quote.t,
+      }),
     });
-
-    dataStream.connect();
 
     return {
       close: () => {
-        dataStream.disconnect();
+        stream.close();
         console.log('[Alpaca WebSocket] Disconnected');
       },
     };
@@ -411,7 +380,7 @@ export async function testCredentials(apiKey, apiSecret, mode = 'paper') {
 
 /**
  * Get news articles
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {Object} options - { symbols?, start?, end?, limit?, sort?, include_content? }
  * @returns {Promise<Array>} News articles
  */
@@ -432,7 +401,6 @@ export async function getNews(alpaca, options = {}) {
     if (start) params.start = start;
     if (end) params.end = end;
 
-    // Use Alpaca SDK's getNews method
     const news = await alpaca.getNews(params);
 
     return news.map((article) => ({
@@ -460,7 +428,7 @@ export async function getNews(alpaca, options = {}) {
 
 /**
  * Get options chain for a symbol
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} symbol - Underlying symbol (e.g., 'AAPL')
  * @param {Object} options - { expirationDate?, strikePrice?, optionType? }
  * @returns {Promise<Array>} Options chain data
@@ -489,15 +457,14 @@ export async function getOptionsChain(alpaca, symbol, options = {}) {
       params.type = options.optionType; // 'call' or 'put'
     }
 
-    // Use Alpaca SDK's options method (if available)
-    // For now, we'll make a direct API call via axios
     const response = await alpaca.request({
       method: 'GET',
       url: '/v2/options/contracts',
       params,
     });
 
-    const contracts = response.data || response;
+    // Alpaca answers { option_contracts: [...], next_page_token }.
+    const contracts = response?.option_contracts || response?.data || response || [];
 
     return contracts.map((contract) => ({
       option_symbol: contract.symbol,
@@ -531,7 +498,7 @@ export async function getOptionsChain(alpaca, symbol, options = {}) {
 
 /**
  * Get option contract details (quote + greeks)
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} optionSymbol - Full option symbol (e.g., 'AAPL230120C00150000')
  * @returns {Promise<Object>} Option contract details with quote and greeks
  */
@@ -570,7 +537,7 @@ export async function getOptionContract(alpaca, optionSymbol) {
 
 /**
  * Place an options order
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {Object} orderParams - { optionSymbol, qty, side, orderType, limitPrice?, timeInForce? }
  * @returns {Promise<Object>} Order confirmation
  */
@@ -602,7 +569,6 @@ export async function placeOptionsOrder(alpaca, orderParams) {
       order.limit_price = parseFloat(limitPrice);
     }
 
-    // Submit order via Alpaca SDK
     const response = await alpaca.createOrder(order);
 
     return {
@@ -624,7 +590,7 @@ export async function placeOptionsOrder(alpaca, orderParams) {
 
 /**
  * Get options positions
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @returns {Promise<Array>} List of options positions
  */
 export async function getOptionsPositions(alpaca) {
@@ -738,7 +704,7 @@ export function calculateGreeks(params) {
 
 /**
  * Get list of available expiration dates for a symbol
- * @param {Alpaca} alpaca - Alpaca client instance
+ * @param {ReturnType<typeof createAlpacaRest>} alpaca - Alpaca client
  * @param {string} symbol - Underlying symbol
  * @returns {Promise<Array>} Array of expiration dates (ISO format)
  */

@@ -14,7 +14,7 @@ Stock & Crypto trading integration with Alpaca API for Girru.
 
 The extension auto-installs when enabled in `/dashboard/extensions`.
 
-**Dependencies**: Requires `@alpacahq/alpaca-trade-api` (auto-installed)
+**Dependencies**: None. The Alpaca connection is Girru's own (`src/alpaca-rest.js`, built-in fetch and WebSocket).
 
 ## Configuration
 
