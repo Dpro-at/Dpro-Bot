@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
+const { pathToFileURL } = require('node:url');
 const builderRequire = createRequire(require.resolve('app-builder-lib'));
 
 test('patched packaging dependencies preserve filtering, archives and temporary cleanup', async t => {
@@ -22,10 +23,10 @@ test('patched packaging dependencies preserve filtering, archives and temporary 
   assert.equal(filter(path.join(input, 'src', 'private.txt'), fs.statSync(path.join(input, 'src', 'private.txt'))), false);
   const { glob } = builderRequire('glob');
   assert.deepEqual(await glob('src/**/*.cjs', { cwd: input }), [path.join('src', 'main.cjs')]);
-  const asar = await import(builderRequire.resolve('@electron/asar'));
+  const asar = await import(pathToFileURL(builderRequire.resolve('@electron/asar')).href);
   const archive = path.join(root, 'app.asar');
   await asar.createPackage(input, archive);
-  assert.equal(asar.extractFile(archive, 'src/main.cjs').toString(), 'module.exports = 42;');
+  assert.equal(asar.extractFile(archive, path.join('src', 'main.cjs')).toString(), 'module.exports = 42;');
   const squirrelRequire = createRequire(builderRequire.resolve('electron-builder-squirrel-windows'));
   const installerRequire = createRequire(squirrelRequire.resolve('electron-winstaller'));
   const temp = installerRequire('temp');

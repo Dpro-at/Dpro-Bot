@@ -33,6 +33,27 @@ jobs:
         working-directory: packages/${{ matrix.package }}
         run: npm audit --package-lock-only --audit-level=low
 
+  dependency-graph:
+    name: Resolved dependency graph
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - name: Verify complete lockfile projection
+        run: node --test scripts/dependency-snapshot.test.cjs
+      - name: Submit resolved versions, including npm overrides
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node scripts/dependency-snapshot.cjs > "$RUNNER_TEMP/girru-dependencies.json"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/dependency-graph/snapshots" --input "$RUNNER_TEMP/girru-dependencies.json"
+
   secret-scan:
     name: Secret detection
     runs-on: ubuntu-latest

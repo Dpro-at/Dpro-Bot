@@ -41,6 +41,7 @@ jobs:
           node packages/core-ui/scripts/build.cjs --candidate --live-entry
       - name: Type-check
         run: |
+          node --test scripts/dependency-snapshot.test.cjs
           node packages/core-ui/scripts/typecheck.cjs
           (cd packages/backend && npx tsc --noEmit -p .)
       # Some tests start node with paths relative to their package, so each suite runs from it.
@@ -61,3 +62,22 @@ jobs:
           sudo install -d -m 755 -o "$(id -u)" -g "$(id -g)" /srv/girru /srv/girru/scratch
           export TMPDIR=/srv/girru/scratch
           node --import tsx --import ../../scripts/test-temp-root.mjs --test --test-concurrency=4 --test-timeout=120000 $(ls test/*.test.mjs | grep -v '/lmstudio\.test\.mjs$')
+
+  desktop-portability:
+    name: Desktop portability (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - name: Install packaging dependencies without launching Electron
+        run: npm ci --ignore-scripts --prefix packages/desktop
+      - name: Test packaging, runtime staging and process lifecycle
+        shell: bash
+        run: node --import ./scripts/test-temp-root.mjs --test --test-timeout=90000 packages/desktop/test/build-dependencies.test.cjs packages/desktop/test/stage-nabu.test.cjs packages/desktop/test/lifecycle.test.cjs
