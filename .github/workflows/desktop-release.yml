@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.platform == 'mac-arm64' && '[{"os":"macos-14","platform":"mac-arm64","target":"dist:mac"}]' || inputs.platform == 'mac-x64' && '[{"os":"macos-15-intel","platform":"mac-x64","target":"dist:mac"}]' || inputs.platform == 'win-x64' && '[{"os":"windows-latest","platform":"win-x64","target":"dist:win"}]' || inputs.platform == 'linux-x64' && '[{"os":"ubuntu-22.04","platform":"linux-x64","target":"dist:linux"}]' || '[{"os":"macos-14","platform":"mac-arm64","target":"dist:mac"},{"os":"macos-15-intel","platform":"mac-x64","target":"dist:mac"},{"os":"windows-latest","platform":"win-x64","target":"dist:win"},{"os":"ubuntu-22.04","platform":"linux-x64","target":"dist:linux"}]') }}
+        include: ${{ fromJSON(inputs.platform == 'mac-arm64' && '[{"os":"macos-15","platform":"mac-arm64","target":"dist:mac"}]' || inputs.platform == 'mac-x64' && '[{"os":"macos-15-intel","platform":"mac-x64","target":"dist:mac"}]' || inputs.platform == 'win-x64' && '[{"os":"windows-latest","platform":"win-x64","target":"dist:win"}]' || inputs.platform == 'linux-x64' && '[{"os":"ubuntu-22.04","platform":"linux-x64","target":"dist:linux"}]' || '[{"os":"macos-15","platform":"mac-arm64","target":"dist:mac"},{"os":"macos-15-intel","platform":"mac-x64","target":"dist:mac"},{"os":"windows-latest","platform":"win-x64","target":"dist:win"},{"os":"ubuntu-22.04","platform":"linux-x64","target":"dist:linux"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
