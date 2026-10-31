@@ -49,7 +49,7 @@ function productionPackages(dir) {
   try { out = execFileSync('npm', ['ls', '--omit=dev', '--all', '--parseable'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); } catch (error) { out = error.stdout || ''; }
   const found = new Set(); const real = fs.realpathSync(dir); // npm prints real paths (/private/var for /var)
   for (const line of out.split('\n')) {
-    const rel = path.relative(real, line.trim());
+    const rel = path.relative(real, line.trim()).split(path.sep).join('/');
     const match = rel.match(/^node_modules\/((?:@[^/]+\/)?[^/]+)$/);
     if (match) found.add(`node_modules/${match[1]}`);
   }
