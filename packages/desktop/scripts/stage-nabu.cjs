@@ -44,9 +44,19 @@ function parseArgs(argv) {
 const copy = (from, to) => { fs.mkdirSync(path.dirname(to), { recursive: true }); fs.cpSync(from, to, { recursive: true, verbatimSymlinks: true, mode: fs.constants.COPYFILE_FICLONE }); };
 
 /** Top-level production packages of a package folder, as paths relative to it (node_modules/<name>). */
-function productionPackages(dir) {
+function productionPackages(dir, run = execFileSync, platform = process.platform) {
   let out = '';
-  try { out = execFileSync('npm', ['ls', '--omit=dev', '--all', '--parseable'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); } catch (error) { out = error.stdout || ''; }
+  // npm is a .cmd script on Windows; execFile cannot run it directly. The
+  // shell command is constant: the checkout path is passed only through cwd.
+  const command = platform === 'win32' ? 'cmd.exe' : 'npm';
+  const args = platform === 'win32' ? ['/d', '/s', '/c', 'npm ls --omit=dev --all --parseable'] : ['ls', '--omit=dev', '--all', '--parseable'];
+  try { out = run(command, args, { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); }
+  catch (error) {
+    // npm ls can report an incomplete dependency tree while returning useful
+    // paths. A launch failure must never silently produce an empty runtime.
+    if (!Number.isInteger(error.status) || !error.stdout?.trim()) throw new Error('Cannot list editor runtime dependencies', { cause: error });
+    out = String(error.stdout);
+  }
   const found = new Set(); const real = fs.realpathSync(dir); // npm prints real paths (/private/var for /var)
   for (const line of out.split('\n')) {
     const rel = path.relative(real, line.trim()).split(path.sep).join('/');

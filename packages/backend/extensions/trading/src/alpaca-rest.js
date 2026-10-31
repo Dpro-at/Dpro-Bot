@@ -43,8 +43,10 @@ export function createAlpacaRest({ keyId, secretKey, paper = true, feed = 'iex',
   const headers = { 'APCA-API-KEY-ID': keyId, 'APCA-API-SECRET-KEY': secretKey, Accept: 'application/json' };
 
   async function call(base, method, path, { params, body } = {}) {
+    if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) throw new Error('Alpaca request requires a relative API path');
     const res = await get(`${base}${path}${query(params)}`, {
       method,
+      redirect: 'error',
       headers: body === undefined ? headers : { ...headers, 'Content-Type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(TIMEOUT_MS),

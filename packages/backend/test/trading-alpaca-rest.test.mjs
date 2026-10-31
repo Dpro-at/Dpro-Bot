@@ -9,7 +9,7 @@ import { getAccountInfo, getHistoricalBars, getLatestQuote, getOptionsChain, pla
 function fakeFetch(routes) {
   const calls = [];
   const fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method, headers: init.headers, body: init.body });
+    calls.push({ url: String(url), method: init.method, headers: init.headers, body: init.body, redirect: init.redirect });
     const u = new URL(String(url));
     const answer = routes(u, init);
     const [status, body] = Array.isArray(answer) ? answer : [200, answer];
@@ -24,6 +24,7 @@ test('trading calls go to the paper or live host with the key headers', async ()
   const info = await getAccountInfo(paper);
   assert.equal(info.id, 'acc-1'); assert.equal(info.cash, 10.5);
   assert.equal(calls[0].url, 'https://paper-api.alpaca.markets/v2/account');
+  assert.equal(calls[0].redirect, 'error', 'credentials must never follow a redirect');
   assert.equal(calls[0].headers['APCA-API-KEY-ID'], 'K'); assert.equal(calls[0].headers['APCA-API-SECRET-KEY'], 'S');
   await createAlpacaRest({ keyId: 'K', secretKey: 'S', paper: false, fetch }).getAccount();
   assert.equal(calls[1].url, 'https://api.alpaca.markets/v2/account');
@@ -98,4 +99,14 @@ test('the stream signs in, subscribes, and passes trades and quotes on', () => {
   assert.deepEqual(got, [['t', 'AAPL', 101.5], ['q', 'AAPL', 101, 102], ['e', '402 auth failed']]);
   stream.close();
   assert.equal(s.closed, true);
+});
+
+
+test('generic requests cannot turn an API path into another credential destination', async () => {
+  let requests = 0;
+  const client = createAlpacaRest({ keyId: 'K', secretKey: 'S', fetch: async () => { requests++; throw new Error('must not fetch'); } });
+  for (const url of ['@example.invalid/v2/account', '//example.invalid/v2/account', 'https://example.invalid/v2/account']) {
+    await assert.rejects(client.request({ url }), /relative API path/);
+  }
+  assert.equal(requests, 0);
 });

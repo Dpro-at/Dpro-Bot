@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { createAlpacaRest } from '../extensions/trading/src/alpaca-rest.js';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,29 +29,21 @@ test('patched Fastify plugins serve files and OpenAPI through Fastify 5', async 
   }
 });
 
-test('legacy trading SDK retains request and serialization contracts with patched dependencies', async () => {
-  const require = createRequire(import.meta.url);
-  const sdkRequire = createRequire(require.resolve('@alpacahq/alpaca-trade-api'));
-  const Alpaca = require('@alpacahq/alpaca-trade-api');
-  const axios = sdkRequire('axios');
-  const codec = sdkRequire('msgpack5')();
-  const adapter = axios.defaults.adapter;
+test('trading client retains authenticated paper requests without the legacy SDK', async () => {
   const requests = [];
-  axios.defaults.adapter = async config => {
-    requests.push(config);
-    return { data: { id: 'synthetic-account', cash: '42.00' }, status: 200, statusText: 'OK', headers: {}, config };
-  };
-  try {
-    const client = new Alpaca({ keyId: 'fixture-key', secretKey: 'fixture-secret', paper: true });
-    assert.equal((await client.getAccount()).id, 'synthetic-account');
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].method, 'get');
-    assert.equal(new URL(requests[0].url).pathname, '/v2/account');
-    assert.equal(requests[0].headers.get('APCA-API-KEY-ID'), 'fixture-key');
-    assert.deepEqual(codec.decode(codec.encode({ symbol: 'FIXTURE', price: 42 })), { symbol: 'FIXTURE', price: 42 });
-  } finally {
-    axios.defaults.adapter = adapter;
-  }
+  const client = createAlpacaRest({
+    keyId: 'fixture-key', secretKey: 'fixture-secret', paper: true,
+    fetch: async (url, options) => {
+      requests.push({ url, ...options });
+      return { ok: true, text: async () => JSON.stringify({ id: 'synthetic-account', cash: '42.00' }) };
+    },
+  });
+  assert.equal((await client.getAccount()).id, 'synthetic-account');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].method, 'GET');
+  assert.equal(requests[0].url, 'https://paper-api.alpaca.markets/v2/account');
+  assert.equal(requests[0].headers['APCA-API-KEY-ID'], 'fixture-key');
+  assert.equal(requests[0].headers['APCA-API-SECRET-KEY'], 'fixture-secret');
 });
 
 test('patched mailer generates MIME without sending mail', async () => {
