@@ -101,6 +101,9 @@ export function startAdd(app: string, options: { fetch?: Fetch; restart?: () => 
   return job;
 }
 
+/** A package file path: plain relative segments of letters, digits, '.', '_' and '-' (no absolute paths, no backslashes). */
+const SAFE_PATH = /^[A-Za-z0-9_][A-Za-z0-9._-]*(\/[A-Za-z0-9_][A-Za-z0-9._-]*)*$/;
+
 async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fetch, restart }: { fetch?: Fetch; restart?: () => boolean }) {
   const id = job.app;
   if (!ID.test(id)) throw new Error('unknown app');
@@ -109,7 +112,10 @@ async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fe
   const item = repo.index?.items.find((x) => x.id === `girru:${id}`);
   if (!item || !pkg) throw new Error('it is not in the Girru Store any more');
   if ((await installedApps())[id]?.source === 'private') throw new Error('you have a private app with the same name; remove it in My apps first');
-  // 1. Get every file, checked in memory before anything is written.
+  // 1. The reviewed file list must match its checksum and name only plain relative paths before anything is fetched.
+  if (sha(JSON.stringify(pkg.files)) !== pkg.sha256) throw new Error('the package list does not match its checksum');
+  if (!pkg.files.every((f) => SAFE_PATH.test(f.path) && !f.path.split('/').some((part) => part === '.' || part === '..'))) throw new Error('a file path leaves the app folder');
+  // 2. Get every file, checked in memory against the reviewed size and sha256 before anything is written.
   const files: Array<{ path: string; bytes: Buffer }> = [];
   for (const f of pkg.files) {
     const res = await get(`${storeBase()}/apps/${id}/package/${f.path}`, { signal: AbortSignal.timeout(20_000), headers: { 'User-Agent': 'Girru' } });
@@ -118,13 +124,12 @@ async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fe
     if (bytes.length !== f.size || sha(bytes) !== f.sha256) throw new Error('a file is not what the Girru Store reviewed; try again later');
     files.push({ path: f.path, bytes });
   }
-  // 2. Check it is exactly what was reviewed, and that it is this app.
+  // 3. Check that it is this app.
   job.step = 'checking';
-  if (sha(JSON.stringify(pkg.files)) !== pkg.sha256) throw new Error('the package list does not match its checksum');
   const plugin = JSON.parse(files.find((f) => f.path === 'agentplayer.plugin.json')!.bytes.toString('utf8')) as { id?: unknown; version?: unknown; main?: unknown };
   if (plugin.id !== id || plugin.version !== item.version || typeof plugin.main !== 'string' || !files.some((f) => f.path === plugin.main)) throw new Error('the package is not this app');
   const tables = appTables(id, files.filter((f) => f.path.startsWith('migrations/') && f.path.endsWith('.sql')).map((f) => f.bytes.toString('utf8')));
-  // 3. Set it up in the data folder: a new folder, then one rename.
+  // 4. Set it up in the data folder: a new folder, then one rename.
   job.step = 'setting-up';
   const root = installedAppsRoot();
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -155,7 +160,7 @@ async function add(job: AddJob, { fetch: get = globalThis.fetch as unknown as Fe
   } finally {
     fs.rmSync(incoming, { recursive: true, force: true });
   }
-  // 4. Turn it on; its page and tools load when Girru starts again.
+  // 5. Turn it on; its page and tools load when Girru starts again.
   job.step = 'adding';
   const db = await sql(); ensureSettings(db);
   db.prepare(`INSERT INTO extension_configs (extension_id, enabled, updated_at) VALUES (?, 1, datetime('now')) ON CONFLICT(extension_id) DO UPDATE SET enabled = 1, updated_at = datetime('now')`).run(id);

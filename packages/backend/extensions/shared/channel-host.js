@@ -135,23 +135,30 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
     void refresh().catch(() => {});
   });
   fastify.addHook('onClose', stop);
+  // Every route reads the database or checks the caller, so each one has a limit
+  // (CodeQL js/missing-rate-limiting). The app registers @fastify/rate-limit with
+  // global: false; only routes with config.rateLimit are counted. Callers come
+  // through the same-origin bridge (127.0.0.1), so one bucket per channel and route.
+  const limit = (route, max) => ({ config: { rateLimit: { max, timeWindow: '1 minute',
+    keyGenerator: request => `channel-${id}-${route}:${request.ip}`,
+    errorResponseBuilder: () => ({ statusCode: 429, error: 'Too many requests', code: 'rate_limited', message: 'Too many channel requests. Please try again in a minute.' }) } } });
   fastify.addHook('preHandler', async (request, reply) => {
     try { api.authorizeChannelRequest(request); }
     catch { return reply.code(403).send({ error: 'Channel administration requires an active owner or admin account' }); }
   });
-  fastify.get('/status', async () => {
+  fastify.get('/status', limit('status', 120), async () => {
     const stats = db.prepare(`SELECT COUNT(*) AS total, SUM(direction = 'incoming') AS incoming,
       SUM(direction = 'outgoing') AS outgoing, SUM(state = 'failed') AS failed FROM channel_events WHERE channel = ?`).get(id);
     return { configured: configured(read()), connected: active() && connector?.state === 'connected',
       state: connector?.state || 'disconnected', enabled: active(),
       stats: { total: stats.total || 0, totalMessages: stats.total || 0, incoming: stats.incoming || 0, outgoing: stats.outgoing || 0, failed: stats.failed || 0 } };
   });
-  fastify.get('/config', async () => {
+  fastify.get('/config', limit('config-read', 120), async () => {
     if (options.redactConfig) return options.redactConfig(read());
     const { bot_token, ...config } = read();
     return { config, hasToken: Boolean(bot_token) };
   });
-  fastify.put('/config', async (request, reply) => {
+  fastify.put('/config', limit('config-write', 30), async (request, reply) => {
     const input = request.body?.config || request.body;
     if (!input || typeof input !== 'object' || Array.isArray(input)) return reply.code(400).send({ error: 'Invalid channel configuration' });
     const current = read();
@@ -172,13 +179,13 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
     void refresh().catch(() => {});
     return { success: true, message: 'Settings saved. Connection will update in the background.' };
   });
-  fastify.post('/connect', async (_request, reply) => {
+  fastify.post('/connect', limit('connect', 20), async (_request, reply) => {
     if (!active() || !configured(read())) return reply.code(409).send({ error: 'Enable and configure the extension first' });
     fingerprint = '';
     try { await refresh(); return { success: connector?.state === 'connected' }; }
     catch { return reply.code(502).send({ error: 'Provider connection failed. Check credentials and provider settings.' }); }
   });
-  fastify.post('/send', async (request, reply) => {
+  fastify.post('/send', limit('send', 60), async (request, reply) => {
     const destination = id === 'telegram' ? request.body?.chatId : request.body?.channelId;
     const text = id === 'telegram' ? request.body?.text : request.body?.content;
     if (typeof destination !== 'string' || typeof text !== 'string' || !text.trim()
@@ -186,12 +193,12 @@ export async function registerChannelRoutes(fastify, api, id, options = {}) {
     try { const delivery = await send(destination, text); return { success: true, messageId: delivery.id }; }
     catch { return reply.code(502).send({ error: 'Message was not delivered. Check the channel connection.' }); }
   });
-  fastify.get('/messages', async request => {
+  fastify.get('/messages', limit('messages', 120), async request => {
     const limit = Math.max(1, Math.min(100, Number(request.query?.limit) || 20));
     const rows = db.prepare('SELECT * FROM channel_events WHERE channel = ? ORDER BY timestamp DESC LIMIT ?').all(id, Math.floor(limit));
     return { messages: rows.map(row => ({ ...row, chat_id: row.conversation_id, channel_id: row.conversation_id,
       text: row.content, from_username: row.sender_name, author_username: row.sender_name })) };
   });
   // Provider-authenticated polling/Gateway replaces unauthenticated legacy webhook ingestion.
-  fastify.post('/webhook', async (_request, reply) => reply.code(410).send({ error: 'This channel uses a persistent provider connection' }));
+  fastify.post('/webhook', limit('webhook', 30), async (_request, reply) => reply.code(410).send({ error: 'This channel uses a persistent provider connection' }));
 }
